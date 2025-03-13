@@ -219,9 +219,15 @@
           const file = fileInput.files[0];
           if (file.type.startsWith("image/")) {
             // Firebase Storageに画像をアップロード
-            const storageRef = storageRef(storage, 'images/' + file.name);
-            await uploadBytes(storageRef, file);
-            imageData = await getDownloadURL(storageRef);
+            const imageRef = storageRef(storage, 'images/' + file.name);
+            try {
+              await uploadBytes(imageRef, file);
+              imageData = await getDownloadURL(imageRef);
+            } catch (error) {
+              console.error("画像のアップロードまたはURL取得エラー:", error);
+              alert("画像の送信に失敗しました。");
+              return; // 送信処理を中断
+            }
           }
           fileInput.value = ""; // 画像送信後、リセット
         }
