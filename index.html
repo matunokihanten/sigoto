@@ -14,6 +14,18 @@
       margin: 0;
       padding: 0;
     }
+    body.dark-mode {
+      background-color: #333;
+      color: #eee;
+    }
+    #controls, #inputArea {
+      width: 90%;
+      margin: 10px auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
     #chatContainer {
       width: 90%;
       height: 60vh;
@@ -23,10 +35,32 @@
       overflow-y: scroll;
       background-color: #f9f9f9;
     }
+    body.dark-mode #chatContainer {
+      background-color: #555;
+    }
     .chatMessage {
       padding: 5px;
       margin-bottom: 5px;
       border-bottom: 1px solid #ccc;
+    }
+    .chatHeader {
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+    .replyBlock {
+      background-color: rgba(0, 0, 0, 0.05);
+      padding: 3px;
+      margin: 5px 0;
+      border-left: 3px solid #aaa;
+      font-style: italic;
+      font-size: 0.85em;
+    }
+    #replyInfo {
+      width: 90%;
+      margin: 0 auto;
+      font-size: 0.9em;
+      color: #666;
+      display: none;
     }
   </style>
 </head>
@@ -35,66 +69,134 @@
     <h1>リアルタイムチャット</h1>
   </header>
 
+  <div id="controls">
+    <input type="text" id="nameInput" placeholder="名前 (空の場合は『名無し』)">
+    <label>文字色：<input type="color" id="colorInput" value="#000000"></label>
+    <label>画像：<input type="file" id="fileInput" accept="image/*"></label>
+    <button id="darkModeToggle">ダークモード切替</button>
+    <button id="clearChat">チャットクリア</button>
+  </div>
+
+  <div id="replyInfo"></div>
   <div id="chatContainer"></div>
-  <input type="text" id="nameInput" placeholder="名前 (空の場合は『名無し』)">
-  <input type="text" id="textInput" placeholder="メッセージを入力">
-  <button id="sendButton">送信</button>
+  <div id="inputArea">
+    <input type="text" id="textInput" placeholder="メッセージを入力" style="flex:1;">
+    <button id="sendButton">送信</button>
+  </div>
 
   <script>
-    // Firebase設定
+    // Firebaseの設定を自分のプロジェクトに合わせて更新してください
     const firebaseConfig = {
-      apiKey: "AIzaSyCluZ07gfC31CH5njxq_inel53KOvV6jG8",
-      authDomain: "chat-c59bf.firebaseapp.com",
-      databaseURL: "https://chat-c59bf-default-rtdb.firebaseio.com",
-      projectId: "chat-c59bf",
-      storageBucket: "chat-c59bf.appspot.com",
-      messagingSenderId: "383217078378",
-      appId: "1:383217078378:web:3b90e80e25f7351d6bba13"
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      databaseURL: "YOUR_DATABASE_URL",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
-
-    // Firebase初期化
     firebase.initializeApp(firebaseConfig);
-
     const db = firebase.database();
     const chatRef = db.ref("chat");
 
-    // DOMエレメント
-    const chatContainer = document.getElementById("chatContainer");
-    const textInput = document.getElementById("textInput");
-    const nameInput = document.getElementById("nameInput");
-    const sendButton = document.getElementById("sendButton");
+    const chatContainer = document.getElementById('chatContainer');
+    const textInput = document.getElementById('textInput');
+    const nameInput = document.getElementById('nameInput');
+    const sendButton = document.getElementById('sendButton');
+    const fileInput = document.getElementById('fileInput');
+    const colorInput = document.getElementById('colorInput');
+    const replyInfo = document.getElementById('replyInfo');
+    const clearChatButton = document.getElementById('clearChat');
+    const darkModeToggle = document.getElementById('darkModeToggle');
 
-    // メッセージを送信
-    sendButton.addEventListener("click", function() {
+    let currentReply = null; // 返信対象を保持
+
+    // チャットメッセージを表示する関数
+    function displayMessage(data) {
+      const { name, color, time, message, image, reply } = data;
+
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("chatMessage");
+      messageDiv.style.color = color;
+
+      const headerDiv = document.createElement("div");
+      headerDiv.classList.add("chatHeader");
+      headerDiv.textContent = `${name} - ${time}`;
+      messageDiv.appendChild(headerDiv);
+
+      if (reply) {
+        const replyBlock = document.createElement("div");
+        replyBlock.classList.add("replyBlock");
+        replyBlock.innerHTML = `<small>返信先: ${reply.name} : ${reply.content}</small>`;
+        messageDiv.appendChild(replyBlock);
+      }
+
+      const contentDiv = document.createElement("div");
+      contentDiv.textContent = message;
+      messageDiv.appendChild(contentDiv);
+
+      if (image) {
+        const img = document.createElement("img");
+        img.style.maxWidth = "200px";
+        img.src = image;
+        messageDiv.appendChild(img);
+      }
+
+      messageDiv.addEventListener('click', function() {
+        currentReply = { name, content: message };
+        replyInfo.textContent = `返信対象: ${currentReply.name} : ${currentReply.content}`;
+        replyInfo.style.display = "block";
+      });
+
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    chatRef.on('child_added', function(snapshot) {
+      const data = snapshot.val();
+      displayMessage(data);
+    });
+
+    sendButton.addEventListener('click', function() {
       const name = nameInput.value.trim() || "名無し";
       const message = textInput.value.trim();
       const timestamp = new Date().toLocaleString();
+      const color = colorInput.value;
+      let imageData = null;
 
-      if (message === "") {
-        alert("メッセージを入力してください");
-        return;
+      if (!message && !fileInput.files.length) return;
+
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          imageData = e.target.result;
+          pushMessage(name, message, timestamp, color, imageData, currentReply);
+        };
+        reader.readAsDataURL(file);
+        fileInput.value = "";
+      } else {
+        pushMessage(name, message, timestamp, color, null, currentReply);
       }
 
-      chatRef.push({
-        name: name,
-        message: message,
-        time: timestamp
-      });
-
-      textInput.value = ""; // 入力欄をクリア
+      textInput.value = "";
+      replyInfo.style.display = "none";
+      currentReply = null;
     });
 
-    // メッセージのリアルタイム受信
-    chatRef.on("child_added", function(snapshot) {
-      const data = snapshot.val();
-      const messageDiv = document.createElement("div");
-      messageDiv.classList.add("chatMessage");
-      messageDiv.textContent = `${data.time} | ${data.name}: ${data.message}`;
-      chatContainer.appendChild(messageDiv);
+    function pushMessage(name, message, timestamp, color, image, reply) {
+      chatRef.push({ name, message, time: timestamp, color, image, reply });
+    }
 
-      // 最新メッセージにスクロール
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+    clearChatButton.addEventListener('click', function() {
+      chatRef.remove();
+      chatContainer.innerHTML = "";
     });
+
+    darkModeToggle.addEventListener('click', function() {
+      document.body.classList.toggle("dark-mode");
+    });
+
   </script>
 </body>
 </html>
