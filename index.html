@@ -120,7 +120,7 @@
     // Import the functions you need from the SDKs you need
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
     import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
-    import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js";
+    import { getDatabase, ref, push, onValue, set } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js";
     import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-storage.js";
 
     // Your web app's Firebase configuration
@@ -219,7 +219,7 @@
           const file = fileInput.files[0];
           if (file.type.startsWith("image/")) {
             // Firebase Storageに画像をアップロード
-            const storageRef = ref(storage, 'images/' + file.name);
+            const storageRef = storageRef(storage, 'images/' + file.name);
             await uploadBytes(storageRef, file);
             imageData = await getDownloadURL(storageRef);
           }
@@ -236,11 +236,17 @@
         };
 
         // Firebase Realtime Databaseにメッセージを送信
-        push(ref(db, 'messages'), messageData);
-
-        textInput.value = "";         // 入力欄をクリア
-        currentReply = null;
-        replyInfo.style.display = "none";  // 返信対象情報を非表示に
+        push(ref(db, 'messages'), messageData)
+        .then(() => {
+          console.log('メッセージが正常に送信されました。');
+          textInput.value = "";         // 入力欄をクリア
+          currentReply = null;
+          replyInfo.style.display = "none";  // 返信対象情報を非表示に
+        })
+        .catch((error) => {
+          console.error('メッセージの送信エラー:', error);
+          alert('メッセージの送信に失敗しました。');
+        });
       }
 
       // チャット履歴をクリアする処理
