@@ -116,7 +116,31 @@
     <button id="sendButton">送信</button>
   </div>
 
-  <script>
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
+    import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-database.js";
+    import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-storage.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqtwQppy6UoVNoqV8qKbYz5GWpgnJf-9Q",
+      authDomain: "chat2-dd402.firebaseapp.com",
+      databaseURL: "https://chat2-dd402-default-rtdb.firebaseio.com",
+      projectId: "chat2-dd402",
+      storageBucket: "chat2-dd402.firebasestorage.app",
+      messagingSenderId: "1082406169734",
+      appId: "1:1082406169734:web:9ddc3a64cc61f97c573507",
+      measurementId: "G-JCGDJG3FEF"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    const db = getDatabase(app);
+    const storage = getStorage(app);
+
     document.addEventListener('DOMContentLoaded', function() {
       const chatContainer = document.getElementById('chatContainer');
       const textInput = document.getElementById('textInput');
@@ -128,17 +152,7 @@
       const replyInfo = document.getElementById('replyInfo');
       const darkModeToggle = document.getElementById('darkModeToggle');
 
-      let chatHistory = []; // メモリ内のチャット履歴
       let currentReply = null; // 現在の返信対象（返信先）
-
-      // ローカルストレージからチャット履歴を復元する関数
-      function loadChatHistory() {
-        const savedHistory = localStorage.getItem('chatHistory');
-        if (savedHistory) {
-          chatHistory = JSON.parse(savedHistory);
-          chatHistory.forEach(item => displayMessage(item));
-        }
-      }
 
       // メッセージを画面に表示する関数
       function displayMessage(data) {
@@ -191,7 +205,7 @@
       }
 
       // 新しいメッセージを送信する関数
-      function sendMessage() {
+      async function sendMessage() {
         const messageText = textInput.value.trim();
         const userName = nameInput.value.trim() || "名無し";
         const messageColor = colorInput.value;
@@ -204,7 +218,10 @@
         if (fileInput.files.length > 0) {
           const file = fileInput.files[0];
           if (file.type.startsWith("image/")) {
-            imageData = URL.createObjectURL(file);
+            // Firebase Storageに画像をアップロード
+            const storageRef = ref(storage, 'images/' + file.name);
+            await uploadBytes(storageRef, file);
+            imageData = await getDownloadURL(storageRef);
           }
           fileInput.value = ""; // 画像送信後、リセット
         }
@@ -218,9 +235,8 @@
           reply: currentReply  // 返信対象（ある場合）
         };
 
-        chatHistory.push(messageData); // 履歴に追加
-        localStorage.setItem('chatHistory', JSON.stringify(chatHistory)); // ローカルストレージに保存
-        displayMessage(messageData);
+        // Firebase Realtime Databaseにメッセージを送信
+        push(ref(db, 'messages'), messageData);
 
         textInput.value = "";         // 入力欄をクリア
         currentReply = null;
@@ -229,9 +245,8 @@
 
       // チャット履歴をクリアする処理
       clearChatButton.addEventListener('click', function() {
-        chatContainer.innerHTML = "";
-        chatHistory = [];
-        localStorage.removeItem('chatHistory'); // ローカルストレージも削除
+        // Firebase Realtime Databaseからメッセージを削除
+        set(ref(db, 'messages'), null);
       });
 
       // ダークモード切替処理
@@ -245,33 +260,16 @@
         if (e.key === "Enter") sendMessage();
       });
 
-      // ページロード時にチャット履歴を復元
-      loadChatHistory();
+      // Firebase Realtime Databaseからメッセージを受信する
+      onValue(ref(db, 'messages'), (snapshot) => {
+        chatContainer.innerHTML = ""; // 画面をクリア
+        const data = snapshot.val();
+        if (data) {
+          // オブジェクトを配列に変換して表示
+          Object.values(data).forEach(message => displayMessage(message));
+        }
+      });
     });
   </script>
 </body>
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.4.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
-
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyBqtwQppy6UoVNoqV8qKbYz5GWpgnJf-9Q",
-    authDomain: "chat2-dd402.firebaseapp.com",
-    databaseURL: "https://chat2-dd402-default-rtdb.firebaseio.com",
-    projectId: "chat2-dd402",
-    storageBucket: "chat2-dd402.firebasestorage.app",
-    messagingSenderId: "1082406169734",
-    appId: "1:1082406169734:web:9ddc3a64cc61f97c573507",
-    measurementId: "G-JCGDJG3FEF"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
 </html>
