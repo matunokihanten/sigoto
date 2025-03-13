@@ -1,5 +1,108 @@
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>リアルタイムチャット</title>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+    body.dark-mode {
+      background-color: #333;
+      color: #eee;
+    }
+    #controls, #inputArea {
+      width: 90%;
+      margin: 10px auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    #chatContainer {
+      width: 90%;
+      height: 60vh;
+      border: 1px solid #ccc;
+      margin: 10px auto;
+      padding: 10px;
+      overflow-y: scroll;
+      background-color: #f9f9f9;
+    }
+    body.dark-mode #chatContainer {
+      background-color: #555;
+    }
+    .chatMessage {
+      padding: 5px;
+      margin-bottom: 5px;
+      border-bottom: 1px solid #ccc;
+      cursor: pointer;
+    }
+    .chatMessage:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    .chatHeader {
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+    .replyBlock {
+      background-color: rgba(0, 0, 0, 0.05);
+      padding: 3px;
+      margin: 5px 0;
+      border-left: 3px solid #aaa;
+      font-style: italic;
+      font-size: 0.85em;
+    }
+    #replyInfo {
+      width: 90%;
+      margin: 0 auto;
+      font-size: 0.9em;
+      color: #666;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>リアルタイムチャット</h1>
+  </header>
+
+  <div id="controls">
+    <input type="text" id="nameInput" placeholder="名前 (空の場合は『名無し』)">
+    <label>文字色：<input type="color" id="colorInput" value="#000000"></label>
+    <label>画像：<input type="file" id="fileInput" accept="image/*"></label>
+    <button id="darkModeToggle">ダークモード切替</button>
+    <button id="clearChat">チャットクリア</button>
+  </div>
+
+  <div id="replyInfo"></div>
+  <div id="chatContainer"></div>
+  <div id="inputArea">
+    <input type="text" id="textInput" placeholder="メッセージを入力" style="flex:1;">
+    <button id="sendButton">送信</button>
+  </div>
+
+  <script>
+    // Firebase 設定を自分のプロジェクトに合わせて更新してください
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      databaseURL: "YOUR_DATABASE_URL",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const chatRef = db.ref("chat");
+
     const chatContainer = document.getElementById('chatContainer');
     const textInput = document.getElementById('textInput');
     const sendButton = document.getElementById('sendButton');
@@ -10,10 +113,8 @@
     const clearChatButton = document.getElementById('clearChat');
     const darkModeToggle = document.getElementById('darkModeToggle');
 
-    let chatHistory = []; // チャット履歴
-    let currentReply = null; // 返信対象情報
+    let currentReply = null; // 返信対象
 
-    // メッセージ表示関数
     function displayMessage(data) {
       const { name, color, time, message, image, reply } = data;
 
@@ -26,7 +127,6 @@
       headerDiv.textContent = `${name} - ${time}`;
       messageDiv.appendChild(headerDiv);
 
-      // 返信情報
       if (reply) {
         const replyBlock = document.createElement("div");
         replyBlock.classList.add("replyBlock");
@@ -38,7 +138,6 @@
       contentDiv.textContent = message;
       messageDiv.appendChild(contentDiv);
 
-      // 画像がある場合
       if (image) {
         const img = document.createElement("img");
         img.style.maxWidth = "200px";
@@ -47,11 +146,10 @@
         messageDiv.appendChild(img);
       }
 
-      // 返信機能を設定
       messageDiv.addEventListener('click', function() {
         currentReply = {
           name: name,
-          content: message.length > 20 ? message.substring(0, 20) + "..." : message,
+          content: message.length > 20 ? message.substring(0, 20) + "..." : message
         };
         replyInfo.textContent = `返信対象: ${currentReply.name} : ${currentReply.content}`;
         replyInfo.style.display = "block";
@@ -63,10 +161,12 @@
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    // メッセージ送信処理
-    function sendMessage(event) {
-      event.preventDefault(); // デフォルトのフォーム送信を防止
+    chatRef.on('child_added', function(snapshot) {
+      const data = snapshot.val();
+      displayMessage(data);
+    });
 
+    function sendMessage() {
       const messageText = textInput.value.trim();
       const userName = nameInput.value.trim() || "名無し";
       const messageColor = colorInput.value;
@@ -74,20 +174,18 @@
 
       if (!messageText && !fileInput.files.length) return;
 
-      let imageData = null;
       if (fileInput.files.length > 0) {
         const file = fileInput.files[0];
         if (file.type.startsWith("image/")) {
           const reader = new FileReader();
           reader.onload = function(e) {
-            imageData = e.target.result;
-            pushMessage(userName, messageColor, timestamp, messageText, imageData);
+            pushMessage(userName, messageColor, timestamp, messageText, e.target.result, currentReply);
           };
           reader.readAsDataURL(file);
         }
-        fileInput.value = ""; // リセット
+        fileInput.value = "";
       } else {
-        pushMessage(userName, messageColor, timestamp, messageText, null);
+        pushMessage(userName, messageColor, timestamp, messageText, null, currentReply);
       }
 
       textInput.value = "";
@@ -95,36 +193,23 @@
       replyInfo.style.display = "none";
     }
 
-    // メッセージを履歴と画面に追加
-    function pushMessage(userName, messageColor, timestamp, messageText, imageData) {
+    function pushMessage(userName, messageColor, timestamp, messageText, imageData, replyObj) {
       const messageData = {
         name: userName,
         color: messageColor,
         time: timestamp,
         message: messageText,
         image: imageData,
-        reply: currentReply || null,
+        reply: replyObj || null
       };
-      chatHistory.push(messageData);
-      displayMessage(messageData);
+      chatRef.push(messageData);
     }
 
-    // タッチイベントの追加
     sendButton.addEventListener('click', sendMessage);
-    sendButton.addEventListener('touchstart', sendMessage); // タッチイベントに対応
     textInput.addEventListener('keydown', function(e) {
-      if (e.key === "Enter") sendMessage(e);
+      if (e.key === "Enter") sendMessage();
     });
 
-    // チャットクリア
     clearChatButton.addEventListener('click', function() {
-      chatContainer.innerHTML = "";
-      chatHistory = [];
-    });
-
-    // ダークモード切替
-    darkModeToggle.addEventListener('click', function() {
-      document.body.classList.toggle("dark-mode");
-    });
-  });
-</script>
+      chatRef.remove();
+      chatContainer.innerHTML
