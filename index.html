@@ -1,19 +1,100 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>赤い球の動き</title>
-    <style>
-        canvas {
-            display: block;
-            margin: 0 auto;
-            background-color: #000;
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    const chatContainer = document.getElementById('chatContainer');
+    const textInput = document.getElementById('textInput');
+    const nameInput = document.getElementById('nameInput');
+    const fileInput = document.getElementById('fileInput');
+    const colorInput = document.getElementById('colorInput');
+    const clearChatButton = document.getElementById('clearChat');
+    const sendButton = document.getElementById('sendButton');
+
+    let chatHistory = []; // メモリ内のチャット履歴（ローカルストレージ用）
+
+    // ローカルストレージからチャット履歴を復元
+    function loadChatHistory() {
+      const savedHistory = localStorage.getItem('chatHistory');
+      if (savedHistory) {
+        chatHistory = JSON.parse(savedHistory);
+        chatHistory.forEach(item => displayMessage(item));
+      }
+    }
+
+    // メッセージを表示
+    function displayMessage(data) {
+      const {name, color, time, message, image} = data;
+
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("chatMessage");
+      messageDiv.style.color = color;
+      
+      const headerDiv = document.createElement("div");
+      headerDiv.classList.add("chatHeader");
+      headerDiv.textContent = `${name} - ${time}`;
+      messageDiv.appendChild(headerDiv);
+      
+      const contentDiv = document.createElement("div");
+      contentDiv.textContent = message;
+      messageDiv.appendChild(contentDiv);
+      
+      if (image) {
+        const img = document.createElement("img");
+        img.style.maxWidth = "200px";
+        img.style.marginTop = "5px";
+        img.src = image;
+        messageDiv.appendChild(img);
+      }
+      
+      chatContainer.appendChild(messageDiv);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    // 新しいメッセージを送信
+    function sendMessage() {
+      const messageText = textInput.value.trim();
+      const userName = nameInput.value.trim() || "名無し";
+      const messageColor = colorInput.value;
+      const timestamp = new Date().toLocaleString();
+      
+      if (!messageText && !fileInput.files.length) return;
+
+      let imageData = null;
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        if (file.type.startsWith("image/")) {
+          imageData = URL.createObjectURL(file);
         }
-    </style>
-</head>
-<body>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <script src="script.js"></script>
-</body>
-</html>
+        fileInput.value = ""; // リセット
+      }
+
+      const messageData = {
+        name: userName,
+        color: messageColor,
+        time: timestamp,
+        message: messageText,
+        image: imageData
+      };
+      
+      chatHistory.push(messageData); // メモリに追加
+      localStorage.setItem('chatHistory', JSON.stringify(chatHistory)); // ローカルストレージに保存
+      displayMessage(messageData);
+
+      textInput.value = ""; // 入力欄をクリア
+    }
+
+    // チャット履歴を削除
+    clearChatButton.addEventListener('click', function() {
+      chatContainer.innerHTML = "";
+      chatHistory = [];
+      localStorage.removeItem('chatHistory');
+    });
+
+    // メッセージ送信
+    sendButton.addEventListener('click', sendMessage);
+    textInput.addEventListener('keydown', function(e){
+      if (e.key === "Enter") sendMessage();
+    });
+
+    // ページロード時にチャット履歴を復元
+    loadChatHistory();
+  });
+</script>
