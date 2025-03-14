@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マインドマップ掲示板（拡張版）</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f9f9f9; transition: background 0.3s, color 0.3s; }
+    h1 { text-align: center; }
+    #postForm, #controls { margin-bottom: 20px; }
+    #postForm textarea, #postForm input[type="text"], #controls input[type="text"] { width: 100%; padding: 10px; margin-bottom: 5px; font-size: 16px; }
+    #postForm button, #controls button { padding: 8px 10px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 5px; }
+    #map { position: relative; transform-origin: top left; transition: transform 0.3s; min-height: 200px; }
+    .node { border: 1px solid #ddd; padding: 10px; margin: 10px; border-radius: 5px; position: relative; cursor: move; transition: background-color 0.3s, border-color 0.3s; max-width: 90%; }
+    .favorite { border-color: gold; }
+    .child { margin-left: 40px; border-left: 2px solid #ddd; padding-left: 10px; }
+    .timestamp { font-size: 0.8em; color: gray; margin-top: 5px; }
+    .replyForm { margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 5px; }
+    .dark-mode { background-color: #333; color: #eee; }
+    .dark-mode .node { background-color: #444; border-color: #888; }
+    .dark-mode input, .dark-mode textarea, .dark-mode button { background-color: #555; color: #eee; border-color: #666; }
+    #instructions { margin-bottom: 20px; padding: 10px; background-color: #e7f3fe; border-left: 6px solid #2196F3; }
+  </style>
+</head>
+<body>
+  <h1>マインドマップ掲示板（拡張版）</h1>
+  <div id="instructions">
+    <h2>使い方と説明</h2>
+    <p>この掲示板は、マインドマップのような形式で投稿を表示することができる掲示板です。</p>
+  </div>
+  <form id="postForm">
+    <textarea id="postInput" placeholder="新規投稿を入力" required></textarea><br>
+    <input type="text" id="tagInput" placeholder="タグ (オプション)"><br>
+    <button type="submit">投稿</button>
+  </form>
+  <div id="controls">
+    <input type="text" id="searchInput" placeholder="検索...">
+    <button id="sortButton">ソート</button>
+    ズーム: <input type="range" id="zoomSlider" min="10" max="200" value="100">%
+    <button id="toggleFavoritesButton">お気に入り</button>
+    <button id="toggleDarkMode">ダークモード</button>
+    <button id="toggleAllButton">折りたたみ</button>
+    <button id="printButton">印刷</button>
+    <button id="saveButton">保存</button>
+    <input type="file" id="loadFile" accept=".json" style="display: none;">
+    <button id="loadButton">読み込み</button>
+  </div>
+  <div id="favoritesContainer" style="display: none;">
+    <h3>お気に入り投稿</h3>
+    <ul id="favoritesList"></ul>
+  </div>
+  <div id="map"></div>
+  <script>
+    let posts = [];
+    const getRandomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padEnd(6, '0');
+    const generateId = () => 'id-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const formatTimestamp = ts => new Date(ts).toLocaleString();
+    const savePostsToStorage = () => localStorage.setItem('mindmapPosts', JSON.stringify(posts));
+    const loadPostsFromStorage = () => JSON.parse(localStorage.getItem('mindmapPosts') || '[]');
+
+    const movePostToTarget = (draggedId, targetId, arr) => {
+      let draggedPost = null;
+      const removeNode = (id, arr) => arr.some((post, i) => post.id === id ? (draggedPost = arr.splice(i, 1)[0], true) : post.children && removeNode(id, post.children));
+      const findNode = (id, arr) => arr.reduce((found, post) => found || post.id === id ? post : findNode(id, post.children || []), null);
+      removeNode(draggedId, arr);
+      const targetNode = findNode(targetId, arr);
+      targetNode ? (targetNode.children = targetNode.children || []).push(draggedPost) : posts.push(draggedPost);
+    };
+
+    document.getElementById('map').addEventListener('drop', e => {
+      if(e.target.id === 'map') {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        let nodeToMove = null;
+        const removeNode = (id, arr) => arr.some((post, i) => post.id === id ? (nodeToMove = arr.splice(i, 1)[0], true) : post.children && removeNode(id, post.children));
+        removeNode(draggedId, posts);
+        nodeToMove && posts.push(nodeToMove);
+        savePostsToStorage();
+        displayAllPosts();
+        updateFavorites();
+      }
+    });
+
+    const displayPosts = (arr, container) => {
+      container.innerHTML = '';
+      arr.forEach(post => {
+        const nodeDiv = document.createElement('div');
+        nodeDiv.className = 'node';
+        nodeDiv.setAttribute('draggable', 'true');
+        nodeDiv.dataset.id = post.id;
+        nodeDiv.style.backgroundColor = post.color;
+        nodeDiv.innerHTML = `<div>${post.content}</div>${post.tag ? `<span style="font-size: 0.8em; color: #555;"> [${post.tag}]</span>` : ''}<div class="timestamp">${formatTimestamp(post.timestamp)}</div>`;
+        
+        const favButton = document.createElement('button');
+        favButton.textContent = post.favorite ? '★' : '☆';
+        favButton.onclick = () => { post.favorite = !post.favorite; nodeDiv.classList.toggle('favorite', post.favorite); favButton.textContent = post.favorite ? '★' : '☆'; savePostsToStorage(); updateFavorites(); };
+        nodeDiv.appendChild(favButton);
+        nodeDiv.ondblclick = () => { const newContent = prompt('編集内容を入力:', post.content); if(newContent) { post.content = newContent; savePostsToStorage(); displayAllPosts(); }};
+        
+        const colorButton = document.createElement('button');
+        colorButton.textContent = '色';
+        colorButton.onclick = () => { const colorInput = document.createElement('input'); colorInput.type = 'color'; colorInput.value = post.color; colorInput.onchange = () => { post.color = colorInput.value; savePostsToStorage(); displayAllPosts(); }; colorInput.click(); };
+        nodeDiv.appendChild(colorButton);
+        
+        const tagButton = document.createElement('button');
+        tagButton.textContent = 'タグ';
+        tagButton.onclick = () => { const newTag = prompt('タグを入力:', post.tag); if(newTag !== null) { post.tag = newTag; savePostsToStorage(); displayAllPosts(); }};
+        nodeDiv.appendChild(tagButton);
+        
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = '削除';
+        deleteButton.onclick = () => { if(confirm('本当に削除しますか？')) { deletePostById(post.id, posts); savePostsToStorage(); displayAllPosts(); updateFavorites(); } };
+        nodeDiv.appendChild(deleteButton);
+        
+        const replyButton = document.createElement('button');
+        replyButton.textContent = '返信';
+        replyButton.onclick = () => {
+          if(nodeDiv.querySelector('.replyForm')) return;
+          const replyFormDiv = document.createElement('div');
+          replyFormDiv.className = 'replyForm';
+          replyFormDiv.innerHTML = `<textarea placeholder="返信内容を入力"></textarea><button>送信</button><button>キャンセル</button>`;
+          replyFormDiv.querySelector('button:nth-of-type(1)').onclick = async () => {
+            const replyContent = replyFormDiv.querySelector('textarea').value.trim();
+            if(!replyContent) { alert('返信内容を入力してください'); return; }
+            const replyPost = { id: generateId(), content: replyContent, children: [], timestamp: Date.now(), color: getRandomColor(), favorite: false, tag: "" };
+            post.children = post.children || [];
+            post.children.push(replyPost);
+            savePostsToStorage();
+            displayAllPosts();
+            updateFavorites();
+          };
+          replyFormDiv.querySelector('button:nth-of-type(2)').onclick = () => { replyFormDiv.remove(); };
+          nodeDiv.appendChild(replyFormDiv);
+        };
+        nodeDiv.appendChild(replyButton);
+        
+        if(post.children && post.children.length > 0) {
+          const collapseButton = document.createElement('button');
+          collapseButton.textContent = '折';
+          collapseButton.onclick = () => { childContainer.style.display = childContainer.style.display === 'none' ? 'block' : 'none'; collapseButton.textContent = childContainer.style.display === 'none' ? '展' : '折'; };
+          nodeDiv.appendChild(collapseButton);
+          const childContainer = document.createElement('div');
+          childContainer.className = 'child';
+          displayPosts(post.children, childContainer);
+          nodeDiv.appendChild(childContainer);
+        }
+        nodeDiv.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', post.id); e.stopPropagation(); });
+        nodeDiv.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); });
+        nodeDiv.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); const draggedId = e.dataTransfer.getData('text/plain'); if(draggedId !== post.id) { movePostToTarget(draggedId, post.id, posts); savePostsToStorage(); displayAllPosts(); updateFavorites(); }});
+        container.appendChild(nodeDiv);
+      });
+    };
+
+    const deletePostById = (id, arr) => arr.some((post, i) => post.id === id ? (arr.splice(i, 1), true) : post.children && deletePostById(id, post.children));
+    
+    const displayAllPosts = () => displayPosts(posts, document.getElementById('map'));
+    const updateFavorites = () => {
+      const favList = document.getElementById('favoritesList');
+      favList.innerHTML = '';
+      const collectFavorites = (arr, res) => arr.forEach(post => { if(post.favorite) res.push(post); post.children && collectFavorites(post.children, res); });
+      let favs = [];
+      collectFavorites(posts, favs);
+      favs.forEach(fav => {
+        const li = document.createElement('li');
+        li.textContent = fav.content + " (" + formatTimestamp(fav.timestamp) + ")";
+        li.onclick = () => { 
+          document.querySelector(`[data-id="${fav.id}"]`).scrollIntoView({ behavior: "smooth", block: "center" }); 
+        };
+        favList.appendChild(li);
+      });
+    };
+
+    document.getElementById('postForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const content = document.getElementById('postInput').value.trim();
+      const tag = document.getElementById('tagInput').value.trim();
+      if(content) {
+        const newPost = { id: generateId(), content, children: [], timestamp: Date.now(), color: getRandomColor(), favorite: false, tag };
+        posts.push(newPost);
+        savePostsToStorage();
+        displayAllPosts();
+        updateFavorites();
+        document.getElementById('postForm').reset();
+      }
+    });
+
+    document.getElementById('searchInput').addEventListener('input', function() {
+      const keyword = this.value.trim().toLowerCase();
+      const searchAndHighlight = arr => arr.forEach(post => {
+        const elem = document.querySelector(`[data-id="${post.id}"]`);
+        if(elem) {
+          elem.style.borderColor = post.content.toLowerCase().includes(keyword) ? 'red' : '#ddd';
+          post.children && searchAndHighlight(post.children);
+        }
+      });
+      searchAndHighlight(posts);
+    });
+
+    document.getElementById('zoomSlider').addEventListener('input', function() { document.getElementById('map').style.transform = 'scale(' + (this.value / 100) + ')'; });
+    document.getElementById('sortButton').addEventListener('click', () => { posts.sort((a, b) => a.timestamp - b.timestamp); savePostsToStorage(); displayAllPosts(); });
+    document.getElementById('toggleFavoritesButton').addEventListener('click', () => {
+      const favContainer = document.getElementById('favoritesContainer');
+      favContainer.style.display = favContainer.style.display === 'none' || favContainer.style.display === '' ? 'block' : 'none';
+      if(favContainer.style.display === 'block') updateFavorites();
+    });
+
+    document.getElementById('toggleDarkMode').addEventListener('click', () => { document.body.classList.toggle('dark-mode'); });
+    document.getElementById('toggleAllButton').addEventListener('click', () => { document.querySelectorAll('.child').forEach(container => { container.style.display = container.style.display === 'none' || container.style.display === '' ? 'block' : 'none'; }); });
+    document.getElementById('printButton').addEventListener('click', () => { window.print(); });
+
+    document.getElementById('saveButton').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(posts)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'mindmapPosts.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('loadButton').addEventListener('click', () => {
+      document.getElementById('loadFile').click();
+    });
+
+    document.getElementById('loadFile').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          posts = JSON.parse(e.target.result);
+          savePostsToStorage();
+          displayAllPosts();
+          updateFavorites();
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') { document.querySelectorAll('.replyForm').forEach(form => form.remove()); }});
+    posts = loadPostsFromStorage();
+    displayAllPosts();
+    updateFavorites();
+  </script>
+</body>
+</html>
