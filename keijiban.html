@@ -20,6 +20,7 @@
     .dark-mode .node { background-color: #444; border-color: #888; }
     .dark-mode input, .dark-mode textarea, .dark-mode button { background-color: #555; color: #eee; border-color: #666; }
     #instructions { margin-bottom: 20px; padding: 10px; background-color: #e7f3fe; border-left: 6px solid #2196F3; }
+    .highlight { background-color: yellow; }
   </style>
 </head>
 <body>
@@ -50,8 +51,10 @@
     <ul id="favoritesList"></ul>
   </div>
   <div id="map"></div>
+  <div id="tagButtons"></div>
   <script>
     let posts = [];
+    let currentTag = null;
     const getRandomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padEnd(6, '0');
     const generateId = () => 'id-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const formatTimestamp = ts => new Date(ts).toLocaleString();
@@ -81,15 +84,24 @@
       }
     });
 
+    const highlightText = (text, keyword) => {
+      if (!keyword) return text;
+      const regex = new RegExp(keyword, 'gi');
+      return text.replace(regex, '<span class="highlight">$&</span>');
+    };
+
     const displayPosts = (arr, container) => {
       container.innerHTML = '';
       arr.forEach(post => {
+        if (currentTag && post.tag !== currentTag) return;
+
         const nodeDiv = document.createElement('div');
         nodeDiv.className = 'node';
         nodeDiv.setAttribute('draggable', 'true');
         nodeDiv.dataset.id = post.id;
         nodeDiv.style.backgroundColor = post.color;
-        nodeDiv.innerHTML = `<div>${post.content}</div>${post.tag ? `<span style="font-size: 0.8em; color: #555;"> [${post.tag}]</span>` : ''}<div class="timestamp">${formatTimestamp(post.timestamp)}</div>`;
+        let content = highlightText(post.content, document.getElementById('searchInput').value.trim());
+        nodeDiv.innerHTML = `<div>${content}</div>${post.tag ? `<span style="font-size: 0.8em; color: #555;"> [${post.tag}]</span>` : ''}<div class="timestamp">${formatTimestamp(post.timestamp)}</div>`;
         
         const favButton = document.createElement('button');
         favButton.textContent = post.favorite ? '★' : '☆';
@@ -104,12 +116,12 @@
         
         const tagButton = document.createElement('button');
         tagButton.textContent = 'タグ';
-        tagButton.onclick = () => { const newTag = prompt('タグを入力:', post.tag); if(newTag !== null) { post.tag = newTag; savePostsToStorage(); displayAllPosts(); }};
+        tagButton.onclick = () => { const newTag = prompt('タグを入力:', post.tag); if(newTag !== null) { post.tag = newTag; savePostsToStorage(); displayAllPosts(); updateTagButtons(); }};
         nodeDiv.appendChild(tagButton);
         
         const deleteButton = document.createElement('button');
         deleteButton.textContent = '削除';
-        deleteButton.onclick = () => { if(confirm('本当に削除しますか？')) { deletePostById(post.id, posts); savePostsToStorage(); displayAllPosts(); updateFavorites(); } };
+        deleteButton.onclick = () => { if(confirm('本当に削除しますか？')) { deletePostById(post.id, posts); savePostsToStorage(); displayAllPosts(); updateFavorites(); updateTagButtons(); } };
         nodeDiv.appendChild(deleteButton);
         
         const replyButton = document.createElement('button');
@@ -154,6 +166,7 @@
     const deletePostById = (id, arr) => arr.some((post, i) => post.id === id ? (arr.splice(i, 1), true) : post.children && deletePostById(id, post.children));
     
     const displayAllPosts = () => displayPosts(posts, document.getElementById('map'));
+
     const updateFavorites = () => {
       const favList = document.getElementById('favoritesList');
       favList.innerHTML = '';
@@ -180,6 +193,7 @@
         savePostsToStorage();
         displayAllPosts();
         updateFavorites();
+        updateTagButtons();
         document.getElementById('postForm').reset();
       }
     });
@@ -189,7 +203,9 @@
       const searchAndHighlight = arr => arr.forEach(post => {
         const elem = document.querySelector(`[data-id="${post.id}"]`);
         if(elem) {
-          elem.style.borderColor = post.content.toLowerCase().includes(keyword) ? 'red' : '#ddd';
+          const content = post.content;
+          const highlightedContent = highlightText(content, keyword);
+          elem.innerHTML = `<div>${highlightedContent}</div>${post.tag ? `<span style="font-size: 0.8em; color: #555;"> [${post.tag}]</span>` : ''}<div class="timestamp">${formatTimestamp(post.timestamp)}</div>`;
           post.children && searchAndHighlight(post.children);
         }
       });
@@ -231,15 +247,49 @@
           savePostsToStorage();
           displayAllPosts();
           updateFavorites();
+          updateTagButtons();
         };
         reader.readAsText(file);
       }
     });
 
     document.addEventListener('keydown', e => { if(e.key === 'Escape') { document.querySelectorAll('.replyForm').forEach(form => form.remove()); }});
+
+    const updateTagButtons = () => {
+      const tagButtonsDiv = document.getElementById('tagButtons');
+      tagButtonsDiv.innerHTML = '';
+      const tags = new Set();
+
+      // Function to collect tags recursively
+      const collectTags = (arr) => {
+        arr.forEach(post => {
+          if (post.tag) {
+            tags.add(post.tag);
+          }
+          if (post.children) {
+            collectTags(post.children);
+          }
+        });
+      };
+
+      collectTags(posts);
+
+      // Create tag buttons
+      tags.forEach(tag => {
+        const button = document.createElement('button');
+        button.textContent = tag;
+        button.onclick = () => {
+          currentTag = (currentTag === tag) ? null : tag;
+          displayAllPosts();
+        };
+        tagButtonsDiv.appendChild(button);
+      });
+    };
+
     posts = loadPostsFromStorage();
     displayAllPosts();
     updateFavorites();
+    updateTagButtons();
   </script>
 </body>
 </html>
