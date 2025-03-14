@@ -8,8 +8,10 @@
     body{font-family:Arial,sans-serif;text-align:center;margin-top:50px}
     #calculator,#money-counter{display:inline-block;border:1px solid #ccc;padding:20px;border-radius:10px;background:#f9f9f9;width:300px;position:relative}
     #result{width:100%;height:50px;font-size:20px;text-align:right;margin-bottom:5px}
+    #dynamic-result{font-size:16px;color:green;margin-top:5px}
     button{width:60px;height:60px;margin:5px;font-size:18px}
-    table{margin:0 auto;border-collapse:collapse}table td{padding:3px}
+    table{margin:0 auto;border-collapse:collapse}
+    table td{padding:3px}
     #history-panel{position:absolute;top:10px;left:10px;width:280px;background:#fff;border:1px solid #ccc;border-radius:10px;overflow-y:auto;padding:10px;display:none;z-index:10}
     .history-item{cursor:pointer;padding:5px;border-bottom:1px solid #ddd}
     .history-item.selected{background:#f0f0f0}
@@ -20,7 +22,6 @@
 <body>
   <div id="calculator">
     <input type="text" id="result" placeholder="0" disabled>
-    <!-- ボタン配置：テーブルレイアウト -->
     <table>
       <tr>
         <td><button onclick="appendValue('7')">7</button></td>
@@ -48,7 +49,10 @@
       </tr>
       <tr>
         <td><button onclick="clearResult()">C</button></td>
-        <td><button onclick="toggleHistory()">履歴</button></td>
+        <td>
+          <button onclick="toggleHistory()">履歴</button>
+          <div id="dynamic-result"></div>
+        </td>
         <td><button onclick="clearAllHistory()">全削除</button></td>
         <td></td>
       </tr>
@@ -60,7 +64,7 @@
     </div>
   </div>
 
-  <!-- お金の数え機能など以下のコードは変更していません -->
+  <!-- (お金の数え機能以下は変更していません) -->
   <div id="money-counter" style="margin-top:20px;display:inline-block;border:1px solid #ccc;padding:20px;border-radius:10px;background:#f9f9f9;width:300px;">
     <h3>お金の数え機能</h3>
     <table style="margin:0 auto;">
@@ -86,70 +90,61 @@
           historyPanel = document.getElementById('history-panel');
     let totalSum = 0;
     function appendValue(v){
-      resultField.value = (resultField.value === '0' || resultField.value === 'エラー') ? v : resultField.value + v;
+      resultField.value=(resultField.value==='0'||resultField.value==='エラー')?v:resultField.value+v;
       dynamicCalculate();
     }
     function clearResult(){
-      const items = document.querySelectorAll('.history-item.selected');
-      if(items.length){ items.forEach(i => { totalSum -= parseFloat(i.dataset.result) || 0; i.remove(); }); updateTotal();
-      } else resultField.value = '';
+      const items=document.querySelectorAll('.history-item.selected');
+      if(items.length){ items.forEach(i=>{totalSum-=parseFloat(i.dataset.result)||0;i.remove()}); updateTotal();
+      } else resultField.value='';
       dynamicCalculate();
     }
     function calculateResult(){
       try{
-        const expr = resultField.value, res = eval(expr);
-        addHistory(expr,res); totalSum += res; updateTotal();
-        resultField.value = '0'; dynamicCalculate();
-      } catch(e){ resultField.value = 'エラー'; }
+        const expr=resultField.value, res=eval(expr);
+        addHistory(expr,res);
+        totalSum+=res; updateTotal();
+        resultField.value='0'; dynamicCalculate();
+      } catch(e){resultField.value='エラー'}
     }
     function addHistory(expr,res){
-      let i = document.createElement('div');
-      i.textContent = `${expr} = ${res}`;
-      i.className = 'history-item'; i.dataset.result = res;
-      i.onclick = () => i.classList.toggle('selected');
+      let i=document.createElement('div');
+      i.textContent=`${expr} = ${res}`;
+      i.className='history-item';
+      i.dataset.result=res; i.onclick=()=>i.classList.toggle('selected');
       historyContainer.appendChild(i);
     }
-    function updateTotal(){ historyTotal.textContent = `合計: ${totalSum}`; }
-    function toggleHistory(){ historyPanel.style.display = (historyPanel.style.display==='none' ? 'block' : 'none'); }
-    function clearAllHistory(){ historyContainer.innerHTML = ''; totalSum = 0; updateTotal(); }
-    // dynamicCalculate()を修正：答えを入力フィールドに表示（計算式が有効な場合）
+    function updateTotal(){ historyTotal.textContent=`合計: ${totalSum}` }
+    function toggleHistory(){ historyPanel.style.display = (historyPanel.style.display==='none'?'block':'none') }
+    function clearAllHistory(){ historyContainer.innerHTML=''; totalSum=0; updateTotal() }
     function dynamicCalculate(){
       try{
         let res = eval(resultField.value);
-        resultField.value = String(res);
-      } catch(e){}
+        document.getElementById('dynamic-result').textContent = "答え: " + res;
+      } catch(e){ document.getElementById('dynamic-result').textContent = "" }
     }
   </script>
 
   <script>
-    // お金の数え機能用スクリプト（変更なし）
+    // お金の数え機能（変更なし）
     function calculateMoney(){
-      const denoms = [
-        { id: 'count-10000', v: 10000 },
-        { id: 'count-5000',  v: 5000 },
-        { id: 'count-1000',  v: 1000 },
-        { id: 'count-500',   v: 500 },
-        { id: 'count-100',   v: 100 },
-        { id: 'count-50',    v: 50 },
-        { id: 'count-10',    v: 10 },
-        { id: 'count-5',     v: 5 },
-        { id: 'count-1',     v: 1 }
-      ];
-      let total = 0;
-      denoms.forEach(d => { total += (parseInt(document.getElementById(d.id).value) || 0) * d.v; });
+      const denoms=[{id:'count-10000',v:10000},{id:'count-5000',v:5000},{id:'count-1000',v:1000},
+                    {id:'count-500',v:500},{id:'count-100',v:100},{id:'count-50',v:50},
+                    {id:'count-10',v:10},{id:'count-5',v:5},{id:'count-1',v:1}];
+      let total=0;
+      denoms.forEach(d=>{ total += (parseInt(document.getElementById(d.id).value)||0)*d.v });
       document.getElementById('money-total').textContent = "合計金額: " + total + " 円";
     }
-    function clearMoneyFields(){
-      ['count-10000','count-5000','count-1000','count-500','count-100','count-50','count-10','count-5','count-1']
-      .forEach(id => document.getElementById(id).value = "");
-      document.getElementById('money-total').textContent = "合計金額: 0 円";
+    function clearMoneyFields(){ ['count-10000','count-5000','count-1000','count-500','count-100','count-50','count-10','count-5','count-1']
+          .forEach(id=>document.getElementById(id).value="");
+      document.getElementById('money-total').textContent="合計金額: 0 円";
     }
   </script>
   <script>
-    // お金の数え機能：Enterキーで次のフィールドに移動＆input時自動計算（変更なし）
-    document.addEventListener("DOMContentLoaded", function(){
-      const moneyIds = ["count-10000","count-5000","count-1000","count-500","count-100","count-50","count-10","count-5","count-1"];
-      moneyIds.forEach((id, index)=>{
+    // お金の数え機能：Enterキーで次のフィールド移動＆input時に自動計算
+    document.addEventListener("DOMContentLoaded",function(){
+      const moneyIds=["count-10000","count-5000","count-1000","count-500","count-100","count-50","count-10","count-5","count-1"];
+      moneyIds.forEach((id,index)=>{
         let f = document.getElementById(id);
         f.addEventListener("keydown", function(e){
           if(e.key==="Enter"){
@@ -173,8 +168,8 @@
     function toggleMoneyCounterMode(){
       const calcDiv = document.getElementById("calculator"),
             moneyDiv = document.getElementById("money-counter");
-      if(calcDiv.style.display !== "none"){ calcDiv.style.display = "none"; moneyDiv.style.display = "inline-block"; }
-      else { moneyDiv.style.display = "none"; calcDiv.style.display = "inline-block"; }
+      if(calcDiv.style.display!=="none"){ calcDiv.style.display="none"; moneyDiv.style.display="inline-block"; }
+      else { moneyDiv.style.display="none"; calcDiv.style.display="inline-block"; }
     }
   </script>
 </body>
