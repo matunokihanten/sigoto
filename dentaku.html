@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>履歴選択＆表示改良版電卓</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        #calculator {
+            display: inline-block;
+            border: 1px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+            position: relative;
+            width: 300px;
+        }
+        #result {
+            width: 100%;
+            height: 50px;
+            font-size: 20px;
+            text-align: right;
+            margin-bottom: 10px;
+        }
+        button {
+            width: 60px;
+            height: 60px;
+            margin: 5px;
+            font-size: 18px;
+        }
+        #history-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            width: 280px;
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            overflow-y: auto;
+            padding: 10px;
+            display: none; /* 初期状態は非表示 */
+            z-index: 10;
+        }
+        .history-item {
+            cursor: pointer;
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .history-item.selected {
+            background-color: #f0f0f0;
+        }
+        .history-item:hover {
+            background-color: #e0e0e0;
+        }
+        #history-total {
+            font-weight: bold;
+            margin-top: 10px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div id="calculator">
+        <input type="text" id="result" placeholder="0" disabled>
+        <br>
+        <!-- Number Buttons -->
+        <button onclick="appendValue('7')">7</button>
+        <button onclick="appendValue('8')">8</button>
+        <button onclick="appendValue('9')">9</button>
+        <button onclick="appendValue('/')">÷</button>
+        <br>
+        <button onclick="appendValue('4')">4</button>
+        <button onclick="appendValue('5')">5</button>
+        <button onclick="appendValue('6')">6</button>
+        <button onclick="appendValue('*')">×</button>
+        <br>
+        <button onclick="appendValue('1')">1</button>
+        <button onclick="appendValue('2')">2</button>
+        <button onclick="appendValue('3')">3</button>
+        <button onclick="appendValue('-')">−</button>
+        <br>
+        <button onclick="appendValue('0')">0</button>
+        <button onclick="appendValue('.')">.</button>
+        <button onclick="calculateResult()">=</button>
+        <button onclick="appendValue('+')">+</button>
+        <br>
+        <button onclick="clearResult()">C</button>
+        <button onclick="toggleHistory()">履歴</button>
+        <button onclick="clearAllHistory()">全削除</button>
+        <div id="history-total">合計: 0</div>
+        <div id="history-panel">
+            <h3>計算履歴</h3>
+            <div id="history"></div>
+        </div>
+    </div>
+
+    <!-- お金を簡単に数える機能（初期状態のフィールドは空） -->
+    <div id="money-counter" style="margin-top: 20px; display: inline-block; border: 1px solid #ccc; padding: 20px; border-radius: 10px; background-color: #f9f9f9; width: 300px;">
+        <h3>お金の数え機能</h3>
+        <table style="margin: 0 auto;">
+            <tr>
+                <td>10000円:</td>
+                <td><input type="number" id="count-10000" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>5000円:</td>
+                <td><input type="number" id="count-5000" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>1000円:</td>
+                <td><input type="number" id="count-1000" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>500円:</td>
+                <td><input type="number" id="count-500" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>100円:</td>
+                <td><input type="number" id="count-100" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>50円:</td>
+                <td><input type="number" id="count-50" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>10円:</td>
+                <td><input type="number" id="count-10" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>5円:</td>
+                <td><input type="number" id="count-5" style="width: 80px;"></td>
+            </tr>
+            <tr>
+                <td>1円:</td>
+                <td><input type="number" id="count-1" style="width: 80px;"></td>
+            </tr>
+        </table>
+        <button onclick="calculateMoney()" style="margin-top: 10px; width: 150px; height: 40px; font-size: 16px;">お金を数える</button>
+        <button onclick="clearMoneyFields()" style="margin-top: 10px; width: 150px; height: 40px; font-size: 16px;">クリア</button>
+        <p id="money-total" style="font-weight: bold; margin-top: 10px;">合計金額: 0 円</p>
+    </div>
+
+    <script>
+        // 既存の電卓・履歴・つり銭機能のスクリプト（変更していません）
+        const resultField = document.getElementById('result');
+        const historyContainer = document.getElementById('history');
+        const historyTotal = document.getElementById('history-total');
+        const historyPanel = document.getElementById('history-panel');
+
+        let totalSum = 0; // 履歴の合計
+
+        function appendValue(value) {
+            if (resultField.value === '0' || resultField.value === 'エラー') {
+                resultField.value = value; // 初期状態を上書き
+            } else {
+                resultField.value += value; // 値を追記
+            }
+        }
+
+        function clearResult() {
+            const selectedItems = document.querySelectorAll('.history-item.selected');
+            if (selectedItems.length > 0) {
+                selectedItems.forEach(item => {
+                    const valueToRemove = parseFloat(item.dataset.result) || 0;
+                    totalSum -= valueToRemove; // 合計から減算
+                    item.remove(); // 選択された履歴を削除
+                });
+                updateTotal();
+            } else {
+                resultField.value = '';
+            }
+        }
+
+        function calculateResult() {
+            try {
+                const expression = resultField.value;
+                const result = eval(expression); // 計算式を評価
+                addHistory(expression, result); // 履歴に追加
+                totalSum += result; // 合計に加算
+                updateTotal(); // 合計を更新
+                resultField.value = '0'; // リセット
+            } catch (e) {
+                resultField.value = 'エラー'; // エラー処理
+            }
+        }
+
+        function addHistory(expression, result) {
+            const historyItem = document.createElement('div');
+            historyItem.textContent = `${expression} = ${result}`;
+            historyItem.className = 'history-item';
+            historyItem.dataset.result = result;
+
+            // 履歴アイテムをクリックで選択
+            historyItem.onclick = function () {
+                historyItem.classList.toggle('selected');
+            };
+
+            historyContainer.appendChild(historyItem);
+        }
+
+        function updateTotal() {
+            historyTotal.textContent = `合計: ${totalSum}`;
+        }
+
+        function toggleHistory() {
+            if (historyPanel.style.display === 'none') {
+                historyPanel.style.display = 'block';
+            } else {
+                historyPanel.style.display = 'none';
+            }
+        }
+
+        function clearAllHistory() {
+            historyContainer.innerHTML = ''; // 履歴を全削除
+            totalSum = 0; // 合計をリセット
+            updateTotal(); // 合計表示を更新
+        }
+    </script>
+
+    <!-- お金の数え機能用スクリプト -->
+    <script>
+        function calculateMoney() {
+            // 各通貨のIDと金額の組み合わせ
+            const denominations = [
+                { id: 'count-10000', value: 10000 },
+                { id: 'count-5000',  value: 5000 },
+                { id: 'count-1000',  value: 1000 },
+                { id: 'count-500',   value: 500 },
+                { id: 'count-100',   value: 100 },
+                { id: 'count-50',    value: 50 },
+                { id: 'count-10',    value: 10 },
+                { id: 'count-5',     value: 5 },
+                { id: 'count-1',     value: 1 }
+            ];
+
+            let total = 0;
+            denominations.forEach(denom => {
+                const count = parseInt(document.getElementById(denom.id).value) || 0;
+                total += count * denom.value;
+            });
+            
+            document.getElementById('money-total').textContent = "合計金額: " + total + " 円";
+        }
+
+        // お金の数え機能のフィールドをすべてクリアする関数
+        function clearMoneyFields() {
+            const fields = ['count-10000', 'count-5000', 'count-1000', 'count-500', 'count-100', 'count-50', 'count-10', 'count-5', 'count-1'];
+            fields.forEach(id => {
+                document.getElementById(id).value = "";
+            });
+            document.getElementById('money-total').textContent = "合計金額: 0 円";
+        }
+    </script>
+
+    <!-- お金を数えるボタンと切り替え処理（変更していません） -->
+    <div id="mode-switch" style="margin-top: 20px;">
+        <button onclick="toggleMoneyCounterMode()" style="width: 150px; height: 40px; font-size: 16px;">お金を数える</button>
+    </div>
+    <script>
+        window.addEventListener("load", function() {
+            document.getElementById("money-counter").style.display = "none";
+        });
+
+        function toggleMoneyCounterMode() {
+            const calcDiv = document.getElementById("calculator");
+            const moneyDiv = document.getElementById("money-counter");
+            if (calcDiv.style.display !== "none") {
+                calcDiv.style.display = "none";
+                moneyDiv.style.display = "inline-block";
+            } else {
+                moneyDiv.style.display = "none";
+                calcDiv.style.display = "inline-block";
+            }
+        }
+    </script>
+
+    <!-- 追加：お金数え機能の入力フィールドでEnterキー押下時に次のフィールドへ移動、
+         およびモード切替ボタンのテキスト切り替え処理 -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // お金数え機能の入力フィールドのIDリスト
+            const moneyFieldIds = ["count-10000", "count-5000", "count-1000", "count-500", "count-100", "count-50", "count-10", "count-5", "count-1"];
+            moneyFieldIds.forEach(function(id, index) {
+                const field = document.getElementById(id);
+                field.addEventListener("keydown", function(event) {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        if (index < moneyFieldIds.length - 1) {
+                            document.getElementById(moneyFieldIds[index + 1]).focus();
+                        }
+                    }
+                });
+            });
+
+            // モード切替ボタンのテキストを切り替える処理を追加
+            const modeSwitchButton = document.querySelector("#mode-switch button");
+            modeSwitchButton.addEventListener("click", function() {
+                // toggleMoneyCounterMode() 実行後に表示状態に基づきボタンテキストを更新（少し遅延させる）
+                setTimeout(function() {
+                    const calcDiv = document.getElementById("calculator");
+                    const moneyDiv = document.getElementById("money-counter");
+                    if (moneyDiv.style.display !== "none") {
+                        modeSwitchButton.textContent = "電卓に戻る";
+                    } else {
+                        modeSwitchButton.textContent = "お金を数える";
+                    }
+                }, 10);
+            });
+        });
+    </script>
+</body>
+</html>
