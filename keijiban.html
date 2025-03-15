@@ -2,294 +2,536 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>マインドマップ掲示板（拡張版）</title>
+  <title>マインドマップ掲示板</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f9f9f9; transition: background 0.3s, color 0.3s; }
-    h1 { text-align: center; }
-    #postForm, #controls { margin-bottom: 20px; }
-    #postForm textarea, #postForm input[type="text"], #controls input[type="text"] { width: 100%; padding: 10px; margin-bottom: 5px; font-size: 16px; }
-    #postForm button, #controls button { padding: 8px 10px; font-size: 16px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 5px; }
-    #map { position: relative; transform-origin: top left; transition: transform 0.3s; min-height: 200px; }
-    .node { border: 1px solid #ddd; padding: 10px; margin: 10px; border-radius: 5px; position: relative; cursor: move; transition: background-color 0.3s, border-color 0.3s; max-width: 90%; }
-    .favorite { border-color: gold; }
-    .child { margin-left: 40px; border-left: 2px solid #ddd; padding-left: 10px; }
-    .timestamp { font-size: 0.8em; color: gray; margin-top: 5px; }
-    .replyForm { margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 5px; }
-    .dark-mode { background-color: #333; color: #eee; }
-    .dark-mode .node { background-color: #444; border-color: #888; }
-    .dark-mode input, .dark-mode textarea, .dark-mode button { background-color: #555; color: #eee; border-color: #666; }
-    #instructions { margin-bottom: 20px; padding: 10px; background-color: #e7f3fe; border-left: 6px solid #2196F3; }
-    .highlight { background-color: yellow; }
+    /* グローバルスタイル */
+    body {
+      font-family: Arial, sans-serif;
+      margin: 10px;
+      padding: 0;
+    }
+    .dark-mode {
+      background-color: #333;
+      color: #eee;
+    }
+    button {
+      margin: 2px;
+    }
+    .post {
+      border: 1px solid #ccc;
+      margin: 5px;
+      padding: 5px;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      position: relative;
+    }
+    /* ★お気に入り時 */
+    .favorite {
+      border: 2px solid gold;
+    }
+    .child {
+      margin-left: 20px;
+    }
+    /* 検索時強調 */
+    .highlight {
+      border: 2px solid red;
+    }
+    .control-bar {
+      margin-top: 5px;
+    }
+    #map {
+      transition: transform 0.3s;
+    }
+    #favoritesPanel {
+      border: 1px solid #aaa;
+      padding: 5px;
+      margin: 5px;
+    }
+    #tagButtons button {
+      margin: 2px;
+    }
+    .reply-form {
+      margin-top: 5px;
+    }
+    .edit-input {
+      width: 90%;
+    }
   </style>
 </head>
 <body>
-  <h1>マインドマップ掲示板（拡張版）</h1>
-  <div id="instructions">
-    <h2>使い方と説明</h2>
-    <p>この掲示板は、マインドマップのような形式で投稿を表示することができる掲示板です。</p>
+  <h1>マインドマップ掲示板</h1>
+  
+  <!-- グローバル操作 -->
+  <div id="globalControls">
+    <button onclick="toggleDarkMode()">ダークモード切替</button>
+    <button onclick="sortPosts()">ソート</button>
+    <button onclick="toggleAllCollapse()">全投稿折りたたみ/展開</button>
+    <button onclick="printPage()">印刷</button>
+    <button onclick="savePosts()">保存</button>
+    <button onclick="document.getElementById('loadInput').click()">読み込み</button>
+    <input type="file" id="loadInput" style="display:none" onchange="loadPosts(event)">
+    <button onclick="toggleFavoritesPanel()">お気に入り一覧</button>
+    <input type="range" min="0.5" max="2" step="0.1" value="1" onchange="zoomMap(this.value)">
+    <input id="searchInput" type="text" placeholder="検索...">
+    <button onclick="searchPosts()">検索</button>
+    <button onclick="resetSearch()">検索リセット</button>
   </div>
-  <form id="postForm">
-    <textarea id="postInput" placeholder="新規投稿を入力" required></textarea><br>
-    <input type="text" id="tagInput" placeholder="タグ (オプション)"><br>
-    <button type="submit">投稿</button>
-  </form>
-  <div id="controls">
-    <input type="text" id="searchInput" placeholder="検索...">
-    <button id="sortButton">ソート</button>
-    ズーム: <input type="range" id="zoomSlider" min="10" max="200" value="100">%
-    <button id="toggleFavoritesButton">お気に入り</button>
-    <button id="toggleDarkMode">ダークモード</button>
-    <button id="toggleAllButton">折りたたみ</button>
-    <button id="printButton">印刷</button>
-    <button id="saveButton">保存</button>
-    <input type="file" id="loadFile" accept=".json" style="display: none;">
-    <button id="loadButton">読み込み</button>
-  </div>
-  <div id="favoritesContainer" style="display: none;">
+  
+  <!-- お気に入り一覧パネル -->
+  <div id="favoritesPanel" style="display:none;">
     <h3>お気に入り投稿</h3>
-    <ul id="favoritesList"></ul>
+    <div id="favoritesList"></div>
   </div>
-  <div id="map"></div>
-  <div id="tagButtons"></div>
+  
+  <!-- タグ絞り込みボタン -->
+  <div id="tagButtons">
+    <h3>タグで絞り込み</h3>
+    <div id="tagsContainer"></div>
+  </div>
+  
+  <!-- 新規投稿エリア -->
+  <div>
+    <input id="postInput" type="text" placeholder="新しい投稿を入力">
+    <button onclick="addPost()">投稿</button>
+  </div>
+  
+  <!-- 投稿（マップ）表示エリア -->
+  <div id="mapContainer" style="overflow:auto; border:1px solid #ccc; height:400px;">
+    <div id="map"></div>
+  </div>
+  
   <script>
-    let posts = [];
-    let currentTag = null;
-    const getRandomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16).padEnd(6, '0');
-    const generateId = () => 'id-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    const formatTimestamp = ts => new Date(ts).toLocaleString();
-    const savePostsToStorage = () => localStorage.setItem('mindmapPosts', JSON.stringify(posts));
-    const loadPostsFromStorage = () => JSON.parse(localStorage.getItem('mindmapPosts') || '[]');
-
-    const movePostToTarget = (draggedId, targetId, arr) => {
-      let draggedPost = null;
-      const removeNode = (id, arr) => arr.some((post, i) => post.id === id ? (draggedPost = arr.splice(i, 1)[0], true) : post.children && removeNode(id, post.children));
-      const findNode = (id, arr) => arr.reduce((found, post) => found || post.id === id ? post : findNode(id, post.children || []), null);
-      removeNode(draggedId, arr);
-      const targetNode = findNode(targetId, arr);
-      targetNode ? (targetNode.children = targetNode.children || []).push(draggedPost) : posts.push(draggedPost);
-    };
-
-    document.getElementById('map').addEventListener('drop', e => {
-      if(e.target.id === 'map') {
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData('text/plain');
-        let nodeToMove = null;
-        const removeNode = (id, arr) => arr.some((post, i) => post.id === id ? (nodeToMove = arr.splice(i, 1)[0], true) : post.children && removeNode(id, post.children));
-        removeNode(draggedId, posts);
-        nodeToMove && posts.push(nodeToMove);
-        savePostsToStorage();
-        displayAllPosts();
-        updateFavorites();
-      }
-    });
-
-    const highlightText = (text, keyword) => {
-      if (!keyword) return text;
-      const regex = new RegExp(keyword, 'gi');
-      return text.replace(regex, '<span class="highlight">$&</span>');
-    };
-
-    const displayPosts = (arr, container) => {
-      container.innerHTML = '';
-      arr.forEach(post => {
-        if (currentTag && post.tag !== currentTag) return;
-
-        const nodeDiv = document.createElement('div');
-        nodeDiv.className = 'node';
-        nodeDiv.setAttribute('draggable', 'true');
-        nodeDiv.dataset.id = post.id;
-        nodeDiv.style.backgroundColor = post.color;
-        let content = highlightText(post.content, document.getElementById('searchInput').value.trim());
-        nodeDiv.innerHTML = `<div>${content}</div>${post.tag ? `<span style="font-size: 0.8em; color: #555;"> [${post.tag}]</span>` : ''}<div class="timestamp">${formatTimestamp(post.timestamp)}</div>`;
-        
-        const favButton = document.createElement('button');
-        favButton.textContent = post.favorite ? '★' : '☆';
-        favButton.onclick = () => { post.favorite = !post.favorite; nodeDiv.classList.toggle('favorite', post.favorite); favButton.textContent = post.favorite ? '★' : '☆'; savePostsToStorage(); updateFavorites(); };
-        nodeDiv.appendChild(favButton);
-        nodeDiv.ondblclick = () => { const newContent = prompt('編集内容を入力:', post.content); if(newContent) { post.content = newContent; savePostsToStorage(); displayAllPosts(); }};
-        
-        const colorButton = document.createElement('button');
-        colorButton.textContent = '色';
-        colorButton.onclick = () => { const colorInput = document.createElement('input'); colorInput.type = 'color'; colorInput.value = post.color; colorInput.onchange = () => { post.color = colorInput.value; savePostsToStorage(); displayAllPosts(); }; colorInput.click(); };
-        nodeDiv.appendChild(colorButton);
-        
-        const tagButton = document.createElement('button');
-        tagButton.textContent = 'タグ';
-        tagButton.onclick = () => { const newTag = prompt('タグを入力:', post.tag); if(newTag !== null) { post.tag = newTag; savePostsToStorage(); displayAllPosts(); updateTagButtons(); }};
-        nodeDiv.appendChild(tagButton);
-        
-        const deleteButton = document.createElement('button');
-        deleteButton.textContent = '削除';
-        deleteButton.onclick = () => { if(confirm('本当に削除しますか？')) { deletePostById(post.id, posts); savePostsToStorage(); displayAllPosts(); updateFavorites(); updateTagButtons(); } };
-        nodeDiv.appendChild(deleteButton);
-        
-        const replyButton = document.createElement('button');
-        replyButton.textContent = '返信';
-        replyButton.onclick = () => {
-          if(nodeDiv.querySelector('.replyForm')) return;
-          const replyFormDiv = document.createElement('div');
-          replyFormDiv.className = 'replyForm';
-          replyFormDiv.innerHTML = `<textarea placeholder="返信内容を入力"></textarea><button>送信</button><button>キャンセル</button>`;
-          replyFormDiv.querySelector('button:nth-of-type(1)').onclick = async () => {
-            const replyContent = replyFormDiv.querySelector('textarea').value.trim();
-            if(!replyContent) { alert('返信内容を入力してください'); return; }
-            const replyPost = { id: generateId(), content: replyContent, children: [], timestamp: Date.now(), color: getRandomColor(), favorite: false, tag: "" };
-            post.children = post.children || [];
-            post.children.push(replyPost);
-            savePostsToStorage();
-            displayAllPosts();
-            updateFavorites();
-          };
-          replyFormDiv.querySelector('button:nth-of-type(2)').onclick = () => { replyFormDiv.remove(); };
-          nodeDiv.appendChild(replyFormDiv);
-        };
-        nodeDiv.appendChild(replyButton);
-        
-        if(post.children && post.children.length > 0) {
-          const collapseButton = document.createElement('button');
-          collapseButton.textContent = '折';
-          collapseButton.onclick = () => { childContainer.style.display = childContainer.style.display === 'none' ? 'block' : 'none'; collapseButton.textContent = childContainer.style.display === 'none' ? '展' : '折'; };
-          nodeDiv.appendChild(collapseButton);
-          const childContainer = document.createElement('div');
-          childContainer.className = 'child';
-          displayPosts(post.children, childContainer);
-          nodeDiv.appendChild(childContainer);
-        }
-        nodeDiv.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', post.id); e.stopPropagation(); });
-        nodeDiv.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); });
-        nodeDiv.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); const draggedId = e.dataTransfer.getData('text/plain'); if(draggedId !== post.id) { movePostToTarget(draggedId, post.id, posts); savePostsToStorage(); displayAllPosts(); updateFavorites(); }});
-        container.appendChild(nodeDiv);
-      });
-    };
-
-    const deletePostById = (id, arr) => arr.some((post, i) => post.id === id ? (arr.splice(i, 1), true) : post.children && deletePostById(id, post.children));
+    /* グローバル変数 */
+    let posts = [];               // 投稿ツリー（各投稿は { id, content, children, favorite, color, tags, createdAt, collapsed } の構造）
+    let draggedPostId = null;     // ドラッグ中の投稿ID
+    let currentTagFilter = null;  // 現在のタグ絞り込み（nullなら絞り込みなし）
+    let openReplyForms = [];      // 現在表示中の返信フォーム
+    let searchKeyword = "";       // 検索キーワード
     
-    const displayAllPosts = () => displayPosts(posts, document.getElementById('map'));
-
-    const updateFavorites = () => {
-      const favList = document.getElementById('favoritesList');
-      favList.innerHTML = '';
-      const collectFavorites = (arr, res) => arr.forEach(post => { if(post.favorite) res.push(post); post.children && collectFavorites(post.children, res); });
-      let favs = [];
-      collectFavorites(posts, favs);
-      favs.forEach(fav => {
-        const li = document.createElement('li');
-        li.textContent = fav.content + " (" + formatTimestamp(fav.timestamp) + ")";
-        li.onclick = () => { 
-          document.querySelector(`[data-id="${fav.id}"]`).scrollIntoView({ behavior: "smooth", block: "center" }); 
-        };
-        favList.appendChild(li);
-      });
-    };
-
-    document.getElementById('postForm').addEventListener('submit', e => {
-      e.preventDefault();
-      const content = document.getElementById('postInput').value.trim();
-      const tag = document.getElementById('tagInput').value.trim();
-      if(content) {
-        const newPost = { id: generateId(), content, children: [], timestamp: Date.now(), color: getRandomColor(), favorite: false, tag };
-        posts.push(newPost);
-        savePostsToStorage();
-        displayAllPosts();
-        updateFavorites();
-        updateTagButtons();
-        document.getElementById('postForm').reset();
+    // --- ヘルパー関数群 ---
+    // 投稿とその親を再帰的に検索
+    function findPostAndParent(id, nodes, parent = null) {
+      for (let node of nodes) {
+        if (node.id === id) return { post: node, parent };
+        let result = findPostAndParent(id, node.children, node);
+        if (result) return result;
       }
-    });
-
-    document.getElementById('searchInput').addEventListener('input', function() {
-      const keyword = this.value.trim().toLowerCase();
-      const searchAndHighlight = arr => arr.forEach(post => {
-        const elem = document.querySelector(`[data-id="${post.id}"]`);
-        if(elem) {
-          const content = post.content;
-          const highlightedContent = highlightText(content, keyword);
-          elem.innerHTML = `<div>${highlightedContent}</div>${post.tag ? `<span style="font-size: 0.8em; color: #555;"> [${post.tag}]</span>` : ''}<div class="timestamp">${formatTimestamp(post.timestamp)}</div>`;
-          post.children && searchAndHighlight(post.children);
+      return null;
+    }
+    
+    // 投稿を再帰的に削除（削除された投稿オブジェクトを返す）
+    function removePostById(id, nodes) {
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === id) {
+          return nodes.splice(i, 1)[0];
+        } else {
+          let removed = removePostById(id, nodes[i].children);
+          if (removed) return removed;
+        }
+      }
+      return null;
+    }
+    
+    // sourceId の投稿が targetId の投稿の子孫かチェック
+    function isDescendant(sourceId, targetId) {
+      let sourceData = findPostAndParent(sourceId, posts);
+      if (!sourceData) return false;
+      function traverse(node) {
+        if (node.id === targetId) return true;
+        for (let child of node.children) {
+          if (traverse(child)) return true;
+        }
+        return false;
+      }
+      return traverse(sourceData.post);
+    }
+    
+    // --- レンダリング関連 ---
+    function renderPosts() {
+      const map = document.getElementById("map");
+      map.innerHTML = "";
+      posts.forEach(post => {
+        // トップレベルの投稿は、タグ絞り込みがないか、直接タグを含む場合のみ表示
+        if (!currentTagFilter || (post.tags && post.tags.includes(currentTagFilter))) {
+          map.appendChild(createPostElement(post));
         }
       });
-      searchAndHighlight(posts);
-    });
-
-    document.getElementById('zoomSlider').addEventListener('input', function() { document.getElementById('map').style.transform = 'scale(' + (this.value / 100) + ')'; });
-    document.getElementById('sortButton').addEventListener('click', () => { posts.sort((a, b) => a.timestamp - b.timestamp); savePostsToStorage(); displayAllPosts(); });
-    document.getElementById('toggleFavoritesButton').addEventListener('click', () => {
-      const favContainer = document.getElementById('favoritesContainer');
-      favContainer.style.display = favContainer.style.display === 'none' || favContainer.style.display === '' ? 'block' : 'none';
-      if(favContainer.style.display === 'block') updateFavorites();
-    });
-
-    document.getElementById('toggleDarkMode').addEventListener('click', () => { document.body.classList.toggle('dark-mode'); });
-    document.getElementById('toggleAllButton').addEventListener('click', () => { document.querySelectorAll('.child').forEach(container => { container.style.display = container.style.display === 'none' || container.style.display === '' ? 'block' : 'none'; }); });
-    document.getElementById('printButton').addEventListener('click', () => { window.print(); });
-
-    document.getElementById('saveButton').addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify(posts)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'mindmapPosts.json';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-
-    document.getElementById('loadButton').addEventListener('click', () => {
-      document.getElementById('loadFile').click();
-    });
-
-    document.getElementById('loadFile').addEventListener('change', (event) => {
-      const file = event.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          posts = JSON.parse(e.target.result);
-          savePostsToStorage();
-          displayAllPosts();
-          updateFavorites();
-          updateTagButtons();
-        };
-        reader.readAsText(file);
+      renderTagButtons();
+      renderFavoritesList();
+      if (searchKeyword) applySearchHighlight();
+    }
+    
+    // 投稿オブジェクトを受け取り、DOM要素（再帰的）を生成する
+    function createPostElement(post) {
+      const div = document.createElement("div");
+      div.className = "post";
+      div.draggable = true;
+      div.setAttribute("data-id", post.id);
+      if (post.color) {
+        div.style.backgroundColor = post.color;
       }
-    });
-
-    document.addEventListener('keydown', e => { if(e.key === 'Escape') { document.querySelectorAll('.replyForm').forEach(form => form.remove()); }});
-
-    const updateTagButtons = () => {
-      const tagButtonsDiv = document.getElementById('tagButtons');
-      tagButtonsDiv.innerHTML = '';
-      const tags = new Set();
-
-      // Function to collect tags recursively
-      const collectTags = (arr) => {
-        arr.forEach(post => {
-          if (post.tag) {
-            tags.add(post.tag);
+      if (post.favorite) {
+        div.classList.add("favorite");
+      }
+      
+      // --- ドラッグ＆ドロップ ---
+      div.addEventListener("dragstart", (e) => {
+        draggedPostId = post.id;
+        e.dataTransfer.setData("text/plain", post.id);
+      });
+      div.addEventListener("dragover", (e) => {
+        e.preventDefault();
+      });
+      div.addEventListener("drop", (e) => {
+        e.preventDefault();
+        const targetId = parseInt(div.getAttribute("data-id"));
+        if (draggedPostId === targetId) return; // 自分自身にはドロップ不可
+        if (isDescendant(draggedPostId, targetId)) {
+          alert("子の投稿に移動できません！");
+          return;
+        }
+        // ドラッグ中の投稿を元のツリーから削除し、ターゲット投稿の子要素に追加
+        const dragged = removePostById(draggedPostId, posts);
+        if (dragged) {
+          const targetData = findPostAndParent(targetId, posts);
+          if (targetData && targetData.post) {
+            targetData.post.children.push(dragged);
+          } else {
+            posts.push(dragged);
           }
-          if (post.children) {
-            collectTags(post.children);
+        }
+        renderPosts();
+      });
+      
+      // --- 投稿内容（ダブルクリックで編集） ---
+      const p = document.createElement("p");
+      p.textContent = post.content;
+      p.addEventListener("dblclick", () => {
+        editPostContent(div, post);
+      });
+      div.appendChild(p);
+      
+      // --- 投稿操作ボタン群 ---
+      const controls = document.createElement("div");
+      controls.className = "control-bar";
+      
+      // 返信ボタン
+      const replyBtn = document.createElement("button");
+      replyBtn.textContent = "返信";
+      replyBtn.addEventListener("click", () => {
+        showReplyForm(div, post);
+      });
+      controls.appendChild(replyBtn);
+      
+      // お気に入り（☆／★）
+      const favBtn = document.createElement("button");
+      favBtn.textContent = post.favorite ? "★" : "☆";
+      favBtn.addEventListener("click", () => {
+        post.favorite = !post.favorite;
+        renderPosts();
+      });
+      controls.appendChild(favBtn);
+      
+      // 色変更ボタン
+      const colorBtn = document.createElement("button");
+      colorBtn.textContent = "色";
+      colorBtn.addEventListener("click", () => {
+        showColorPicker(div, post);
+      });
+      controls.appendChild(colorBtn);
+      
+      // タグ編集ボタン
+      const tagBtn = document.createElement("button");
+      tagBtn.textContent = "タグ";
+      tagBtn.addEventListener("click", () => {
+        editTags(div, post);
+      });
+      controls.appendChild(tagBtn);
+      
+      // 削除ボタン
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "削除";
+      deleteBtn.addEventListener("click", () => {
+        if (confirm("この投稿を削除しますか？子投稿もすべて削除されます。")) {
+          removePostById(post.id, posts);
+          renderPosts();
+        }
+      });
+      controls.appendChild(deleteBtn);
+      
+      // 折りたたみ／展開ボタン（子投稿が存在する場合のみ）
+      if (post.children && post.children.length > 0) {
+        const collapseBtn = document.createElement("button");
+        collapseBtn.textContent = post.collapsed ? "展" : "折";
+        collapseBtn.addEventListener("click", () => {
+          post.collapsed = !post.collapsed;
+          renderPosts();
+        });
+        controls.appendChild(collapseBtn);
+      }
+      
+      div.appendChild(controls);
+      
+      // --- 子投稿の再帰レンダリング（collapsed 状態でない場合） ---
+      if (post.children && post.children.length > 0 && !post.collapsed) {
+        const childContainer = document.createElement("div");
+        childContainer.className = "child";
+        post.children.forEach(child => {
+          // タグ絞り込みが有効の場合、子も直接該当する場合のみ表示
+          if (!currentTagFilter || (child.tags && child.tags.includes(currentTagFilter))) {
+            childContainer.appendChild(createPostElement(child));
           }
         });
-      };
-
-      collectTags(posts);
-
-      // Create tag buttons
-      tags.forEach(tag => {
-        const button = document.createElement('button');
-        button.textContent = tag;
-        button.onclick = () => {
-          currentTag = (currentTag === tag) ? null : tag;
-          displayAllPosts();
-        };
-        tagButtonsDiv.appendChild(button);
+        div.appendChild(childContainer);
+      }
+      
+      return div;
+    }
+    
+    // --- 編集／返信／その他の各種操作 ---
+    function editPostContent(div, post) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = post.content;
+      input.className = "edit-input";
+      const p = div.querySelector("p");
+      div.replaceChild(input, p);
+      input.focus();
+      input.addEventListener("blur", () => {
+        post.content = input.value;
+        renderPosts();
       });
-    };
-
-    posts = loadPostsFromStorage();
-    displayAllPosts();
-    updateFavorites();
-    updateTagButtons();
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          post.content = input.value;
+          renderPosts();
+        }
+      });
+    }
+    
+    function showReplyForm(div, post) {
+      if (div.querySelector(".reply-form")) return; // 既に表示中なら何もしない
+      const formDiv = document.createElement("div");
+      formDiv.className = "reply-form";
+      const textarea = document.createElement("textarea");
+      textarea.rows = 3;
+      textarea.cols = 30;
+      formDiv.appendChild(textarea);
+      const sendBtn = document.createElement("button");
+      sendBtn.textContent = "送信";
+      sendBtn.addEventListener("click", () => {
+        if (textarea.value.trim() !== "") {
+          post.children.push({
+            id: Date.now(),
+            content: textarea.value.trim(),
+            children: [],
+            favorite: false,
+            color: null,
+            tags: [],
+            createdAt: Date.now(),
+            collapsed: false
+          });
+          renderPosts();
+        }
+      });
+      formDiv.appendChild(sendBtn);
+      const cancelBtn = document.createElement("button");
+      cancelBtn.textContent = "キャンセル";
+      cancelBtn.addEventListener("click", () => {
+        formDiv.remove();
+      });
+      formDiv.appendChild(cancelBtn);
+      div.appendChild(formDiv);
+      openReplyForms.push(formDiv);
+    }
+    
+    function showColorPicker(div, post) {
+      const colorInput = document.createElement("input");
+      colorInput.type = "color";
+      colorInput.value = post.color || "#f9f9f9";
+      colorInput.addEventListener("input", () => {
+        post.color = colorInput.value;
+        renderPosts();
+      });
+      div.appendChild(colorInput);
+      setTimeout(() => { colorInput.remove(); }, 3000);
+    }
+    
+    function editTags(div, post) {
+      const currentTags = post.tags ? post.tags.join(",") : "";
+      const newTags = prompt("タグをカンマ区切りで入力", currentTags);
+      if (newTags !== null) {
+        post.tags = newTags.split(",").map(s => s.trim()).filter(s => s);
+        renderPosts();
+      }
+    }
+    
+    // --- グローバル操作 ---
+    function addPost() {
+      const input = document.getElementById("postInput");
+      if (input.value.trim() === "") return;
+      posts.push({
+        id: Date.now(),
+        content: input.value.trim(),
+        children: [],
+        favorite: false,
+        color: null,
+        tags: [],
+        createdAt: Date.now(),
+        collapsed: false
+      });
+      input.value = "";
+      renderPosts();
+    }
+    
+    function sortPosts() {
+      function recursiveSort(arr) {
+        arr.sort((a, b) => a.createdAt - b.createdAt);
+        arr.forEach(item => { if (item.children) recursiveSort(item.children); });
+      }
+      recursiveSort(posts);
+      renderPosts();
+    }
+    
+    function zoomMap(scale) {
+      document.getElementById("map").style.transform = "scale(" + scale + ")";
+    }
+    
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+    }
+    
+    function toggleFavoritesPanel() {
+      const panel = document.getElementById("favoritesPanel");
+      panel.style.display = (panel.style.display === "none" || panel.style.display === "") ? "block" : "none";
+    }
+    
+    function renderFavoritesList() {
+      const favList = document.getElementById("favoritesList");
+      favList.innerHTML = "";
+      // 投稿ツリーからお気に入り投稿を走査
+      function traverse(nodes) {
+        let favs = [];
+        nodes.forEach(node => {
+          if (node.favorite) favs.push(node);
+          if (node.children) favs = favs.concat(traverse(node.children));
+        });
+        return favs;
+      }
+      const favorites = traverse(posts);
+      favorites.forEach(fav => {
+        const btn = document.createElement("button");
+        btn.textContent = fav.content;
+        btn.addEventListener("click", () => {
+          const el = document.querySelector('[data-id="'+fav.id+'"]');
+          if (el) el.scrollIntoView({ behavior:"smooth" });
+        });
+        favList.appendChild(btn);
+      });
+    }
+    
+    function toggleAllCollapse() {
+      function toggle(nodes, collapseState) {
+        nodes.forEach(node => {
+          node.collapsed = collapseState;
+          if (node.children) toggle(node.children, collapseState);
+        });
+      }
+      let shouldCollapse = false;
+      function check(nodes) {
+        for (let node of nodes) {
+          if (!node.collapsed) { shouldCollapse = true; return; }
+          if (node.children) check(node.children);
+        }
+      }
+      check(posts);
+      toggle(posts, shouldCollapse);
+      renderPosts();
+    }
+    
+    function printPage() {
+      window.print();
+    }
+    
+    function savePosts() {
+      const dataStr = JSON.stringify(posts);
+      const blob = new Blob([dataStr], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "posts.json";
+      a.click();
+    }
+    
+    function loadPosts(event) {
+      const file = event.target.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          posts = JSON.parse(e.target.result);
+          renderPosts();
+        } catch(err) {
+          alert("ファイルの読み込みに失敗しました。");
+        }
+      };
+      reader.readAsText(file);
+    }
+    
+    function searchPosts() {
+      searchKeyword = document.getElementById("searchInput").value.trim().toLowerCase();
+      renderPosts();
+    }
+    
+    function applySearchHighlight() {
+      const allPosts = document.querySelectorAll(".post");
+      allPosts.forEach(postDiv => {
+        const textEl = postDiv.querySelector("p");
+        if (textEl && textEl.textContent.toLowerCase().includes(searchKeyword)) {
+          postDiv.classList.add("highlight");
+        }
+      });
+    }
+    
+    function resetSearch() {
+      searchKeyword = "";
+      document.getElementById("searchInput").value = "";
+      renderPosts();
+    }
+    
+    function renderTagButtons() {
+      const tagsContainer = document.getElementById("tagsContainer");
+      tagsContainer.innerHTML = "";
+      let tagSet = new Set();
+      function traverse(nodes) {
+        nodes.forEach(node => {
+          if (node.tags) {
+            node.tags.forEach(tag => tagSet.add(tag));
+          }
+          if (node.children) traverse(node.children);
+        });
+      }
+      traverse(posts);
+      tagSet.forEach(tag => {
+        const btn = document.createElement("button");
+        btn.textContent = tag;
+        btn.addEventListener("click", () => {
+          currentTagFilter = (currentTagFilter === tag) ? null : tag;
+          renderPosts();
+        });
+        tagsContainer.appendChild(btn);
+      });
+    }
+    
+    // --- キーボードショートカット ---
+    // Escキーで全返信フォームを閉じる
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        openReplyForms.forEach(form => form.remove());
+        openReplyForms = [];
+      }
+    });
+    
+    // 初期レンダリング
+    renderPosts();
   </script>
 </body>
 </html>
