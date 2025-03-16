@@ -23,23 +23,36 @@
       color: #fff;
       padding: 10px;
       display: flex;
-      flex-wrap: wrap;
-      justify-content: space-around;
-      align-items: center;
+      flex-direction: column;
     }
-    header button, header input[type="text"] {
+    .header-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+    .header-row.top button,
+    .header-row.top input[type="text"] {
       margin: 5px;
       padding: 5px 10px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
     }
-    header button:hover {
+    .header-row.top button:hover {
       background: #005fa3;
     }
-    header input[type="text"] {
+    .header-row.top input[type="text"] {
       border: 1px solid #ccc;
       border-radius: 4px;
+    }
+    .header-row.bottom {
+      margin-top: 5px;
+      justify-content: center;
+    }
+    .header-row.bottom label {
+      margin-right: 5px;
     }
     /* 新規投稿エリア */
     #new-post-area {
@@ -51,7 +64,7 @@
       border-bottom: 1px solid #ccc;
     }
     #new-post-input {
-      width: 30%;
+      width: 65%;
       resize: vertical;
       padding: 10px;
       border: 1px solid #ccc;
@@ -64,6 +77,7 @@
       border: none;
       border-radius: 4px;
       cursor: pointer;
+      margin-left: 10px;
     }
     #new-post-area button:hover {
       background: #218838;
@@ -99,14 +113,15 @@
       display: flex;
       align-items: center;
       flex-wrap: wrap;
+      gap: 8px;
     }
     .post-header span.timestamp {
       margin-right: 10px;
     }
     .post-header button {
-      margin-right: 8px;
       padding: 3px 6px;
       font-size: 0.9em;
+      cursor: pointer;
     }
     .favorite-btn {
       font-size: 1.2em;
@@ -118,7 +133,7 @@
     .highlighted {
       background: yellow;
     }
-    /* 返信フォーム（返信の入力欄を幅1/3 に調整） */
+    /* 返信フォーム（返信の入力欄：幅1/3） */
     .reply-form textarea {
       display: block;
       width: 33%;
@@ -177,52 +192,41 @@
     #tag-filter button:hover {
       background: #e0e0e0;
     }
-    /* ズームスライダー */
-    #zoom-slider-container {
-      padding: 10px;
-      background: #007acc;
-      color: #fff;
-      display: flex;
-      align-items: center;
-    }
-    /* カラーピッカー */
-    .color-picker button {
-      border: none;
-      cursor: pointer;
-      outline: none;
-    }
-    .color-picker {
-      z-index: 1000;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-    }
     /* 印刷時の非表示 */
     @media print {
-      header, #new-post-area, #tag-filter, #zoom-slider-container, #favorites-panel {
+      header, #new-post-area, #tag-filter, #favorites-panel {
         display: none;
       }
     }
   </style>
 </head>
 <body>
-  <!-- グローバル操作エリア -->
+  <!-- グローバル操作エリア（2段構成） -->
   <header id="global-ops">
-    <button id="dark-mode-btn">ダークモード切替</button>
-    <button id="sort-new-btn">新しい順</button>
-    <button id="sort-old-btn">古い順</button>
-    <button id="sort-alpha-btn">五十音順</button>
-    <!-- ヘッダーのボタンは「全投稿/返信表示」 -->
-    <button id="collapse-expand-btn">全投稿/返信表示</button>
-    <button id="print-btn">印刷</button>
-    <button id="save-btn">保存</button>
-    <button id="load-btn">読み込み</button>
-    <button id="favorites-btn">お気に入り一覧</button>
-    <input type="text" id="search-input" placeholder="検索…">
-    <button id="search-btn">検索</button>
-    <button id="search-reset-btn">検索リセット</button>
-    <button id="undo-btn">元に戻す</button>
+    <div class="header-row top">
+      <button id="dark-mode-btn">ダークモード切替</button>
+      <button id="sort-new-btn">新しい順</button>
+      <button id="sort-old-btn">古い順</button>
+      <button id="sort-alpha-btn">五十音順</button>
+      <!-- ヘッダーの全投稿/返信表示ボタン -->
+      <button id="collapse-expand-btn">全投稿/返信表示</button>
+      <button id="print-btn">印刷</button>
+      <button id="save-btn">保存</button>
+      <button id="load-btn">読み込み</button>
+      <button id="favorites-btn">お気に入り一覧</button>
+      <input type="text" id="search-input" placeholder="検索…">
+      <button id="search-btn">検索</button>
+      <button id="search-reset-btn">検索リセット</button>
+      <button id="undo-btn">元に戻す</button>
+      <button id="recover-btn">復活</button>
+    </div>
+    <div class="header-row bottom">
+      <label for="zoom-slider">ズーム:</label>
+      <input type="range" id="zoom-slider" min="50" max="150" value="100">
+    </div>
   </header>
 
-  <!-- 新規投稿エリア（投稿ボタン横にローカルの全投稿折りたたみ/展開ボタンも配置） -->
+  <!-- 新規投稿エリア（投稿ボタンを記入欄のすぐ右に配置） -->
   <section id="new-post-area">
     <textarea id="new-post-input" placeholder="新しい投稿を入力" rows="3"></textarea>
     <div>
@@ -246,27 +250,22 @@
     <h3>お気に入り一覧</h3>
   </aside>
 
-  <!-- ズームスライダー -->
-  <section id="zoom-slider-container">
-    <label for="zoom-slider">ズーム:</label>
-    <input type="range" id="zoom-slider" min="50" max="150" value="100">
-  </section>
-
   <!-- ファイル読み込み入力（非表示） -->
   <input type="file" id="load-file-input" style="display:none;">
 
   <script>
     /********************************************
-     * データ構造と Undo 用のスタック
+     * グローバル変数と Undo 用のスタック／削除保管用スタック
      ********************************************/
     let posts = []; // 各投稿: {id, parentId, content, timestamp, favorite, color, tags, children, collapsed}
     let postIdCounter = 0;
     let undoStack = [];
+    let deletedPostsStack = [];  // 削除された投稿を退避しておく
 
     function pushState() {
-      // Undo 用に状態を保存
+      // Undo 用に状態を保存（簡易実装）
       undoStack.push(JSON.stringify(posts));
-      if (undoStack.length > 20) { // 最大20ステップ保存
+      if (undoStack.length > 20) { // 最大20ステップ
         undoStack.shift();
       }
     }
@@ -274,6 +273,27 @@
       if (undoStack.length > 0) {
         posts = JSON.parse(undoStack.pop());
         renderPosts();
+      }
+    }
+    function recoverLastDeleted() {
+      if (deletedPostsStack.length > 0) {
+        let recovered = deletedPostsStack.pop();
+        pushState();
+        if (recovered.parentId) {
+          let parent = findPostById(recovered.parentId, posts);
+          if (parent) {
+            parent.children.push(recovered.post);
+            recovered.post.parentId = parent.id;
+          } else {
+            posts.push(recovered.post);
+            recovered.post.parentId = null;
+          }
+        } else {
+          posts.push(recovered.post);
+        }
+        renderPosts();
+      } else {
+        alert("復活できる投稿がありません");
       }
     }
 
@@ -313,19 +333,22 @@
       }
       return null;
     }
-    function deletePost(id, list = posts) {
+    // 削除時、削除投稿とその元の親情報を保存する（parent を引数に）
+    function deletePost(id, list = posts, parent = null) {
       for (let i = 0; i < list.length; i++) {
         if (list[i].id === id) {
-          list.splice(i, 1);
+          pushState();
+          let deleted = list.splice(i, 1)[0];
+          deletedPostsStack.push({ post: deleted, parentId: parent ? parent.id : null });
           renderPosts();
           return true;
         } else if (list[i].children && list[i].children.length > 0) {
-          if (deletePost(id, list[i].children)) return true;
+          if (deletePost(id, list[i].children, list[i])) return true;
         }
       }
       return false;
     }
-    // ドラッグ＆ドロップ用：投稿ツリーから対象投稿を抽出して削除
+    // ドラッグ＆ドロップ用：投稿ツリーから対象投稿を抽出して返す
     function extractPost(id, list) {
       for (let i = 0; i < list.length; i++) {
         if (list[i].id === id) {
@@ -345,7 +368,7 @@
     function renderPosts() {
       const container = document.getElementById('posts-container');
       container.innerHTML = '';
-      // 再帰的に投稿をレンダリング
+      // 投稿および返信を再帰的にレンダリング
       function renderPost(post, level = 0) {
         const postDiv = document.createElement('div');
         postDiv.className = 'post';
@@ -375,7 +398,6 @@
         deleteBtn.textContent = '削除';
         deleteBtn.addEventListener('click', function(e) {
           e.stopPropagation();
-          pushState();
           deletePost(post.id);
         });
         headerDiv.appendChild(deleteBtn);
@@ -398,7 +420,7 @@
         });
         headerDiv.appendChild(replyBtn);
 
-        // 投稿欄（各投稿内）の全投稿折りたたみ/展開ボタン（返信の表示切替）
+        // 各投稿内の全投稿折りたたみ/展開（返信）のボタン
         if (post.children && post.children.length > 0) {
           const toggleBtn = document.createElement('button');
           toggleBtn.textContent = post.collapsed ? '展開' : '折りたたみ';
@@ -435,7 +457,7 @@
           });
         }
 
-        // ドラッグ＆ドロップ設定
+        // ドラッグ＆ドロップの設定（HTML5 API）
         postDiv.draggable = true;
         postDiv.addEventListener('dragstart', dragStart);
         postDiv.addEventListener('dragover', dragOver);
@@ -456,8 +478,7 @@
       renderFavoritesPanel();
       renderTagButtons();
     }
-
-    // キーワードがあればテキストの該当部分にハイライト（yellow）
+    // キーワードがあれば該当テキストをハイライト
     function highlightText(text) {
       if (!currentSearchKeyword) return text;
       const regex = new RegExp('(' + currentSearchKeyword + ')', 'gi');
@@ -469,7 +490,7 @@
     }
 
     /********************************************
-     * 編集、返信、カラーピッカーなどの補助関数
+     * 編集・返信・カラーピッカー等の補助関数
      ********************************************/
     function showReplyForm(parentId, container, level) {
       if (container.querySelector('.reply-form')) return;
@@ -479,7 +500,7 @@
       const textarea = document.createElement('textarea');
       textarea.placeholder = '返信を入力';
       textarea.rows = 3;
-      textarea.style.width = "33%"; // 返信欄を幅1/3に
+      textarea.style.width = "33%"; // 幅を1/3に調整
       form.appendChild(textarea);
       const sendBtn = document.createElement('button');
       sendBtn.textContent = '送信';
@@ -603,7 +624,7 @@
     }
 
     /********************************************
-     * ソートおよび全投稿・返信の表示・非表示切替
+     * ソート＆全投稿・返信の表示・非表示切替
      ********************************************/
     function sortPosts(criteria) {
       pushState();
@@ -734,9 +755,9 @@
       document.getElementById('sort-alpha-btn').addEventListener('click', function() {
         sortPosts('alpha');
       });
-      // ヘッダーの「全投稿/返信表示」ボタン
+      // ヘッダーの全投稿/返信表示ボタン
       document.getElementById('collapse-expand-btn').addEventListener('click', toggleCollapseAll);
-      // 新規投稿エリア内のローカルボタンも同じ動作
+      // 新規投稿エリア内のローカルの全投稿折りたたみ/展開ボタン
       document.getElementById('local-collapse-btn').addEventListener('click', toggleCollapseAll);
       document.getElementById('print-btn').addEventListener('click', printBoard);
       document.getElementById('save-btn').addEventListener('click', savePosts);
@@ -756,6 +777,7 @@
       });
       document.getElementById('search-reset-btn').addEventListener('click', resetSearch);
       document.getElementById('undo-btn').addEventListener('click', undo);
+      document.getElementById('recover-btn').addEventListener('click', recoverLastDeleted);
       document.getElementById('post-btn').addEventListener('click', function() {
         const content = document.getElementById('new-post-input').value.trim();
         if (content) {
