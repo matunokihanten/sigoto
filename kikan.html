@@ -3,61 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>経過日数計算</title>
+    <title>シューティングゲーム（静的バージョン）</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: black;
+            color: white;
+        }
+        #game-area {
+            width: 100%;
+            height: 100vh;
+            position: relative;
+            background-color: darkblue;
+        }
+        .player {
+            width: 50px;
+            height: 50px;
+            background-color: red;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .enemy {
+            width: 50px;
+            height: 50px;
+            background-color: green;
+            position: absolute;
+            top: 50px;
+            left: 30%;
+        }
+        .bullet {
+            width: 5px;
+            height: 10px;
+            background-color: yellow;
+            position: absolute;
+            bottom: 70px;
+            left: 50%;
+        }
+    </style>
 </head>
 <body>
-    <h1>生まれた日から今日までの日数を計算</h1>
-    <form id="birthForm">
-        <label for="birthYear">生まれた年:</label>
-        <select id="birthYear">
-            <!-- 必要な年を追加 -->
-            <option value="2000">2000</option>
-            <option value="2001">2001</option>
-            <option value="2002">2002</option>
-        </select>
-        <label for="birthMonth">生まれた月:</label>
-        <select id="birthMonth">
-            <option value="1">1月</option>
-            <option value="2">2月</option>
-            <option value="3">3月</option>
-            <!-- 必要な月を追加 -->
-        </select>
-        <label for="birthDay">生まれた日:</label>
-        <select id="birthDay">
-            <option value="1">1日</option>
-            <option value="2">2日</option>
-            <option value="3">3日</option>
-            <!-- 必要な日を追加 -->
-        </select>
-        <br><br>
-        <button type="button" onclick="calculateDays()">計算する</button>
-    </form>
-    <p id="result"></p>
-
-    <script>
-        function calculateDays() {
-            const birthYear = parseInt(document.getElementById("birthYear").value);
-            const birthMonth = parseInt(document.getElementById("birthMonth").value);
-            const birthDay = parseInt(document.getElementById("birthDay").value);
-
-            // 生年月日のDateオブジェクトを作成
-            const birthDate = new Date(birthYear, birthMonth - 1, birthDay);
-
-            // 今日の日付を取得
-            const today = new Date();
-
-            // 経過日数を計算
-            const differenceInTime = today.getTime() - birthDate.getTime();
-            const differenceInDays = Math.floor(differenceInTime / (1000 * 60 * 60 * 24));
-
-            // 結果を表示
-            if (differenceInTime < 0) {
-                document.getElementById("result").textContent = "未来の日付が入力されています。正しい日付を選択してください。";
-            } else {
-                document.getElementById("result").textContent = 
-                    `生まれた日から今日までの経過日数: ${differenceInDays}日`;
-            }
-        }
-    </script>
+    <div id="game-area">
+        <div class="player"></div>
+        <div class="enemy"></div>
+        <div class="bullet"></div>
+    </div>
 </body>
 </html>
