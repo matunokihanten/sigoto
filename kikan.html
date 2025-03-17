@@ -3,29 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シューティングゲーム（静的バージョン）</title>
+    <title>シューティングゲーム（スマホ対応）</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
             background-color: black;
-            color: white;
-        }
-        #game-area {
-            width: 100%;
-            height: 100vh;
-            position: <!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シューティングゲーム（静的バージョン）</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: black;
-            color: white;
         }
         #game-area {
             width: 100%;
@@ -38,70 +21,143 @@
             height: 50px;
             background-color: red;
             position: absolute;
-            bottom: 20px;
+            bottom: 10px;
             left: 50%;
             transform: translateX(-50%);
+        }
+        .bullet {
+            width: 5px;
+            height: 15px;
+            background-color: yellow;
+            position: absolute;
         }
         .enemy {
             width: 50px;
             height: 50px;
             background-color: green;
             position: absolute;
-            top: 50px;
-            left: 30%;
         }
-        .bullet {
-            width: 5px;
-            height: 10px;
-            background-color: yellow;
-            position: absolute;
-            bottom: 70px;
-            left: 50%;
+        #touch-controls {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
         }
-    </style>
-</head>
-<body>
-    <div id="game-area">
-        <div class="player"></div>
-        <div class="enemy"></div>
-        <div class="bullet"></div>
-    </div>
-</body>
-</html>;
-            background-color: darkblue;
-        }
-        .player {
-            width: 50px;
-            height: 50px;
-            background-color: red;
-            position: absolute;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        .enemy {
-            width: 50px;
-            height: 50px;
-            background-color: green;
-            position: absolute;
-            top: 50px;
-            left: 30%;
-        }
-        .bullet {
-            width: 5px;
-            height: 10px;
-            background-color: yellow;
-            position: absolute;
-            bottom: 70px;
-            left: 50%;
+        .control-button {
+            width: 30%;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.5);
+            color: black;
+            font-size: 18px;
+            text-align: center;
+            line-height: 60px;
+            border: 1px solid white;
+            user-select: none;
         }
     </style>
 </head>
 <body>
     <div id="game-area">
-        <div class="player"></div>
-        <div class="enemy"></div>
-        <div class="bullet"></div>
+        <div class="player" id="player"></div>
     </div>
+    <div id="touch-controls">
+        <div class="control-button" id="move-left">← 左</div>
+        <div class="control-button" id="fire">発射</div>
+        <div class="control-button" id="move-right">右 →</div>
+    </div>
+    <script>
+        const gameArea = document.getElementById("game-area");
+        const player = document.getElementById("player");
+        const moveLeftButton = document.getElementById("move-left");
+        const moveRightButton = document.getElementById("move-right");
+        const fireButton = document.getElementById("fire");
+
+        let bullets = [];
+        let enemies = [];
+
+        // プレイヤーの移動（タッチ操作対応）
+        let playerMoveInterval;
+        moveLeftButton.addEventListener("mousedown", () => movePlayer(-10));
+        moveLeftButton.addEventListener("touchstart", () => movePlayer(-10));
+        moveRightButton.addEventListener("mousedown", () => movePlayer(10));
+        moveRightButton.addEventListener("touchstart", () => movePlayer(10));
+        document.addEventListener("mouseup", () => clearInterval(playerMoveInterval));
+        document.addEventListener("touchend", () => clearInterval(playerMoveInterval));
+
+        function movePlayer(direction) {
+            playerMoveInterval = setInterval(() => {
+                const playerRect = player.getBoundingClientRect();
+                if (
+                    (direction < 0 && playerRect.left > 0) ||
+                    (direction > 0 && playerRect.right < window.innerWidth)
+                ) {
+                    player.style.left = player.offsetLeft + direction + "px";
+                }
+            }, 16);
+        }
+
+        // 弾を発射（タッチ操作対応）
+        fireButton.addEventListener("mousedown", fireBullet);
+        fireButton.addEventListener("touchstart", fireBullet);
+
+        function fireBullet() {
+            const bullet = document.createElement("div");
+            bullet.classList.add("bullet");
+            bullet.style.left = player.offsetLeft + player.offsetWidth / 2 - 2.5 + "px";
+            bullet.style.bottom = player.offsetTop + 50 + "px";
+            gameArea.appendChild(bullet);
+            bullets.push(bullet);
+        }
+
+        // 敵を生成
+        function createEnemy() {
+            const enemy = document.createElement("div");
+            enemy.classList.add("enemy");
+            enemy.style.left = Math.random() * (window.innerWidth - 50) + "px";
+            enemy.style.top = "0px";
+            gameArea.appendChild(enemy);
+            enemies.push(enemy);
+        }
+        setInterval(createEnemy, 2000);
+
+        // ゲームループ
+        function gameLoop() {
+            bullets.forEach((bullet, index) => {
+                bullet.style.bottom = parseInt(bullet.style.bottom) + 5 + "px";
+                if (parseInt(bullet.style.bottom) > window.innerHeight) {
+                    bullet.remove();
+                    bullets.splice(index, 1);
+                }
+            });
+
+            enemies.forEach((enemy, index) => {
+                enemy.style.top = parseInt(enemy.style.top) + 2 + "px";
+                if (parseInt(enemy.style.top) > window.innerHeight) {
+                    enemy.remove();
+                    enemies.splice(index, 1);
+                }
+
+                bullets.forEach((bullet, bulletIndex) => {
+                    const bulletRect = bullet.getBoundingClientRect();
+                    const enemyRect = enemy.getBoundingClientRect();
+                    if (
+                        bulletRect.left < enemyRect.right &&
+                        bulletRect.right > enemyRect.left &&
+                        bulletRect.top < enemyRect.bottom &&
+                        bulletRect.bottom > enemyRect.top
+                    ) {
+                        enemy.remove();
+                        bullet.remove();
+                        enemies.splice(index, 1);
+                        bullets.splice(bulletIndex, 1);
+                    }
+                });
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+        gameLoop();
+    </script>
 </body>
 </html>
