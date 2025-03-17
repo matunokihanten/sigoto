@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>複合ツール</title>
+    <title>普通配置電卓</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,16 +16,8 @@
             margin: 20px auto;
             padding: 20px;
             background: #fff;
-            border-radius: 8px;
+            border-radius: 10px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        input, label {
-            display: block;
-            width: 90%;
-            margin: 10px auto;
-            padding: 10px;
-            font-size: 1rem;
-            text-align: right;
         }
         .display {
             display: flex;
@@ -34,24 +26,30 @@
         }
         .calc-display {
             width: 70%;
-            font-size: 1.5rem;
-            padding: 10px;
+            font-size: 2rem;
+            padding: 15px;
             border: 1px solid #ccc;
             border-radius: 5px;
             text-align: right;
         }
         .history-total {
             width: 25%;
-            font-size: 1.2rem;
+            font-size: 1.8rem;
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
             background-color: #f9f9f9;
             text-align: center;
         }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
         button {
-            padding: 10px 20px;
-            margin: 10px;
+            padding: 20px;
+            font-size: 1.5rem;
             background: #4caf50;
             color: white;
             border: none;
@@ -62,7 +60,7 @@
             background: #45a049;
         }
         .history {
-            max-height: 150px;
+            max-height: 200px;
             overflow-y: auto;
             background: #f9f9f9;
             margin: 10px 0;
@@ -70,7 +68,8 @@
             border-radius: 5px;
         }
         .history div {
-            padding: 5px;
+            padding: 10px;
+            font-size: 1.2rem;
             cursor: pointer;
         }
         .history div:hover {
@@ -79,39 +78,34 @@
     </style>
 </head>
 <body>
-    <h1>電卓</h1>
+    <h1>普通配置電卓</h1>
     <div class="container">
         <h2>電卓</h2>
         <div class="display">
             <input type="text" id="calcInput" class="calc-display" readonly>
             <div id="historyTotal" class="history-total">合計: 0</div>
         </div>
-        <div>
+        <button onclick="startVoiceRecognition()">🎤 音声入力</button>
+        <div class="button-grid">
+            <button onclick="clearHistory()">AC</button>
+            <button onclick="appendOperator('/')">÷</button>
+            <button onclick="appendOperator('*')">×</button>
+            <button onclick="clearDisplay()">C</button>
             <button onclick="appendNumber('7')">7</button>
             <button onclick="appendNumber('8')">8</button>
             <button onclick="appendNumber('9')">9</button>
-            <button onclick="appendOperator('/')">÷</button>
-        </div>
-        <div>
+            <button onclick="appendOperator('-')">−</button>
             <button onclick="appendNumber('4')">4</button>
             <button onclick="appendNumber('5')">5</button>
             <button onclick="appendNumber('6')">6</button>
-            <button onclick="appendOperator('*')">×</button>
-        </div>
-        <div>
+            <button onclick="appendOperator('+')">+</button>
             <button onclick="appendNumber('1')">1</button>
             <button onclick="appendNumber('2')">2</button>
             <button onclick="appendNumber('3')">3</button>
-            <button onclick="appendOperator('-')">-</button>
-        </div>
-        <div>
-            <button onclick="appendNumber('0')">0</button>
-            <button onclick="appendNumber('.')">.</button>
             <button onclick="calculate()">=</button>
-            <button onclick="appendOperator('+')">+</button>
+            <button colspan="2" onclick="appendNumber('0')" style="grid-column: span 2;">0</button>
+            <button onclick="appendNumber('.')">.</button>
         </div>
-        <button onclick="clearDisplay()">クリア</button>
-        <button onclick="clearHistory()">履歴全削除</button>
         <div class="history" id="calcHistory"></div>
     </div>
 
@@ -121,6 +115,34 @@
         let historyTotal = document.getElementById('historyTotal');
         let shouldClearDisplay = false;
 
+        // 音声認識機能
+        function startVoiceRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                alert('このブラウザは音声認識をサポートしていません。');
+                return;
+            }
+
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = 'ja-JP';
+            recognition.interimResults = false;
+
+            recognition.onresult = (event) => {
+                const spokenText = event.results[0][0].transcript;
+                processVoiceInput(spokenText);
+            };
+
+            recognition.onerror = () => {
+                alert('音声認識に失敗しました。もう一度お試しください。');
+            };
+
+            recognition.start();
+        }
+
+        function processVoiceInput(spokenText) {
+            calcInput.value += spokenText;
+        }
+
+        // 電卓機能
         function appendNumber(number) {
             if (shouldClearDisplay) {
                 calcInput.value = '';
@@ -142,15 +164,15 @@
                     const result = eval(calcInput.value.replace(/÷/g, '/').replace(/×/g, '*'));
                     const entry = document.createElement('div');
                     entry.textContent = `${calcInput.value} = ${result}`;
-                    entry.dataset.result = result; // 履歴項目に計算結果を保存
+                    entry.dataset.result = result;
                     entry.ondblclick = function () {
-                        calcHistory.removeChild(entry); // 履歴削除
-                        updateHistoryTotal(); // 合計を再計算
+                        calcHistory.removeChild(entry);
+                        updateHistoryTotal();
                     };
                     calcHistory.appendChild(entry);
                     calcInput.value = result;
                     shouldClearDisplay = true;
-                    updateHistoryTotal(); // 合計を更新
+                    updateHistoryTotal();
                 }
             } catch {
                 alert('無効な式です');
