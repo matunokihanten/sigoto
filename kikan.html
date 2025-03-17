@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>期間計算機能付き電卓</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      text-align: center;
+      background-color: #f2f2f2;
+    }
+    .container {
+      max-width: 400px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    .date-input {
+      font-size: 1.5rem;
+      padding: 10px;
+      margin: 10px auto;
+      display: block;
+      width: 90%;
+    }
+    .result {
+      font-size: 1.8rem;
+      margin: 20px;
+    }
+    button {
+      font-size: 1.5rem;
+      padding: 10px 20px;
+      margin: 10px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h1>期間計算機</h1>
+  <div class="container">
+    <h2>期間を計算</h2>
+    <label for="startDate">開始日:</label>
+    <input type="date" id="startDate" class="date-input">
+    <label for="endDate">終了日:</label>
+    <input type="date" id="endDate" class="date-input">
+    <button onclick="calculatePeriod()">計算</button>
+    <p id="periodResult" class="result"></p>
+  </div>
+
+  <script>
+    function calculatePeriod() {
+      const start = new Date(document.getElementById('startDate').value);
+      const end = new Date(document.getElementById('endDate').value);
+      
+      if (!isNaN(start) && !isNaN(end)) {
+        const diffTime = end - start;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        document.getElementById('periodResult').textContent = `期間: ${diffDays} 日`;
+      } else {
+        document.getElementById('periodResult').textContent = '有効な日付を入力してください。';
+      }
+    }
+  </script>
+</body>
+</html>
