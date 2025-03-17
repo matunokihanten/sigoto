@@ -19,8 +19,35 @@
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
-        .hidden {
-            display: none;
+        input, label {
+            display: block;
+            width: 90%;
+            margin: 10px auto;
+            padding: 10px;
+            font-size: 1rem;
+            text-align: right;
+        }
+        .display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .calc-display {
+            width: 70%;
+            font-size: 1.5rem;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            text-align: right;
+        }
+        .history-total {
+            width: 25%;
+            font-size: 1.2rem;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            text-align: center;
         }
         button {
             padding: 10px 20px;
@@ -33,13 +60,6 @@
         }
         button:hover {
             background: #45a049;
-        }
-        input, label {
-            display: block;
-            width: 90%;
-            margin: 10px auto;
-            padding: 10px;
-            font-size: 1rem;
         }
         .history {
             max-height: 150px;
@@ -59,16 +79,13 @@
     </style>
 </head>
 <body>
-    <h1>複合ツール</h1>
-    <div>
-        <button onclick="showCalculator()">電卓</button>
-        <button onclick="showDateCalculator()">日付計算</button>
-    </div>
-
-    <!-- 電卓機能 -->
-    <div class="container" id="calculator">
+    <h1>電卓</h1>
+    <div class="container">
         <h2>電卓</h2>
-        <input type="text" id="calcInput" readonly>
+        <div class="display">
+            <input type="text" id="calcInput" class="calc-display" readonly>
+            <div id="historyTotal" class="history-total">合計: 0</div>
+        </div>
         <div>
             <button onclick="appendNumber('7')">7</button>
             <button onclick="appendNumber('8')">8</button>
@@ -94,25 +111,14 @@
             <button onclick="appendOperator('+')">+</button>
         </div>
         <button onclick="clearDisplay()">クリア</button>
-        <div class="history" id="calcHistory"></div>
         <button onclick="clearHistory()">履歴全削除</button>
-    </div>
-
-    <!-- 日付計算機能 -->
-    <div class="container hidden" id="dateCalculator">
-        <h2>日付計算</h2>
-        <label for="startDate">開始日:</label>
-        <input type="date" id="startDate">
-        <label for="endDate">終了日:</label>
-        <input type="date" id="endDate">
-        <button onclick="calculateDateDifference()">計算</button>
-        <p id="dateResult"></p>
+        <div class="history" id="calcHistory"></div>
     </div>
 
     <script>
-        // 電卓機能
         let calcInput = document.getElementById('calcInput');
         let calcHistory = document.getElementById('calcHistory');
+        let historyTotal = document.getElementById('historyTotal');
         let shouldClearDisplay = false;
 
         function appendNumber(number) {
@@ -136,12 +142,15 @@
                     const result = eval(calcInput.value.replace(/÷/g, '/').replace(/×/g, '*'));
                     const entry = document.createElement('div');
                     entry.textContent = `${calcInput.value} = ${result}`;
+                    entry.dataset.result = result; // 履歴項目に計算結果を保存
                     entry.ondblclick = function () {
-                        calcHistory.removeChild(entry);
+                        calcHistory.removeChild(entry); // 履歴削除
+                        updateHistoryTotal(); // 合計を再計算
                     };
                     calcHistory.appendChild(entry);
                     calcInput.value = result;
                     shouldClearDisplay = true;
+                    updateHistoryTotal(); // 合計を更新
                 }
             } catch {
                 alert('無効な式です');
@@ -154,29 +163,19 @@
 
         function clearHistory() {
             calcHistory.innerHTML = '';
+            updateHistoryTotal();
         }
 
-        // 日付計算機能
-        function calculateDateDifference() {
-            const startDate = new Date(document.getElementById('startDate').value);
-            const endDate = new Date(document.getElementById('endDate').value);
-            if (!isNaN(startDate) && !isNaN(endDate)) {
-                const difference = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-                document.getElementById('dateResult').textContent = `期間: ${difference}日`;
-            } else {
-                document.getElementById('dateResult').textContent = '正しい日付を入力してください。';
-            }
-        }
-
-        // 表示切り替え機能
-        function showCalculator() {
-            document.getElementById('calculator').classList.remove('hidden');
-            document.getElementById('dateCalculator').classList.add('hidden');
-        }
-
-        function showDateCalculator() {
-            document.getElementById('dateCalculator').classList.remove('hidden');
-            document.getElementById('calculator').classList.add('hidden');
+        function updateHistoryTotal() {
+            let sum = 0;
+            const historyEntries = calcHistory.querySelectorAll('div');
+            historyEntries.forEach(entry => {
+                const result = parseFloat(entry.dataset.result);
+                if (!isNaN(result)) {
+                    sum += result;
+                }
+            });
+            historyTotal.textContent = `合計: ${sum}`;
         }
     </script>
 </body>
