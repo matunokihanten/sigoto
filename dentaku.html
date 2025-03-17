@@ -1,182 +1,247 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>複合ツール</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            text-align: center;
-            background-color: #f2f2f2;
-        }
-        .container {
-            max-width: 400px;
-            margin: 20px auto;
-            padding: 20px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
-        input, label {
-            display: block;
-            width: 90%;
-            margin: 10px auto;
-            padding: 10px;
-            font-size: 1rem;
-            text-align: right;
-        }
-        .display {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .calc-display {
-            width: 70%;
-            font-size: 1.5rem;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            text-align: right;
-        }
-        .history-total {
-            width: 25%;
-            font-size: 1.2rem;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-            text-align: center;
-        }
-        button {
-            padding: 10px 20px;
-            margin: 10px;
-            background: #4caf50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #45a049;
-        }
-        .history {
-            max-height: 150px;
-            overflow-y: auto;
-            background: #f9f9f9;
-            margin: 10px 0;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .history div {
-            padding: 5px;
-            cursor: pointer;
-        }
-        .history div:hover {
-            background-color: #e0e0e0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>複合ツール：電卓＆期間計算機</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f2f2f2;
+      text-align: center;
+    }
+    /* コンテナ全体のデザイン */
+    .container {
+      max-width: 400px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    .hidden {
+      display: none;
+    }
+    /* トグルボタン */
+    .toggle-buttons {
+      margin-bottom: 20px;
+    }
+    .toggle-buttons button {
+      padding: 10px 20px;
+      margin: 0 10px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    /* 電卓ディスプレイ部 */
+    .display {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .calc-display {
+      width: 70%;
+      font-size: 2rem;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      text-align: right;
+    }
+    .history-total {
+      width: 25%;
+      font-size: 1.8rem;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+      text-align: center;
+    }
+    /* ボタンのグリッド配置（普通の電卓と同じ配置） */
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-gap: 10px;
+      margin-top: 20px;
+    }
+    .button-grid button {
+      padding: 20px;
+      font-size: 1.5rem;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .button-grid button:hover {
+      background: #45a049;
+    }
+    /* 履歴表示部 */
+    .history {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #f9f9f9;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 5px;
+      text-align: left;
+    }
+    .history div {
+      padding: 10px;
+      font-size: 1.2rem;
+      cursor: pointer;
+    }
+    .history div:hover {
+      background-color: #e0e0e0;
+    }
+    /* 期間計算機スタイル */
+    .date-input {
+      font-size: 1.5rem;
+      padding: 10px;
+      margin: 10px auto;
+      display: block;
+      width: 90%;
+    }
+    .result {
+      font-size: 1.8rem;
+      margin: 20px;
+    }
+  </style>
 </head>
 <body>
-    <h1>電卓</h1>
-    <div class="container">
-        <h2>電卓</h2>
-        <div class="display">
-            <input type="text" id="calcInput" class="calc-display" readonly>
-            <div id="historyTotal" class="history-total">合計: 0</div>
-        </div>
-        <div>
-            <button onclick="appendNumber('7')">7</button>
-            <button onclick="appendNumber('8')">8</button>
-            <button onclick="appendNumber('9')">9</button>
-            <button onclick="appendOperator('/')">÷</button>
-        </div>
-        <div>
-            <button onclick="appendNumber('4')">4</button>
-            <button onclick="appendNumber('5')">5</button>
-            <button onclick="appendNumber('6')">6</button>
-            <button onclick="appendOperator('*')">×</button>
-        </div>
-        <div>
-            <button onclick="appendNumber('1')">1</button>
-            <button onclick="appendNumber('2')">2</button>
-            <button onclick="appendNumber('3')">3</button>
-            <button onclick="appendOperator('-')">-</button>
-        </div>
-        <div>
-            <button onclick="appendNumber('0')">0</button>
-            <button onclick="appendNumber('.')">.</button>
-            <button onclick="calculate()">=</button>
-            <button onclick="appendOperator('+')">+</button>
-        </div>
-        <button onclick="clearDisplay()">クリア</button>
-        <button onclick="clearHistory()">履歴全削除</button>
-        <div class="history" id="calcHistory"></div>
+  <h1>複合ツール：電卓＆期間計算機</h1>
+  <div class="toggle-buttons">
+    <button onclick="showCalculator()">電卓</button>
+    <button onclick="showPeriodCalculator()">期間計算機</button>
+  </div>
+
+  <!-- 電卓コンテナ -->
+  <div id="calculator" class="container">
+    <h2>電卓</h2>
+    <div class="display">
+      <input type="text" id="calcInput" class="calc-display" readonly>
+      <div id="historyTotal" class="history-total">合計: 0</div>
     </div>
+    <div class="button-grid">
+      <button onclick="clearHistory()">AC</button>
+      <button onclick="appendOperator('/')">÷</button>
+      <button onclick="appendOperator('*')">×</button>
+      <button onclick="clearDisplay()">C</button>
 
-    <script>
-        let calcInput = document.getElementById('calcInput');
-        let calcHistory = document.getElementById('calcHistory');
-        let historyTotal = document.getElementById('historyTotal');
-        let shouldClearDisplay = false;
+      <button onclick="appendNumber('7')">7</button>
+      <button onclick="appendNumber('8')">8</button>
+      <button onclick="appendNumber('9')">9</button>
+      <button onclick="appendOperator('-')">－</button>
 
-        function appendNumber(number) {
-            if (shouldClearDisplay) {
-                calcInput.value = '';
-                shouldClearDisplay = false;
-            }
-            calcInput.value += number;
-        }
+      <button onclick="appendNumber('4')">4</button>
+      <button onclick="appendNumber('5')">5</button>
+      <button onclick="appendNumber('6')">6</button>
+      <button onclick="appendOperator('+')">＋</button>
 
-        function appendOperator(operator) {
-            if (calcInput.value !== '') {
-                calcInput.value += operator;
-                shouldClearDisplay = false;
-            }
-        }
+      <button onclick="appendNumber('1')">1</button>
+      <button onclick="appendNumber('2')">2</button>
+      <button onclick="appendNumber('3')">3</button>
+      <button onclick="calculate()">=</button>
 
-        function calculate() {
-            try {
-                if (calcInput.value.trim() !== '') {
-                    const result = eval(calcInput.value.replace(/÷/g, '/').replace(/×/g, '*'));
-                    const entry = document.createElement('div');
-                    entry.textContent = `${calcInput.value} = ${result}`;
-                    entry.dataset.result = result; // 履歴項目に計算結果を保存
-                    entry.ondblclick = function () {
-                        calcHistory.removeChild(entry); // 履歴削除
-                        updateHistoryTotal(); // 合計を再計算
-                    };
-                    calcHistory.appendChild(entry);
-                    calcInput.value = result;
-                    shouldClearDisplay = true;
-                    updateHistoryTotal(); // 合計を更新
-                }
-            } catch {
-                alert('無効な式です');
-            }
-        }
+      <button onclick="appendNumber('0')" style="grid-column: span 2;">0</button>
+      <button onclick="appendNumber('.')">.</button>
+    </div>
+    <div class="history" id="calcHistory"></div>
+  </div>
 
-        function clearDisplay() {
-            calcInput.value = '';
-        }
+  <!-- 期間計算機コンテナ -->
+  <div id="periodCalculator" class="container hidden">
+    <h2>期間計算機</h2>
+    <label for="startDate">開始日:</label>
+    <input type="date" id="startDate" class="date-input">
+    <label for="endDate">終了日:</label>
+    <input type="date" id="endDate" class="date-input">
+    <button onclick="calculatePeriod()" style="padding: 15px 25px; font-size: 1.5rem; margin-top: 10px;">計算</button>
+    <p id="periodResult" class="result"></p>
+  </div>
 
-        function clearHistory() {
-            calcHistory.innerHTML = '';
+  <script>
+    // コンテナ切り替え機能
+    function showCalculator() {
+      document.getElementById('calculator').classList.remove('hidden');
+      document.getElementById('periodCalculator').classList.add('hidden');
+    }
+    function showPeriodCalculator() {
+      document.getElementById('periodCalculator').classList.remove('hidden');
+      document.getElementById('calculator').classList.add('hidden');
+    }
+
+    // 電卓用グローバル変数
+    let calcInput = document.getElementById('calcInput');
+    let calcHistory = document.getElementById('calcHistory');
+    let historyTotal = document.getElementById('historyTotal');
+    let shouldClearDisplay = false;
+
+    // 電卓関連の関数
+    function appendNumber(num) {
+      if (shouldClearDisplay) {
+        calcInput.value = '';
+        shouldClearDisplay = false;
+      }
+      calcInput.value += num;
+    }
+    function appendOperator(op) {
+      if (calcInput.value !== '') {
+        calcInput.value += op;
+        shouldClearDisplay = false;
+      }
+    }
+    function calculate() {
+      try {
+        if (calcInput.value.trim() !== '') {
+          const result = eval(calcInput.value.replace(/÷/g, '/').replace(/×/g, '*'));
+          const entry = document.createElement('div');
+          entry.textContent = `${calcInput.value} = ${result}`;
+          entry.dataset.result = result;
+          // ダブルクリックで個別削除＆合計再計算
+          entry.ondblclick = function() {
+            calcHistory.removeChild(entry);
             updateHistoryTotal();
+          };
+          calcHistory.appendChild(entry);
+          calcInput.value = result;
+          shouldClearDisplay = true;
+          updateHistoryTotal();
         }
+      } catch {
+        alert('無効な式です');
+      }
+    }
+    function clearDisplay() {
+      calcInput.value = '';
+    }
+    function clearHistory() {
+      calcHistory.innerHTML = '';
+      updateHistoryTotal();
+    }
+    function updateHistoryTotal() {
+      let sum = 0;
+      const entries = calcHistory.querySelectorAll('div');
+      entries.forEach(entry => {
+        const result = parseFloat(entry.dataset.result);
+        if (!isNaN(result)) {
+          sum += result;
+        }
+      });
+      historyTotal.textContent = `合計: ${sum}`;
+    }
 
-        function updateHistoryTotal() {
-            let sum = 0;
-            const historyEntries = calcHistory.querySelectorAll('div');
-            historyEntries.forEach(entry => {
-                const result = parseFloat(entry.dataset.result);
-                if (!isNaN(result)) {
-                    sum += result;
-                }
-            });
-            historyTotal.textContent = `合計: ${sum}`;
-        }
-    </script>
+    // 期間計算機の関数
+    function calculatePeriod() {
+      const start = new Date(document.getElementById('startDate').value);
+      const end = new Date(document.getElementById('endDate').value);
+      if (!isNaN(start) && !isNaN(end)) {
+        const diffTime = end - start;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        document.getElementById('periodResult').textContent = `期間: ${diffDays} 日`;
+      } else {
+        document.getElementById('periodResult').textContent = '有効な日付を入力してください。';
+      }
+    }
+  </script>
 </body>
 </html>
