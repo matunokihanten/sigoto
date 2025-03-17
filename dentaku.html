@@ -1,196 +1,183 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>履歴選択＆表示改良版電卓</title>
-  <style>
-    body{font-family:Arial,sans-serif;text-align:center;margin-top:50px}
-    #calculator,#money-counter{display:inline-block;border:1px solid #ccc;padding:20px;border-radius:10px;background:#f9f9f9;width:300px;position:relative}
-    #result{width:100%;height:50px;font-size:20px;text-align:right;margin-bottom:5px}
-    /* ※ #dynamic-result のスタイルは変更していません（以前の設定そのままです） */
-    #dynamic-result{font-size:16px;color:green;margin-top:5px}
-    button{width:60px;height:60px;margin:5px;font-size:18px}
-    table{margin:0 auto;border-collapse:collapse}
-    table td{padding:3px}
-    #history-panel{position:absolute;top:10px;left:10px;width:280px;background:#fff;border:1px solid #ccc;border-radius:10px;overflow-y:auto;padding:10px;display:none;z-index:10}
-    .history-item{cursor:pointer;padding:5px;border-bottom:1px solid #ddd}
-    .history-item.selected{background:#f0f0f0}
-    .history-item:hover{background:#e0e0e0}
-    #history-total{font-weight:bold;margin-top:10px;text-align:right}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>複合ツール</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            text-align: center;
+            background-color: #f2f2f2;
+        }
+        .container {
+            max-width: 400px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+        .hidden {
+            display: none;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        input, label {
+            display: block;
+            width: 90%;
+            margin: 10px auto;
+            padding: 10px;
+            font-size: 1rem;
+        }
+        .history {
+            max-height: 150px;
+            overflow-y: auto;
+            background: #f9f9f9;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .history div {
+            padding: 5px;
+            cursor: pointer;
+        }
+        .history div:hover {
+            background-color: #e0e0e0;
+        }
+    </style>
 </head>
 <body>
-  <div id="calculator">
-    <input type="text" id="result" placeholder="0" disabled>
-    <table>
-      <tr>
-        <td><button onclick="appendValue('7')">7</button></td>
-        <td><button onclick="appendValue('8')">8</button></td>
-        <td><button onclick="appendValue('9')">9</button></td>
-        <td><button onclick="appendValue('/')">÷</button></td>
-      </tr>
-      <tr>
-        <td><button onclick="appendValue('4')">4</button></td>
-        <td><button onclick="appendValue('5')">5</button></td>
-        <td><button onclick="appendValue('6')">6</button></td>
-        <td><button onclick="appendValue('*')">×</button></td>
-      </tr>
-      <tr>
-        <td><button onclick="appendValue('1')">1</button></td>
-        <td><button onclick="appendValue('2')">2</button></td>
-        <td><button onclick="appendValue('3')">3</button></td>
-        <td><button onclick="appendValue('-')">−</button></td>
-      </tr>
-      <tr>
-        <td><button onclick="appendValue('0')">0</button></td>
-        <td><button onclick="appendValue('.')">.</button></td>
-        <td><button onclick="calculateResult()">=</button></td>
-        <td><button onclick="appendValue('+')">+</button></td>
-      </tr>
-      <tr>
-        <td><button onclick="clearResult()">C</button></td>
-        <td><button onclick="toggleHistory()">履歴</button></td>
-        <td><button onclick="clearAllHistory()">全削除</button></td>
-        <td></td>
-      </tr>
-    </table>
-    <div id="history-total">合計: 0</div>
-    <div id="history-panel">
-      <h3>計算履歴</h3>
-      <div id="history"></div>
+    <h1>複合ツール</h1>
+    <div>
+        <button onclick="showCalculator()">電卓</button>
+        <button onclick="showDateCalculator()">日付計算</button>
     </div>
-  </div>
-  <!-- ここで dynamic-result を電卓ブロック直後、モード切替ボタンの直前に配置 -->
-  <div id="dynamic-result"></div>
 
-  <!-- (お金の数え機能以下は変更していません) -->
-  <div id="money-counter" style="margin-top:20px;display:inline-block;border:1px solid #ccc;padding:20px;border-radius:10px;background:#f9f9f9;width:300px;">
-    <h3>お金の数え機能</h3>
-    <table style="margin:0 auto;">
-      <tr><td>10000円:</td><td><input type="number" id="count-10000" style="width:80px;"></td></tr>
-      <tr><td>5000円:</td><td><input type="number" id="count-5000" style="width:80px;"></td></tr>
-      <tr><td>1000円:</td><td><input type="number" id="count-1000" style="width:80px;"></td></tr>
-      <tr><td>500円:</td><td><input type="number" id="count-500" style="width:80px;"></td></tr>
-      <tr><td>100円:</td><td><input type="number" id="count-100" style="width:80px;"></td></tr>
-      <tr><td>50円:</td><td><input type="number" id="count-50" style="width:80px;"></td></tr>
-      <tr><td>10円:</td><td><input type="number" id="count-10" style="width:80px;"></td></tr>
-      <tr><td>5円:</td><td><input type="number" id="count-5" style="width:80px;"></td></tr>
-      <tr><td>1円:</td><td><input type="number" id="count-1" style="width:80px;"></td></tr>
-    </table>
-    <button onclick="clearMoneyFields()" style="margin-top:10px;width:150px;height:40px;font-size:16px;">クリア</button>
-    <p id="money-total" style="font-weight:bold;margin-top:10px;">合計金額: 0 円</p>
-  </div>
+    <!-- 電卓機能 -->
+    <div class="container" id="calculator">
+        <h2>電卓</h2>
+        <input type="text" id="calcInput" readonly>
+        <div>
+            <button onclick="appendNumber('7')">7</button>
+            <button onclick="appendNumber('8')">8</button>
+            <button onclick="appendNumber('9')">9</button>
+            <button onclick="appendOperator('/')">÷</button>
+        </div>
+        <div>
+            <button onclick="appendNumber('4')">4</button>
+            <button onclick="appendNumber('5')">5</button>
+            <button onclick="appendNumber('6')">6</button>
+            <button onclick="appendOperator('*')">×</button>
+        </div>
+        <div>
+            <button onclick="appendNumber('1')">1</button>
+            <button onclick="appendNumber('2')">2</button>
+            <button onclick="appendNumber('3')">3</button>
+            <button onclick="appendOperator('-')">-</button>
+        </div>
+        <div>
+            <button onclick="appendNumber('0')">0</button>
+            <button onclick="appendNumber('.')">.</button>
+            <button onclick="calculate()">=</button>
+            <button onclick="appendOperator('+')">+</button>
+        </div>
+        <button onclick="clearDisplay()">クリア</button>
+        <div class="history" id="calcHistory"></div>
+        <button onclick="clearHistory()">履歴全削除</button>
+    </div>
 
-  <script>
-    // 電卓・履歴・つり銭機能（変更なし）
-    const resultField = document.getElementById('result'),
-          historyContainer = document.getElementById('history'),
-          historyTotal = document.getElementById('history-total'),
-          historyPanel = document.getElementById('history-panel');
-    let totalSum = 0;
-    function appendValue(v){
-      resultField.value = (resultField.value==='0'||resultField.value==='エラー') ? v : resultField.value+v;
-      dynamicCalculate();
-    }
-    function clearResult(){
-      const items = document.querySelectorAll('.history-item.selected');
-      if(items.length){
-        items.forEach(i=>{
-          totalSum -= parseFloat(i.dataset.result)||0;
-          i.remove();
-        });
-        updateTotal();
-      } else resultField.value = '';
-      dynamicCalculate();
-    }
-    function calculateResult(){
-      try{
-        const expr = resultField.value, res = eval(expr);
-        addHistory(expr,res);
-        totalSum += res; updateTotal();
-        resultField.value = '0'; dynamicCalculate();
-      } catch(e){ resultField.value = 'エラー'; }
-    }
-    function addHistory(expr, res){
-      let i = document.createElement('div');
-      i.textContent = `${expr} = ${res}`;
-      i.className = 'history-item';
-      i.dataset.result = res;
-      i.onclick = () => i.classList.toggle('selected');
-      historyContainer.appendChild(i);
-    }
-    function updateTotal(){ historyTotal.textContent = `合計: ${totalSum}`; }
-    function toggleHistory(){ historyPanel.style.display = (historyPanel.style.display==='none' ? 'block' : 'none'); }
-    function clearAllHistory(){ historyContainer.innerHTML = ''; totalSum = 0; updateTotal(); }
-    function dynamicCalculate(){
-      try{
-        let res = eval(resultField.value);
-        document.getElementById('dynamic-result').textContent = "答え: " + res;
-      } catch(e){
-        document.getElementById('dynamic-result').textContent = "";
-      }
-    }
-  </script>
+    <!-- 日付計算機能 -->
+    <div class="container hidden" id="dateCalculator">
+        <h2>日付計算</h2>
+        <label for="startDate">開始日:</label>
+        <input type="date" id="startDate">
+        <label for="endDate">終了日:</label>
+        <input type="date" id="endDate">
+        <button onclick="calculateDateDifference()">計算</button>
+        <p id="dateResult"></p>
+    </div>
 
-  <script>
-    // お金の数え機能（変更なし）
-    function calculateMoney(){
-      const denoms = [
-        { id:'count-10000', v:10000 },
-        { id:'count-5000', v:5000 },
-        { id:'count-1000', v:1000 },
-        { id:'count-500', v:500 },
-        { id:'count-100', v:100 },
-        { id:'count-50', v:50 },
-        { id:'count-10', v:10 },
-        { id:'count-5', v:5 },
-        { id:'count-1', v:1 }
-      ];
-      let total = 0;
-      denoms.forEach(d => { total += (parseInt(document.getElementById(d.id).value)||0)*d.v; });
-      document.getElementById('money-total').textContent = "合計金額: " + total + " 円";
-    }
-    function clearMoneyFields(){
-      ['count-10000','count-5000','count-1000','count-500','count-100','count-50','count-10','count-5','count-1']
-        .forEach(id=>document.getElementById(id).value = "");
-      document.getElementById('money-total').textContent = "合計金額: 0 円";
-    }
-  </script>
-  <script>
-    // お金の数え機能：Enterキーで次のフィールド移動＆input時自動計算
-    document.addEventListener("DOMContentLoaded", function(){
-      const moneyIds = ["count-10000","count-5000","count-1000","count-500","count-100","count-50","count-10","count-5","count-1"];
-      moneyIds.forEach((id, index)=>{
-        let f = document.getElementById(id);
-        f.addEventListener("keydown", function(e){
-          if(e.key==="Enter"){
-            e.preventDefault();
-            if(index < moneyIds.length-1) {
-              document.getElementById(moneyIds[index+1]).focus();
+    <script>
+        // 電卓機能
+        let calcInput = document.getElementById('calcInput');
+        let calcHistory = document.getElementById('calcHistory');
+        let shouldClearDisplay = false;
+
+        function appendNumber(number) {
+            if (shouldClearDisplay) {
+                calcInput.value = '';
+                shouldClearDisplay = false;
             }
-          }
-        });
-        f.addEventListener("input", calculateMoney);
-      });
-    });
-  </script>
-  <div id="mode-switch" style="margin-top:20px;">
-    <button onclick="toggleMoneyCounterMode()" style="width:150px;height:40px;font-size:16px">お金を数える</button>
-  </div>
-  <script>
-    window.addEventListener("load", function(){
-      document.getElementById("money-counter").style.display = "none";
-    });
-    function toggleMoneyCounterMode(){
-      const calcDiv = document.getElementById("calculator"),
-            moneyDiv = document.getElementById("money-counter");
-      if(calcDiv.style.display !== "none"){
-        calcDiv.style.display = "none"; moneyDiv.style.display = "inline-block";
-      } else {
-        moneyDiv.style.display = "none"; calcDiv.style.display = "inline-block";
-      }
-    }
-  </script>
+            calcInput.value += number;
+        }
+
+        function appendOperator(operator) {
+            if (calcInput.value !== '') {
+                calcInput.value += operator;
+                shouldClearDisplay = false;
+            }
+        }
+
+        function calculate() {
+            try {
+                if (calcInput.value.trim() !== '') {
+                    const result = eval(calcInput.value.replace(/÷/g, '/').replace(/×/g, '*'));
+                    const entry = document.createElement('div');
+                    entry.textContent = `${calcInput.value} = ${result}`;
+                    entry.ondblclick = function () {
+                        calcHistory.removeChild(entry);
+                    };
+                    calcHistory.appendChild(entry);
+                    calcInput.value = result;
+                    shouldClearDisplay = true;
+                }
+            } catch {
+                alert('無効な式です');
+            }
+        }
+
+        function clearDisplay() {
+            calcInput.value = '';
+        }
+
+        function clearHistory() {
+            calcHistory.innerHTML = '';
+        }
+
+        // 日付計算機能
+        function calculateDateDifference() {
+            const startDate = new Date(document.getElementById('startDate').value);
+            const endDate = new Date(document.getElementById('endDate').value);
+            if (!isNaN(startDate) && !isNaN(endDate)) {
+                const difference = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+                document.getElementById('dateResult').textContent = `期間: ${difference}日`;
+            } else {
+                document.getElementById('dateResult').textContent = '正しい日付を入力してください。';
+            }
+        }
+
+        // 表示切り替え機能
+        function showCalculator() {
+            document.getElementById('calculator').classList.remove('hidden');
+            document.getElementById('dateCalculator').classList.add('hidden');
+        }
+
+        function showDateCalculator() {
+            document.getElementById('dateCalculator').classList.remove('hidden');
+            document.getElementById('calculator').classList.add('hidden');
+        }
+    </script>
 </body>
 </html>
