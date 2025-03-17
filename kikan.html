@@ -3,161 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シューティングゲーム（スマホ対応）</title>
+    <title>高機能メモ帳</title>
     <style>
         body {
-            margin: 0;
-            overflow: hidden;
-            background-color: black;
+            font-family: Arial, sans-serif;
+            margin: 20px;
         }
-        #game-area {
+        textarea {
             width: 100%;
-            height: 100vh;
-            position: relative;
-            background-color: darkblue;
+            height: 100px;
+            margin-top: 10px;
         }
-        .player {
-            width: 50px;
-            height: 50px;
-            background-color: red;
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        .bullet {
-            width: 5px;
-            height: 15px;
-            background-color: yellow;
-            position: absolute;
-        }
-        .enemy {
-            width: 50px;
-            height: 50px;
-            background-color: green;
-            position: absolute;
-        }
-        #touch-controls {
-            position: fixed;
-            bottom: 0;
+        input {
             width: 100%;
+            margin-top: 10px;
+        }
+        button {
+            margin-top: 10px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-top: 5px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
         }
-        .control-button {
-            width: 30%;
-            height: 60px;
-            background-color: rgba(255, 255, 255, 0.5);
-            color: black;
-            font-size: 18px;
-            text-align: center;
-            line-height: 60px;
-            border: 1px solid white;
-            user-select: none;
+        button.delete {
+            background-color: red;
+            color: white;
+            border: none;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="game-area">
-        <div class="player" id="player"></div>
-    </div>
-    <div id="touch-controls">
-        <div class="control-button" id="move-left">← 左</div>
-        <div class="control-button" id="fire">発射</div>
-        <div class="control-button" id="move-right">右 →</div>
-    </div>
+    <h1>高機能メモ帳</h1>
+    <textarea id="memoInput" placeholder="メモを入力..."></textarea>
+    <input type="text" id="tagInput" placeholder="タグを入力..." />
+    <button id="addMemo">メモを追加</button>
+    <button id="backup">バックアップ</button>
+    <ul id="memoList"></ul>
+
     <script>
-        const gameArea = document.getElementById("game-area");
-        const player = document.getElementById("player");
-        const moveLeftButton = document.getElementById("move-left");
-        const moveRightButton = document.getElementById("move-right");
-        const fireButton = document.getElementById("fire");
+        let memos = [];
 
-        let bullets = [];
-        let enemies = [];
+        document.getElementById('addMemo').addEventListener('click', function() {
+            const memoInput = document.getElementById('memoInput');
+            const tagInput = document.getElementById('tagInput');
+            const memoText = memoInput.value.trim();
+            const tags = tagInput.value.trim().split(',').map(tag => tag.trim()).filter(tag => tag);
 
-        // プレイヤーの移動（タッチ操作対応）
-        let playerMoveInterval;
-        moveLeftButton.addEventListener("mousedown", () => movePlayer(-10));
-        moveLeftButton.addEventListener("touchstart", () => movePlayer(-10));
-        moveRightButton.addEventListener("mousedown", () => movePlayer(10));
-        moveRightButton.addEventListener("touchstart", () => movePlayer(10));
-        document.addEventListener("mouseup", () => clearInterval(playerMoveInterval));
-        document.addEventListener("touchend", () => clearInterval(playerMoveInterval));
+            if (memoText === '') {
+                alert('メモを入力してください。');
+                return;
+            }
 
-        function movePlayer(direction) {
-            playerMoveInterval = setInterval(() => {
-                const playerRect = player.getBoundingClientRect();
-                if (
-                    (direction < 0 && playerRect.left > 0) ||
-                    (direction > 0 && playerRect.right < window.innerWidth)
-                ) {
-                    player.style.left = player.offsetLeft + direction + "px";
-                }
-            }, 16);
-        }
+            const memo = { text: memoText, tags: tags, id: Date.now() };
+            memos.push(memo);
+            renderMemos();
+            
+            memoInput.value = '';
+            tagInput.value = '';
+        });
 
-        // 弾を発射（タッチ操作対応）
-        fireButton.addEventListener("mousedown", fireBullet);
-        fireButton.addEventListener("touchstart", fireBullet);
+        function renderMemos() {
+            const memoList = document.getElementById('memoList');
+            memoList.innerHTML = '';
 
-        function fireBullet() {
-            const bullet = document.createElement("div");
-            bullet.classList.add("bullet");
-            bullet.style.left = player.offsetLeft + player.offsetWidth / 2 - 2.5 + "px";
-            bullet.style.bottom = player.offsetTop + 50 + "px";
-            gameArea.appendChild(bullet);
-            bullets.push(bullet);
-        }
+            memos.forEach(memo => {
+                const li = document.createElement('li');
+                li.textContent = memo.text + ' | Tags: ' + memo.tags.join(', ');
 
-        // 敵を生成
-        function createEnemy() {
-            const enemy = document.createElement("div");
-            enemy.classList.add("enemy");
-            enemy.style.left = Math.random() * (window.innerWidth - 50) + "px";
-            enemy.style.top = "0px";
-            gameArea.appendChild(enemy);
-            enemies.push(enemy);
-        }
-        setInterval(createEnemy, 2000);
+                const editButton = document.createElement('button');
+                editButton.textContent = '編集';
+                editButton.addEventListener('click', () => editMemo(memo.id));
 
-        // ゲームループ
-        function gameLoop() {
-            bullets.forEach((bullet, index) => {
-                bullet.style.bottom = parseInt(bullet.style.bottom) + 5 + "px";
-                if (parseInt(bullet.style.bottom) > window.innerHeight) {
-                    bullet.remove();
-                    bullets.splice(index, 1);
-                }
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = '削除';
+                deleteButton.className = 'delete';
+                deleteButton.addEventListener('click', () => deleteMemo(memo.id));
+
+                li.appendChild(editButton);
+                li.appendChild(deleteButton);
+                memoList.appendChild(li);
             });
-
-            enemies.forEach((enemy, index) => {
-                enemy.style.top = parseInt(enemy.style.top) + 2 + "px";
-                if (parseInt(enemy.style.top) > window.innerHeight) {
-                    enemy.remove();
-                    enemies.splice(index, 1);
-                }
-
-                bullets.forEach((bullet, bulletIndex) => {
-                    const bulletRect = bullet.getBoundingClientRect();
-                    const enemyRect = enemy.getBoundingClientRect();
-                    if (
-                        bulletRect.left < enemyRect.right &&
-                        bulletRect.right > enemyRect.left &&
-                        bulletRect.top < enemyRect.bottom &&
-                        bulletRect.bottom > enemyRect.top
-                    ) {
-                        enemy.remove();
-                        bullet.remove();
-                        enemies.splice(index, 1);
-                        bullets.splice(bulletIndex, 1);
-                    }
-                });
-            });
-
-            requestAnimationFrame(gameLoop);
         }
-        gameLoop();
+
+        function editMemo(id) {
+            const memo = memos.find(m => m.id === id);
+            const newText = prompt('メモを編集してください:', memo.text);
+            const newTags = prompt('タグを編集してください:', memo.tags.join(', '));
+
+            if (newText !== null) {
+                memo.text = newText.trim();
+            }
+            if (newTags !== null) {
+                memo.tags = newTags.split(',').map(tag => tag.trim());
+            }
+
+            renderMemos();
+        }
+
+        function deleteMemo(id) {
+            memos = memos.filter(m => m.id !== id);
+            renderMemos();
+        }
+
+        document.getElementById('backup').addEventListener('click', function() {
+            const dataStr = JSON.stringify(memos);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'backup.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        });
     </script>
 </body>
 </html>
