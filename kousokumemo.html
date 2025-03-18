@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>メモアプリ</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        #message {
+            margin-top: 10px;
+            color: red;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>メモアプリ</h1>
+        <textarea id="memoInput" placeholder="メモを入力してください..." rows="4"></textarea>
+        <button id="saveButton">保存</button>
+        <div id="message"></div>
+        <h2>保存されたメモ</h2>
+        <ul id="memoList"></ul>
+    </div>
+    <script>
+        document.getElementById('saveButton').addEventListener('click', function() {
+            const memoInput = document.getElementById('memoInput');
+            const memoList = document.getElementById('memoList');
+            const message = document.getElementById('message');
+
+            // メモの内容を取得
+            const memoText = memoInput.value.trim();
+
+            // メモが空でないか確認
+            if (memoText === '') {
+                message.textContent = 'メモを入力してください。';
+                return;
+            }
+
+            // 10秒以内に保存するためのタイマー
+            message.textContent = '10秒以内に保存してください。';
+            setTimeout(() => {
+                message.textContent = '';
+            }, 10000);
+
+            // メモをリストに追加
+            const listItem = document.createElement('li');
+            listItem.textContent = memoText;
+            memoList.appendChild(listItem);
+
+            // 入力フィールドをクリア
+            memoInput.value = '';
+        });
+    </script>
+</body>
+</html>
