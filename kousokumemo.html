@@ -1,532 +1,430 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>きれいなメモアプリ</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高速メモアプリ</title>
   <style>
-    :root {
-      --primary-color: #4CAF50;
-      --primary-dark: #45a049;
-      --secondary-color: #f8f8f8;
-      --accent-color: #333;
-      --header-bg: #4CAF50;
-      --header-text: #fff;
-      --border-color: #ddd;
-      --memo-bg: #ffffff;
+    /* ----- Basic Styles ----- */
+    body {
+      font-family: sans-serif;
+      margin: 10px;
+      background-color: #fff;
+      color: #000;
+      transition: background-color 0.3s, color 0.3s;
     }
-    * {
+    body.dark-mode {
+      background-color: #222;
+      color: #fff;
+    }
+    h1 {
+      text-align: center;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-bottom: 10px;
+      font-size: 1em;
+      padding: 5px;
       box-sizing: border-box;
     }
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: var(--secondary-color);
-      color: var(--accent-color);
-      line-height: 1.6;
-    }
-    .container {
-      max-width: 800px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
-    header {
-      background-color: var(--header-bg);
-      color: var(--header-text);
-      padding: 1.5rem;
-      border-radius: 5px;
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    header h1 {
-      margin: 0;
-      font-size: 2rem;
-    }
-    button,
-    .button {
-      background-color: var(--primary-color);
-      color: white;
-      padding: 0.5rem 1rem;
-      border: none;
-      border-radius: 4px;
+    button {
+      padding: 5px 10px;
+      font-size: 0.9em;
       cursor: pointer;
-      transition: background-color 0.3s;
-      font-size: 1rem;
     }
-    button:hover,
-    .button:hover {
-      background-color: var(--primary-dark);
-    }
-    textarea, input[type="text"] {
-      width: 100%;
-      padding: 0.5rem;
-      margin: 0.5rem 0;
-      border: 1px solid var(--border-color);
-      border-radius: 4px;
-      font-size: 1rem;
-    }
-    label.button {
-      cursor: pointer;
-      display: inline-block;
-      margin: 0.5rem 0;
-    }
-    section {
-      background-color: white;
-      padding: 1rem;
-      border-radius: 5px;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .actions {
+    #controls, #imageSection {
+      margin: 10px 0;
       display: flex;
       flex-wrap: wrap;
-      gap: 0.7rem;
+      gap: 10px;
       align-items: center;
     }
-    .actions > * {
-      flex: none;
+    #doubleClickHint {
+      font-size: 0.9em;
+      color: #555;
+      margin: 5px 0;
+      cursor: pointer;
     }
-    #cameraSection {
-      margin-top: 1rem;
+    /* ----- Image Preview ----- */
+    #imagePreview img {
+      max-width: 113px;
+      max-height: 113px;
+      border: 1px solid #ccc;
+      margin-top: 5px;
     }
-    video {
-      width: 100%;
-      border-radius: 5px;
+    /* ----- Grid Layout for Memos ----- */
+    #memosContainer {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
     }
     .memo {
-      background-color: var(--memo-bg);
-      border: 1px solid var(--border-color);
+      border: 1px solid #ccc;
+      padding: 5px;
       border-radius: 5px;
-      padding: 1rem;
-      margin-bottom: 1rem;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .memoHeader {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.5rem;
-    }
-    .memoHeader span {
-      font-size: 0.9rem;
-      color: #777;
-    }
-    pre.memoText {
-      white-space: pre-wrap;
+      background-color: rgba(255, 255, 255, 0.9);
       word-wrap: break-word;
-      margin: 0;
-      font-size: 1rem;
     }
-    .memoImage {
-      max-width: 100%;
-      margin-top: 1rem;
-      border-radius: 5px;
-    }
-    h2 {
-      margin-top: 0;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 0.5rem;
-    }
-    /* ダークモード */
-    .dark-mode {
+    body.dark-mode .memo {
       background-color: #333;
-      color: #ddd;
+      border-color: #555;
     }
-    .dark-mode header {
-      background-color: #222;
+    .memo .timestamp {
+      font-size: 0.8em;
+      color: gray;
+      margin-bottom: 5px;
     }
-    .dark-mode section {
-      background-color: #444;
+    .memo pre {
+      white-space: pre-wrap;
+      font-family: inherit;
+      margin: 0 0 5px 0;
     }
-    .dark-mode textarea, .dark-mode input[type="text"] {
-      background-color: #555;
-      color: #ddd;
-      border: 1px solid #666;
-    }
-    @media (max-width: 600px) {
-      .actions {
-        flex-direction: column;
-      }
+    /* ----- Video Preview for Camera ----- */
+    #videoPreview {
+      display: none;
+      margin-top: 10px;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>きれいなメモアプリ</h1>
-      <button id="toggleDarkMode" class="button">ダークモード切替</button>
-    </header>
-    <main>
-      <!-- 入力部 -->
-      <section id="memoInputSection">
-        <textarea id="memoText" placeholder="メモを入力してください..." rows="4"></textarea>
-        <div class="actions">
-          <label for="imageInput" class="button">画像選択</label>
-          <input type="file" id="imageInput" accept="image/*" style="display:none">
-          <button id="capturePhoto" class="button">写真撮影</button>
-          <button id="voiceInput" class="button">音声入力</button>
-          <button id="saveMemo" class="button">保存</button>
-        </div>
-        <p class="hint" style="font-size:0.9rem; color:#777;">※「保存」ボタンでメモを保存します</p>
-        <!-- カメラ用プレビュー -->
-        <div id="cameraSection" style="display:none;">
-          <video id="video" autoplay></video>
-          <div class="actions" style="margin-top:0.5rem;">
-            <button id="takePhoto" class="button">キャプチャ</button>
-            <button id="closeCamera" class="button">キャンセル</button>
-          </div>
-        </div>
-        <!-- 選択・撮影した画像のプレビュー -->
-        <div id="imagePreviewContainer" style="display:none; margin-top:1rem;">
-          <img id="imagePreview" alt="選択された画像" class="memoImage">
-          <button id="removeImage" class="button" style="margin-top:0.5rem;">画像削除</button>
-        </div>
-      </section>
-      
-      <!-- アクション部 -->
-      <section id="memoActions">
-        <div class="actions">
-          <select id="sortOrder" class="button" style="padding:0.5rem;">
-            <option value="newest">新しい順</option>
-            <option value="oldest">古い順</option>
-          </select>
-          <input type="text" id="searchInput" placeholder="検索...">
-          <button id="deleteAll" class="button">全削除</button>
-          <button id="exportMemos" class="button">エクスポート</button>
-          <label for="importInput" class="button">インポート</label>
-          <input type="file" id="importInput" accept=".html" style="display:none">
-          <button id="printMemos" class="button">印刷／PDF</button>
-        </div>
-      </section>
-      
-      <!-- メモ一覧部 -->
-      <section id="memoListSection">
-        <h2>メモ一覧</h2>
-        <div id="memoList"></div>
-      </section>
-    </main>
-  </div>
+  <h1>高速メモアプリ</h1>
+  
+  <!-- Input Section -->
+  <section id="inputSection">
+    <textarea id="memoInput" placeholder="メモを入力..."></textarea>
+    
+    <div id="imageSection">
+      <!-- Image Preview -->
+      <div id="imagePreview"></div>
+      <!-- Image file selection -->
+      <button id="selectImage">画像選択</button>
+      <input type="file" id="imageInput" accept="image/*" style="display:none">
+      <!-- Camera Capture -->
+      <button id="capturePhoto">写真撮影</button>
+    </div>
+    
+    <div>
+      <!-- Voice Input -->
+      <button id="voiceInput">音声入力</button>
+    </div>
+    <div id="doubleClickHint">ダブルクリックで保存</div>
+  </section>
+  
+  <!-- Control Buttons & Options -->
+  <section id="controls">
+    <select id="sortMemos">
+      <option value="newest">新しい順</option>
+      <option value="oldest">古い順</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="検索...">
+    <button id="deleteAll">全削除</button>
+    <button id="export">エクスポート</button>
+    <button id="import">インポート</button>
+    <input type="file" id="importFile" accept=".html" style="display:none">
+    <button id="printBtn">印刷/PDF</button>
+    <button id="darkMode">ダークモード</button>
+  </section>
+  
+  <!-- Memos Display -->
+  <section id="memosContainer"></section>
+  
+  <!-- Video element for camera preview -->
+  <video id="videoPreview" autoplay style="max-width:300px;"></video>
   
   <script>
-    // メモのデータ構造：各メモは { id, timestamp, text, image } のオブジェクト
+    /******** Global Variables ********/
     let memos = [];
-    const memoText = document.getElementById('memoText');
-    const imageInput = document.getElementById('imageInput');
-    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-    const imagePreview = document.getElementById('imagePreview');
-    const removeImage = document.getElementById('removeImage');
-    const memoList = document.getElementById('memoList');
-    const sortOrder = document.getElementById('sortOrder');
-    const searchInput = document.getElementById('searchInput');
-    const deleteAllBtn = document.getElementById('deleteAll');
-    const exportBtn = document.getElementById('exportMemos');
-    const importInput = document.getElementById('importInput');
-    const printMemosBtn = document.getElementById('printMemos');
-    const toggleDarkModeBtn = document.getElementById('toggleDarkMode');
-    const saveMemoBtn = document.getElementById('saveMemo');
-    
-    // カメラ用要素
-    const video = document.getElementById('video');
-    const capturePhotoBtn = document.getElementById('capturePhoto');
-    const cameraSection = document.getElementById('cameraSection');
-    const takePhotoBtn = document.getElementById('takePhoto');
-    const closeCameraBtn = document.getElementById('closeCamera');
-    
-    let currentImageData = null;
-    
-    // localStorage からメモを読み込む
+    let videoStream = null; // For camera capture
+
+    /******** LocalStorage Functions ********/
     function loadMemos() {
-      const savedMemos = localStorage.getItem('memos');
-      if (savedMemos) {
+      const data = localStorage.getItem("memos");
+      if (data) {
         try {
-          memos = JSON.parse(savedMemos);
-        } catch(e) {
-          console.error('メモデータ解析エラー:', e);
+          memos = JSON.parse(data);
+        } catch (e) {
           memos = [];
         }
-      }
-      renderMemoList();
-    }
-    
-    // localStorage にメモを保存する
-    function saveMemos() {
-      localStorage.setItem('memos', JSON.stringify(memos));
-      renderMemoList();
-    }
-    
-    // メモ一覧を表示（並び替え・検索に対応）
-    function renderMemoList() {
-      let filteredMemos = memos.filter(memo => memo.text.includes(searchInput.value));
-      if (sortOrder.value === 'newest') {
-        filteredMemos.sort((a, b) => b.timestamp - a.timestamp);
       } else {
-        filteredMemos.sort((a, b) => a.timestamp - b.timestamp);
+        memos = [];
       }
-      memoList.innerHTML = '';
-      filteredMemos.forEach(memo => {
-        const memoDiv = document.createElement('div');
-        memoDiv.className = 'memo';
-        const date = new Date(memo.timestamp);
-        memoDiv.innerHTML = `
-          <div class="memoHeader">
-            <span>${date.toLocaleString()}</span>
-            <div>
-              <button class="editMemo button" data-id="${memo.id}">修正</button>
-              <button class="deleteMemo button" data-id="${memo.id}">削除</button>
-            </div>
-          </div>
-          <pre class="memoText">${memo.text}</pre>
-          ${memo.image ? `<img src="${memo.image}" alt="メモ画像" class="memoImage">` : ''}
+    }
+    function saveMemos() {
+      localStorage.setItem("memos", JSON.stringify(memos));
+    }
+
+    /******** Render Memos ********/
+    function renderMemos() {
+      const container = document.getElementById("memosContainer");
+      const searchTerm = document.getElementById("searchInput").value.toLowerCase();
+      let filtered = memos.filter(memo => memo.text.toLowerCase().includes(searchTerm));
+      
+      const sortValue = document.getElementById("sortMemos").value;
+      if (sortValue === "newest") {
+        filtered.sort((a, b) => b.timestamp - a.timestamp);
+      } else {
+        filtered.sort((a, b) => a.timestamp - b.timestamp);
+      }
+      
+      container.innerHTML = "";
+      filtered.forEach(memo => {
+        const div = document.createElement("div");
+        div.className = "memo";
+        const timeString = new Date(memo.timestamp).toLocaleString();
+        div.innerHTML = `
+          <div class="timestamp">${timeString}</div>
+          <pre class="memo-text">${memo.text}</pre>
         `;
-        memoList.appendChild(memoDiv);
+        if (memo.image) {
+          div.innerHTML += `<img src="${memo.image}" alt="memo image">`;
+        }
+        // Edit button
+        const editBtn = document.createElement("button");
+        editBtn.textContent = "修正";
+        editBtn.addEventListener("click", () => {
+          let updatedText = prompt("メモを修正してください:", memo.text);
+          if (updatedText === null) return;
+          if (updatedText.trim() === "") updatedText = "テスト";
+          memo.text = updatedText;
+          saveMemos();
+          renderMemos();
+        });
+        // Delete button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "削除";
+        deleteBtn.addEventListener("click", () => {
+          if (confirm("このメモを削除しますか？")) {
+            memos = memos.filter(m => m !== memo);
+            saveMemos();
+            renderMemos();
+          }
+        });
+        div.appendChild(editBtn);
+        div.appendChild(deleteBtn);
+        container.appendChild(div);
       });
     }
-    
-    // 新規メモの追加
-    function addMemo() {
-      const text = memoText.value;
-      if (!text.trim() && !currentImageData) {
-        alert("メモ内容または画像を入力してください。");
-        return;
+
+    /******** Save Current Memo ********/
+    function saveCurrentMemo() {
+      const textarea = document.getElementById("memoInput");
+      let text = textarea.value.trim();
+      if (text === "") text = "テスト";
+      
+      // If an image was processed and previewed, grab its Data URL.
+      const imagePreview = document.getElementById("imagePreview");
+      let dataUrl = "";
+      const imgElem = imagePreview.querySelector("img");
+      if (imgElem) {
+        dataUrl = imgElem.src;
+        imagePreview.innerHTML = "";
       }
+      
       const memo = {
         id: Date.now(),
         timestamp: Date.now(),
         text: text,
-        image: currentImageData
+        image: dataUrl
       };
       memos.push(memo);
-      memoText.value = '';
-      currentImageData = null;
-      imagePreviewContainer.style.display = 'none';
-      imagePreview.src = '';
       saveMemos();
+      renderMemos();
+      textarea.value = "";
     }
-    
-    // メモの編集（prompt を利用）
-    function editMemo(id) {
-      const memo = memos.find(m => m.id == id);
-      if (!memo) return;
-      const newText = prompt("メモを修正してください:", memo.text);
-      if (newText !== null) {
-        memo.text = newText;
-        memo.timestamp = Date.now(); // 更新時刻を更新
-        saveMemos();
+
+    /******** Double-Click to Save ********/
+    document.addEventListener("dblclick", function(e) {
+      const tag = e.target.tagName.toLowerCase();
+      // If not clicking on an interactive element, save the memo.
+      if (!["button", "input", "textarea", "video", "select"].includes(tag)) {
+        saveCurrentMemo();
       }
-    }
-    
-    // メモの削除
-    function deleteMemo(id) {
-      memos = memos.filter(m => m.id != id);
-      saveMemos();
-    }
-    
-    // 全削除
-    function deleteAllMemos() {
-      if (confirm("本当に全てのメモを削除しますか？")) {
-        memos = [];
-        saveMemos();
-      }
-    }
-    
-    // エクスポート：メモデータを JSON として自己完結型 HTML に埋め込む
-    function exportMemos() {
-      const memoDataComment = `<!--MEMO_DATA_START-->${JSON.stringify(memos)}<!--MEMO_DATA_END-->`;
-      const htmlContent = `
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <title>エクスポートされたメモ</title>
-</head>
-<body>
-${memoDataComment}
-<h1>エクスポートされたメモ</h1>
-</body>
-</html>
-`;
-      const blob = new Blob([htmlContent], { type: 'text/html' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "メモエクスポート.html";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
-    
-    // インポート：エクスポートした HTML からメモデータを復元
-    function importMemos(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        const content = e.target.result;
-        const regex = /<!--MEMO_DATA_START-->([\s\S]*?)<!--MEMO_DATA_END-->/;
-        const match = content.match(regex);
-        if (match && match[1]) {
-          try {
-            const importedMemos = JSON.parse(match[1]);
-            memos = memos.concat(importedMemos);
-            saveMemos();
-            alert("メモのインポートに成功しました。");
-          } catch (err) {
-            alert("インポートに失敗しました。データが正しくありません。");
-          }
-        } else {
-          alert("インポートに失敗しました。データが見つかりません。");
-        }
-      };
-      reader.readAsText(file);
-    }
-    
-    // 印刷／PDF
-    function printMemos() {
-      window.print();
-    }
-    
-    // 音声入力（Web Speech API を利用）
-    function startVoiceInput() {
-      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+    });
+    document.getElementById("doubleClickHint").addEventListener("click", saveCurrentMemo);
+
+    /******** Voice Input ********/
+    document.getElementById("voiceInput").addEventListener("click", function() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
         alert("このブラウザは音声認識に対応していません。");
         return;
       }
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       const recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';
+      recognition.lang = "ja-JP";
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
       recognition.start();
-      
       recognition.onresult = function(event) {
         const transcript = event.results[0][0].transcript;
-        memoText.value += transcript;
+        const textarea = document.getElementById("memoInput");
+        textarea.value += (textarea.value ? "\n" : "") + transcript;
       };
-      
-      recognition.onerror = function(event) {
-        console.error("認識エラー:", event.error);
+      recognition.onerror = function(e) {
+        console.error("Speech input error: " + e.error);
       };
-    
-      recognition.onend = function() {
-        console.log("音声認識終了");
-      }
-    }
-    
-    // カメラ撮影用（getUserMedia を利用）
-    function startCamera() {
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then((stream) => {
-          video.srcObject = stream;
-          cameraSection.style.display = 'block';
-        })
-        .catch((err) => {
-          console.error("カメラアクセスエラー:", err);
-          alert("カメラにアクセスできませんでした。");
+    });
+
+    /******** Image Upload Processing ********/
+    document.getElementById("selectImage").addEventListener("click", () => {
+      document.getElementById("imageInput").click();
+    });
+    document.getElementById("imageInput").addEventListener("change", function(e) {
+      if (e.target.files && e.target.files[0]) {
+        processImageFile(e.target.files[0], function(dataUrl) {
+          const img = document.createElement("img");
+          img.src = dataUrl;
+          const preview = document.getElementById("imagePreview");
+          preview.innerHTML = "";
+          preview.appendChild(img);
         });
-      } else {
-        alert("このブラウザはカメラに対応していません。");
       }
-    }
-    
-    function stopCamera() {
-      const stream = video.srcObject;
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      video.srcObject = null;
-      cameraSection.style.display = 'none';
-    }
-    
-    // カメラでのキャプチャ：オリジナルサイズでグレイスケール変換して保存
-    function capturePhoto() {
-      if (!video.videoWidth || !video.videoHeight) {
-        alert("カメラの映像が取得できていません。少し待ってから再試行してください。");
-        return;
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.filter = 'grayscale(100%)';
-      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
-      currentImageData = canvas.toDataURL('image/png');
-      imagePreview.src = currentImageData;
-      imagePreviewContainer.style.display = 'block';
-      stopCamera();
-    }
-    
-    // 画像ファイル選択時：アップロードされた画像をオリジナルサイズでグレイスケール変換
-    imageInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          const img = new Image();
-          img.src = event.target.result;
-          img.onload = function() {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            const ctx = canvas.getContext('2d');
-            ctx.filter = 'grayscale(100%)';
-            ctx.drawImage(img, 0, 0, img.width, img.height);
-            const newDataUrl = canvas.toDataURL('image/png');
-            currentImageData = newDataUrl;
-            imagePreview.src = newDataUrl;
-            imagePreviewContainer.style.display = 'block';
-          };
+    });
+    function processImageFile(file, callback) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const maxDim = 113;
+          const ratio = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width * ratio;
+          canvas.height = img.height * ratio;
+          const ctx = canvas.getContext("2d");
+          ctx.filter = "grayscale(100%)";
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL("image/png");
+          callback(dataUrl);
         };
-        reader.readAsDataURL(file);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    /******** Camera Capture ********/
+    const captureButton = document.getElementById("capturePhoto");
+    const video = document.getElementById("videoPreview");
+    captureButton.addEventListener("click", function() {
+      if (!videoStream) {
+        // Start the rear camera (if available)
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+          .then(stream => {
+            videoStream = stream;
+            video.srcObject = stream;
+            video.style.display = "block";
+            captureButton.textContent = "画像を撮る";
+          })
+          .catch(err => {
+            console.error("カメラの起動に失敗しました: ", err);
+          });
+      } else {
+        // Capture the current video frame
+        const canvas = document.createElement("canvas");
+        const maxDim = 113;
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+        const ratio = Math.min(1, maxDim / Math.max(width, height));
+        canvas.width = width * ratio;
+        canvas.height = height * ratio;
+        const ctx = canvas.getContext("2d");
+        ctx.filter = "grayscale(100%)";
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/png");
+        const preview = document.getElementById("imagePreview");
+        preview.innerHTML = "";
+        const img = document.createElement("img");
+        img.src = dataUrl;
+        preview.appendChild(img);
+        // Stop camera stream
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+        video.style.display = "none";
+        captureButton.textContent = "写真撮影";
       }
     });
-    
-    removeImage.addEventListener('click', () => {
-      currentImageData = null;
-      imagePreviewContainer.style.display = 'none';
-      imagePreview.src = '';
-    });
-    
-    // 写真撮影
-    capturePhotoBtn.addEventListener('click', startCamera);
-    closeCameraBtn.addEventListener('click', stopCamera);
-    takePhotoBtn.addEventListener('click', capturePhoto);
-    
-    // 音声入力
-    document.getElementById('voiceInput').addEventListener('click', startVoiceInput);
-    
-    // 保存ボタンでメモを保存
-    saveMemoBtn.addEventListener('click', addMemo);
-    
-    // 編集／削除ボタンのイベント（イベントデリゲーション）
-    memoList.addEventListener('click', (e) => {
-      if (e.target.classList.contains('editMemo')) {
-        editMemo(e.target.dataset.id);
-      } else if (e.target.classList.contains('deleteMemo')) {
-        deleteMemo(e.target.dataset.id);
+
+    /******** Delete All Memos ********/
+    document.getElementById("deleteAll").addEventListener("click", function() {
+      if (confirm("すべてのメモを削除してもよろしいですか？")) {
+        memos = [];
+        saveMemos();
+        renderMemos();
       }
     });
-    
-    // Ctrl+S (または Cmd+S) ショートカットで保存
-    document.addEventListener('keydown', function(e) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        addMemo();
+
+    /******** Export Memos ********/
+    document.getElementById("export").addEventListener("click", function() {
+      const jsonData = JSON.stringify(memos);
+      const content = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>高速メモエクスポート</title>
+</head>
+<body>
+  <!-- HIGH_SPEED_MEMO_DATA_START
+  ${jsonData}
+  HIGH_SPEED_MEMO_DATA_END -->
+  <p>このファイルは高速メモのエクスポートデータを含んでいます。</p>
+</body>
+</html>`;
+      const blob = new Blob([content], { type: 'text/html' });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "高速メモ.html";
+      a.click();
+    });
+
+    /******** Import Memos ********/
+    document.getElementById("import").addEventListener("click", function() {
+      document.getElementById("importFile").click();
+    });
+    document.getElementById("importFile").addEventListener("change", function(e) {
+      if (e.target.files && e.target.files[0]) {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const content = ev.target.result;
+          const regex = /<!--\s*HIGH_SPEED_MEMO_DATA_START\s*([\s\S]*?)\s*HIGH_SPEED_MEMO_DATA_END\s*-->/;
+          const match = regex.exec(content);
+          if (match && match[1]) {
+            try {
+              const imported = JSON.parse(match[1]);
+              memos = imported;
+              saveMemos();
+              renderMemos();
+              alert("インポートに成功しました！");
+            } catch (err) {
+              alert("データの読み込みに失敗しました。");
+            }
+          } else {
+            alert("有効なインポートファイルではありません。");
+          }
+        };
+        reader.readAsText(file);
       }
     });
-    
-    // 初期読み込み・イベント設定
-    document.addEventListener('DOMContentLoaded', loadMemos);
-    sortOrder.addEventListener('change', renderMemoList);
-    searchInput.addEventListener('input', renderMemoList);
-    deleteAllBtn.addEventListener('click', deleteAllMemos);
-    exportBtn.addEventListener('click', exportMemos);
-    importInput.addEventListener('change', importMemos);
-    printMemosBtn.addEventListener('click', printMemos);
-    toggleDarkModeBtn.addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
+
+    /******** Print / PDF ********/
+    document.getElementById("printBtn").addEventListener("click", function() {
+      window.print();
+    });
+
+    /******** Dark Mode Toggle ********/
+    document.getElementById("darkMode").addEventListener("click", function() {
+      document.body.classList.toggle("dark-mode");
+    });
+
+    /******** Search and Sort Listeners ********/
+    document.getElementById("searchInput").addEventListener("input", renderMemos);
+    document.getElementById("sortMemos").addEventListener("change", renderMemos);
+
+    /******** Initialize ********/
+    document.addEventListener("DOMContentLoaded", () => {
+      loadMemos();
+      renderMemos();
     });
   </script>
 </body>
