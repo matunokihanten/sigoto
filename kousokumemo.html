@@ -107,7 +107,7 @@
     
     <hr>
     
-    <!-- アクション部（並び替え、検索、全削除、エクスポート／インポート、印刷） -->
+    <!-- アクション部 -->
     <section id="memoActions" style="margin-bottom:1em;">
       <select id="sortOrder" class="button">
         <option value="newest">新しい順</option>
@@ -248,7 +248,7 @@
       }
     }
     
-    // エクスポート：メモデータを JSON として特殊コメントに埋め込んだ自己完結型 HTML を作成
+    // エクスポート：メモデータを JSON として自己完結型 HTML に埋め込む
     function exportMemos() {
       const memoDataComment = `<!--MEMO_DATA_START-->${JSON.stringify(memos)}<!--MEMO_DATA_END-->`;
       const htmlContent = `
@@ -276,7 +276,7 @@ ${memoDataComment}
       URL.revokeObjectURL(url);
     }
     
-    // インポート：エクスポートした HTML から特殊コメント内の JSON を抽出してメモに復元
+    // インポート：エクスポートした HTML からメモデータを復元
     function importMemos(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -301,7 +301,7 @@ ${memoDataComment}
       reader.readAsText(file);
     }
     
-    // ブラウザの印刷ダイアログを起動
+    // 印刷／PDF
     function printMemos() {
       window.print();
     }
@@ -333,7 +333,7 @@ ${memoDataComment}
       }
     }
     
-    // カメラ撮影用（getUserMedia を利用）
+    // カメラ撮影（getUserMedia を利用）
     function startCamera() {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
@@ -359,18 +359,19 @@ ${memoDataComment}
       cameraSection.style.display = 'none';
     }
     
+    // カメラでのキャプチャ：120px×120pxのサイズにリサイズし、グレイスケール変換して保存
     function capturePhoto() {
-      // 映像が取得できているか確認
       if (!video.videoWidth || !video.videoHeight) {
         alert("カメラの映像が取得できていません。少し待ってから再試行してください。");
         return;
       }
-      // 120px x 120px にリサイズしてキャプチャ
       const canvas = document.createElement('canvas');
       canvas.width = 120;
       canvas.height = 120;
       const ctx = canvas.getContext('2d');
-      // ※ video 全体を指定サイズに合わせて描画（比率は固定されず引き伸ばされる場合があります）
+      // ここでグレイスケールフィルターを適用
+      ctx.filter = 'grayscale(100%)';
+      // 撮影した映像全体をリサイズして描画
       ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, 120, 120);
       currentImageData = canvas.toDataURL('image/png');
       imagePreview.src = currentImageData;
@@ -378,28 +379,27 @@ ${memoDataComment}
       stopCamera();
     }
     
-    // --- イベントリスナー ---
-    
-    document.addEventListener('DOMContentLoaded', loadMemos);
-    sortOrder.addEventListener('change', renderMemoList);
-    searchInput.addEventListener('input', renderMemoList);
-    deleteAllBtn.addEventListener('click', deleteAllMemos);
-    exportBtn.addEventListener('click', exportMemos);
-    importInput.addEventListener('change', importMemos);
-    printMemosBtn.addEventListener('click', printMemos);
-    toggleDarkModeBtn.addEventListener('click', () => {
-      document.body.classList.toggle('dark-mode');
-    });
-    
-    // 画像ファイル選択時の処理
+    // 画像ファイル選択時：アップロードされた画像も 120px×120px にリサイズ＆グレイスケール変換
     imageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
         reader.onload = function(event) {
-          currentImageData = event.target.result;
-          imagePreview.src = currentImageData;
-          imagePreviewContainer.style.display = 'block';
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 120;
+            canvas.height = 120;
+            const ctx = canvas.getContext('2d');
+            ctx.filter = 'grayscale(100%)';
+            // 元画像全体をキャンバスサイズに収める
+            ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, 120, 120);
+            const newDataUrl = canvas.toDataURL('image/png');
+            currentImageData = newDataUrl;
+            imagePreview.src = newDataUrl;
+            imagePreviewContainer.style.display = 'block';
+          };
         };
         reader.readAsDataURL(file);
       }
@@ -419,7 +419,7 @@ ${memoDataComment}
     // 音声入力
     document.getElementById('voiceInput').addEventListener('click', startVoiceInput);
     
-    // 保存ボタンでメモを保存
+    // 保存ボタンによりメモを保存
     saveMemoBtn.addEventListener('click', addMemo);
     
     // 編集／削除ボタンのイベント（イベントデリゲーション）
@@ -431,12 +431,24 @@ ${memoDataComment}
       }
     });
     
-    // Ctrl+S (または Cmd+S) で保存（デフォルトのショートカットを防ぐ）
+    // Ctrl+S (または Cmd+S) で保存（デフォルトショートカット防止）
     document.addEventListener('keydown', function(e) {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         addMemo();
       }
+    });
+    
+    // 初期読み込み
+    document.addEventListener('DOMContentLoaded', loadMemos);
+    sortOrder.addEventListener('change', renderMemoList);
+    searchInput.addEventListener('input', renderMemoList);
+    deleteAllBtn.addEventListener('click', deleteAllMemos);
+    exportBtn.addEventListener('click', exportMemos);
+    importInput.addEventListener('change', importMemos);
+    printMemosBtn.addEventListener('click', printMemos);
+    toggleDarkModeBtn.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
     });
   </script>
 </body>
