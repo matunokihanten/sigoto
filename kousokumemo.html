@@ -1,94 +1,517 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>メモアプリ</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            margin: 0;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: auto;
-            background: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-
-        textarea {
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        button {
-            padding: 10px 15px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-
-        button:hover {
-            background-color: #218838;
-        }
-
-        #message {
-            margin-top: 10px;
-            color: red;
-        }
-
-        ul {
-            list-style-type: none;
-            padding: 0;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>メモアプリ</title>
+  <style>
+    /* 基本レイアウト */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    /* コンテナを左右に分割 */
+    .container {
+      display: flex;
+      gap: 20px;
+    }
+    /* アプリ用エリア（左側） */
+    #appSection {
+      flex: 2;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    /* 使い方説明エリア（右側） */
+    #instructionSection {
+      flex: 1;
+      background: #fff;
+      padding: 15px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      height: fit-content;
+    }
+    /* 各種操作用 */
+    .controls {
+      margin-bottom: 10px;
+    }
+    .controls button,
+    .controls select {
+      margin-right: 10px;
+      padding: 5px 10px;
+    }
+    .file-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    textarea,
+    input[type="file"] {
+      width: 100%;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 5px 10px;
+    }
+    /* ドローイング用ポップアップ */
+    #drawingContainer {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left:50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px;
+      z-index: 1000;
+    }
+    /* ダークモード用 */
+    .dark-mode {
+      background-color: #333;
+      color: #f4f4f4;
+    }
+    .dark-mode #appSection {
+      background-color: #444;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>メモアプリ</h1>
-        <textarea id="memoInput" placeholder="メモを入力してください..." rows="4"></textarea>
-        <button id="saveButton">保存</button>
-        <div id="message"></div>
-        <h2>保存されたメモ</h2>
-        <ul id="memoList"></ul>
+  <div class="container">
+    <!-- メモアプリ用エリア -->
+    <div id="appSection">
+      <h1>メモアプリ</h1>
+      
+      <!-- 各種操作コントロール -->
+      <div class="controls">
+        <button id="darkModeToggle">ダークモード</button>
+        <button id="voiceInputButton">音声入力</button>
+        <button id="startDrawingButton">手書き入力</button>
+        <select id="sortOptions">
+            <option value="desc">新しい順</option>
+            <option value="asc">古い順</option>
+        </select>
+        <button id="analyzeButton">内容分析</button>
+        <button id="printButton">印刷 / PDF</button>
+      </div>
+
+      <!-- ファイル選択 & テキスト入力 -->
+      <input type="file" id="photoInput" accept="image/*">
+      <textarea id="memoInput" placeholder="メモを入力してください..." rows="4"></textarea>
+      
+      <!-- エクスポート／インポート -->
+      <div class="file-actions">
+        <button id="exportButton">エクスポート</button>
+        <input type="file" id="importInput" accept=".html">
+      </div>
+      
+      <h2>保存されたメモ</h2>
+      <ul id="memoList"></ul>
+      
+      <!-- 分析結果表示用 -->
+      <div id="analysisResult"></div>
+      
+      <!-- 手書き入力（ドローイング）用ポップアップ -->
+      <div id="drawingContainer">
+        <h3>手書き入力</h3>
+        <canvas id="drawingCanvas" width="500" height="300" style="border:1px solid #ccc;"></canvas>
+        <br>
+        <button id="saveDrawingButton">保存</button>
+        <button id="cancelDrawingButton">キャンセル</button>
+      </div>
     </div>
-    <script>
-        document.getElementById('saveButton').addEventListener('click', function() {
-            const memoInput = document.getElementById('memoInput');
-            const memoList = document.getElementById('memoList');
-            const message = document.getElementById('message');
+    
+    <!-- 使い方説明エリア -->
+    <div id="instructionSection">
+      <h2>使い方</h2>
+      <ul>
+        <li>・テキスト、画像、または手書きでメモを作成します。</li>
+        <li>・入力欄や画像選択、手書きがある状態で画面上（入力・ボタン以外）をダブルタップするとメモが保存されます。</li>
+        <li>・「音声入力」ボタンで音声認識を利用して入力できます。</li>
+        <li>・「手書き入力」ボタンでキャンバスがポップアップし、描画後に保存すると画像として追加されます。</li>
+        <li>・各メモには「編集」「ピン留め／ピン解除」「削除」ボタンがあり、内容の更新や重要なメモの固定、削除が可能です。</li>
+        <li>・「内容分析」ボタンで、保存されたメモから上位の単語を抽出し簡単な集計結果を表示します。</li>
+        <li>・「印刷 / PDF」ボタンでブラウザの印刷ダイアログを表示し、紙やPDFで出力できます。</li>
+        <li>・ソート機能で、メモの表示順を新しい順・古い順に変更できます（ピン留めメモは常に上部に表示）。</li>
+        <li>・変更内容は localStorage を利用して自動バックアップされます。</li>
+        <li>・ダークモード切替ボタンで見た目を切り替えられます。</li>
+        <li>・エクスポート／インポート機能でメモのデータを外部ファイルとして取り出したり復元できます。</li>
+      </ul>
+    </div>
+  </div>
+  
+  <script>
+    // グローバル変数：各メモは { timestamp, createdAt, text, imageData, drawingData, pinned } のオブジェクト
+    let memos = [];
+    let currentDrawingData = null;
 
-            // メモの内容を取得
-            const memoText = memoInput.value.trim();
+    // 起動時に localStorage からメモを復元
+    if (localStorage.getItem('memos')) {
+      try {
+        memos = JSON.parse(localStorage.getItem('memos'));
+      } catch(e) {
+        console.error(e);
+      }
+    }
 
-            // メモが空でないか確認
-            if (memoText === '') {
-                message.textContent = 'メモを入力してください。';
-                return;
+    // メモ更新時に localStorage に保存
+    function saveMemos() {
+      localStorage.setItem('memos', JSON.stringify(memos));
+    }
+
+    // メモ描画（ソート・ピン・編集・削除対応）
+    function renderMemos() {
+      const memoList = document.getElementById('memoList');
+      memoList.innerHTML = '';
+      const sortOrder = document.getElementById('sortOptions').value;
+
+      let sortedMemos = memos.slice().sort((a, b) => {
+        if(a.pinned === b.pinned){
+          return sortOrder === 'asc' ? a.createdAt - b.createdAt : b.createdAt - a.createdAt;
+        } else {
+          return a.pinned ? -1 : 1;
+        }
+      });
+
+      sortedMemos.forEach(memo => {
+        const li = document.createElement('li');
+
+        // 日時表示
+        const dateSpan = document.createElement('span');
+        dateSpan.textContent = `[${memo.timestamp}] `;
+        li.appendChild(dateSpan);
+
+        // メモ本文
+        const textSpan = document.createElement('span');
+        textSpan.textContent = memo.text || "";
+        li.appendChild(textSpan);
+
+        // 写真表示（存在すれば）
+        if (memo.imageData) {
+          const img = document.createElement('img');
+          img.src = memo.imageData;
+          img.alt = "メモ写真";
+          img.style.maxWidth = "100px";
+          img.style.marginLeft = "10px";
+          li.appendChild(img);
+        }
+
+        // 手書き入力画像表示（存在すれば）
+        if (memo.drawingData) {
+          const img2 = document.createElement('img');
+          img2.src = memo.drawingData;
+          img2.alt = "手書きメモ";
+          img2.style.maxWidth = "100px";
+          img2.style.marginLeft = "10px";
+          li.appendChild(img2);
+        }
+
+        // 編集ボタン
+        const editButton = document.createElement('button');
+        editButton.textContent = '編集';
+        editButton.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const newText = prompt("メモの編集", memo.text);
+          if (newText !== null) {
+            const index = memos.indexOf(memo);
+            if (index !== -1) {
+              memos[index].text = newText;
+              saveMemos();
+              renderMemos();
             }
-
-            // 10秒以内に保存するためのタイマー
-            message.textContent = '10秒以内に保存してください。';
-            setTimeout(() => {
-                message.textContent = '';
-            }, 10000);
-
-            // メモをリストに追加
-            const listItem = document.createElement('li');
-            listItem.textContent = memoText;
-            memoList.appendChild(listItem);
-
-            // 入力フィールドをクリア
-            memoInput.value = '';
+          }
         });
-    </script>
+        li.appendChild(editButton);
+
+        // ピン留め／ピン解除ボタン
+        const pinButton = document.createElement('button');
+        pinButton.textContent = memo.pinned ? 'ピン解除' : 'ピン留め';
+        pinButton.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const index = memos.indexOf(memo);
+          if (index !== -1) {
+            memos[index].pinned = !memos[index].pinned;
+            saveMemos();
+            renderMemos();
+          }
+        });
+        li.appendChild(pinButton);
+
+        // 削除ボタン
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = '削除';
+        deleteButton.addEventListener('click', function(e) {
+          e.stopPropagation();
+          if (confirm("このメモを削除しますか？")) {
+            const index = memos.indexOf(memo);
+            if (index !== -1) {
+              memos.splice(index, 1);
+              saveMemos();
+              renderMemos();
+            }
+          }
+        });
+        li.appendChild(deleteButton);
+
+        memoList.appendChild(li);
+      });
+    }
+
+    // ダブルタップでメモ保存（入力欄、ファイル入力、手書きデータいずれかがある場合）
+    let tapCount = 0;
+    document.body.addEventListener('click', function(e) {
+      const interactiveTags = ['INPUT','TEXTAREA','BUTTON','LABEL'];
+      if (interactiveTags.includes(e.target.tagName)) return;
+      tapCount++;
+      setTimeout(() => {
+        if (tapCount >= 2) saveMemo();
+        tapCount = 0;
+      }, 300);
+    });
+
+    function saveMemo() {
+      const memoInput = document.getElementById('memoInput');
+      const photoInput = document.getElementById('photoInput');
+      const memoText = memoInput.value.trim();
+      const file = photoInput.files[0];
+
+      if (memoText === '' && !file && !currentDrawingData) {
+        alert("メモ、写真、または手書きを入力してください。");
+        return;
+      }
+      const now = new Date();
+      const newMemo = {
+        timestamp: now.toLocaleString(),
+        createdAt: now.getTime(),
+        text: memoText,
+        imageData: null,
+        drawingData: currentDrawingData,
+        pinned: false
+      };
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          newMemo.imageData = e.target.result;
+          memos.push(newMemo);
+          saveMemos();
+          renderMemos();
+        };
+        reader.readAsDataURL(file);
+      } else {
+        memos.push(newMemo);
+        saveMemos();
+        renderMemos();
+      }
+      memoInput.value = '';
+      photoInput.value = '';
+      currentDrawingData = null;
+    }
+
+    // 音声入力（Web Speech API 使用）
+    document.getElementById('voiceInputButton').addEventListener('click', function() {
+      const memoInput = document.getElementById('memoInput');
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        alert("音声入力はこのブラウザでサポートされていません。");
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'ja-JP';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognition.start();
+      recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        memoInput.value += transcript;
+      };
+      recognition.onerror = function(event) {
+        alert("音声認識エラー: " + event.error);
+      };
+    });
+
+    // ダークモード切替
+    document.getElementById('darkModeToggle').addEventListener('click', function() {
+      document.body.classList.toggle('dark-mode');
+      this.textContent = document.body.classList.contains('dark-mode') ? "ライトモード" : "ダークモード";
+    });
+
+    // ソート切替
+    document.getElementById('sortOptions').addEventListener('change', function() {
+      renderMemos();
+    });
+
+    // エクスポート機能（メモを JSON を埋め込んだ HTML として出力）
+    document.getElementById('exportButton').addEventListener('click', function() {
+      const jsonData = JSON.stringify(memos, null, 4);
+      const exportContent = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Exported Memos</title>
+</head>
+<body>
+<!-- MEMO_DATA_START -->
+${jsonData}
+<!-- MEMO_DATA_END -->
+<h1>Exported Memos</h1>
+<pre>${jsonData}</pre>
+</body>
+</html>`;
+      const blob = new Blob([exportContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'memos.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // インポート機能
+    document.getElementById('importInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        const regex = /<!--\s*MEMO_DATA_START\s*-->([\s\S]*?)<!--\s*MEMO_DATA_END\s*-->/;
+        const match = regex.exec(content);
+        if (match && match[1]) {
+          try {
+            memos = JSON.parse(match[1]);
+            saveMemos();
+            renderMemos();
+            alert("インポートに成功しました。");
+          } catch (error) {
+            alert("ファイルの読み込みに失敗しました。");
+          }
+        } else {
+          alert("有効なファイルではありません。");
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    // 印刷／PDF エクスポート機能（ブラウザの印刷ダイアログを表示）
+    document.getElementById('printButton').addEventListener('click', function() {
+      window.print();
+    });
+
+    // 内容分析機能（上位5単語と関連メモ番号を表示）
+    document.getElementById('analyzeButton').addEventListener('click', function() {
+      analyzeMemos();
+    });
+
+    function analyzeMemos() {
+      const wordCounts = {};
+      const memoAssociations = {};
+      memos.forEach((memo, index) => {
+        if (memo.text) {
+          const words = memo.text.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "").split(/\s+/);
+          words.forEach(word => {
+            word = word.toLowerCase();
+            if (word) {
+              wordCounts[word] = (wordCounts[word] || 0) + 1;
+              if (!memoAssociations[word]) memoAssociations[word] = [];
+              memoAssociations[word].push(index + 1);
+            }
+          });
+        }
+      });
+      const sortedWords = Object.keys(wordCounts).sort((a, b) => wordCounts[b] - wordCounts[a]);
+      const topWords = sortedWords.slice(0, 5);
+      const analysisDiv = document.getElementById('analysisResult');
+      analysisDiv.innerHTML = "<h3>内容分析結果</h3>";
+      if (topWords.length === 0) {
+        analysisDiv.innerHTML += "<p>分析するメモがありません。</p>";
+        return;
+      }
+      topWords.forEach(word => {
+        const p = document.createElement('p');
+        p.innerHTML = `<strong>${word}</strong>: ${wordCounts[word]}回, 関連メモ: ${memoAssociations[word].join(", ")}`;
+        analysisDiv.appendChild(p);
+      });
+    }
+
+    // 手書き入力／ドローイング機能
+    document.getElementById('startDrawingButton').addEventListener('click', function() {
+      document.getElementById('drawingContainer').style.display = 'block';
+      initDrawing();
+    });
+
+    document.getElementById('cancelDrawingButton').addEventListener('click', function() {
+      hideDrawingContainer();
+    });
+
+    document.getElementById('saveDrawingButton').addEventListener('click', function() {
+      const canvas = document.getElementById('drawingCanvas');
+      currentDrawingData = canvas.toDataURL();
+      hideDrawingContainer();
+    });
+
+    function hideDrawingContainer() {
+      document.getElementById('drawingContainer').style.display = 'none';
+      const canvas = document.getElementById('drawingCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function initDrawing() {
+      const canvas = document.getElementById('drawingCanvas');
+      const ctx = canvas.getContext('2d');
+      let drawing = false;
+
+      function startPosition(e) {
+        drawing = true;
+        draw(e);
+      }
+      function finishedPosition() {
+        drawing = false;
+        ctx.beginPath();
+      }
+      function draw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        let x, y;
+        if (e.touches) {
+          x = e.touches[0].clientX - rect.left;
+          y = e.touches[0].clientY - rect.top;
+        } else {
+          x = e.clientX - rect.left;
+          y = e.clientY - rect.top;
+        }
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#000';
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+      }
+      canvas.addEventListener('mousedown', startPosition);
+      canvas.addEventListener('mouseup', finishedPosition);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('touchstart', startPosition);
+      canvas.addEventListener('touchend', finishedPosition);
+      canvas.addEventListener('touchmove', draw);
+    }
+
+    renderMemos();
+  </script>
 </body>
 </html>
