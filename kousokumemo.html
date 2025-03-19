@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- スマホでも全機能が使えるよう、viewport 設定を強化 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>メモアプリ</title>
   <style>
     /* 基本のスタイル */
@@ -32,6 +33,7 @@
       color: white;
       border: none;
       margin-right: 5px;
+      margin-top: 5px;
       cursor: pointer;
       display: inline-block;
     }
@@ -129,8 +131,8 @@
     <button id="delete-all" class="custom-button">全削除</button>
   </div>
   
-  <!-- ダブルクリック保存のヒント -->
-  <p id="double-click-hint" style="cursor:pointer; text-decoration:underline;">どこでもダブルクリックするとメモが保存されます</p>
+  <!-- ダブルクリック／ダブルタップ保存のヒント -->
+  <p id="double-click-hint" style="cursor:pointer; text-decoration:underline;">どこでもダブルクリック（またはダブルタップ）するとメモが保存されます</p>
   
   <!-- メモリスト -->
   <div id="memo-list"></div>
@@ -138,7 +140,7 @@
   <script>
     // グローバル変数
     let memos = []; // メモオブジェクトを保存する配列
-    let currentImageData = null; // 現在の画像のデータURL（画像や手書き、写真）
+    let currentImageData = null; // 現在の画像のデータURL（画像、手書き、写真）
     let recognition = null; // 音声認識インスタンス
     let stream = null; // カメラ用の MediaStream
 
@@ -261,7 +263,9 @@
       currentImageData = null;
     }
     
-    // ダブルクリック保存メカニズム（入力・ボタン以外の領域なら有効）
+    // ----- ダブルクリック（PC）およびダブルタップ（スマホ）による保存機能 -----
+    
+    // PC環境：dblclick イベント
     document.addEventListener('dblclick', function(e) {
       const tag = e.target.tagName.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'button' || e.target.classList.contains('custom-button')) {
@@ -270,7 +274,22 @@
       addMemo();
     });
     
-    // ヒントテキストをクリックしても保存を実行
+    // スマホ環境：touchend でダブルタップ検出
+    let lastTap = 0;
+    document.addEventListener('touchend', function(e) {
+      const currentTime = new Date().getTime();
+      const tapInterval = currentTime - lastTap;
+      const tag = e.target.tagName.toLowerCase();
+      // 短い間隔（例:500ms以内）の連続タップで保存（ただし、インタラクティブ要素は除く）
+      if (tapInterval > 0 && tapInterval < 500 && 
+          tag !== 'input' && tag !== 'textarea' && tag !== 'button' && 
+          !e.target.classList.contains('custom-button')) {
+        addMemo();
+      }
+      lastTap = currentTime;
+    });
+    
+    // ヒントテキストのクリックで保存
     document.getElementById('double-click-hint').addEventListener('click', addMemo);
     
     // FileReader API を使って画像ファイルの選択を処理
@@ -314,7 +333,9 @@
       };
     });
     
-    // カメラ撮影：写真撮影ボタンを押すとカメラプレビューを表示し、キャンセルも可能に
+    // ----- カメラ／写真撮影機能 -----
+    
+    // 写真撮影ボタンを押すとカメラプレビューを表示（キャンセルも可能）
     document.getElementById('photo-capture').addEventListener('click', async function() {
       const video = document.getElementById('video-preview');
       const captureBtn = document.getElementById('capture-photo');
@@ -326,7 +347,7 @@
       cancelBtn.style.display = 'inline-block';
       
       try {
-        // リアカメラ（環境カメラ）優先、なければ通常のカメラ
+        // リアカメラ（環境カメラ）を優先、なければ通常のカメラ
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
       } catch (error) {
         try {
@@ -339,12 +360,11 @@
       video.srcObject = stream;
     });
     
-    // ビデオストリームから現在のフレームをキャプチャし、画像として保存（canvas 経由）
+    // カメラプレビュー上の「写真を撮る」ボタンでキャプチャ
     document.getElementById('capture-photo').addEventListener('click', function() {
       const video = document.getElementById('video-preview');
       const canvas = document.getElementById('capture-canvas');
-      
-      if (!canvas) return; // canvas は後で作成（以下で自動生成）
+      if (!canvas) return;
       
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -352,7 +372,7 @@
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       currentImageData = canvas.toDataURL('image/png');
       
-      // カメラを停止し、プレビュー・ボタンを非表示にする
+      // カメラ停止・プレビュー＆ボタンを非表示にする
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
@@ -361,7 +381,7 @@
       document.getElementById('cancel-photo').style.display = 'none';
     });
     
-    // キャンセルボタン：カメラ起動中に中断できるようにする
+    // キャンセルボタン：カメラ起動中に中断
     document.getElementById('cancel-photo').addEventListener('click', function() {
       const video = document.getElementById('video-preview');
       if (stream) {
@@ -372,7 +392,7 @@
       document.getElementById('cancel-photo').style.display = 'none';
     });
     
-    // HTML内に存在しない場合は、非表示の canvas（写真用）を作成
+    // HTML 内に写真用の非表示 canvas を作成（キャプチャ用）
     (function createPhotoCanvas() {
       let canvas = document.getElementById('capture-canvas');
       if (!canvas) {
@@ -383,7 +403,9 @@
       }
     })();
     
-    // 手書きメモ機能：ボタン押下で手書き用のキャンバスを表示
+    // ----- 手書きメモ機能 -----
+    
+    // 「手書きメモ」ボタン押下で手書き用キャンバスを表示
     document.getElementById('handwrite-input').addEventListener('click', function() {
       document.getElementById('handwrite-section').style.display = 'block';
       // キャンバスの初期化（背景クリア）
@@ -392,7 +414,7 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
     
-    // 手書きキャンバス描画用の実装（マウス／タッチ両対応）
+    // 手書きキャンバス描画処理（マウス／タッチ両対応）
     (function() {
       const canvas = document.getElementById('handwrite-canvas');
       const ctx = canvas.getContext('2d');
@@ -400,12 +422,10 @@
       let lastX = 0;
       let lastY = 0;
       
-      // 描画開始
       function startDrawing(x, y) {
         drawing = true;
         [lastX, lastY] = [x, y];
       }
-      // 描画移動
       function draw(x, y) {
         if (!drawing) return;
         ctx.beginPath();
@@ -416,7 +436,6 @@
         ctx.stroke();
         [lastX, lastY] = [x, y];
       }
-      // 描画終了
       function endDrawing() {
         drawing = false;
       }
@@ -431,7 +450,7 @@
       canvas.addEventListener('mouseup', endDrawing);
       canvas.addEventListener('mouseleave', endDrawing);
       
-      // タッチイベント（座標はキャンバスの境界を考慮）
+      // タッチイベント（キャンバス上の相対座標に変換）
       canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
@@ -465,7 +484,8 @@
       document.getElementById('handwrite-section').style.display = 'none';
     });
     
-    // ソート順または検索クエリが変更されたときにメモリストを更新
+    // ----- エクスポート／インポート／印刷／全削除 -----
+    
     document.getElementById('sort-order').addEventListener('change', updateMemoList);
     document.getElementById('search-box').addEventListener('input', updateMemoList);
     
@@ -528,12 +548,12 @@ MEMO_DATA_END -->
       reader.readAsText(file);
     });
     
-    // 印刷 / PDF: ブラウザの標準印刷ダイアログの起動
+    // 印刷 / PDF: ブラウザの標準印刷ダイアログを起動
     document.getElementById('print-memos').addEventListener('click', function() {
       window.print();
     });
     
-    // localStorage から全メモを削除する
+    // localStorage から全メモを削除
     document.getElementById('delete-all').addEventListener('click', function() {
       if (confirm('本当に全てのメモを削除してもよろしいですか？')) {
         memos = [];
@@ -547,7 +567,7 @@ MEMO_DATA_END -->
       document.body.classList.toggle('dark-mode');
     });
     
-    // 初期化: メモを読み込みリストに表示
+    // 初期化：メモを読み込みリストに表示
     loadMemos();
     updateMemoList();
   </script>
