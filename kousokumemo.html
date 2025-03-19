@@ -31,7 +31,7 @@
       cursor: pointer;
       font-size: 14px;
     }
-    /* エクスポート/インポートボタンエリア（ヘッダー直下に配置） */
+    /* エクスポート／インポートエリア */
     .export-import {
       text-align: center;
       margin: 10px 0;
@@ -60,9 +60,9 @@
     textarea {
       width: 100%;
       margin-bottom: 10px;
-      box-sizing: border-box;
       padding: 8px;
       font-size: 14px;
+      box-sizing: border-box;
     }
     h2 { margin-bottom: 5px; }
     ul { list-style: none; padding: 0; }
@@ -84,7 +84,7 @@
     .dark-mode .container {
       background-color: #444;
     }
-    /* 手書き入力・写真撮影ポップアップ */
+    /* 手書き／写真撮影用ポップアップ */
     #drawingContainer,
     #photoContainer {
       display: none;
@@ -106,7 +106,7 @@
     #photoVideo {
       border: 1px solid #ccc;
     }
-    /* スマホなど狭い画面用の調整 */
+    /* スマホなど狭い画面用 */
     @media (max-width: 600px) {
       #drawingContainer, #photoContainer {
         width: 90%;
@@ -147,7 +147,7 @@
     <!-- 検索欄 -->
     <input type="text" id="searchInput" placeholder="検索...">
     
-    <!-- テキスト入力欄 -->
+    <!-- テキスト入力欄（改行をそのまま保存） -->
     <textarea id="memoInput" placeholder="メモを入力してください..." rows="4"></textarea>
     
     <!-- 保存されたメモ一覧 -->
@@ -176,7 +176,7 @@
   </div>
   
   <script>
-    /* 各メモは { timestamp, createdAt, text, imageData, drawingData } の形式 */
+    // 各メモは { timestamp, createdAt, text, imageData, drawingData } の形式
     let memos = [];
     let currentDrawingData = null;
     let currentPhotoData = null;
@@ -195,7 +195,7 @@
       localStorage.setItem('memos', JSON.stringify(memos));
     }
     
-    // メモ一覧の描画
+    // メモ一覧描画
     function renderMemos(){
       const memoList = document.getElementById('memoList');
       memoList.innerHTML = "";
@@ -216,7 +216,7 @@
         const dateSpan = document.createElement('span');
         dateSpan.textContent = `[${memo.timestamp}] `;
         li.appendChild(dateSpan);
-        // テキスト表示
+        // テキスト表示（入力欄の改行を保持）
         const textSpan = document.createElement('span');
         textSpan.textContent = memo.text || "";
         li.appendChild(textSpan);
@@ -229,7 +229,7 @@
           img.style.marginLeft = "10px";
           li.appendChild(img);
         }
-        // 手書き入力画像表示
+        // 手書き入力画像の表示
         if(memo.drawingData){
           const img2 = document.createElement('img');
           img2.src = memo.drawingData;
@@ -238,47 +238,23 @@
           img2.style.marginLeft = "10px";
           li.appendChild(img2);
         }
-        // 編集ボタン（修正時に写真も追加できる）
+        // 編集（修正）ボタン【写真追加機能は削除：テキストのみ修正】
         const editBtn = document.createElement('button');
         editBtn.textContent = "修正";
         editBtn.addEventListener('click', function(e){
           e.stopPropagation();
-          const newText = prompt("メモの修正（テキスト）", memo.text);
+          const newText = prompt("メモの修正（テキストのみ）", memo.text);
           if(newText !== null){
-            let newPhotoData = memo.imageData; // デフォルトは既存の写真
-            if(confirm("写真も修正・追加しますか？")){
-              // 動的なファイル入力を生成して、写真の更新を行う
-              let fileInput = document.createElement('input');
-              fileInput.type = 'file';
-              fileInput.accept = 'image/*';
-              fileInput.onchange = function(event){
-                const file = event.target.files[0];
-                if(file){
-                  const reader = new FileReader();
-                  reader.onload = function(ev){
-                    newPhotoData = ev.target.result;
-                    memo.text = newText;
-                    memo.imageData = newPhotoData;
-                    saveMemos();
-                    renderMemos();
-                  };
-                  reader.readAsDataURL(file);
-                } else {
-                  memo.text = newText;
-                  saveMemos();
-                  renderMemos();
-                }
-              };
-              fileInput.click();
-            } else {
-              memo.text = newText;
+            const idx = memos.indexOf(memo);
+            if(idx !== -1){
+              memos[idx].text = newText;
               saveMemos();
               renderMemos();
             }
           }
         });
         li.appendChild(editBtn);
-        // 削除ボタン（確認なし）
+        // 削除ボタン
         const delBtn = document.createElement('button');
         delBtn.textContent = "削除";
         delBtn.addEventListener('click', function(e){
@@ -295,7 +271,7 @@
       });
     }
     
-    // ダブルクリック／ダブルタップで保存（入力欄以外の場合）
+    // ダブルクリック／ダブルタップで保存
     let tapCount = 0;
     function handleDoubleTap(e){
       const ignoreTags = ['INPUT','TEXTAREA','BUTTON','LABEL'];
@@ -316,34 +292,27 @@
       document.getElementById('saveHint').addEventListener('click', saveMemo);
     }
     
-    // 保存処理：もし写真がある場合はOCRで手書き日時抽出を試みる
+    // 保存処理：テキストは改行をそのまま取得（trimせず）
     function saveMemo(){
       const memoInput = document.getElementById('memoInput');
-      const memoText = memoInput.value.trim();
+      const memoText = memoInput.value;  // 改行を保持
       if(memoText === "" && !currentDrawingData && !currentPhotoData){
         alert("メモ、手書き、または写真のいずれかを入力してください。");
         return;
       }
       const now = new Date();
       let newMemo = {
-        // 仮の日時。後でOCRで上書き可能
-        timestamp: now.toLocaleString(),
+        timestamp: now.toLocaleString(),  // 仮の日時（後でOCRが有効なら上書き）
         createdAt: now.getTime(),
         text: memoText,
         imageData: currentPhotoData || null,
         drawingData: currentDrawingData || null
       };
       if(newMemo.imageData){
-        // 写真撮影の場合はOCRで日時抽出（日本語モード・ホワイトリスト設定）
-        Tesseract.recognize(newMemo.imageData, 'jpn', {
-          logger: m => console.log(m),
-          tessedit_char_whitelist: "0123456789年月日／-: "
-        }).then(result => {
-          const text = result.data.text;
-          const regex = /(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
-          const match = text.match(regex);
-          if(match && match[0]){
-            newMemo.timestamp = match[0];
+        // OCR処理：写真から手書きの日付を抽出
+        extractDateFromPhoto(newMemo.imageData).then(extracted => {
+          if(extracted){
+            newMemo.timestamp = extracted;
           }
           memos.push(newMemo);
           saveMemos();
@@ -369,7 +338,24 @@
       }
     }
     
-    // 音声入力（Web Speech API）
+    // OCR処理：Tesseract.js 使用（日本語モード、ページセグメンテーションモード6、ホワイトリスト指定）
+    function extractDateFromPhoto(photoData){
+      return Tesseract.recognize(photoData, 'jpn', {
+        logger: m => console.log(m),
+        tessedit_pageseg_mode: 6,
+        tessedit_char_whitelist: "0123456789年月日／-: "
+      }).then(result => {
+        const text = result.data.text;
+        const regex = /(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
+        const match = text.match(regex);
+        if(match && match[0]){
+          return match[0];
+        }
+        return null;
+      });
+    }
+    
+    // 音声入力
     document.getElementById('voiceInputButton').addEventListener('click', function(){
       const memoInput = document.getElementById('memoInput');
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -473,15 +459,16 @@ ${jsonData}
     document.getElementById('saveDrawingButton').addEventListener('click', function(){
       const canvas = document.getElementById('drawingCanvas');
       currentDrawingData = canvas.toDataURL();
-      // OCR: 手書き画像から文字認識（日本語モード、ホワイトリスト付き）
+      // OCR：手書き画像から文字認識（日本語モード、ページセグモード6、ホワイトリスト指定）
       Tesseract.recognize(currentDrawingData, 'jpn', {
         logger: m => console.log(m),
+        tessedit_pageseg_mode: 6,
         tessedit_char_whitelist: "0123456789年月日／-: "
       }).then(result => {
         const recognizedText = result.data.text;
         const memoInput = document.getElementById('memoInput');
-        // 既存のテキストに追記
-        memoInput.value += recognizedText;
+        // 改行付きで追記
+        memoInput.value += "\n" + recognizedText;
         hideDrawingContainer();
       }).catch(err => {
         console.error("手書きOCRエラー:", err);
