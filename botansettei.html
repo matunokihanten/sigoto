@@ -39,8 +39,10 @@
     #action-buttons button { margin-right: 5px; padding: 5px 10px; cursor: pointer; font-size: 16px; }
     @media (max-width: 600px) {
       form input, form select, button { font-size: 18px; padding: 10px; }
+      .delete-button, .edit-button { width: 30px; height: 30px; font-size: 16px; }
     }
   </style>
+  <!-- Excel用SheetJSライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
@@ -124,13 +126,7 @@
             br = document.getElementById("borderRadius").value || "30px",
             bc = document.getElementById("borderColor").value || "#cccccc";
       previewButton.textContent = t;
-      previewButton.style.width = w;
-      previewButton.style.height = h;
-      previewButton.style.color = tc;
-      previewButton.style.backgroundColor = bg;
-      previewButton.style.fontSize = fs;
-      previewButton.style.borderRadius = br;
-      previewButton.style.border = "1px solid " + bc;
+      Object.assign(previewButton.style, { width: w, height: h, color: tc, backgroundColor: bg, fontSize: fs, borderRadius: br, border: "1px solid " + bc });
     }
     document.querySelectorAll("#add-button-form input, #add-button-form select").forEach(el => {
       el.addEventListener("input", updatePreview);
@@ -143,18 +139,13 @@
         const wrapper = document.createElement("div");
         wrapper.className = "button-wrapper"; wrapper.dataset.id = btnObj.id;
         const btn = document.createElement("button");
-        btn.textContent = btnObj.text;
-        btn.className = "custom-button";
+        btn.textContent = btnObj.text; btn.className = "custom-button";
         Object.assign(btn.style, {
-          width: btnObj.width,
-          height: btnObj.height,
-          color: btnObj.textColor,
-          backgroundColor: btnObj.bgColor,
-          fontSize: btnObj.fontSize,
-          borderRadius: btnObj.borderRadius,
-          border: "1px solid " + btnObj.borderColor
+          width: btnObj.width, height: btnObj.height, color: btnObj.textColor,
+          backgroundColor: btnObj.bgColor, fontSize: btnObj.fontSize, borderRadius: btnObj.borderRadius,
+          border:"1px solid " + btnObj.borderColor
         });
-        btn.addEventListener("dblclick", () => {
+        btn.addEventListener("pointerup", () => {
           const ext = btnObj.file.split('.').pop().toLowerCase();
           if (!allowedExtensions.includes(ext)) { alert("実行できないファイル形式です: " + ext); return; }
           window.open(btnObj.file);
@@ -162,7 +153,7 @@
         wrapper.appendChild(btn);
         const editBtn = document.createElement("button");
         editBtn.textContent = "✎"; editBtn.className = "edit-button";
-        editBtn.addEventListener("click", e => {
+        editBtn.addEventListener("pointerup", e => {
           e.stopPropagation();
           currentEditId = btnObj.id;
           document.getElementById("text").value = btnObj.text;
@@ -175,12 +166,17 @@
           document.getElementById("borderRadius").value = btnObj.borderRadius;
           document.getElementById("borderColor").value = btnObj.borderColor;
           updatePreview();
-          submitBtn.textContent = "更新する"; cancelEditBtn.style.display = "inline";
+          submitBtn.textContent = "更新する";
+          cancelEditBtn.style.display = "inline";
         });
         wrapper.appendChild(editBtn);
         const delBtn = document.createElement("button");
         delBtn.textContent = "✖"; delBtn.className = "delete-button";
-        delBtn.addEventListener("click", e => { e.stopPropagation(); buttonsConfig = buttonsConfig.filter(b=>b.id!==btnObj.id); updateButtons(); });
+        delBtn.addEventListener("pointerup", e => {
+          e.stopPropagation();
+          buttonsConfig = buttonsConfig.filter(b=> b.id!==btnObj.id);
+          updateButtons();
+        });
         wrapper.appendChild(delBtn);
         buttonContainer.appendChild(wrapper);
       });
@@ -200,25 +196,25 @@
     document.getElementById("add-button-form").addEventListener("submit", e => {
       e.preventDefault();
       const form = e.target;
-      let text = form.elements["text"].value.trim() || "テスト";
-      let file = form.elements["file"].value.trim() || "t.html";
-      let width = form.elements["width"].value.trim();
-      if(width && !/(px|em|rem|%|vh|vw)$/.test(width)) width += "px"; width = width || "150px";
-      let height = form.elements["height"].value.trim();
-      if(height && !/(px|em|rem|%|vh|vw)$/.test(height)) height += "px"; height = height || "50px";
-      const textColor = form.elements["textColor"].value,
-            bgColor = form.elements["bgColor"].value,
-            fontSize = form.elements["fontSize"].value || "16px",
-            borderRadius = form.elements["borderRadius"].value || "30px",
-            borderColor = form.elements["borderColor"].value || "#cccccc";
+      let t = form.elements["text"].value.trim() || "テスト";
+      let f = form.elements["file"].value.trim() || "t.html";
+      let w = form.elements["width"].value.trim();
+      if(w && !/(px|em|rem|%|vh|vw)$/.test(w)) w += "px"; w = w || "150px";
+      let h = form.elements["height"].value.trim();
+      if(h && !/(px|em|rem|%|vh|vw)$/.test(h)) h += "px"; h = h || "50px";
+      const tc = form.elements["textColor"].value,
+            bg = form.elements["bgColor"].value,
+            fs = form.elements["fontSize"].value || "16px",
+            br = form.elements["borderRadius"].value || "30px",
+            bc = form.elements["borderColor"].value || "#cccccc";
       if(currentEditId !== null) {
-        let btn = buttonsConfig.find(b=>b.id===currentEditId);
-        if(btn){
-          Object.assign(btn, {text, file, width, height, textColor, bgColor, fontSize, borderRadius, borderColor});
-        }
-        currentEditId = null; submitBtn.textContent = "ボタンを追加"; cancelEditBtn.style.display = "none";
+        let btn = buttonsConfig.find(b=> b.id===currentEditId);
+        if(btn){ Object.assign(btn, {text: t, file: f, width: w, height: h, textColor: tc, bgColor: bg, fontSize: fs, borderRadius: br, borderColor: bc}); }
+        currentEditId = null;
+        submitBtn.textContent = "ボタンを追加";
+        cancelEditBtn.style.display = "none";
       } else {
-        buttonsConfig.push({ id: nextId++, text, file, width, height, textColor, bgColor, fontSize, borderRadius, borderColor, order: buttonsConfig.length });
+        buttonsConfig.push({ id: nextId++, text: t, file: f, width: w, height: h, textColor: tc, bgColor: bg, fontSize: fs, borderRadius: br, borderColor: bc, order: buttonsConfig.length });
       }
       updateButtons();
       form.elements["text"].value = "";
@@ -228,7 +224,7 @@
 
     document.getElementById("update-columns").addEventListener("click", () => {
       const cols = parseInt(document.getElementById("columns-input").value, 10);
-      if(isNaN(cols)||cols<1)return;
+      if(isNaN(cols) || cols < 1)return;
       buttonContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
     });
 
@@ -259,23 +255,26 @@
     const allowedExtensions = ${JSON.stringify(allowedExtensions)};
     const buttonsConfig = ${JSON.stringify(buttonsConfig)};
     const container = document.getElementById("button-container");
-    function createButton(button){ 
-      const btn = document.createElement("button"); 
-      btn.textContent = button.text; 
-      btn.className="custom-button"; 
+    function createButton(button){
+      const btn = document.createElement("button");
+      btn.textContent = button.text;
+      btn.className="custom-button";
       Object.assign(btn.style, {
         width: button.width, height: button.height, color: button.textColor,
-        backgroundColor: button.bgColor, fontSize: button.fontSize, borderRadius: button.borderRadius,
-        border:"1px solid " + button.borderColor
+        backgroundColor: button.bgColor, fontSize: button.fontSize,
+        borderRadius: button.borderRadius, border:"1px solid " + button.borderColor
       });
       btn.addEventListener("dblclick", ()=>{
         const ext = button.file.split('.').pop().toLowerCase();
-        if(!allowedExtensions.includes(ext)){ alert("実行できないファイル形式です: " + ext); return; }
+        if(!allowedExtensions.includes(ext)){
+          alert("実行できないファイル形式です: " + ext);
+          return;
+        }
         window.open(button.file);
       });
       container.appendChild(btn);
     }
-    buttonsConfig.forEach(b=>createButton(b));
+    buttonsConfig.forEach(b=> createButton(b));
   <\/script>
 </body>
 </html>`;
@@ -319,9 +318,9 @@
 
     document.getElementById("export-excel").addEventListener("click", () => {
       const header = ["ボタンテキスト","実行ファイル","幅","高さ","背景色","フォントサイズ","角丸","枠線色"];
-      const ws_data = [header];
+      const ws_data = [ header ];
       buttonsConfig.forEach(btn => {
-        ws_data.push([btn.text, btn.file, btn.width, btn.height, btn.bgColor, btn.fontSize, btn.borderRadius, btn.borderColor]);
+        ws_data.push([ btn.text, btn.file, btn.width, btn.height, btn.bgColor, btn.fontSize, btn.borderRadius, btn.borderColor ]);
       });
       const ws = XLSX.utils.aoa_to_sheet(ws_data);
       const wb = XLSX.utils.book_new();
@@ -343,30 +342,30 @@
         const jsonData = XLSX.utils.sheet_to_json(ws, {header:1});
         if(jsonData.length < 2) return;
         const headerRow = jsonData[0], mapping = {
-          "ボタンテキスト": "text","実行ファイル": "file","幅": "width",
-          "高さ": "height","背景色": "bgColor","フォントサイズ": "fontSize",
-          "角丸": "borderRadius","枠線色": "borderColor"
+          "ボタンテキスト": "text", "実行ファイル": "file", "幅": "width",
+          "高さ": "height", "背景色": "bgColor", "フォントサイズ": "fontSize",
+          "角丸": "borderRadius", "枠線色": "borderColor"
         };
         buttonsConfig = [];
         for(let i = 1; i < jsonData.length; i++){
           const row = jsonData[i];
           if(row.length === 0) continue;
-          let buttonObj = {};
-          headerRow.forEach((colName,index)=>{
-            const propName = mapping[colName];
-            if(propName) { buttonObj[propName] = row[index]; }
+          let btnObj = {};
+          headerRow.forEach((colName,index) => {
+            const prop = mapping[colName];
+            if(prop) btnObj[prop] = row[index];
           });
-          buttonObj.id = nextId++;
-          buttonObj.order = buttonsConfig.length;
-          if(!buttonObj.text) buttonObj.text = "テスト";
-          if(!buttonObj.file) buttonObj.file = "t.html";
-          if(!buttonObj.width) buttonObj.width = "150px";
-          if(!buttonObj.height) buttonObj.height = "50px";
-          if(!buttonObj.fontSize) buttonObj.fontSize = "16px";
-          if(!buttonObj.borderRadius) buttonObj.borderRadius = "30px";
-          if(!buttonObj.borderColor) buttonObj.borderColor = "#cccccc";
-          if(!buttonObj.bgColor) buttonObj.bgColor = "yellowgreen";
-          buttonsConfig.push(buttonObj);
+          btnObj.id = nextId++;
+          btnObj.order = buttonsConfig.length;
+          if(!btnObj.text) btnObj.text = "テスト";
+          if(!btnObj.file) btnObj.file = "t.html";
+          if(!btnObj.width) btnObj.width = "150px";
+          if(!btnObj.height) btnObj.height = "50px";
+          if(!btnObj.fontSize) btnObj.fontSize = "16px";
+          if(!btnObj.borderRadius) btnObj.borderRadius = "30px";
+          if(!btnObj.borderColor) btnObj.borderColor = "#cccccc";
+          if(!btnObj.bgColor) btnObj.bgColor = "yellowgreen";
+          buttonsConfig.push(btnObj);
         }
         updateButtons();
       };
