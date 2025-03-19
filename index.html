@@ -3,6 +3,83 @@
 <head>
     <title>美形カメラ</title>
     <style>
+        video, canvas {
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>美形カメラ</h1>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // カメラ起動
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => console.error('カメラエラー:', err));
+
+        // 初期化
+        async function init() {
+            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
+            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
+            await faceapi.nets.ageGenderNet.loadFromUri('/models');
+            console.log("Face-api.jsがロードされました");
+            
+            // ビデオ再生時の処理
+            video.addEventListener('play', () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+
+                const processFrame = async () => {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+                    // 顔検出
+                    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+                        .withFaceLandmarks()
+                        .withFaceExpressions()
+                        .withAgeAndGender();
+                    
+                    if (detections.length > 0) {
+                        const resizedDetections = faceapi.resizeResults(detections, {
+                            width: canvas.width,
+                            height: canvas.height
+                        });
+                        resizedDetections.forEach(detection => {
+                            const landmarks = detection.landmarks;
+
+                            // 美形効果：例 - 瞳を大きくする
+                            const leftEye = landmarks.getLeftEye();
+                            const rightEye = landmarks.getRightEye();
+
+                            // 他のエフェクトや輪郭調整コードを追加
+                            ctx.fillStyle = 'rgba(255, 215, 0, 0.2)'; // 光沢感
+                        });
+                    }
+
+                    requestAnimationFrame(processFrame);
+                };
+                processFrame();
+            });
+        }
+
+        init();
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html>
+<head>
+    <title>美形カメラ</title>
+    <style>
         canvas {
             display: block;
         }
