@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>美形カメラ</title>
+    <title>若返り美形カメラ</title>
     <style>
         video, canvas {
             display: block;
@@ -10,168 +10,56 @@
     </style>
 </head>
 <body>
-    <h1>美形カメラ</h1>
+    <h1>若返り美形カメラ</h1>
     <video id="video" autoplay playsinline></video>
     <canvas id="canvas"></canvas>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
     <script>
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
 
-        // カメラ起動
+        // カメラストリームの取得
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
                 video.srcObject = stream;
             })
             .catch(err => console.error('カメラエラー:', err));
 
-        // 初期化
-        async function init() {
-            await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
-            await faceapi.nets.faceLandmark68Net.loadFromUri('/models');
-            await faceapi.nets.faceRecognitionNet.loadFromUri('/models');
-            await faceapi.nets.ageGenderNet.loadFromUri('/models');
-            console.log("Face-api.jsがロードされました");
-            
-            // ビデオ再生時の処理
-            video.addEventListener('play', () => {
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+        // 若返りフィルター
+        const applyRejuvenationFilter = (imageData) => {
+            const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                // 肌を明るくする
+                data[i] = data[i] + 15;     // 赤チャンネル
+                data[i + 1] = data[i + 1] + 10; // 緑チャンネル
+                data[i + 2] = data[i + 2] + 5;  // 青チャンネル
 
-                const processFrame = async () => {
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                // シワを目立たなくする（簡易的なブラー効果）
+                if (i % 40 === 0) {
+                    data[i] = (data[i] + data[i + 4]) / 2;
+                    data[i + 1] = (data[i + 1] + data[i + 5]) / 2;
+                    data[i + 2] = (data[i + 2] + data[i + 6]) / 2;
+                }
+            }
+            return imageData;
+        };
 
-                    // 顔検出
-                    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-                        .withFaceLandmarks()
-                        .withFaceExpressions()
-                        .withAgeAndGender();
-                    
-                    if (detections.length > 0) {
-                        const resizedDetections = faceapi.resizeResults(detections, {
-                            width: canvas.width,
-                            height: canvas.height
-                        });
-                        resizedDetections.forEach(detection => {
-                            const landmarks = detection.landmarks;
-
-                            // 美形効果：例 - 瞳を大きくする
-                            const leftEye = landmarks.getLeftEye();
-                            const rightEye = landmarks.getRightEye();
-
-                            // 他のエフェクトや輪郭調整コードを追加
-                            ctx.fillStyle = 'rgba(255, 215, 0, 0.2)'; // 光沢感
-                        });
-                    }
-
-                    requestAnimationFrame(processFrame);
-                };
-                processFrame();
-            });
-        }
-
-        init();
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html>
-<head>
-    <title>美形カメラ</title>
-    <style>
-        canvas {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // カメラ映像の取得
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => console.error('カメラ取得エラー:', err));
-
-        // エフェクトの適用
+        // ビデオフレームごとの処理
         video.addEventListener('play', () => {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
 
-            const draw = () => {
+            const processFrame = () => {
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // 色調調整 (例: 明るさを増やす)
+
+                // エフェクトを適用
                 let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                let data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] += 20;      // 赤チャンネルを増加
-                    data[i + 1] += 20;  // 緑チャンネルを増加
-                    data[i + 2] += 20;  // 青チャンネルを増加
-                }
+                imageData = applyRejuvenationFilter(imageData);
                 ctx.putImageData(imageData, 0, 0);
-                
-                requestAnimationFrame(draw);
+
+                requestAnimationFrame(processFrame);
             };
-            draw();
-        });
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html>
-<head>
-    <title>美形カメラ</title>
-    <style>
-        canvas {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
-
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // カメラ映像の取得
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => console.error('カメラ取得エラー:', err));
-
-        // エフェクトの適用
-        video.addEventListener('play', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            const draw = () => {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // 色調調整 (例: 明るさを増やす)
-                let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                let data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] += 20;      // 赤チャンネルを増加
-                    data[i + 1] += 20;  // 緑チャンネルを増加
-                    data[i + 2] += 20;  // 青チャンネルを増加
-                }
-                ctx.putImageData(imageData, 0, 0);
-                
-                requestAnimationFrame(draw);
-            };
-            draw();
+            processFrame();
         });
     </script>
 </body>
