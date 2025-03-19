@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <!-- スマホでも全機能が使えるよう、viewport 設定を強化 -->
+  <!-- スマホ向けにズームや拡大縮小を制限 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>メモアプリ</title>
   <style>
@@ -40,6 +40,16 @@
     .custom-button:hover {
       background-color: #0056b3;
     }
+    /* スマホ向けにタップしやすいボタンサイズ */
+    @media (max-width: 600px) {
+      .custom-button {
+        padding: 12px 16px;
+        font-size: 18px;
+      }
+      textarea {
+        height: 100px;
+      }
+    }
     #memo-list {
       margin-top: 20px;
     }
@@ -63,23 +73,25 @@
       margin-right: 5px;
       cursor: pointer;
     }
+    /* カメラプレビュー・写真撮影用（PC向けのみ） */
+    #camera-section {
+      margin-top: 10px;
+    }
     #video-preview {
       max-width: 100%;
       border: 1px solid #ddd;
       margin-bottom: 10px;
+      cursor: pointer;
     }
-    /* 手書きメモ用のキャンバス */
+    /* 手書きメモ用キャンバス */
     #handwrite-canvas {
       border: 1px solid #ccc;
       touch-action: none;
     }
-    @media (max-width: 600px) {
-      textarea {
-        height: 100px;
-      }
-      .custom-button {
-        padding: 8px 12px;
-      }
+    /* その他 */
+    #video-hint {
+      font-size: 14px;
+      color: #555;
     }
   </style>
 </head>
@@ -91,6 +103,7 @@
   <div>
     <label for="image-upload" class="custom-button">画像選択</label>
     <input type="file" id="image-upload" accept="image/*" style="display:none">
+    <!-- 写真撮影ボタン（PC向けのみ） -->
     <button id="photo-capture" class="custom-button">写真撮影</button>
     <button id="voice-input" class="custom-button">音声入力</button>
     <!-- 音声入力中のフィードバック表示 -->
@@ -99,12 +112,13 @@
     <button id="toggle-dark-mode" class="custom-button">ダークモード切替</button>
   </div>
   
-  <!-- カメラプレビューセクション -->
-  <div id="camera-section" style="margin-top:10px;">
+  <!-- カメラプレビューセクション（PC向けのみ表示） -->
+  <div id="camera-section">
     <video id="video-preview" autoplay playsinline style="display:none;"></video>
     <br>
     <button id="capture-photo" class="custom-button" style="display:none;">写真を撮る</button>
     <button id="cancel-photo" class="custom-button" style="display:none;">キャンセル</button>
+    <p id="video-hint" style="display:none;">※プレビュー画面をタップしても撮影できます</p>
   </div>
   
   <!-- 手書きメモセクション -->
@@ -132,7 +146,9 @@
   </div>
   
   <!-- ダブルクリック／ダブルタップ保存のヒント -->
-  <p id="double-click-hint" style="cursor:pointer; text-decoration:underline;">どこでもダブルクリック（またはダブルタップ）するとメモが保存されます</p>
+  <p id="double-click-hint" style="cursor:pointer; text-decoration:underline;">
+    どこでもダブルクリック（またはダブルタップ）するとメモが保存されます
+  </p>
   
   <!-- メモリスト -->
   <div id="memo-list"></div>
@@ -140,41 +156,56 @@
   <script>
     // グローバル変数
     let memos = []; // メモオブジェクトを保存する配列
-    let currentImageData = null; // 現在の画像のデータURL（画像、手書き、写真）
+    let currentImageData = null; // 現在の画像のデータURL（画像、手書き、PCでの写真撮影）
     let recognition = null; // 音声認識インスタンス
     let stream = null; // カメラ用の MediaStream
 
-    // 初回読み込み時に localStorage からメモをロード
+    // スマホかどうかを判定する関数
+    function isMobile() {
+      return /Mobi|Android/i.test(navigator.userAgent);
+    }
+
+    // DOM読み込み後にスマホの場合はカメラ機能を非表示に
+    document.addEventListener('DOMContentLoaded', function() {
+      if (isMobile()) {
+        // スマホでは写真撮影、画像保存機能を削除するため、
+        // カメラプレビューセクション全体を非表示にします。
+        const cameraSection = document.getElementById('camera-section');
+        if (cameraSection) {
+          cameraSection.style.display = 'none';
+        }
+      }
+    });
+    
+    // localStorage からメモを読み込む
     function loadMemos() {
       const stored = localStorage.getItem('memos');
       if (stored) {
         try {
           memos = JSON.parse(stored);
         } catch(e) {
-          console.error('メモの解析エラー: ', e);
+          console.error('メモ解析エラー:', e);
           memos = [];
         }
       }
     }
     
-    // メモ配列を localStorage に保存する
+    // メモ配列を localStorage に保存
     function saveMemosToStorage() {
       localStorage.setItem('memos', JSON.stringify(memos));
     }
     
-    // ソート・検索フィルターを適用して、表示されるメモリストを更新する
+    // メモリストを更新（ソート・検索フィルター適用）
     function updateMemoList() {
       const memoListDiv = document.getElementById('memo-list');
       memoListDiv.innerHTML = '';
       let filteredMemos = memos;
       
-      // 検索クエリがあればフィルターを適用
       const query = document.getElementById('search-box').value.toLowerCase();
       if (query) {
         filteredMemos = filteredMemos.filter(memo => memo.text.toLowerCase().includes(query));
       }
       
-      // 新着順または古い順のソートを適用
       const sortOrder = document.getElementById('sort-order').value;
       filteredMemos.sort((a, b) => {
         if (sortOrder === 'newest') {
@@ -184,29 +215,24 @@
         }
       });
       
-      // 各メモをレンダリング
       filteredMemos.forEach(memo => {
         const memoDiv = document.createElement('div');
         memoDiv.className = 'memo';
         
-        // タイムスタンプ
         const timeP = document.createElement('p');
         timeP.innerHTML = `<strong>${new Date(memo.timestamp).toLocaleString()}</strong>`;
         memoDiv.appendChild(timeP);
         
-        // メモテキスト（改行を維持するため <pre> を使用）
         const textPre = document.createElement('pre');
         textPre.textContent = memo.text;
         memoDiv.appendChild(textPre);
         
-        // 添付された画像があれば表示
         if (memo.image) {
           const imgElem = document.createElement('img');
           imgElem.src = memo.image;
           memoDiv.appendChild(imgElem);
         }
         
-        // 編集と削除ボタン
         const btnDiv = document.createElement('div');
         btnDiv.className = 'memo-buttons';
         
@@ -225,7 +251,7 @@
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = '削除';
         deleteBtn.addEventListener('click', () => {
-          if (confirm('本当にこのメモを削除してもよろしいですか？')) {
+          if (confirm('本当にこのメモを削除しますか？')) {
             memos = memos.filter(m => m.id !== memo.id);
             saveMemosToStorage();
             updateMemoList();
@@ -240,12 +266,12 @@
       });
     }
     
-    // テキストまたは画像／手書き等が存在する場合のみ新しくメモを追加する
+    // メモ追加（テキストか画像／手書きが存在する場合のみ）
     function addMemo() {
       const textArea = document.getElementById('memo-text');
       const text = textArea.value.trim();
       if (!text && !currentImageData) {
-        alert("保存する前にテキストを入力するか、画像・手書き、または写真を添付してください。");
+        alert("保存する前にテキストか画像・手書き、もしくは写真を添付してください。");
         return;
       }
       const memo = {
@@ -258,41 +284,36 @@
       saveMemosToStorage();
       updateMemoList();
       
-      // 次のメモのために入力をクリア
       textArea.value = '';
       currentImageData = null;
     }
+
+    // ----- ダブルクリック／ダブルタップによる保存 -----
     
-    // ----- ダブルクリック（PC）およびダブルタップ（スマホ）による保存機能 -----
-    
-    // PC環境：dblclick イベント
     document.addEventListener('dblclick', function(e) {
       const tag = e.target.tagName.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'button' || e.target.classList.contains('custom-button')) {
+      if (['input', 'textarea', 'button'].includes(tag) || e.target.classList.contains('custom-button')) {
         return;
       }
       addMemo();
     });
     
-    // スマホ環境：touchend でダブルタップ検出
     let lastTap = 0;
     document.addEventListener('touchend', function(e) {
       const currentTime = new Date().getTime();
-      const tapInterval = currentTime - lastTap;
-      const tag = e.target.tagName.toLowerCase();
-      // 短い間隔（例:500ms以内）の連続タップで保存（ただし、インタラクティブ要素は除く）
-      if (tapInterval > 0 && tapInterval < 500 && 
-          tag !== 'input' && tag !== 'textarea' && tag !== 'button' && 
-          !e.target.classList.contains('custom-button')) {
-        addMemo();
+      if (currentTime - lastTap > 0 && currentTime - lastTap < 500) {
+        const tag = e.target.tagName.toLowerCase();
+        if (!['input', 'textarea', 'button'].includes(tag) && !e.target.classList.contains('custom-button')) {
+          addMemo();
+        }
       }
       lastTap = currentTime;
     });
     
-    // ヒントテキストのクリックで保存
     document.getElementById('double-click-hint').addEventListener('click', addMemo);
     
-    // FileReader API を使って画像ファイルの選択を処理
+    // ----- 画像アップロード -----
+    
     document.getElementById('image-upload').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (file && file.type.startsWith('image/')) {
@@ -304,7 +325,8 @@
       }
     });
     
-    // Web Speech API を用いた音声入力機能（ビジュアルフィードバック付き）
+    // ----- 音声入力（ビジュアルフィードバック付き） -----
+    
     document.getElementById('voice-input').addEventListener('click', function() {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert('このブラウザは Web Speech API をサポートしていません');
@@ -333,21 +355,53 @@
       };
     });
     
-    // ----- カメラ／写真撮影機能 -----
+    // ----- カメラ／写真撮影機能（PC向けのみ） -----
+    // スマホの場合は、先述の isMobile() 判定により camera-section そのものが非表示になるので、
+    // 以下のコードはPC環境のみ有効です。
     
-    // 写真撮影ボタンを押すとカメラプレビューを表示（キャンセルも可能）
+    // 共通の写真キャプチャ関数（サイズ縮小・JPEG保存）
+    function capturePhotoFunction() {
+      const video = document.getElementById('video-preview');
+      const canvas = document.getElementById('capture-canvas');
+      if (!canvas) return;
+      
+      const originalWidth = video.videoWidth, originalHeight = video.videoHeight;
+      const maxWidth = 640;
+      let newWidth = originalWidth, newHeight = originalHeight;
+      if (originalWidth > maxWidth) {
+        newWidth = maxWidth;
+        newHeight = Math.floor(originalHeight * (maxWidth / originalWidth));
+      }
+      
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, newWidth, newHeight);
+      
+      currentImageData = canvas.toDataURL('image/jpeg', 0.6);
+      
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      video.style.display = 'none';
+      document.getElementById('capture-photo').style.display = 'none';
+      document.getElementById('cancel-photo').style.display = 'none';
+      document.getElementById('video-hint').style.display = 'none';
+    }
+    
+    // 「写真撮影」ボタンの動作（PC環境用）
     document.getElementById('photo-capture').addEventListener('click', async function() {
       const video = document.getElementById('video-preview');
       const captureBtn = document.getElementById('capture-photo');
       const cancelBtn = document.getElementById('cancel-photo');
+      const videoHint = document.getElementById('video-hint');
       
-      // ビデオと各ボタンを表示
       video.style.display = 'block';
       captureBtn.style.display = 'inline-block';
       cancelBtn.style.display = 'inline-block';
+      videoHint.style.display = 'block';
       
       try {
-        // リアカメラ（環境カメラ）を優先、なければ通常のカメラ
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
       } catch (error) {
         try {
@@ -360,44 +414,17 @@
       video.srcObject = stream;
     });
     
-    // カメラプレビュー上の「写真を撮る」ボタンでキャプチャ（サイズ縮小版）
-    document.getElementById('capture-photo').addEventListener('click', function() {
-      const video = document.getElementById('video-preview');
-      const canvas = document.getElementById('capture-canvas');
-      if (!canvas) return;
-      
-      // 元のサイズを取得
-      const originalWidth = video.videoWidth;
-      const originalHeight = video.videoHeight;
-      
-      // 最大幅 640px（高さはアスペクト比維持）にリサイズ
-      const maxWidth = 640;
-      let newWidth = originalWidth;
-      let newHeight = originalHeight;
-      if (originalWidth > maxWidth) {
-        newWidth = maxWidth;
-        newHeight = Math.floor(originalHeight * (maxWidth / originalWidth));
+    // 補助として「写真を撮る」ボタンの動作
+    document.getElementById('capture-photo').addEventListener('click', capturePhotoFunction);
+    
+    // PC環境では、プレビュー画面（video）をクリックしても撮影可能
+    document.getElementById('video-preview').addEventListener('click', function() {
+      if (document.getElementById('video-preview').style.display !== 'none') {
+        capturePhotoFunction();
       }
-      
-      canvas.width = newWidth;
-      canvas.height = newHeight;
-      
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, newWidth, newHeight);
-      
-      // JPEG 形式（品質 0.6）で保存し、ファイルサイズを抑える
-      currentImageData = canvas.toDataURL('image/jpeg', 0.6);
-      
-      // カメラ停止・プレビュー＆ボタンを非表示にする
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-      video.style.display = 'none';
-      document.getElementById('capture-photo').style.display = 'none';
-      document.getElementById('cancel-photo').style.display = 'none';
     });
     
-    // キャンセルボタン：カメラ起動中に中断
+    // キャンセルボタンの動作
     document.getElementById('cancel-photo').addEventListener('click', function() {
       const video = document.getElementById('video-preview');
       if (stream) {
@@ -406,9 +433,10 @@
       video.style.display = 'none';
       document.getElementById('capture-photo').style.display = 'none';
       document.getElementById('cancel-photo').style.display = 'none';
+      document.getElementById('video-hint').style.display = 'none';
     });
     
-    // HTML 内に写真用の非表示 canvas を作成（キャプチャ用）
+    // HTML 内に写真用の非表示 canvas を作成
     (function createPhotoCanvas() {
       let canvas = document.getElementById('capture-canvas');
       if (!canvas) {
@@ -421,22 +449,17 @@
     
     // ----- 手書きメモ機能 -----
     
-    // 「手書きメモ」ボタン押下で手書き用キャンバスを表示
     document.getElementById('handwrite-input').addEventListener('click', function() {
       document.getElementById('handwrite-section').style.display = 'block';
-      // キャンバスの初期化（背景クリア）
       const canvas = document.getElementById('handwrite-canvas');
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
     
-    // 手書きキャンバス描画処理（マウス／タッチ両対応）
     (function() {
       const canvas = document.getElementById('handwrite-canvas');
       const ctx = canvas.getContext('2d');
-      let drawing = false;
-      let lastX = 0;
-      let lastY = 0;
+      let drawing = false, lastX = 0, lastY = 0;
       
       function startDrawing(x, y) {
         drawing = true;
@@ -456,17 +479,11 @@
         drawing = false;
       }
       
-      // マウスイベント
-      canvas.addEventListener('mousedown', (e) => {
-        startDrawing(e.offsetX, e.offsetY);
-      });
-      canvas.addEventListener('mousemove', (e) => {
-        draw(e.offsetX, e.offsetY);
-      });
+      canvas.addEventListener('mousedown', (e) => startDrawing(e.offsetX, e.offsetY));
+      canvas.addEventListener('mousemove', (e) => draw(e.offsetX, e.offsetY));
       canvas.addEventListener('mouseup', endDrawing);
       canvas.addEventListener('mouseleave', endDrawing);
       
-      // タッチイベント（キャンバス上の相対座標に変換）
       canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
@@ -485,7 +502,6 @@
       });
     })();
     
-    // 手書きメモ：クリア／保存／キャンセルの各ボタン処理
     document.getElementById('clear-handwrite').addEventListener('click', function() {
       const canvas = document.getElementById('handwrite-canvas');
       const ctx = canvas.getContext('2d');
@@ -493,7 +509,6 @@
     });
     document.getElementById('save-handwrite').addEventListener('click', function() {
       const canvas = document.getElementById('handwrite-canvas');
-      // 手書きメモもサイズはそのままキャンバスサイズ（必要に応じてresize可能）
       currentImageData = canvas.toDataURL('image/png');
       document.getElementById('handwrite-section').style.display = 'none';
     });
@@ -506,7 +521,6 @@
     document.getElementById('sort-order').addEventListener('change', updateMemoList);
     document.getElementById('search-box').addEventListener('input', updateMemoList);
     
-    // エクスポート：コメントタグ内に JSON データを埋め込んだ自己完結型 HTML ファイルを生成
     document.getElementById('export-memos').addEventListener('click', function() {
       const exportData = JSON.stringify(memos, null, 2);
       const content = `
@@ -535,7 +549,6 @@ MEMO_DATA_END -->
       URL.revokeObjectURL(url);
     });
     
-    // インポート：エクスポートされたファイルからメモを復元
     document.getElementById('import-file').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -556,7 +569,7 @@ MEMO_DATA_END -->
               alert('無効なメモデータ形式です。');
             }
           } catch (err) {
-            alert('メモデータの解析エラー: ' + err);
+            alert('メモデータ解析エラー: ' + err);
           }
         } else {
           alert('ファイル内にメモデータが見つかりませんでした。');
@@ -565,26 +578,23 @@ MEMO_DATA_END -->
       reader.readAsText(file);
     });
     
-    // 印刷 / PDF: ブラウザの標準印刷ダイアログを起動
     document.getElementById('print-memos').addEventListener('click', function() {
       window.print();
     });
     
-    // localStorage から全メモを削除
     document.getElementById('delete-all').addEventListener('click', function() {
-      if (confirm('本当に全てのメモを削除してもよろしいですか？')) {
+      if (confirm('本当に全てのメモを削除しますか？')) {
         memos = [];
         saveMemosToStorage();
         updateMemoList();
       }
     });
     
-    // ダークモード切替
     document.getElementById('toggle-dark-mode').addEventListener('click', function() {
       document.body.classList.toggle('dark-mode');
     });
     
-    // 初期化：メモを読み込みリストに表示
+    // 初期化：メモ読み込み＆リスト更新
     loadMemos();
     updateMemoList();
   </script>
