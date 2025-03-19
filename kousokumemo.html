@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>メモアプリ</title>
-  <!-- OCR用 Tesseract.js CDN（画像内に手書き日時がある場合に抽出） -->
+  <!-- OCR用 Tesseract.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <style>
     /* 基本レイアウト */
@@ -23,7 +23,7 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     h1 { margin-top: 0; }
-    /* 「ダブルクリックで保存」ヒントをタイトル直下に表示・クリック/タッチで保存 */
+    /* 「ダブルクリックで保存」ヒントはタイトル直下に表示 */
     #saveHint {
       margin-top: 10px;
       text-align: center;
@@ -31,7 +31,17 @@
       cursor: pointer;
       font-size: 14px;
     }
-    /* 操作用ボタン類 */
+    /* エクスポート／インポートボタンエリアを上部に配置 */
+    .export-import {
+      margin: 10px 0;
+      text-align: center;
+    }
+    .export-import button {
+      margin-right: 10px;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    /* 各種操作ボタン群 */
     .controls {
       margin-bottom: 10px;
     }
@@ -50,9 +60,9 @@
     textarea {
       width: 100%;
       margin-bottom: 10px;
-      box-sizing: border-box;
       padding: 8px;
       font-size: 14px;
+      box-sizing: border-box;
     }
     h2 { margin-bottom: 5px; }
     ul { list-style: none; padding: 0; }
@@ -74,9 +84,9 @@
     .dark-mode .container {
       background-color: #444;
     }
-    /* 手書き入力ポップアップ */
+    /* 手書き入力用ポップアップ */
     #drawingContainer,
-    /* 写真撮影ポップアップ */
+    /* 写真撮影用ポップアップ */
     #photoContainer {
       display: none;
       position: fixed;
@@ -104,7 +114,14 @@
     <h1>メモアプリ</h1>
     <div id="saveHint">ダブルクリックで保存</div>
     
-    <!-- 各種操作ボタン -->
+    <!-- エクスポート／インポートボタンエリア（上部に配置） -->
+    <div class="export-import">
+      <button id="exportButton">エクスポート</button>
+      <button id="importButton">インポート</button>
+      <input type="file" id="importInput" accept=".html" style="display:none;">
+    </div>
+    
+    <!-- 各種操作コントロール -->
     <div class="controls">
       <button id="darkModeToggle">ダークモード</button>
       <button id="voiceInputButton">音声入力</button>
@@ -120,7 +137,7 @@
     <!-- 検索欄 -->
     <input type="text" id="searchInput" placeholder="検索...">
     
-    <!-- テキスト入力欄 -->
+    <!-- テキスト入力 -->
     <textarea id="memoInput" placeholder="メモを入力してください..." rows="4"></textarea>
     
     <!-- 保存されたメモ一覧 -->
@@ -145,13 +162,6 @@
         <button id="capturePhotoButton">キャプチャ</button>
         <button id="cancelPhotoButton">キャンセル</button>
       </div>
-    </div>
-    
-    <!-- エクスポート／インポート用ボタン -->
-    <div class="controls" style="margin-top: 20px;">
-      <button id="exportButton">エクスポート</button>
-      <button id="importButton">インポート</button>
-      <input type="file" id="importInput" accept=".html" style="display:none;">
     </div>
   </div>
   
@@ -200,7 +210,7 @@
         const textSpan = document.createElement('span');
         textSpan.textContent = memo.text || "";
         li.appendChild(textSpan);
-        // 画像（写真撮影時取得）の表示
+        // 画像表示（写真撮影）
         if(memo.imageData){
           const img = document.createElement('img');
           img.src = memo.imageData;
@@ -209,7 +219,7 @@
           img.style.marginLeft = "10px";
           li.appendChild(img);
         }
-        // 手書き入力画像の表示
+        // 手書き入力画像表示
         if(memo.drawingData){
           const img2 = document.createElement('img');
           img2.src = memo.drawingData;
@@ -251,7 +261,7 @@
       });
     }
     
-    // ダブルクリック／ダブルタップで保存
+    // ダブルクリック／ダブルタップで保存の共通処理
     let tapCount = 0;
     function handleDoubleTap(e){
       const ignoreTags = ['INPUT','TEXTAREA','BUTTON','LABEL'];
@@ -262,9 +272,9 @@
           saveMemo();
         }
         tapCount = 0;
-      }, 300);
+      },300);
     }
-    // PC とタッチ端末でイベントを設定
+    // PC とタッチ端末でイベント設定
     if('ontouchstart' in window || navigator.maxTouchPoints > 0){
       document.body.addEventListener('touchend', handleDoubleTap);
       document.getElementById('saveHint').addEventListener('touchend', saveMemo);
@@ -273,7 +283,7 @@
       document.getElementById('saveHint').addEventListener('click', saveMemo);
     }
     
-    // 保存処理：もし写真がある場合は OCR で手書き日時抽出を試みる
+    // 保存処理：もし写真がある場合は OCR により手書き日時抽出を試みる
     function saveMemo(){
       const memoInput = document.getElementById('memoInput');
       const memoText = memoInput.value.trim();
@@ -283,7 +293,7 @@
       }
       const now = new Date();
       let newMemo = {
-        // 仮の日時：後でOCRで抽出できれば上書き
+        // 仮の日時（OCR抽出で上書きする可能性あり）
         timestamp: now.toLocaleString(),
         createdAt: now.getTime(),
         text: memoText,
@@ -291,7 +301,7 @@
         drawingData: currentDrawingData || null
       };
       if(newMemo.imageData){
-        extractDateFromPhoto(newMemo.imageData).then(extracted =>{
+        extractDateFromPhoto(newMemo.imageData).then(extracted => {
           if(extracted){
             newMemo.timestamp = extracted;
           }
@@ -302,7 +312,6 @@
           currentDrawingData = null;
           currentPhotoData = null;
         }).catch(err => {
-          // OCR失敗時はそのまま
           memos.push(newMemo);
           saveMemos();
           renderMemos();
@@ -319,7 +328,7 @@
       }
     }
     
-    // OCR処理：Tesseract.js を利用して画像内のテキストから日付らしき文字列を抽出
+    // OCR処理：Tesseract.js を利用して画像内から日付らしき文字列を抽出
     function extractDateFromPhoto(photoData){
       return Tesseract.recognize(photoData, 'eng').then(result => {
         const text = result.data.text;
@@ -360,7 +369,6 @@
       this.textContent = document.body.classList.contains('dark-mode') ? "ライトモード" : "ダークモード";
     });
     
-    // ソート・検索イベント
     document.getElementById('sortOptions').addEventListener('change', renderMemos);
     document.getElementById('searchInput').addEventListener('input', renderMemos);
     
@@ -369,7 +377,7 @@
       window.print();
     });
     
-    // エクスポート：メモデータを HTML に埋め込み、「高速メモ.html」というファイル名でダウンロード
+    // エクスポート機能
     document.getElementById('exportButton').addEventListener('click', function(){
       const jsonData = JSON.stringify(memos, null, 4);
       const exportContent = `<!DOCTYPE html>
@@ -397,7 +405,7 @@ ${jsonData}
       URL.revokeObjectURL(url);
     });
     
-    // インポート：隠しファイル入力をトリガーし、データを復元
+    // インポート機能
     document.getElementById('importButton').addEventListener('click', function(){
       document.getElementById('importInput').click();
     });
@@ -485,12 +493,12 @@ ${jsonData}
       canvas.addEventListener('touchmove', draw);
     }
     
-    // 写真撮影機能
+    // 写真撮影機能（後ろカメラ利用）
     document.getElementById('takePhotoButton').addEventListener('click', function(){
       const photoContainer = document.getElementById('photoContainer');
       photoContainer.style.display = 'block';
       const video = document.getElementById('photoVideo');
-      navigator.mediaDevices.getUserMedia({ video: true })
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then(function(stream){
           video.srcObject = stream;
           video.play();
@@ -526,14 +534,6 @@ ${jsonData}
     renderMemos();
   </script>
   
-  <!-- 写真撮影用ポップアップ（この部分は body 内に配置済みしてあります） -->
-  <div id="photoContainer">
-    <h3>写真撮影</h3>
-    <video id="photoVideo" autoplay playsinline width="500" height="300"></video>
-    <div class="photo-buttons">
-      <button id="capturePhotoButton">キャプチャ</button>
-      <button id="cancelPhotoButton">キャンセル</button>
-    </div>
-  </div>
+  <!-- 写真撮影用ポップアップ（すでに container 内に配置済みのため重複不要） -->
 </body>
 </html>
