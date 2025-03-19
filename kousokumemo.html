@@ -66,6 +66,11 @@
       border: 1px solid #ddd;
       margin-bottom: 10px;
     }
+    /* 手書きメモ用のキャンバス */
+    #handwrite-canvas {
+      border: 1px solid #ccc;
+      touch-action: none;
+    }
     @media (max-width: 600px) {
       textarea {
         height: 100px;
@@ -86,13 +91,28 @@
     <input type="file" id="image-upload" accept="image/*" style="display:none">
     <button id="photo-capture" class="custom-button">写真撮影</button>
     <button id="voice-input" class="custom-button">音声入力</button>
+    <!-- 音声入力中のフィードバック表示 -->
+    <span id="voice-status" style="display:none; margin-left:10px;">音声入力中…</span>
+    <button id="handwrite-input" class="custom-button">手書きメモ</button>
     <button id="toggle-dark-mode" class="custom-button">ダークモード切替</button>
   </div>
   
   <!-- カメラプレビューセクション -->
   <div id="camera-section" style="margin-top:10px;">
     <video id="video-preview" autoplay playsinline style="display:none;"></video>
+    <br>
     <button id="capture-photo" class="custom-button" style="display:none;">写真を撮る</button>
+    <button id="cancel-photo" class="custom-button" style="display:none;">キャンセル</button>
+  </div>
+  
+  <!-- 手書きメモセクション -->
+  <div id="handwrite-section" style="display:none; margin-top:10px;">
+    <canvas id="handwrite-canvas" width="300" height="200"></canvas>
+    <div style="margin-top:5px;">
+      <button id="clear-handwrite" class="custom-button">クリア</button>
+      <button id="save-handwrite" class="custom-button">手書きメモ保存</button>
+      <button id="cancel-handwrite" class="custom-button">キャンセル</button>
+    </div>
   </div>
   
   <!-- ソート、検索、エクスポート／インポート、印刷／PDF、全削除 -->
@@ -118,7 +138,7 @@
   <script>
     // グローバル変数
     let memos = []; // メモオブジェクトを保存する配列
-    let currentImageData = null; // 現在の画像のデータURL
+    let currentImageData = null; // 現在の画像のデータURL（画像や手書き、写真）
     let recognition = null; // 音声認識インスタンス
     let stream = null; // カメラ用の MediaStream
 
@@ -177,7 +197,7 @@
         textPre.textContent = memo.text;
         memoDiv.appendChild(textPre);
         
-        // 添付された画像（あれば）
+        // 添付された画像があれば表示
         if (memo.image) {
           const imgElem = document.createElement('img');
           imgElem.src = memo.image;
@@ -218,12 +238,12 @@
       });
     }
     
-    // テキストまたは画像が存在する場合のみ新しくメモを追加する
+    // テキストまたは画像／手書き等が存在する場合のみ新しくメモを追加する
     function addMemo() {
       const textArea = document.getElementById('memo-text');
       const text = textArea.value.trim();
       if (!text && !currentImageData) {
-        alert("保存する前にテキストを入力するか、画像を添付してください。");
+        alert("保存する前にテキストを入力するか、画像・手書き、または写真を添付してください。");
         return;
       }
       const memo = {
@@ -241,7 +261,7 @@
       currentImageData = null;
     }
     
-    // ダブルクリック保存メカニズム（インタラクティブ要素でのダブルクリックを避けるため）
+    // ダブルクリック保存メカニズム（入力・ボタン以外の領域なら有効）
     document.addEventListener('dblclick', function(e) {
       const tag = e.target.tagName.toLowerCase();
       if (tag === 'input' || tag === 'textarea' || tag === 'button' || e.target.classList.contains('custom-button')) {
@@ -265,39 +285,48 @@
       }
     });
     
-    // Web Speech API を用いた音声入力機能のセットアップ
+    // Web Speech API を用いた音声入力機能（ビジュアルフィードバック付き）
     document.getElementById('voice-input').addEventListener('click', function() {
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         alert('このブラウザは Web Speech API をサポートしていません');
         return;
       }
+      const voiceStatus = document.getElementById('voice-status');
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognition = new SpeechRecognition();
-      recognition.lang = 'ja-JP';  // 言語を日本語に設定（必要に応じて調整）
+      recognition.lang = 'ja-JP';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
+      voiceStatus.style.display = 'inline';
       recognition.start();
       
       recognition.onresult = function(event) {
         const transcript = event.results[0][0].transcript;
         document.getElementById('memo-text').value += transcript + "\n";
+        voiceStatus.style.display = 'none';
       };
       recognition.onerror = function(event) {
         console.error('音声認識エラー:', event.error);
+        voiceStatus.style.display = 'none';
+      };
+      recognition.onend = function() {
+        voiceStatus.style.display = 'none';
       };
     });
     
-    // getUserMedia を使ってカメラキャプチャを初期化
+    // カメラ撮影：写真撮影ボタンを押すとカメラプレビューを表示し、キャンセルも可能に
     document.getElementById('photo-capture').addEventListener('click', async function() {
       const video = document.getElementById('video-preview');
       const captureBtn = document.getElementById('capture-photo');
+      const cancelBtn = document.getElementById('cancel-photo');
       
-      // ビデオと撮影ボタンを表示
+      // ビデオと各ボタンを表示
       video.style.display = 'block';
       captureBtn.style.display = 'inline-block';
+      cancelBtn.style.display = 'inline-block';
       
       try {
-        // リアカメラ（環境カメラ）の取得を試み、失敗した場合は利用可能なビデオにフォールバック
+        // リアカメラ（環境カメラ）優先、なければ通常のカメラ
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } });
       } catch (error) {
         try {
@@ -315,26 +344,36 @@
       const video = document.getElementById('video-preview');
       const canvas = document.getElementById('capture-canvas');
       
-      // HTML内に canvas が作成されていなければ（非表示のため）、作成する
-      if (!canvas) {
-        return;
-      }
+      if (!canvas) return; // canvas は後で作成（以下で自動生成）
+      
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       currentImageData = canvas.toDataURL('image/png');
       
-      // カメラを停止し、ビデオ要素を非表示にする
+      // カメラを停止し、プレビュー・ボタンを非表示にする
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
       video.style.display = 'none';
       document.getElementById('capture-photo').style.display = 'none';
+      document.getElementById('cancel-photo').style.display = 'none';
     });
     
-    // HTML内に存在しない場合は、非表示の canvas を作成
-    (function createCanvas() {
+    // キャンセルボタン：カメラ起動中に中断できるようにする
+    document.getElementById('cancel-photo').addEventListener('click', function() {
+      const video = document.getElementById('video-preview');
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+      video.style.display = 'none';
+      document.getElementById('capture-photo').style.display = 'none';
+      document.getElementById('cancel-photo').style.display = 'none';
+    });
+    
+    // HTML内に存在しない場合は、非表示の canvas（写真用）を作成
+    (function createPhotoCanvas() {
       let canvas = document.getElementById('capture-canvas');
       if (!canvas) {
         canvas = document.createElement('canvas');
@@ -344,11 +383,93 @@
       }
     })();
     
+    // 手書きメモ機能：ボタン押下で手書き用のキャンバスを表示
+    document.getElementById('handwrite-input').addEventListener('click', function() {
+      document.getElementById('handwrite-section').style.display = 'block';
+      // キャンバスの初期化（背景クリア）
+      const canvas = document.getElementById('handwrite-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+    
+    // 手書きキャンバス描画用の実装（マウス／タッチ両対応）
+    (function() {
+      const canvas = document.getElementById('handwrite-canvas');
+      const ctx = canvas.getContext('2d');
+      let drawing = false;
+      let lastX = 0;
+      let lastY = 0;
+      
+      // 描画開始
+      function startDrawing(x, y) {
+        drawing = true;
+        [lastX, lastY] = [x, y];
+      }
+      // 描画移動
+      function draw(x, y) {
+        if (!drawing) return;
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        [lastX, lastY] = [x, y];
+      }
+      // 描画終了
+      function endDrawing() {
+        drawing = false;
+      }
+      
+      // マウスイベント
+      canvas.addEventListener('mousedown', (e) => {
+        startDrawing(e.offsetX, e.offsetY);
+      });
+      canvas.addEventListener('mousemove', (e) => {
+        draw(e.offsetX, e.offsetY);
+      });
+      canvas.addEventListener('mouseup', endDrawing);
+      canvas.addEventListener('mouseleave', endDrawing);
+      
+      // タッチイベント（座標はキャンバスの境界を考慮）
+      canvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        startDrawing(touch.clientX - rect.left, touch.clientY - rect.top);
+      });
+      canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        draw(touch.clientX - rect.left, touch.clientY - rect.top);
+      });
+      canvas.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        endDrawing();
+      });
+    })();
+    
+    // 手書きメモ：クリア／保存／キャンセルの各ボタン処理
+    document.getElementById('clear-handwrite').addEventListener('click', function() {
+      const canvas = document.getElementById('handwrite-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+    document.getElementById('save-handwrite').addEventListener('click', function() {
+      const canvas = document.getElementById('handwrite-canvas');
+      currentImageData = canvas.toDataURL('image/png');
+      document.getElementById('handwrite-section').style.display = 'none';
+    });
+    document.getElementById('cancel-handwrite').addEventListener('click', function() {
+      document.getElementById('handwrite-section').style.display = 'none';
+    });
+    
     // ソート順または検索クエリが変更されたときにメモリストを更新
     document.getElementById('sort-order').addEventListener('change', updateMemoList);
     document.getElementById('search-box').addEventListener('input', updateMemoList);
     
-    // コメントタグで囲まれた JSON データを埋め込んだ自己完結型 HTML ファイルとしてメモをエクスポート
+    // エクスポート：コメントタグ内に JSON データを埋め込んだ自己完結型 HTML ファイルを生成
     document.getElementById('export-memos').addEventListener('click', function() {
       const exportData = JSON.stringify(memos, null, 2);
       const content = `
@@ -377,7 +498,7 @@ MEMO_DATA_END -->
       URL.revokeObjectURL(url);
     });
     
-    // エクスポートされたファイルからメモをインポート
+    // インポート：エクスポートされたファイルからメモを復元
     document.getElementById('import-file').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
@@ -407,7 +528,7 @@ MEMO_DATA_END -->
       reader.readAsText(file);
     });
     
-    // 印刷 / PDF: ブラウザのネイティブな印刷ダイアログを起動
+    // 印刷 / PDF: ブラウザの標準印刷ダイアログの起動
     document.getElementById('print-memos').addEventListener('click', function() {
       window.print();
     });
@@ -421,12 +542,12 @@ MEMO_DATA_END -->
       }
     });
     
-    // ダークモードを切り替える
+    // ダークモード切替
     document.getElementById('toggle-dark-mode').addEventListener('click', function() {
       document.body.classList.toggle('dark-mode');
     });
     
-    // 初期化: メモを読み込み、リストに表示する
+    // 初期化: メモを読み込みリストに表示
     loadMemos();
     updateMemoList();
   </script>
