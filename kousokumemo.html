@@ -316,19 +316,25 @@ ${memoDataComment}
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
       recognition.start();
+      
       recognition.onresult = function(event) {
         const transcript = event.results[0][0].transcript;
         memoText.value += transcript;
       };
+      
       recognition.onerror = function(event) {
         console.error("認識エラー:", event.error);
       };
+
+      recognition.onend = function() {
+        console.log("音声認識終了");
+      }
     }
     
     // カメラ撮影用（getUserMedia を利用）
     function startCamera() {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" } } })
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
         .then((stream) => {
           video.srcObject = stream;
           cameraSection.style.display = 'block';
@@ -352,6 +358,11 @@ ${memoDataComment}
     }
     
     function capturePhoto() {
+      // 映像が取得できているか確認
+      if (!video.videoWidth || !video.videoHeight) {
+        alert("カメラの映像が取得できていません。少し待ってから再試行してください。");
+        return;
+      }
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -411,7 +422,10 @@ ${memoDataComment}
       addMemo();
     });
     // ヒントテキストのクリックでも保存
-    document.querySelector('.hint').addEventListener('click', addMemo);
+    const hintElem = document.querySelector('.hint');
+    if (hintElem) {
+      hintElem.addEventListener('click', addMemo);
+    }
     
     // 編集／削除ボタンのイベント（イベントデリゲーション）
     memoList.addEventListener('click', (e) => {
