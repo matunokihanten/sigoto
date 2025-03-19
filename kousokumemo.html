@@ -88,7 +88,8 @@
       <input type="file" id="imageInput" accept="image/*" style="display:none">
       <button id="capturePhoto" class="button">写真撮影</button>
       <button id="voiceInput" class="button">音声入力</button>
-      <p class="hint">※ ダブルクリック（またはヒントをタップ）で自動保存</p>
+      <button id="saveMemo" class="button">保存</button>
+      <p class="hint">※ 保存ボタンでメモを保存</p>
       <!-- カメラ用プレビュー -->
       <div id="cameraSection" style="display:none; margin-top:1em;">
          <video id="video" autoplay style="width:100%; max-height:300px;"></video>
@@ -143,6 +144,7 @@
     const importInput = document.getElementById('importInput');
     const printMemosBtn = document.getElementById('printMemos');
     const toggleDarkModeBtn = document.getElementById('toggleDarkMode');
+    const saveMemoBtn = document.getElementById('saveMemo');
     
     // カメラ用要素
     const video = document.getElementById('video');
@@ -363,11 +365,13 @@ ${memoDataComment}
         alert("カメラの映像が取得できていません。少し待ってから再試行してください。");
         return;
       }
+      // 120px x 120px にリサイズしてキャプチャ
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = 120;
+      canvas.height = 120;
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // ※ video 全体を指定サイズに合わせて描画（比率は固定されず引き伸ばされる場合があります）
+      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, 120, 120);
       currentImageData = canvas.toDataURL('image/png');
       imagePreview.src = currentImageData;
       imagePreviewContainer.style.display = 'block';
@@ -415,17 +419,8 @@ ${memoDataComment}
     // 音声入力
     document.getElementById('voiceInput').addEventListener('click', startVoiceInput);
     
-    // ページ上のインタラクティブ要素以外をダブルクリック／タップで保存
-    document.addEventListener('dblclick', function(e) {
-      const tagName = e.target.tagName.toLowerCase();
-      if (['input', 'textarea', 'button', 'label'].includes(tagName)) return;
-      addMemo();
-    });
-    // ヒントテキストのクリックでも保存
-    const hintElem = document.querySelector('.hint');
-    if (hintElem) {
-      hintElem.addEventListener('click', addMemo);
-    }
+    // 保存ボタンでメモを保存
+    saveMemoBtn.addEventListener('click', addMemo);
     
     // 編集／削除ボタンのイベント（イベントデリゲーション）
     memoList.addEventListener('click', (e) => {
