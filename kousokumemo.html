@@ -3,130 +3,210 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>メモアプリ</title>
+  <title>きれいなメモアプリ</title>
   <style>
+    :root {
+      --primary-color: #4CAF50;
+      --primary-dark: #45a049;
+      --secondary-color: #f8f8f8;
+      --accent-color: #333;
+      --header-bg: #4CAF50;
+      --header-text: #fff;
+      --border-color: #ddd;
+      --memo-bg: #ffffff;
+    }
+    * {
+      box-sizing: border-box;
+    }
     body {
-      font-family: Arial, sans-serif;
       margin: 0;
-      padding: 1em;
-      background-color: #fff;
-      color: #000;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--secondary-color);
+      color: var(--accent-color);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
     }
     header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1em;
+      background-color: var(--header-bg);
+      color: var(--header-text);
+      padding: 1.5rem;
+      border-radius: 5px;
+      text-align: center;
+      margin-bottom: 2rem;
     }
-    h1 {
+    header h1 {
       margin: 0;
+      font-size: 2rem;
     }
+    button,
     .button {
-      margin: 0.2em;
-      padding: 0.5em 1em;
-      cursor: pointer;
-      border: 1px solid #aaa;
-      background-color: #f0f0f0;
+      background-color: var(--primary-color);
+      color: white;
+      padding: 0.5rem 1rem;
+      border: none;
       border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      font-size: 1rem;
     }
+    button:hover,
     .button:hover {
-      background-color: #e0e0e0;
+      background-color: var(--primary-dark);
     }
-    textarea {
+    textarea, input[type="text"] {
       width: 100%;
-      box-sizing: border-box;
-      font-size: 1em;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    label.button {
+      cursor: pointer;
+      display: inline-block;
+      margin: 0.5rem 0;
+    }
+    section {
+      background-color: white;
+      padding: 1rem;
+      border-radius: 5px;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      align-items: center;
+    }
+    .actions > * {
+      flex: none;
+    }
+    #cameraSection {
+      margin-top: 1rem;
+    }
+    video {
+      width: 100%;
+      border-radius: 5px;
     }
     .memo {
-      border: 1px solid #ccc;
-      padding: 0.5em;
-      margin-bottom: 0.5em;
-      border-radius: 4px;
-      background-color: #fafafa;
+      background-color: var(--memo-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .memoHeader {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 0.3em;
+      margin-bottom: 0.5rem;
+    }
+    .memoHeader span {
+      font-size: 0.9rem;
+      color: #777;
     }
     pre.memoText {
       white-space: pre-wrap;
       word-wrap: break-word;
       margin: 0;
+      font-size: 1rem;
     }
     .memoImage {
       max-width: 100%;
-      margin-top: 0.5em;
+      margin-top: 1rem;
+      border-radius: 5px;
     }
-    .hint {
-      font-size: 0.9em;
-      color: #666;
+    h2 {
+      margin-top: 0;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
     }
     /* ダークモード */
     .dark-mode {
-      background-color: #222;
-      color: #eee;
-    }
-    .dark-mode .memo {
-      border-color: #555;
       background-color: #333;
+      color: #ddd;
+    }
+    .dark-mode header {
+      background-color: #222;
+    }
+    .dark-mode section {
+      background-color: #444;
+    }
+    .dark-mode textarea, .dark-mode input[type="text"] {
+      background-color: #555;
+      color: #ddd;
+      border: 1px solid #666;
+    }
+    @media (max-width: 600px) {
+      .actions {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>メモアプリ</h1>
-    <button id="toggleDarkMode" class="button">ダークモード切替</button>
-  </header>
-  <main>
-    <!-- 入力部 -->
-    <section id="memoInputSection">
-      <textarea id="memoText" placeholder="メモを入力してください..." rows="6"></textarea>
-      <br>
-      <label for="imageInput" class="button">画像選択</label>
-      <input type="file" id="imageInput" accept="image/*" style="display:none">
-      <button id="capturePhoto" class="button">写真撮影</button>
-      <button id="voiceInput" class="button">音声入力</button>
-      <button id="saveMemo" class="button">保存</button>
-      <p class="hint">※ 保存ボタンでメモを保存</p>
-      <!-- カメラ用プレビュー -->
-      <div id="cameraSection" style="display:none; margin-top:1em;">
-         <video id="video" autoplay style="width:100%; max-height:300px;"></video>
-         <br>
-         <button id="takePhoto" class="button">キャプチャ</button>
-         <button id="closeCamera" class="button">キャンセル</button>
-      </div>
-      <!-- 選択・撮影した画像のプレビュー -->
-      <div id="imagePreviewContainer" style="display:none; margin-top:1em;">
-         <img id="imagePreview" alt="選択された画像" style="max-width:100%;">
-         <br>
-         <button id="removeImage" class="button">画像削除</button>
-      </div>
-    </section>
-    
-    <hr>
-    
-    <!-- アクション部 -->
-    <section id="memoActions" style="margin-bottom:1em;">
-      <select id="sortOrder" class="button">
-        <option value="newest">新しい順</option>
-        <option value="oldest">古い順</option>
-      </select>
-      <input type="text" id="searchInput" placeholder="検索..." class="button">
-      <button id="deleteAll" class="button">全削除</button>
-      <button id="exportMemos" class="button">エクスポート</button>
-      <input type="file" id="importInput" accept=".html" style="display:none">
-      <label for="importInput" class="button">インポート</label>
-      <button id="printMemos" class="button">印刷／PDF</button>
-    </section>
-    
-    <!-- メモ一覧部 -->
-    <section id="memoListSection">
-      <h2>メモ一覧</h2>
-      <div id="memoList"></div>
-    </section>
-  </main>
+  <div class="container">
+    <header>
+      <h1>きれいなメモアプリ</h1>
+      <button id="toggleDarkMode" class="button">ダークモード切替</button>
+    </header>
+    <main>
+      <!-- 入力部 -->
+      <section id="memoInputSection">
+        <textarea id="memoText" placeholder="メモを入力してください..." rows="4"></textarea>
+        <div class="actions">
+          <label for="imageInput" class="button">画像選択</label>
+          <input type="file" id="imageInput" accept="image/*" style="display:none">
+          <button id="capturePhoto" class="button">写真撮影</button>
+          <button id="voiceInput" class="button">音声入力</button>
+          <button id="saveMemo" class="button">保存</button>
+        </div>
+        <p class="hint" style="font-size:0.9rem; color:#777;">※「保存」ボタンでメモを保存します</p>
+        <!-- カメラ用プレビュー -->
+        <div id="cameraSection" style="display:none;">
+          <video id="video" autoplay></video>
+          <div class="actions" style="margin-top:0.5rem;">
+            <button id="takePhoto" class="button">キャプチャ</button>
+            <button id="closeCamera" class="button">キャンセル</button>
+          </div>
+        </div>
+        <!-- 選択・撮影した画像のプレビュー -->
+        <div id="imagePreviewContainer" style="display:none; margin-top:1rem;">
+          <img id="imagePreview" alt="選択された画像" class="memoImage">
+          <button id="removeImage" class="button" style="margin-top:0.5rem;">画像削除</button>
+        </div>
+      </section>
+      
+      <!-- アクション部 -->
+      <section id="memoActions">
+        <div class="actions">
+          <select id="sortOrder" class="button" style="padding:0.5rem;">
+            <option value="newest">新しい順</option>
+            <option value="oldest">古い順</option>
+          </select>
+          <input type="text" id="searchInput" placeholder="検索...">
+          <button id="deleteAll" class="button">全削除</button>
+          <button id="exportMemos" class="button">エクスポート</button>
+          <label for="importInput" class="button">インポート</label>
+          <input type="file" id="importInput" accept=".html" style="display:none">
+          <button id="printMemos" class="button">印刷／PDF</button>
+        </div>
+      </section>
+      
+      <!-- メモ一覧部 -->
+      <section id="memoListSection">
+        <h2>メモ一覧</h2>
+        <div id="memoList"></div>
+      </section>
+    </main>
+  </div>
   
   <script>
     // メモのデータ構造：各メモは { id, timestamp, text, image } のオブジェクト
@@ -191,8 +271,10 @@
         memoDiv.innerHTML = `
           <div class="memoHeader">
             <span>${date.toLocaleString()}</span>
-            <button class="editMemo button" data-id="${memo.id}">修正</button>
-            <button class="deleteMemo button" data-id="${memo.id}">削除</button>
+            <div>
+              <button class="editMemo button" data-id="${memo.id}">修正</button>
+              <button class="deleteMemo button" data-id="${memo.id}">削除</button>
+            </div>
           </div>
           <pre class="memoText">${memo.text}</pre>
           ${memo.image ? `<img src="${memo.image}" alt="メモ画像" class="memoImage">` : ''}
@@ -256,12 +338,11 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>高速メモ</title>
+  <title>エクスポートされたメモ</title>
 </head>
 <body>
 ${memoDataComment}
 <h1>エクスポートされたメモ</h1>
-<!-- このサンプルではメモ表示用コードは含まれていません -->
 </body>
 </html>
 `;
@@ -269,7 +350,7 @@ ${memoDataComment}
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = "高速メモ.html";
+      a.download = "メモエクスポート.html";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -327,13 +408,13 @@ ${memoDataComment}
       recognition.onerror = function(event) {
         console.error("認識エラー:", event.error);
       };
-
+    
       recognition.onend = function() {
         console.log("音声認識終了");
       }
     }
     
-    // カメラ撮影（getUserMedia を利用）
+    // カメラ撮影用（getUserMedia を利用）
     function startCamera() {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
@@ -359,27 +440,25 @@ ${memoDataComment}
       cameraSection.style.display = 'none';
     }
     
-    // カメラでのキャプチャ：120px×120pxのサイズにリサイズし、グレイスケール変換して保存
+    // カメラでのキャプチャ：オリジナルサイズでグレイスケール変換して保存
     function capturePhoto() {
       if (!video.videoWidth || !video.videoHeight) {
         alert("カメラの映像が取得できていません。少し待ってから再試行してください。");
         return;
       }
       const canvas = document.createElement('canvas');
-      canvas.width = 120;
-      canvas.height = 120;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
-      // ここでグレイスケールフィルターを適用
       ctx.filter = 'grayscale(100%)';
-      // 撮影した映像全体をリサイズして描画
-      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight, 0, 0, 120, 120);
+      ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
       currentImageData = canvas.toDataURL('image/png');
       imagePreview.src = currentImageData;
       imagePreviewContainer.style.display = 'block';
       stopCamera();
     }
     
-    // 画像ファイル選択時：アップロードされた画像も 120px×120px にリサイズ＆グレイスケール変換
+    // 画像ファイル選択時：アップロードされた画像をオリジナルサイズでグレイスケール変換
     imageInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
@@ -389,12 +468,11 @@ ${memoDataComment}
           img.src = event.target.result;
           img.onload = function() {
             const canvas = document.createElement('canvas');
-            canvas.width = 120;
-            canvas.height = 120;
+            canvas.width = img.width;
+            canvas.height = img.height;
             const ctx = canvas.getContext('2d');
             ctx.filter = 'grayscale(100%)';
-            // 元画像全体をキャンバスサイズに収める
-            ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, 120, 120);
+            ctx.drawImage(img, 0, 0, img.width, img.height);
             const newDataUrl = canvas.toDataURL('image/png');
             currentImageData = newDataUrl;
             imagePreview.src = newDataUrl;
@@ -419,7 +497,7 @@ ${memoDataComment}
     // 音声入力
     document.getElementById('voiceInput').addEventListener('click', startVoiceInput);
     
-    // 保存ボタンによりメモを保存
+    // 保存ボタンでメモを保存
     saveMemoBtn.addEventListener('click', addMemo);
     
     // 編集／削除ボタンのイベント（イベントデリゲーション）
@@ -431,7 +509,7 @@ ${memoDataComment}
       }
     });
     
-    // Ctrl+S (または Cmd+S) で保存（デフォルトショートカット防止）
+    // Ctrl+S (または Cmd+S) ショートカットで保存
     document.addEventListener('keydown', function(e) {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -439,7 +517,7 @@ ${memoDataComment}
       }
     });
     
-    // 初期読み込み
+    // 初期読み込み・イベント設定
     document.addEventListener('DOMContentLoaded', loadMemos);
     sortOrder.addEventListener('change', renderMemoList);
     searchInput.addEventListener('input', renderMemoList);
