@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>メモアプリ</title>
-  <!-- OCR用 Tesseract.js CDN（今回は写真OCRは削除） -->
+  <!-- OCR用 Tesseract.js CDN（今回は写真OCR機能は削除） -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
   <style>
     /* 基本レイアウト */
@@ -23,7 +23,7 @@
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     h1 { margin-top: 0; }
-    /* ヒントはタイトル直下 */
+    /* ヒントはタイトル直下に表示 */
     #saveHint {
       margin-top: 10px;
       text-align: center;
@@ -31,7 +31,7 @@
       cursor: pointer;
       font-size: 14px;
     }
-    /* エクスポート／インポートおよび一括削除ボタンエリア */
+    /* エクスポート／インポートおよび一括削除エリア */
     .export-import {
       text-align: center;
       margin: 10px 0;
@@ -51,6 +51,20 @@
       padding: 5px 10px;
       cursor: pointer;
     }
+    /* 画像選択用ラベル */
+    .file-label {
+      display: inline-block;
+      background-color: #28a745;
+      color: white;
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    /* 隠しファイル入力 */
+    #localImageInput, #importInput {
+      display: none;
+    }
     #searchInput {
       width: 100%;
       padding: 5px 10px;
@@ -60,9 +74,9 @@
     textarea {
       width: 100%;
       margin-bottom: 10px;
-      box-sizing: border-box;
       padding: 8px;
       font-size: 14px;
+      box-sizing: border-box;
     }
     h2 { margin-bottom: 5px; }
     ul { list-style: none; padding: 0; }
@@ -70,7 +84,7 @@
       border-bottom: 1px dashed #ccc;
       padding: 5px 0;
       margin-bottom: 5px;
-      white-space: pre-wrap;  /* 入力時の改行を保持 */
+      white-space: pre-wrap; /* 改行も保持 */
     }
     li button {
       margin-left: 5px;
@@ -85,39 +99,6 @@
     .dark-mode .container {
       background-color: #444;
     }
-    /* 手書き入力・写真撮影用ポップアップ */
-    #drawingContainer,
-    #photoContainer {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 10px;
-      z-index: 1000;
-    }
-    .drawing-buttons,
-    .photo-buttons {
-      text-align: right;
-      margin-top: 10px;
-    }
-    /* 写真撮影用動画 */
-    #photoVideo {
-      border: 1px solid #ccc;
-    }
-    /* スマホなど狭い画面用 */
-    @media (max-width: 600px) {
-      #drawingContainer, #photoContainer {
-        width: 90%;
-        max-width: 500px;
-      }
-      #drawingCanvas, #photoVideo {
-        width: 100%;
-        height: auto;
-      }
-    }
   </style>
 </head>
 <body>
@@ -130,15 +111,16 @@
       <button id="exportButton">エクスポート</button>
       <button id="importButton">インポート</button>
       <button id="deleteAllButton">一括削除</button>
-      <input type="file" id="importInput" accept=".html" style="display:none;">
+      <input type="file" id="importInput" accept=".html">
     </div>
     
-    <!-- 各種操作ボタン -->
+    <!-- 各種操作ボタン群 -->
     <div class="controls">
       <button id="darkModeToggle">ダークモード</button>
       <button id="voiceInputButton">音声入力</button>
-      <button id="startDrawingButton">手書き入力</button>
-      <button id="takePhotoButton">写真撮影</button>
+      <!-- 画像選択ボタン -->
+      <label for="localImageInput" class="file-label">画像選択</label>
+      <input type="file" id="localImageInput" accept="image/*">
       <select id="sortOptions">
         <option value="desc">新しい順</option>
         <option value="asc">古い順</option>
@@ -155,33 +137,12 @@
     <!-- 保存されたメモ一覧 -->
     <h2>保存されたメモ</h2>
     <ul id="memoList"></ul>
-    
-    <!-- 手書き入力用ポップアップ -->
-    <div id="drawingContainer">
-      <h3>手書き入力</h3>
-      <canvas id="drawingCanvas" width="500" height="300" style="border:1px solid #ccc;"></canvas>
-      <div class="drawing-buttons">
-        <button id="saveDrawingButton">保存</button>
-        <button id="cancelDrawingButton">キャンセル</button>
-      </div>
-    </div>
-    
-    <!-- 写真撮影用ポップアップ -->
-    <div id="photoContainer">
-      <h3>写真撮影</h3>
-      <video id="photoVideo" autoplay playsinline width="500" height="300"></video>
-      <div class="photo-buttons">
-        <button id="capturePhotoButton">キャプチャ</button>
-        <button id="cancelPhotoButton">キャンセル</button>
-      </div>
-    </div>
   </div>
   
   <script>
-    // 各メモは { timestamp, createdAt, text, imageData, drawingData } の形式
+    // 各メモは { timestamp, createdAt, text, imageData } の形式
     let memos = [];
-    let currentDrawingData = null;
-    let currentPhotoData = null;
+    let currentLocalImageData = null;
     
     // 起動時に localStorage から復元
     if (localStorage.getItem('memos')) {
@@ -197,14 +158,14 @@
       localStorage.setItem('memos', JSON.stringify(memos));
     }
     
-    // メモ一覧の描画（入力値の改行も保持）
+    // メモ一覧の描画
     function renderMemos() {
       const memoList = document.getElementById('memoList');
       memoList.innerHTML = "";
       const sortOrder = document.getElementById('sortOptions').value;
       const searchQuery = document.getElementById('searchInput').value.toLowerCase();
       
-      let sortedMemos = memos.slice().sort((a, b) =>
+      let sortedMemos = memos.slice().sort((a, b) => 
         sortOrder === 'asc' ? a.createdAt - b.createdAt : b.createdAt - a.createdAt
       );
       if (searchQuery) {
@@ -218,11 +179,11 @@
         const dateSpan = document.createElement('span');
         dateSpan.textContent = `[${memo.timestamp}] `;
         li.appendChild(dateSpan);
-        // テキスト表示（改行をそのまま表示）
+        // テキスト表示（改行を保持）
         const textSpan = document.createElement('span');
         textSpan.textContent = memo.text || "";
         li.appendChild(textSpan);
-        // 画像表示（写真撮影で取得したもの）
+        // 画像表示（アップロードした写真）
         if (memo.imageData) {
           const img = document.createElement('img');
           img.src = memo.imageData;
@@ -231,16 +192,7 @@
           img.style.marginLeft = "10px";
           li.appendChild(img);
         }
-        // 手書き入力画像の表示
-        if (memo.drawingData) {
-          const img2 = document.createElement('img');
-          img2.src = memo.drawingData;
-          img2.alt = "手書きメモ";
-          img2.style.maxWidth = "100px";
-          img2.style.marginLeft = "10px";
-          li.appendChild(img2);
-        }
-        // 修正ボタン（テキストのみ修正）
+        // 修正ボタン（テキストのみの修正）
         const editBtn = document.createElement('button');
         editBtn.textContent = "修正";
         editBtn.addEventListener('click', function(e) {
@@ -274,7 +226,7 @@
     }
     
     // 一括削除ボタン
-    document.getElementById('deleteAllButton').addEventListener('click', function(){
+    document.getElementById('deleteAllButton').addEventListener('click', function() {
       if (confirm("すべてのメモを削除しますか？")) {
         memos = [];
         saveMemos();
@@ -282,7 +234,18 @@
       }
     });
     
-    // ダブルクリック／ダブルタップで保存
+    // 画像選択用のファイル入力イベント
+    document.getElementById('localImageInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        currentLocalImageData = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    
+    // ダブルクリック／ダブルタップで保存の共通処理
     let tapCount = 0;
     function handleDoubleTap(e) {
       const ignoreTags = ['INPUT','TEXTAREA','BUTTON','LABEL'];
@@ -303,32 +266,32 @@
       document.getElementById('saveHint').addEventListener('click', saveMemo);
     }
     
-    // 保存処理（テキスト欄の改行をそのまま保持）
+    // 保存処理（テキストの改行も入力されたまま保存）
     function saveMemo() {
       const memoInput = document.getElementById('memoInput');
-      const memoText = memoInput.value; // 改行もそのまま保存
-      if (memoText === "" && !currentDrawingData && !currentPhotoData) {
-        alert("メモ、手書き、または写真のいずれかを入力してください。");
+      const memoText = memoInput.value; // 改行をそのまま保存
+      if (memoText === "" && !currentLocalImageData) {
+        alert("メモ、または写真のいずれかを入力してください。");
         return;
       }
       const now = new Date();
-      let newMemo = {
-        timestamp: now.toLocaleString(), // OCR処理は削除（写真はそのまま現在日時）
+      const newMemo = {
+        timestamp: now.toLocaleString(),
         createdAt: now.getTime(),
         text: memoText,
-        imageData: currentPhotoData || null,
-        drawingData: currentDrawingData || null
+        imageData: currentLocalImageData || null
       };
       memos.push(newMemo);
       saveMemos();
       renderMemos();
       memoInput.value = "";
-      currentDrawingData = null;
-      currentPhotoData = null;
+      currentLocalImageData = null;
+      // クリア後にファイル入力の値もリセット
+      document.getElementById('localImageInput').value = "";
     }
     
     // 音声入力（Web Speech API）
-    document.getElementById('voiceInputButton').addEventListener('click', function(){
+    document.getElementById('voiceInputButton').addEventListener('click', function() {
       const memoInput = document.getElementById('memoInput');
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -350,7 +313,7 @@
     });
     
     // ダークモード切替
-    document.getElementById('darkModeToggle').addEventListener('click', function(){
+    document.getElementById('darkModeToggle').addEventListener('click', function() {
       document.body.classList.toggle('dark-mode');
       this.textContent = document.body.classList.contains('dark-mode') ? "ライトモード" : "ダークモード";
     });
@@ -359,12 +322,12 @@
     document.getElementById('searchInput').addEventListener('input', renderMemos);
     
     // 印刷 / PDF 出力
-    document.getElementById('printButton').addEventListener('click', function(){
+    document.getElementById('printButton').addEventListener('click', function() {
       window.print();
     });
     
-    // エクスポート機能（ファイル名：高速メモ.html）
-    document.getElementById('exportButton').addEventListener('click', function(){
+    // エクスポート機能（ファイル名：「高速メモ.html」）
+    document.getElementById('exportButton').addEventListener('click', function() {
       const jsonData = JSON.stringify(memos, null, 4);
       const exportContent = `<!DOCTYPE html>
 <html lang="ja">
@@ -392,14 +355,14 @@ ${jsonData}
     });
     
     // インポート機能
-    document.getElementById('importButton').addEventListener('click', function(){
+    document.getElementById('importButton').addEventListener('click', function() {
       document.getElementById('importInput').click();
     });
-    document.getElementById('importInput').addEventListener('change', function(e){
+    document.getElementById('importInput').addEventListener('change', function(e) {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(e){
+      reader.onload = function(e) {
         const content = e.target.result;
         const regex = /<!--\s*MEMO_DATA_START\s*-->([\s\S]*?)<!--\s*MEMO_DATA_END\s*-->/;
         const match = regex.exec(content);
@@ -420,101 +383,26 @@ ${jsonData}
       e.target.value = "";
     });
     
-    // 手書き入力／ドローイング機能（pointer イベント採用でスムーズに描画）
-    function initDrawing(){
-      const canvas = document.getElementById('drawingCanvas');
-      const ctx = canvas.getContext('2d');
-      let drawing = false;
-      function startPosition(e) {
-        drawing = true;
-        draw(e);
-      }
-      function finishedPosition(e) {
-        drawing = false;
-        ctx.beginPath();
-      }
-      function draw(e) {
-        if (!drawing) return;
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#000';
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-      }
-      if(window.PointerEvent) {
-        canvas.addEventListener('pointerdown', startPosition);
-        canvas.addEventListener('pointerup', finishedPosition);
-        canvas.addEventListener('pointermove', draw);
-      } else {
-        canvas.addEventListener('mousedown', startPosition);
-        canvas.addEventListener('mouseup', finishedPosition);
-        canvas.addEventListener('mousemove', draw);
-        canvas.addEventListener('touchstart', startPosition);
-        canvas.addEventListener('touchend', finishedPosition);
-        canvas.addEventListener('touchmove', draw);
-      }
+    // ダブルクリック／タップで保存
+    let tapCount = 0;
+    function handleDoubleTap(e) {
+      const ignoreTags = ['INPUT','TEXTAREA','BUTTON','LABEL'];
+      if (ignoreTags.includes(e.target.tagName)) return;
+      tapCount++;
+      setTimeout(() => {
+        if (tapCount >= 2) {
+          saveMemo();
+        }
+        tapCount = 0;
+      }, 300);
     }
-    function hideDrawingContainer(){
-      document.getElementById('drawingContainer').style.display = 'none';
-      const canvas = document.getElementById('drawingCanvas');
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.body.addEventListener('touchend', handleDoubleTap);
+      document.getElementById('saveHint').addEventListener('touchend', saveMemo);
+    } else {
+      document.body.addEventListener('click', handleDoubleTap);
+      document.getElementById('saveHint').addEventListener('click', saveMemo);
     }
-    document.getElementById('startDrawingButton').addEventListener('click', function(){
-      document.getElementById('drawingContainer').style.display = 'block';
-      initDrawing();
-    });
-    document.getElementById('cancelDrawingButton').addEventListener('click', hideDrawingContainer);
-    document.getElementById('saveDrawingButton').addEventListener('click', function(){
-      const canvas = document.getElementById('drawingCanvas');
-      currentDrawingData = canvas.toDataURL();
-      // 今回は手書き画像からのOCRは実行せず、認識結果の自動入力は削除
-      hideDrawingContainer();
-    });
-    
-    // 写真撮影機能（後ろカメラ利用）
-    document.getElementById('takePhotoButton').addEventListener('click', function(){
-      const photoContainer = document.getElementById('photoContainer');
-      photoContainer.style.display = 'block';
-      const video = document.getElementById('photoVideo');
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(function(stream){
-          video.srcObject = stream;
-          video.play();
-          window.currentPhotoStream = stream;
-        })
-        .catch(function(err){
-          alert("カメラ利用が許可されていません: " + err);
-        });
-    });
-    document.getElementById('cancelPhotoButton').addEventListener('click', function(){
-      const video = document.getElementById('photoVideo');
-      if(window.currentPhotoStream){
-        window.currentPhotoStream.getTracks().forEach(track => track.stop());
-        window.currentPhotoStream = null;
-      }
-      document.getElementById('photoContainer').style.display = 'none';
-    });
-    document.getElementById('capturePhotoButton').addEventListener('click', function(){
-      const video = document.getElementById('photoVideo');
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      currentPhotoData = canvas.toDataURL();
-      if(window.currentPhotoStream){
-        window.currentPhotoStream.getTracks().forEach(track => track.stop());
-        window.currentPhotoStream = null;
-      }
-      document.getElementById('photoContainer').style.display = 'none';
-    });
     
     renderMemos();
   </script>
