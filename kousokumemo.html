@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <!-- スマホ向けにズームや拡大縮小を制限 -->
+  <!-- スマホ向けにズームなどを制限 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>メモアプリ</title>
   <style>
@@ -40,7 +40,7 @@
     .custom-button:hover {
       background-color: #0056b3;
     }
-    /* スマホ向けにタップしやすいボタンサイズ */
+    /* スマホ向けにタップしやすいサイズ調整 */
     @media (max-width: 600px) {
       .custom-button {
         padding: 12px 16px;
@@ -73,7 +73,7 @@
       margin-right: 5px;
       cursor: pointer;
     }
-    /* カメラプレビュー・写真撮影用（PC向けのみ） */
+    /* カメラ／写真撮影用（PC向けのみ） */
     #camera-section {
       margin-top: 10px;
     }
@@ -103,16 +103,16 @@
   <div>
     <label for="image-upload" class="custom-button">画像選択</label>
     <input type="file" id="image-upload" accept="image/*" style="display:none">
-    <!-- 写真撮影ボタン（PC向けのみ） -->
+    <!-- 写真撮影ボタン（PC向けのみ表示） -->
     <button id="photo-capture" class="custom-button">写真撮影</button>
     <button id="voice-input" class="custom-button">音声入力</button>
-    <!-- 音声入力中のフィードバック表示 -->
+    <!-- 音声入力中のフィードバック -->
     <span id="voice-status" style="display:none; margin-left:10px;">音声入力中…</span>
     <button id="handwrite-input" class="custom-button">手書きメモ</button>
     <button id="toggle-dark-mode" class="custom-button">ダークモード切替</button>
   </div>
   
-  <!-- カメラプレビューセクション（PC向けのみ表示） -->
+  <!-- カメラプレビューセクション（PC向けのみ） -->
   <div id="camera-section">
     <video id="video-preview" autoplay playsinline style="display:none;"></video>
     <br>
@@ -155,8 +155,8 @@
   
   <script>
     // グローバル変数
-    let memos = []; // メモオブジェクトを保存する配列
-    let currentImageData = null; // 現在の画像のデータURL（画像、手書き、PCでの写真撮影）
+    let memos = []; // メモオブジェクトを格納する配列
+    let currentImageData = null; // 現在の画像のデータURL（画像・手書き・PCでの写真撮影）
     let recognition = null; // 音声認識インスタンス
     let stream = null; // カメラ用の MediaStream
 
@@ -165,15 +165,42 @@
       return /Mobi|Android/i.test(navigator.userAgent);
     }
 
-    // DOM読み込み後にスマホの場合はカメラ機能を非表示に
+    // DOM読み込み後の初期処理
     document.addEventListener('DOMContentLoaded', function() {
+      // スマホの場合はカメラ／写真撮影セクションを非表示
       if (isMobile()) {
-        // スマホでは写真撮影、画像保存機能を削除するため、
-        // カメラプレビューセクション全体を非表示にします。
         const cameraSection = document.getElementById('camera-section');
         if (cameraSection) {
           cameraSection.style.display = 'none';
         }
+        // また、スマホ向けに「メモ保存」ボタンを追加
+        const saveBtn = document.createElement('button');
+        saveBtn.id = "save-memo";
+        saveBtn.textContent = "メモ保存";
+        saveBtn.className = "custom-button";
+        saveBtn.style.marginTop = "10px";
+        document.body.insertBefore(saveBtn, document.getElementById('memo-list'));
+        saveBtn.addEventListener('click', addMemo);
+      } else {
+        // PCの場合はダブルクリック／ダブルタップによる保存イベントを登録
+        document.addEventListener('dblclick', function(e) {
+          const tag = e.target.tagName.toLowerCase();
+          if (['input', 'textarea', 'button'].includes(tag) || e.target.classList.contains('custom-button')) {
+            return;
+          }
+          addMemo();
+        });
+        let lastTap = 0;
+        document.addEventListener('touchend', function(e) {
+          const currentTime = new Date().getTime();
+          if (currentTime - lastTap > 0 && currentTime - lastTap < 500) {
+            const tag = e.target.tagName.toLowerCase();
+            if (!['input', 'textarea', 'button'].includes(tag) && !e.target.classList.contains('custom-button')) {
+              addMemo();
+            }
+          }
+          lastTap = currentTime;
+        });
       }
     });
     
@@ -266,12 +293,12 @@
       });
     }
     
-    // メモ追加（テキストか画像／手書きが存在する場合のみ）
+    // メモ追加（テキストまたは画像／手書きが存在する場合のみ）
     function addMemo() {
       const textArea = document.getElementById('memo-text');
       const text = textArea.value.trim();
       if (!text && !currentImageData) {
-        alert("保存する前にテキストか画像・手書き、もしくは写真を添付してください。");
+        alert("保存する前にテキストか画像・手書き、または写真を添付してください。");
         return;
       }
       const memo = {
@@ -287,30 +314,6 @@
       textArea.value = '';
       currentImageData = null;
     }
-
-    // ----- ダブルクリック／ダブルタップによる保存 -----
-    
-    document.addEventListener('dblclick', function(e) {
-      const tag = e.target.tagName.toLowerCase();
-      if (['input', 'textarea', 'button'].includes(tag) || e.target.classList.contains('custom-button')) {
-        return;
-      }
-      addMemo();
-    });
-    
-    let lastTap = 0;
-    document.addEventListener('touchend', function(e) {
-      const currentTime = new Date().getTime();
-      if (currentTime - lastTap > 0 && currentTime - lastTap < 500) {
-        const tag = e.target.tagName.toLowerCase();
-        if (!['input', 'textarea', 'button'].includes(tag) && !e.target.classList.contains('custom-button')) {
-          addMemo();
-        }
-      }
-      lastTap = currentTime;
-    });
-    
-    document.getElementById('double-click-hint').addEventListener('click', addMemo);
     
     // ----- 画像アップロード -----
     
@@ -356,8 +359,8 @@
     });
     
     // ----- カメラ／写真撮影機能（PC向けのみ） -----
-    // スマホの場合は、先述の isMobile() 判定により camera-section そのものが非表示になるので、
-    // 以下のコードはPC環境のみ有効です。
+    // スマホの場合は isMobile() により camera-section 自体が非表示になっているため、
+    // ここでのコードはPC環境のみ有効です。
     
     // 共通の写真キャプチャ関数（サイズ縮小・JPEG保存）
     function capturePhotoFunction() {
@@ -389,7 +392,7 @@
       document.getElementById('video-hint').style.display = 'none';
     }
     
-    // 「写真撮影」ボタンの動作（PC環境用）
+    // 「写真撮影」ボタンの動作（PC向け）
     document.getElementById('photo-capture').addEventListener('click', async function() {
       const video = document.getElementById('video-preview');
       const captureBtn = document.getElementById('capture-photo');
