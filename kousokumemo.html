@@ -360,17 +360,33 @@
       video.srcObject = stream;
     });
     
-    // カメラプレビュー上の「写真を撮る」ボタンでキャプチャ
+    // カメラプレビュー上の「写真を撮る」ボタンでキャプチャ（サイズ縮小版）
     document.getElementById('capture-photo').addEventListener('click', function() {
       const video = document.getElementById('video-preview');
       const canvas = document.getElementById('capture-canvas');
       if (!canvas) return;
       
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // 元のサイズを取得
+      const originalWidth = video.videoWidth;
+      const originalHeight = video.videoHeight;
+      
+      // 最大幅 640px（高さはアスペクト比維持）にリサイズ
+      const maxWidth = 640;
+      let newWidth = originalWidth;
+      let newHeight = originalHeight;
+      if (originalWidth > maxWidth) {
+        newWidth = maxWidth;
+        newHeight = Math.floor(originalHeight * (maxWidth / originalWidth));
+      }
+      
+      canvas.width = newWidth;
+      canvas.height = newHeight;
+      
       const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      currentImageData = canvas.toDataURL('image/png');
+      ctx.drawImage(video, 0, 0, newWidth, newHeight);
+      
+      // JPEG 形式（品質 0.6）で保存し、ファイルサイズを抑える
+      currentImageData = canvas.toDataURL('image/jpeg', 0.6);
       
       // カメラ停止・プレビュー＆ボタンを非表示にする
       if (stream) {
@@ -477,6 +493,7 @@
     });
     document.getElementById('save-handwrite').addEventListener('click', function() {
       const canvas = document.getElementById('handwrite-canvas');
+      // 手書きメモもサイズはそのままキャンバスサイズ（必要に応じてresize可能）
       currentImageData = canvas.toDataURL('image/png');
       document.getElementById('handwrite-section').style.display = 'none';
     });
