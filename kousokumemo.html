@@ -23,7 +23,7 @@
     h1 {
       margin-top: 0;
     }
-    /* 「ダブルクリックで保存」ヒントはタイトル直下 */
+    /* 「ダブルクリックで保存」ヒントはタイトル直下に配置 */
     #saveHint {
       margin-top: 10px;
       text-align: center;
@@ -57,7 +57,7 @@
       cursor: pointer;
       margin-bottom: 10px;
     }
-    /* 非表示ファイル入力 */
+    /* 非表示のファイル入力 */
     #importInput, #localImageInput {
       display: none;
     }
@@ -90,7 +90,7 @@
       display: none;
       position: fixed;
       top: 50%;
-      left: 50%;
+      left:50%;
       transform: translate(-50%, -50%);
       background: white;
       border: 1px solid #ccc;
@@ -133,7 +133,7 @@
     <!-- 検索機能 -->
     <input type="text" id="searchInput" placeholder="検索...">
     
-    <!-- 画像選択：PC内の画像を選択できるように -->
+    <!-- 画像選択：PC内の画像を選択 -->
     <label for="localImageInput" class="file-label">画像選択</label>
     <input type="file" id="localImageInput" accept="image/*">
     
@@ -183,7 +183,7 @@
     if (localStorage.getItem('memos')) {
       try {
         memos = JSON.parse(localStorage.getItem('memos'));
-      } catch (e) {
+      } catch(e) {
         console.error(e);
       }
     }
@@ -230,7 +230,7 @@
           img.style.marginLeft = "10px";
           li.appendChild(img);
         }
-        // 手書き画像表示
+        // 手書き入力画像表示
         if (memo.drawingData) {
           const img2 = document.createElement('img');
           img2.src = memo.drawingData;
@@ -255,8 +255,7 @@
           }
         });
         li.appendChild(editButton);
-
-        // 削除ボタン（確認なし）
+        // 削除ボタン（確認なしで即時削除）
         const deleteButton = document.createElement('button');
         deleteButton.textContent = '削除';
         deleteButton.addEventListener('click', function(e) {
@@ -274,19 +273,27 @@
       });
     }
 
-    // ダブルクリックまたはダブルタップでメモ保存
+    // ダブルタップまたはダブルクリックでメモ保存用の共通処理
     let tapCount = 0;
-    document.body.addEventListener('click', function(e) {
-      const interactiveTags = ['INPUT', 'TEXTAREA', 'BUTTON', 'LABEL'];
+    function doubleTapListener(e) {
+      const interactiveTags = ['INPUT','TEXTAREA','BUTTON','LABEL'];
       if (interactiveTags.includes(e.target.tagName)) return;
       tapCount++;
       setTimeout(() => {
-        if (tapCount >= 2) saveMemo();
+        if (tapCount >= 2) {
+          saveMemo();
+        }
         tapCount = 0;
       }, 300);
-    });
-    // ヒントテキストをクリックしても保存
-    document.getElementById('saveHint').addEventListener('click', saveMemo);
+    }
+    // タッチ対応端末の場合は touchend、それ以外は click を利用
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.body.addEventListener('touchend', doubleTapListener);
+      document.getElementById('saveHint').addEventListener('touchend', saveMemo);
+    } else {
+      document.body.addEventListener('click', doubleTapListener);
+      document.getElementById('saveHint').addEventListener('click', saveMemo);
+    }
 
     function saveMemo() {
       const memoInput = document.getElementById('memoInput');
@@ -343,7 +350,7 @@
     document.getElementById('sortOptions').addEventListener('change', renderMemos);
     document.getElementById('searchInput').addEventListener('input', renderMemos);
 
-    // エクスポート機能
+    // エクスポート機能（JSON埋め込みHTML）
     document.getElementById('exportButton').addEventListener('click', function() {
       const jsonData = JSON.stringify(memos, null, 4);
       const exportContent = `<!DOCTYPE html>
@@ -371,7 +378,7 @@ ${jsonData}
       URL.revokeObjectURL(url);
     });
 
-    // インポート機能（隠しファイル入力をトリガー）
+    // インポート機能（隠しファイル入力トリガー）
     document.getElementById('importButton').addEventListener('click', function() {
       document.getElementById('importInput').click();
     });
@@ -404,7 +411,7 @@ ${jsonData}
       window.print();
     });
 
-    // 手書き入力（ドローイング）機能
+    // 手書き入力／ドローイング機能
     document.getElementById('startDrawingButton').addEventListener('click', function() {
       document.getElementById('drawingContainer').style.display = 'block';
       initDrawing();
@@ -440,7 +447,7 @@ ${jsonData}
         e.preventDefault();
         const rect = canvas.getBoundingClientRect();
         let x, y;
-        if (e.touches) {
+        if (e.touches && e.touches.length > 0) {
           x = e.touches[0].clientX - rect.left;
           y = e.touches[0].clientY - rect.top;
         } else {
@@ -463,7 +470,7 @@ ${jsonData}
       canvas.addEventListener('touchmove', draw);
     }
 
-    // 写真撮影機能（getUserMedia を利用）
+    // 写真撮影機能（getUserMedia 使用）
     document.getElementById('takePhotoButton').addEventListener('click', function() {
       const photoContainer = document.getElementById('photoContainer');
       photoContainer.style.display = 'block';
