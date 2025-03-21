@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>完全機能掲示板システム</title>
+  <title>完全機能掲示板システム（フルカラー印刷対応）</title>
   <style>
     /* --- 基本スタイル --- */
     body {
@@ -163,11 +163,10 @@
       align-items: center;
     }
     .header-row.bottom label { margin-right: 5px; }
-    /* --- 設定パネル・オーバーレイ --- */
+    /* --- 設定パネル＆オーバーレイ --- */
     #overlay {
       position: fixed;
-      top: 0;
-      left: 0;
+      top: 0; left: 0;
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.5);
@@ -211,8 +210,13 @@
       width: 100%;
       margin: 10px 0;
     }
-    /* --- 印刷時は非表示 --- */
+    /* --- 印刷時の設定（フルカラー印刷対応） --- */
     @media print {
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      /* 印刷時は操作用のヘッダーおよび設定関連は非表示 */
       header, #new-post-area, #tag-filter, #favorites-panel, #settings-panel, #overlay {
         display: none;
       }
@@ -476,7 +480,7 @@
         }
         postDiv.appendChild(tagsDiv);
 
-        // 子投稿 (返信) の再帰描画
+        // 子投稿の再帰描画
         if (post.children && post.children.length > 0 && !post.collapsed) {
           post.children.forEach(child => {
             const childElem = renderPost(child, level + 1);
@@ -785,7 +789,7 @@
         document.getElementById("posts-container").style.transform = "scale(" + (zoom / 100) + ")";
       });
 
-      // ヘッダーのボタンのドラッグ＆ドロップによる順序変更
+      // ヘッダーのボタン：ドラッグ＆ドロップ順序変更
       const btnContainer = document.getElementById("btn-container");
       btnContainer.addEventListener("dragstart", function(e) {
         if (e.target.tagName === "BUTTON" && e.target.id !== "btn-settings") {
