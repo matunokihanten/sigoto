@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>おしゃれな文字アイコン作成アプリ</title>
+  <title>おしゃれな文字アイコン作成＆スマホ用アイコン出力アプリ</title>
   <!-- Google Fonts：日本語フォント -->
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&family=Yu+Gothic&family=Meiryo&family=Hiragino+Kaku+Gothic+Pro&display=swap" rel="stylesheet">
+  <!-- JSZip ライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
   <style>
     body {
       font-family: sans-serif;
@@ -89,14 +91,15 @@
   </style>
 </head>
 <body>
-  <h1>おしゃれな文字アイコン作成アプリ</h1>
+  <h1>おしゃれな文字アイコン作成＆スマホ用アイコン出力アプリ</h1>
+  
   <div class="controls">
-    <!-- ① アイコンの文字 -->
+    <!-- アイコンの文字 -->
     <label for="iconText">アイコンに表示するテキスト</label>
     <input type="text" id="iconText" placeholder="例: アプリ" value="アプリ">
 
-    <!-- ② アイコンサイズ -->
-    <label for="iconSize">アイコンサイズ</label>
+    <!-- アイコンサイズ -->
+    <label for="iconSize">アイコンサイズ ※元の基準サイズ</label>
     <select id="iconSize">
       <option value="16">16×16 ピクセル (カーソル等)</option>
       <option value="32">32×32 ピクセル (ファイルマネージャ等)</option>
@@ -105,11 +108,11 @@
       <option value="128">128×128 ピクセル</option>
     </select>
 
-    <!-- ③ フォントサイズ -->
+    <!-- フォントサイズ -->
     <label for="fontSize">フォントサイズ（px）</label>
     <input type="number" id="fontSize" value="38">
 
-    <!-- ④ フォントファミリー（日本語） -->
+    <!-- フォントファミリー（日本語） -->
     <label for="fontFamily">フォントファミリー</label>
     <select id="fontFamily">
       <option value="'Noto Sans JP', sans-serif" selected>Noto Sans JP</option>
@@ -119,22 +122,20 @@
       <option value="'MS Gothic', monospace">MS ゴシック</option>
     </select>
 
-    <!-- ⑤ 文字色 -->
+    <!-- 文字色 -->
     <label for="textColor">文字の色</label>
     <input type="color" id="textColor" value="#ffffff">
 
-    <!-- ⑥ 背景スタイル -->
+    <!-- 背景スタイル -->
     <label for="bgStyle">背景スタイル</label>
     <select id="bgStyle">
       <option value="solid" selected>単色</option>
       <option value="gradient">グラデーション</option>
     </select>
-
     <div id="solidBgOptions" class="option-group">
       <label for="backgroundColor">背景の色</label>
       <input type="color" id="backgroundColor" value="#007bff">
     </div>
-
     <div id="gradientOptions" class="option-group" style="display:none;">
       <label for="gradientStartColor">グラデーション開始色</label>
       <input type="color" id="gradientStartColor" value="#007bff">
@@ -142,7 +143,7 @@
       <input type="color" id="gradientEndColor" value="#00d4ff">
     </div>
 
-    <!-- ⑦ ドロップシャドウ -->
+    <!-- ドロップシャドウ -->
     <label for="shadowColor">ドロップシャドウの色</label>
     <input type="color" id="shadowColor" value="#000000">
     <label for="shadowOffset">ドロップシャドウのオフセット（px）</label>
@@ -150,7 +151,7 @@
     <label for="shadowBlur">シャドウブラー（ぼかし）</label>
     <input type="number" id="shadowBlur" value="1">
 
-    <!-- ⑧ アウトライン（文字の縁取り） -->
+    <!-- アウトライン -->
     <label>
       <input type="checkbox" id="useOutline">
       文字のアウトラインを追加する
@@ -169,7 +170,7 @@
       <input type="number" id="outlineWidth" value="2">
     </div>
 
-    <!-- ⑨ アニメーション -->
+    <!-- アニメーション -->
     <label>
       <input type="checkbox" id="useAnimation">
       アニメーションを追加する
@@ -182,12 +183,13 @@
       </select>
     </div>
 
-    <!-- ⑩ 出力形式 -->
+    <!-- 出力形式 -->
     <label for="outputFormat">出力形式</label>
     <select id="outputFormat">
       <option value="svg" selected>SVG (ベクター)</option>
       <option value="png">PNG (ラスター)</option>
       <option value="jpeg">JPEG (ラスター)</option>
+      <option value="smartphone">スマホ用アイコン (複数サイズ, ZIP)</option>
     </select>
 
     <button id="generateBtn">アイコンを生成</button>
@@ -200,7 +202,7 @@
   </div>
   
   <script>
-    // 背景スタイルの切替
+    // 背景の設定切替
     document.getElementById("bgStyle").addEventListener("change", function() {
       if (this.value === "gradient") {
         document.getElementById("gradientOptions").style.display = "block";
@@ -216,27 +218,49 @@
       document.getElementById("outlineOptions").style.display = this.checked ? "block" : "none";
     });
     
-    // アニメーションの表示切替
+    // アニメーション表示切替
     document.getElementById("useAnimation").addEventListener("change", function() {
       document.getElementById("animationOptions").style.display = this.checked ? "block" : "none";
     });
     
-    // アイコンサイズ変更時にフォントサイズの既定値も更新（約60%換算、最低8px）
+    // アイコンサイズ変更時にデフォルトのフォントサイズ更新（約60%換算、最低8px）
     document.getElementById("iconSize").addEventListener("change", function() {
       const iconSize = parseInt(this.value, 10);
       const newFontSize = Math.max(Math.floor(iconSize * 0.6), 8);
       document.getElementById("fontSize").value = newFontSize;
     });
     
-    // アイコン生成処理
+    // ヘルパー：SVG文字列からPNGへコンバートするPromise版関数
+    function convertSVGtoPNG(svgStr, size) {
+      return new Promise((resolve, reject) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
+        const img = new Image();
+        // ※ data: URL の場合、crossOrigin指定は不要
+        img.onload = function() {
+          ctx.clearRect(0, 0, size, size);
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL("image/png");
+          resolve({ size: size, dataUrl: dataURL });
+        };
+        img.onerror = function(e) { reject(e); };
+        img.src = svgData;
+      });
+    }
+    
+    // イベント：アイコン生成
     document.getElementById("generateBtn").addEventListener("click", function () {
-      // 入力値の取得
+      // 各パラメータの取得
       const text = document.getElementById("iconText").value || "アプリ";
-      const iconSize = parseInt(document.getElementById("iconSize").value, 10) || 64;
-      const fontSize = parseInt(document.getElementById("fontSize").value, 10) || Math.floor(iconSize * 0.6);
+      const baseIconSize = parseInt(document.getElementById("iconSize").value, 10) || 64; // ユーザー指定の基準サイズ
+      const userFontSize = parseInt(document.getElementById("fontSize").value, 10) || Math.floor(baseIconSize * 0.6);
       const fontFamily = document.getElementById("fontFamily").value;
       const textColor = document.getElementById("textColor").value;
       
+      // 背景処理
       const bgStyle = document.getElementById("bgStyle").value;
       let backgroundFill = "";
       let gradientDef = "";
@@ -253,10 +277,12 @@
         backgroundFill = document.getElementById("backgroundColor").value;
       }
       
+      // ドロップシャドウ設定
       const shadowColor = document.getElementById("shadowColor").value;
       const shadowOffset = parseInt(document.getElementById("shadowOffset").value, 10) || 0;
       const shadowBlur = parseInt(document.getElementById("shadowBlur").value, 10) || 1;
       
+      // アウトライン設定
       let outlineAttributes = "";
       if(document.getElementById("useOutline").checked) {
         const outlineColor = document.getElementById("outlineColor").value;
@@ -264,19 +290,20 @@
         outlineAttributes = ` stroke="${outlineColor}" stroke-width="${outlineWidth}"`;
       }
       
+      // アニメーション設定
       let animationContent = "";
       if(document.getElementById("useAnimation").checked) {
         const animType = document.getElementById("animationType").value;
         if(animType === "rotate") {
-          // 回転アニメーション：アイコン中央を軸に4秒で1回転
-          animationContent = `<animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0 ${iconSize/2} ${iconSize/2}" to="360 ${iconSize/2} ${iconSize/2}" dur="4s" repeatCount="indefinite"/>`;
+          // 回転アニメーション：中心を軸に4秒で1回転
+          animationContent = `<animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0 ${baseIconSize/2} ${baseIconSize/2}" to="360 ${baseIconSize/2} ${baseIconSize/2}" dur="4s" repeatCount="indefinite"/>`;
         } else if(animType === "blink") {
-          // 点滅アニメーション：1秒間でフェードイン・フェードアウト
+          // 点滅：1秒でフェードイン・アウト
           animationContent = `<animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>`;
         }
       }
       
-      // defs 部分の作成：ドロップシャドウと必要ならグラデーションを含む
+      // 共通：defs 部分の構築
       const defsContent = `
         <filter id="dropshadow" x="-50%" y="-50%" width="200%" height="200%">
           <feDropShadow dx="${shadowOffset}" dy="${shadowOffset}" stdDeviation="${shadowBlur}" flood-color="${shadowColor}" flood-opacity="0.5"/>
@@ -284,65 +311,101 @@
         ${gradientDef}
       `;
       
-      // SVG文字列生成
-      let svgString = `
-<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}">
+      // 出力形式の分岐
+      const outputFormat = document.getElementById("outputFormat").value;
+      const downloadLink = document.getElementById("downloadLink");
+      
+      // 共通のSVG生成テンプレート（サイズ、フォントサイズなどは可変に）
+      function generateSVG(currentSize, currentFontSize) {
+        // ※ スマホ用の場合、角丸は currentSize/5 としてより丸みを強調（スマホアイコン風）
+        return `
+<svg xmlns="http://www.w3.org/2000/svg" width="${currentSize}" height="${currentSize}">
   <defs>
     ${defsContent}
   </defs>
-  <rect width="100%" height="100%" fill="${backgroundFill}" rx="${iconSize/10}" ry="${iconSize/10}" />
-  <text x="50%" y="50%" fill="${textColor}" font-family="${fontFamily}" font-size="${fontSize}"
+  <rect width="100%" height="100%" fill="${backgroundFill}" rx="${currentSize/5}" ry="${currentSize/5}" />
+  <text x="50%" y="50%" fill="${textColor}" font-family="${fontFamily}" font-size="${currentFontSize}"
         text-anchor="middle" dominant-baseline="middle" filter="url(#dropshadow)"${outlineAttributes}>
     ${text}
     ${animationContent}
   </text>
 </svg>
-      `;
+        `;
+      }
       
-      // プレビューにSVF文字列を表示
-      document.getElementById("svgPreview").innerHTML = svgString;
-      
-      // 出力形式に応じたダウンロード処理
-      const outputFormat = document.getElementById("outputFormat").value;
-      const downloadLink = document.getElementById("downloadLink");
-      
-      if(outputFormat === "svg") {
-        // SVGの場合、BlobからURLを作成
-        const blob = new Blob([svgString], { type: "image/svg+xml" });
-        const url = URL.createObjectURL(blob);
-        downloadLink.href = url;
-        downloadLink.download = "icon.svg";
-      } else {
-        // PNGやJPEGの場合、Canvas経由で変換
-        // 新規Canvasを作成
-        const canvas = document.createElement("canvas");
-        canvas.width = iconSize;
-        canvas.height = iconSize;
-        const ctx = canvas.getContext("2d");
-        
-        // SVG文字列からData URLを作成
-        const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
-        const img = new Image();
-        img.onload = function() {
-          ctx.clearRect(0, 0, iconSize, iconSize);
-          ctx.drawImage(img, 0, 0);
-          // 出力形式に応じたMIMEタイプ
-          let mimeType = "image/png";
-          let ext = "png";
-          if(outputFormat === "jpeg") {
-            mimeType = "image/jpeg";
-            ext = "jpeg";
-          }
-          const dataURL = canvas.toDataURL(mimeType);
-          downloadLink.href = dataURL;
-          downloadLink.download = `icon.${ext}`;
-          // プレビューにラスター画像も表示（オプション）
-          document.getElementById("svgPreview").innerHTML = `<img src="${dataURL}" alt="アイコンプレビュー">`;
-        };
-        img.onerror = function(e) {
-          alert("変換エラーが発生しました。ブラウザのセキュリティ設定等を確認してください。");
-        };
-        img.src = svgData;
+      // 出力形式：SVG、PNG、JPEGの場合は1ファイル出力（従来の処理）
+      if(outputFormat === "svg" || outputFormat === "png" || outputFormat === "jpeg") {
+        // まず、元の基準サイズでSVG文字列生成
+        const svgString = generateSVG(baseIconSize, userFontSize);
+        // SVGの場合はそのまま保存
+        if(outputFormat === "svg") {
+          document.getElementById("svgPreview").innerHTML = svgString;
+          const blob = new Blob([svgString], { type: "image/svg+xml" });
+          const url = URL.createObjectURL(blob);
+          downloadLink.href = url;
+          downloadLink.download = "icon.svg";
+        } else {
+          // PNG/JPEGの場合、Canvas を用いて変換
+          const canvas = document.createElement("canvas");
+          canvas.width = baseIconSize;
+          canvas.height = baseIconSize;
+          const ctx = canvas.getContext("2d");
+          const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
+          const img = new Image();
+          img.onload = function() {
+            ctx.clearRect(0, 0, baseIconSize, baseIconSize);
+            ctx.drawImage(img, 0, 0);
+            let mimeType = outputFormat === "png" ? "image/png" : "image/jpeg";
+            let ext = outputFormat === "png" ? "png" : "jpeg";
+            const dataURL = canvas.toDataURL(mimeType);
+            downloadLink.href = dataURL;
+            downloadLink.download = `icon.${ext}`;
+            // プレビューにはラスター画像を表示
+            document.getElementById("svgPreview").innerHTML = `<img src="${dataURL}" alt="アイコンプレビュー">`;
+          };
+          img.onerror = function(e) {
+            alert("変換エラーが発生しました。");
+          };
+          img.src = svgData;
+        }
+      }
+      else if(outputFormat === "smartphone") {
+        // スマホ用の場合、複数サイズでPNGを生成し ZIP で保存
+        // ここでは代表的なサイズとして 48, 72, 96, 144, 192 ピクセルのアイコンを作成
+        const smartphoneSizes = [48, 72, 96, 144, 192];
+        const promises = smartphoneSizes.map((s) => {
+          // 基準サイズとの比率でフォントサイズを調整
+          const scale = s / baseIconSize;
+          const newFontSize = userFontSize * scale;
+          const svgStr = generateSVG(s, newFontSize);
+          return convertSVGtoPNG(svgStr, s);
+        });
+        // 複数サイズのPNG画像の生成完了を待つ
+        Promise.all(promises).then((results) => {
+          // ZIP に各PNG画像を格納
+          const zip = new JSZip();
+          results.forEach((res) => {
+            // dataUrl は "data:image/png;base64,....." となっているので、base64 部分を抽出
+            const base64data = res.dataUrl.split(',')[1];
+            zip.file(`icon_${res.size}.png`, base64data, { base64: true });
+          });
+          // ZIP ファイルを Blob として生成
+          zip.generateAsync({ type: "blob" }).then((zipBlob) => {
+            const url = URL.createObjectURL(zipBlob);
+            downloadLink.href = url;
+            downloadLink.download = "smartphone-icons.zip";
+            // プレビューには最大サイズの 192x192 を表示
+            const previewImg = results.find(r => r.size === 192);
+            if (previewImg) {
+              document.getElementById("svgPreview").innerHTML = `<img src="${previewImg.dataUrl}" alt="スマホ用アイコンプレビュー">`;
+            } else {
+              document.getElementById("svgPreview").innerHTML = "スマホ用アイコンの生成が完了しました。";
+            }
+          });
+        }).catch((err) => {
+          alert("スマホ用アイコン生成中にエラーが発生しました。");
+          console.error(err);
+        });
       }
     });
   </script>
