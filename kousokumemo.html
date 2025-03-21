@@ -5,22 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>高速メモ</title>
   <style>
-    /* 全体レイアウト */
+    /* 基本レイアウト */
     body {
+      font-family: Arial, sans-serif;
       margin: 0;
-      font-family: sans-serif;
+      padding: 0;
       background-color: #f0f0f0;
       color: #333;
     }
     #container {
       display: flex;
-      margin-right: 230px;
+      margin-right: 230px; /* サイドパネル分の余白 */
     }
     #mainArea {
       flex: 1;
       padding: 10px;
+      box-sizing: border-box;
       min-height: 100vh;
     }
+    /* サイドパネル */
+    #sidePanel {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 230px;
+      height: 100%;
+      padding: 10px;
+      background-color: #f9f9f9;
+      border-left: 1px solid #ccc;
+      box-sizing: border-box;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    #sidePanel h2 {
+      font-size: 18px;
+      text-align: center;
+      margin: 5px 0;
+    }
+    #sidePanel input,
+    #sidePanel button,
+    #sidePanel select {
+      padding: 5px;
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    /* 入力エリア＆プレビュー画像 */
     #memoInput {
       width: 100%;
       height: 150px;
@@ -35,21 +66,21 @@
       margin-bottom: 10px;
       display: none;
     }
-    /* 未分類メモ表示エリア */
+    /* メモグリッド */
     #memoGrid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(5, 1fr);  /* 初期は5列 */
       gap: 10px;
       min-height: 100px;
       border: 1px dashed #aaa;
       padding: 5px;
     }
     .memoCard {
-      background: white;
+      background-color: white;
       border: 1px solid #ccc;
       padding: 5px;
-      word-break: break-all;
       font-size: 14px;
+      word-break: break-all;
       position: relative;
     }
     .memoCard img {
@@ -71,130 +102,77 @@
     .highlight {
       background-color: yellow;
     }
-    /* フォルダー関連 */
-    #folderSection {
-      margin-top: 20px;
-      border-top: 1px solid #ccc;
-      padding-top: 10px;
-    }
-    .folder {
-      border: 1px solid #aaa;
-      margin-bottom: 10px;
-      padding: 5px;
-      background: #fff;
-    }
-    .folder-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 5px;
-    }
-    .folder-header span {
-      font-size: 16px;
-      font-weight: bold;
-    }
-    .folder-header div button {
-      font-size: 12px;
-      padding: 2px 5px;
-      cursor: pointer;
-      margin-left: 3px;
-    }
-    /* 折り畳み状態用：drop zoneは非表示、ただしヘッダーがドロップゾーンになる */
-    .folderDropZone {
-      border: 1px dashed #aaa;
-      padding: 5px;
-      display: block;
-    }
-    /* サイドパネル */
-    #sidePanel {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 230px;
-      height: 100%;
-      padding: 10px;
-      box-sizing: border-box;
-      background: #f9f9f9;
-      border-left: 1px solid #ccc;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-    #sidePanel h2 {
-      font-size: 18px;
-      text-align: center;
-      margin: 5px 0;
-    }
-    #sidePanel input,
-    #sidePanel button,
-    #sidePanel select {
-      padding: 5px;
-      font-size: 14px;
-      margin-bottom: 5px;
-    }
     /* ダークモード */
     .dark-mode {
       background-color: #333;
       color: #fff;
     }
     .dark-mode #sidePanel {
-      background: #555;
+      background-color: #555;
       border-color: #444;
     }
     .dark-mode .memoCard {
-      background: #444;
+      background-color: #444;
       border-color: #666;
+    }
+    /* 印刷時は操作パネルを非表示 */
+    @media print {
+      #sidePanel {
+        display: none;
+      }
     }
   </style>
 </head>
 <body>
   <div id="container">
-    <!-- メインエリア：テキスト入力と未分類メモ表示 -->
+    <!-- メインエリア：テキスト入力＆メモ表示エリア -->
     <div id="mainArea">
-      <textarea id="memoInput" placeholder="メモを入力してください(保存は背景をダブルクリック)"></textarea>
+      <textarea id="memoInput" placeholder="メモを入力してください(保存は背景のダブルクリック)"></textarea>
       <img id="currentImagePreview" alt="添付画像">
       <div id="memoGrid"></div>
     </div>
-    <!-- サイドパネル：操作ボタンとフォルダー管理 -->
+    <!-- サイドパネル：各種操作ボタン -->
     <div id="sidePanel">
       <h2>操作パネル</h2>
+      <!-- 列数選択（1～100列） -->
+      <label for="columnSelector">表示列数:</label>
       <input type="number" id="columnSelector" min="1" max="100" value="5">
+      <!-- 画像アップロード -->
       <button id="uploadImageButton">画像選択</button>
       <input type="file" id="fileInput" accept="image/*" hidden>
+      <!-- 写真撮影 -->
       <button id="capturePhotoButton">写真撮影</button>
-      <!-- カメラ利用エリア（必要に応じて表示） -->
-      <div id="cameraArea" style="display:none;">
+      <div id="cameraArea" style="display: none;">
         <video id="videoPreview" autoplay playsinline style="width:100%;"></video>
         <button id="captureBtn">キャプチャ</button>
       </div>
+      <!-- 音声入力 -->
       <button id="voiceInputButton">音声入力</button>
+      <!-- インポート／エクスポート -->
       <button id="importMemoButton">インポート</button>
       <input type="file" id="importFileInput" accept=".html,.txt" hidden>
       <button id="exportMemoButton">エクスポート</button>
+      <!-- 印刷／PDF -->
       <button id="printMemoButton">印刷/PDF</button>
+      <!-- ダークモード切替 -->
       <button id="darkModeToggleButton">ダークモード切替</button>
+      <!-- ソート -->
       <select id="sortSelector">
         <option value="new">新しい順</option>
         <option value="old">古い順</option>
       </select>
+      <!-- 検索 -->
       <input type="text" id="searchInput" placeholder="検索...">
+      <!-- 全削除 -->
       <button id="deleteAllButton">全削除</button>
-      <hr>
-      <!-- フォルダー管理エリア -->
-      <div id="folderSection">
-        <h2>フォルダー一覧</h2>
-        <button id="createFolderButton">フォルダー作成</button>
-        <div id="folderContainer"></div>
-      </div>
     </div>
   </div>
   <script>
     let currentImage = null;
-    
+
     /* ユーティリティ関数 */
     function generateUniqueId() {
-      return '_' + Math.random().toString(36).substr(2, 9);
+      return "_" + Math.random().toString(36).substr(2, 9);
     }
     function escapeHtml(string) {
       return String(string).replace(/[&<>"']/g, function(s) {
@@ -209,131 +187,19 @@
       const regex = new RegExp('(' + escapeRegExp(query) + ')', 'gi');
       return text.replace(regex, '<span class="highlight">$1</span>');
     }
-    
-    /* ---------- フォルダー機能 ---------- */
-    function loadFolders() {
-      return JSON.parse(localStorage.getItem('folders')) || [];
-    }
-    function saveFolders(folders) {
-      localStorage.setItem('folders', JSON.stringify(folders));
-    }
-    function displayFolders() {
-      const folderContainer = document.getElementById('folderContainer');
-      folderContainer.innerHTML = "";
-      let folders = loadFolders();
-      folders.forEach(folder => {
-        const folderDiv = document.createElement('div');
-        folderDiv.className = "folder";
-        folderDiv.setAttribute("data-folder-id", folder.id);
-        // フォルダーのヘッダーを作成（フォルダー名 + ボタン群）
-        const header = document.createElement('div');
-        header.className = "folder-header";
-        header.innerHTML = `<span>${escapeHtml(folder.name)}</span>
-          <div>
-            <button class="toggle-btn">折り畳み</button>
-            <button class="edit-folder-btn">編集</button>
-            <button class="delete-folder-btn">削除</button>
-          </div>`;
-        folderDiv.appendChild(header);
-        // フォルダー内のドロップゾーン（展開状態では表示、折り畳み状態では非表示）
-        const dropZone = document.createElement('div');
-        dropZone.className = "folderDropZone";
-        dropZone.style.display = "block";
-        dropZone.addEventListener("dragover", function(e) {
-          e.preventDefault(); 
-          e.dataTransfer.dropEffect = "move";
-        });
-        dropZone.addEventListener("drop", function(e) {
-          e.preventDefault();
-          const memoId = e.dataTransfer.getData("text/plain");
-          updateMemoFolder(memoId, folder.id);
-        });
-        folderDiv.appendChild(dropZone);
-        
-        // 定義：折り畳み時は、ヘッダー部分を drop zone とする
-        function headerDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }
-        function headerDrop(e) {
-          e.preventDefault();
-          const memoId = e.dataTransfer.getData("text/plain");
-          updateMemoFolder(memoId, folder.id);
-        }
-        
-        // Toggle（折り畳み／展開）ボタンのイベント
-        const toggleBtn = header.querySelector('.toggle-btn');
-        toggleBtn.addEventListener("click", function() {
-          if(dropZone.style.display !== "none") {
-            // 現在展開中 → 折り畳む（dropZone非表示、ヘッダーにドロップイベントを追加）
-            dropZone.style.display = "none";
-            toggleBtn.textContent = "展開";
-            header.addEventListener("dragover", headerDragOver);
-            header.addEventListener("drop", headerDrop);
-          } else {
-            // 折り畳み状態 → 展開（dropZone表示、ヘッダーのドロップイベントを削除）
-            dropZone.style.display = "block";
-            toggleBtn.textContent = "折り畳み";
-            header.removeEventListener("dragover", headerDragOver);
-            header.removeEventListener("drop", headerDrop);
-          }
-        });
-        
-        // フォルダー編集
-        const editBtn = header.querySelector('.edit-folder-btn');
-        editBtn.addEventListener("click", function() {
-          const newName = prompt("フォルダー名を編集してください:", folder.name);
-          if(newName) {
-            folder.name = newName;
-            let folders = loadFolders();
-            for(let f of folders){
-              if(f.id === folder.id) { f.name = newName; break; }
-            }
-            saveFolders(folders);
-            displayFolders();
-          }
-        });
-        
-        // フォルダー削除
-        const deleteBtn = header.querySelector('.delete-folder-btn');
-        deleteBtn.addEventListener("click", function() {
-          if(confirm("このフォルダーを削除しますか？")) {
-            let folders = loadFolders();
-            folders = folders.filter(f => f.id !== folder.id);
-            saveFolders(folders);
-            // 削除されたフォルダー内のメモは未分類（folder: null）へ
-            let memos = JSON.parse(localStorage.getItem("memos")) || [];
-            memos.forEach(memo => { if(memo.folder === folder.id) memo.folder = null; });
-            localStorage.setItem("memos", JSON.stringify(memos));
-            displayFolders();
-            displayMemos();
-          }
-        });
-        folderContainer.appendChild(folderDiv);
-      });
-    }
-    document.getElementById("createFolderButton").addEventListener("click", function() {
-      const folderName = prompt("フォルダー名を入力してください:");
-      if(folderName) {
-        const folders = loadFolders();
-        const newFolder = { id: generateUniqueId(), name: folderName };
-        folders.push(newFolder);
-        saveFolders(folders);
-        displayFolders();
-        displayMemos();
-      }
-    });
-    /* ------------------------------------- */
-    
-    /* ---------- メモ管理 ---------- */
-    // 新規メモ保存（ダブルクリックで実行、空の場合は "テスト"）
+
+    /* メモ管理 */
     function saveMemo() {
       let memoText = document.getElementById("memoInput").value.trim();
-      if(memoText === "") { memoText = "テスト"; }
+      if (memoText === "") {
+        memoText = "テスト";
+      }
       const memos = JSON.parse(localStorage.getItem("memos")) || [];
       const newMemo = {
         id: generateUniqueId(),
         content: memoText,
         image: currentImage,
-        timestamp: new Date().toISOString(),
-        folder: null
+        timestamp: new Date().toISOString()
       };
       memos.push(newMemo);
       localStorage.setItem("memos", JSON.stringify(memos));
@@ -344,27 +210,27 @@
       preview.style.display = "none";
       displayMemos();
     }
-    // メモ削除（ID による）
-    function deleteMemoById(id) {
+
+    function deleteMemo(id) {
       let memos = JSON.parse(localStorage.getItem("memos")) || [];
-      const updatedMemos = memos.filter(memo => memo.id !== id);
-      localStorage.setItem("memos", JSON.stringify(updatedMemos));
+      memos = memos.filter(memo => memo.id !== id);
+      localStorage.setItem("memos", JSON.stringify(memos));
       displayMemos();
     }
-    // メモ編集（ID による）
+
     function editMemo(id) {
       let memos = JSON.parse(localStorage.getItem("memos")) || [];
-      const memoIndex = memos.findIndex(memo => memo.id === id);
-      if(memoIndex !== -1) {
-        const newContent = prompt("内容を編集してください:", memos[memoIndex].content);
-        if(newContent !== null) {
-          memos[memoIndex].content = newContent;
+      const index = memos.findIndex(memo => memo.id === id);
+      if (index !== -1) {
+        const newContent = prompt("内容を編集してください:", memos[index].content);
+        if (newContent !== null) {
+          memos[index].content = newContent;
           localStorage.setItem("memos", JSON.stringify(memos));
           displayMemos();
         }
       }
     }
-    // メモカード作成（ドラッグ＆ドロップ、検索文字列ハイライト対応）
+
     function createMemoCard(memo, query) {
       const card = document.createElement("div");
       card.className = "memoCard";
@@ -374,79 +240,45 @@
         e.dataTransfer.effectAllowed = "move";
       });
       let contentHtml = escapeHtml(memo.content);
-      if(query) { contentHtml = highlightText(contentHtml, query); }
+      if (query) {
+        contentHtml = highlightText(contentHtml, query);
+      }
       card.innerHTML = `
         <div style="white-space: pre-wrap;">${contentHtml}</div>
+        ${ memo.image ? `<img src="${memo.image}" alt="添付画像" style="max-width:100%; margin-top:5px;">` : "" }
         <small>${new Date(memo.timestamp).toLocaleString()}</small>
         <button onclick="editMemo('${memo.id}')">編集</button>
-        <button onclick="deleteMemoById('${memo.id}')">削除</button>
+        <button onclick="deleteMemo('${memo.id}')">削除</button>
       `;
       return card;
     }
-    // 未分類メモおよび各フォルダー内メモの表示（検索＆ソート対応）
+
     function displayMemos() {
-      const allMemos = JSON.parse(localStorage.getItem("memos")) || [];
-      const query = document.getElementById("searchInput").value.trim();
-      let filteredMemos = allMemos;
-      if(query) {
+      let memos = JSON.parse(localStorage.getItem("memos")) || [];
+      let query = document.getElementById("searchInput").value.trim();
+      if (query) {
         const regex = new RegExp(escapeRegExp(query), "gi");
-        filteredMemos = allMemos.filter(memo => memo.content.match(regex));
+        memos = memos.filter(memo => memo.content.match(regex));
       }
-      // 未分類（folder null）のメモ
-      const unsortedMemos = filteredMemos.filter(memo => !memo.folder);
+      const sortOrder = document.getElementById("sortSelector").value;
+      memos.sort((a, b) =>
+        sortOrder === "new" ? new Date(b.timestamp) - new Date(a.timestamp) : new Date(a.timestamp) - new Date(b.timestamp)
+      );
       const memoGrid = document.getElementById("memoGrid");
       memoGrid.innerHTML = "";
-      unsortedMemos.forEach(memo => {
+      memos.forEach(memo => {
         const card = createMemoCard(memo, query);
         memoGrid.appendChild(card);
       });
-      // 各フォルダー内のメモ表示
-      let folders = loadFolders();
-      folders.forEach(folder => {
-        const folderDropZone = document.querySelector(`.folder[data-folder-id="${folder.id}"] .folderDropZone`);
-        if(folderDropZone) {
-          folderDropZone.innerHTML = "";
-          const folderMemos = filteredMemos.filter(memo => memo.folder === folder.id);
-          folderMemos.forEach(memo => {
-            const card = createMemoCard(memo, query);
-            folderDropZone.appendChild(card);
-          });
-        }
-      });
     }
-    // ドロップ操作によるメモの出し入れ
-    function updateMemoFolder(memoId, folderId) {
-      let memos = JSON.parse(localStorage.getItem("memos")) || [];
-      for(let memo of memos) {
-        if(memo.id === memoId) { memo.folder = folderId; break; }
-      }
-      localStorage.setItem("memos", JSON.stringify(memos));
-      displayMemos();
-    }
-    /* ------------------------------------- */
-    
-    /* ---------- 各種イベント ---------- */
-    // 背景のダブルクリックでメモ保存（入力が空なら "テスト"）
-    document.addEventListener("dblclick", function(e) {
-      if(e.target.closest("#sidePanel") ||
-         e.target.closest("textarea") ||
-         e.target.closest("input") ||
-         e.target.closest("button") ||
-         e.target.closest("video")) { return; }
-      saveMemo();
-    });
-    // 列数選択でグリッド更新（1～100列）
-    document.getElementById("columnSelector").addEventListener("change", function () {
-      const columnCount = parseInt(this.value, 10);
-      document.getElementById("memoGrid").style.gridTemplateColumns = `repeat(${Math.min(Math.max(columnCount, 1), 100)}, 1fr)`;
-    });
-    // 画像アップロード（選択後、グレースケール変換してプレビュー表示）
+
+    /* 画像アップロード＆グレースケール変換 */
     document.getElementById("uploadImageButton").addEventListener("click", () => {
       document.getElementById("fileInput").click();
     });
     document.getElementById("fileInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
-      if(file) {
+      if (file) {
         const reader = new FileReader();
         reader.onload = function(event) {
           const img = new Image();
@@ -469,15 +301,15 @@
       ctx.drawImage(image, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
-      for(let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i+1], b = data[i+2];
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        data[i] = data[i+1] = data[i+2] = gray;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        data[i] = data[i + 1] = data[i + 2] = gray;
       }
       ctx.putImageData(imageData, 0, 0);
       return canvas.toDataURL();
     }
-    // 写真撮影（カメラ起動／キャプチャ後、グレースケール化）
+
+    /* 写真撮影（カメラ利用） */
     document.getElementById("capturePhotoButton").addEventListener("click", () => {
       const cameraArea = document.getElementById("cameraArea");
       cameraArea.style.display = "flex";
@@ -499,25 +331,25 @@
       ctx.drawImage(video, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
-      for(let i = 0; i < data.length; i += 4) {
-        const r = data[i], g = data[i+1], b = data[i+2];
-        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-        data[i] = data[i+1] = data[i+2] = gray;
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        data[i] = data[i + 1] = data[i + 2] = gray;
       }
       ctx.putImageData(imageData, 0, 0);
       currentImage = canvas.toDataURL();
       const preview = document.getElementById("currentImagePreview");
       preview.src = currentImage;
       preview.style.display = "block";
-      if(window.currentStream) {
+      if (window.currentStream) {
         window.currentStream.getTracks().forEach(track => track.stop());
       }
       document.getElementById("cameraArea").style.display = "none";
     });
-    // 音声入力（Web Speech API）
+
+    /* 音声入力（Web Speech API） */
     document.getElementById("voiceInputButton").addEventListener("click", () => {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if(!SpeechRecognition) {
+      if (!SpeechRecognition) {
         alert("このブラウザは音声入力に対応していません。");
         return;
       }
@@ -532,70 +364,79 @@
       };
       recognizer.start();
     });
-    // エクスポート（メモデータを特殊コメントタグ付き出力）
+
+    /* インポート／エクスポート */
     document.getElementById("exportMemoButton").addEventListener("click", () => {
-      const memos = localStorage.getItem("memos") || "[]";
-      const exportData = `<!--MEMO_DATA_START-->${memos}<!--MEMO_DATA_END-->`;
+      const memosData = localStorage.getItem("memos") || "[]";
+      const exportData = `<!--MEMO_DATA_START-->${memosData}<!--MEMO_DATA_END-->`;
       const blob = new Blob([exportData], { type: "text/html" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
       link.download = "高速メモ.html";
       link.click();
     });
-    // インポート（ファイルからデータ抽出して localStorage 更新）
     document.getElementById("importMemoButton").addEventListener("click", () => {
       document.getElementById("importFileInput").click();
     });
     document.getElementById("importFileInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
-      if(file) {
+      if (file) {
         const reader = new FileReader();
         reader.onload = function(event) {
           const content = event.target.result;
           const regex = /<!--MEMO_DATA_START-->([\s\S]*?)<!--MEMO_DATA_END-->/;
           const match = regex.exec(content);
-          if(match && match[1]) {
+          if (match && match[1]) {
             localStorage.setItem("memos", match[1].trim());
             displayMemos();
-          } else { alert("適切なデータが見つかりませんでした。"); }
+          } else {
+            alert("適切なデータが見つかりませんでした。");
+          }
         };
         reader.readAsText(file);
       }
     });
-    // 印刷／PDF
+
+    /* 印刷／PDF */
     document.getElementById("printMemoButton").addEventListener("click", () => {
       window.print();
     });
-    // ダークモード切替
+
+    /* ダークモード切替 */
     document.getElementById("darkModeToggleButton").addEventListener("click", () => {
       document.body.classList.toggle("dark-mode");
     });
-    // ソート／検索（入力や選択で再表示）
+
+    /* ソート／検索更新 */
     document.getElementById("sortSelector").addEventListener("change", displayMemos);
     document.getElementById("searchInput").addEventListener("input", displayMemos);
-    // 全削除ボタン：メモもフォルダーも削除
+
+    /* 全削除 */
     document.getElementById("deleteAllButton").addEventListener("click", () => {
-      if(confirm("すべてのメモとフォルダーを削除してもよろしいですか？")) {
+      if (confirm("すべてのメモを削除してもよろしいですか？")) {
         localStorage.removeItem("memos");
-        localStorage.removeItem("folders");
         displayMemos();
-        displayFolders();
       }
     });
-    // 未分類エリア（#memoGrid）を drop zone に設定（ドロップ時はフォルダー解除）
-    document.getElementById("memoGrid").addEventListener("dragover", function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
+
+    /* ダブルクリックで保存 (操作部以外) */
+    document.addEventListener("dblclick", function(e) {
+      if (e.target.closest("#sidePanel") ||
+          e.target.closest("textarea") ||
+          e.target.closest("input") ||
+          e.target.closest("button") ||
+          e.target.closest("video")) { return; }
+      saveMemo();
     });
-    document.getElementById("memoGrid").addEventListener("drop", function(e) {
-      e.preventDefault();
-      const memoId = e.dataTransfer.getData("text/plain");
-      updateMemoFolder(memoId, null);
+
+    /* 列数選択：グリッド列数更新 */
+    document.getElementById("columnSelector").addEventListener("change", function () {
+      const columnCount = parseInt(this.value, 10);
+      document.getElementById("memoGrid").style.gridTemplateColumns = `repeat(${Math.min(Math.max(columnCount, 1), 100)}, 1fr)`;
     });
-    
+
     /* 初期表示 */
     displayMemos();
-    displayFolders();
   </script>
 </body>
 </html>
