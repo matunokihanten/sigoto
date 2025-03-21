@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>高速メモ</title>
   <style>
-    /* 基本レイアウト */
+    /* 全体レイアウト */
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -13,45 +13,26 @@
       background-color: #f0f0f0;
       color: #333;
     }
-    #container {
+    /* 操作パネル（上部に配置） */
+    #controlPanel {
       display: flex;
-      margin-right: 230px; /* サイドパネル分の余白 */
-    }
-    #mainArea {
-      flex: 1;
-      padding: 10px;
-      box-sizing: border-box;
-      min-height: 100vh;
-    }
-    /* サイドパネル */
-    #sidePanel {
-      position: fixed;
-      right: 0;
-      top: 0;
-      width: 230px;
-      height: 100%;
+      flex-wrap: wrap;
+      gap: 10px;
       padding: 10px;
       background-color: #f9f9f9;
-      border-left: 1px solid #ccc;
-      box-sizing: border-box;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
+      border-bottom: 1px solid #ccc;
     }
-    #sidePanel h2 {
-      font-size: 18px;
-      text-align: center;
-      margin: 5px 0;
-    }
-    #sidePanel input,
-    #sidePanel button,
-    #sidePanel select {
-      padding: 5px;
+    #controlPanel label,
+    #controlPanel input,
+    #controlPanel button,
+    #controlPanel select {
       font-size: 14px;
-      margin-bottom: 5px;
     }
-    /* 入力エリア＆プレビュー画像 */
+    /* メインエリア */
+    #mainArea {
+      padding: 10px;
+    }
+    /* 入力エリア */
     #memoInput {
       width: 100%;
       height: 150px;
@@ -61,15 +42,16 @@
       margin-bottom: 5px;
       resize: vertical;
     }
+    /* プレビュー画像 */
     #currentImagePreview {
       max-width: 100%;
       margin-bottom: 10px;
       display: none;
     }
-    /* メモグリッド */
+    /* メモグリッド（初期は5列表示） */
     #memoGrid {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);  /* 初期は5列 */
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
       min-height: 100px;
       border: 1px dashed #aaa;
@@ -98,7 +80,6 @@
       font-size: 12px;
       cursor: pointer;
     }
-    /* ハイライト表示 */
     .highlight {
       background-color: yellow;
     }
@@ -107,7 +88,7 @@
       background-color: #333;
       color: #fff;
     }
-    .dark-mode #sidePanel {
+    .dark-mode #controlPanel {
       background-color: #555;
       border-color: #444;
     }
@@ -115,57 +96,46 @@
       background-color: #444;
       border-color: #666;
     }
-    /* 印刷時は操作パネルを非表示 */
+    /* 印刷時：操作パネル、入力欄、プレビュー画像を非表示 */
     @media print {
-      #sidePanel {
+      #controlPanel,
+      #memoInput,
+      #currentImagePreview {
         display: none;
       }
     }
   </style>
 </head>
 <body>
-  <div id="container">
-    <!-- メインエリア：テキスト入力＆メモ表示エリア -->
-    <div id="mainArea">
-      <textarea id="memoInput" placeholder="メモを入力してください(保存は背景のダブルクリック)"></textarea>
-      <img id="currentImagePreview" alt="添付画像">
-      <div id="memoGrid"></div>
+  <!-- 操作パネル（上部） -->
+  <div id="controlPanel">
+    <label for="columnSelector">表示列数:</label>
+    <input type="number" id="columnSelector" min="1" max="100" value="5">
+    <button id="uploadImageButton">画像選択</button>
+    <input type="file" id="fileInput" accept="image/*" hidden>
+    <button id="capturePhotoButton">写真撮影</button>
+    <div id="cameraArea" style="display: none;">
+      <video id="videoPreview" autoplay playsinline style="width:100px;"></video>
+      <button id="captureBtn">キャプチャ</button>
     </div>
-    <!-- サイドパネル：各種操作ボタン -->
-    <div id="sidePanel">
-      <h2>操作パネル</h2>
-      <!-- 列数選択（1～100列） -->
-      <label for="columnSelector">表示列数:</label>
-      <input type="number" id="columnSelector" min="1" max="100" value="5">
-      <!-- 画像アップロード -->
-      <button id="uploadImageButton">画像選択</button>
-      <input type="file" id="fileInput" accept="image/*" hidden>
-      <!-- 写真撮影 -->
-      <button id="capturePhotoButton">写真撮影</button>
-      <div id="cameraArea" style="display: none;">
-        <video id="videoPreview" autoplay playsinline style="width:100%;"></video>
-        <button id="captureBtn">キャプチャ</button>
-      </div>
-      <!-- 音声入力 -->
-      <button id="voiceInputButton">音声入力</button>
-      <!-- インポート／エクスポート -->
-      <button id="importMemoButton">インポート</button>
-      <input type="file" id="importFileInput" accept=".html,.txt" hidden>
-      <button id="exportMemoButton">エクスポート</button>
-      <!-- 印刷／PDF -->
-      <button id="printMemoButton">印刷/PDF</button>
-      <!-- ダークモード切替 -->
-      <button id="darkModeToggleButton">ダークモード切替</button>
-      <!-- ソート -->
-      <select id="sortSelector">
-        <option value="new">新しい順</option>
-        <option value="old">古い順</option>
-      </select>
-      <!-- 検索 -->
-      <input type="text" id="searchInput" placeholder="検索...">
-      <!-- 全削除 -->
-      <button id="deleteAllButton">全削除</button>
-    </div>
+    <button id="voiceInputButton">音声入力</button>
+    <button id="importMemoButton">インポート</button>
+    <input type="file" id="importFileInput" accept=".html,.txt" hidden>
+    <button id="exportMemoButton">エクスポート</button>
+    <button id="printMemoButton">印刷/PDF</button>
+    <button id="darkModeToggleButton">ダークモード切替</button>
+    <select id="sortSelector">
+      <option value="new">新しい順</option>
+      <option value="old">古い順</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="検索...">
+    <button id="deleteAllButton">全削除</button>
+  </div>
+  <!-- メインエリア -->
+  <div id="mainArea">
+    <textarea id="memoInput" placeholder="メモを入力してください(保存は背景のダブルクリック)"></textarea>
+    <img id="currentImagePreview" alt="添付画像">
+    <div id="memoGrid"></div>
   </div>
   <script>
     let currentImage = null;
@@ -419,20 +389,23 @@
       }
     });
 
-    /* ダブルクリックで保存 (操作部以外) */
+    /* ダブルクリックで保存（操作部以外を対象） */
     document.addEventListener("dblclick", function(e) {
-      if (e.target.closest("#sidePanel") ||
+      if (e.target.closest("#controlPanel") ||
           e.target.closest("textarea") ||
           e.target.closest("input") ||
           e.target.closest("button") ||
-          e.target.closest("video")) { return; }
+          e.target.closest("video")) {
+        return;
+      }
       saveMemo();
     });
 
-    /* 列数選択：グリッド列数更新 */
+    /* 列数選択：グリッドの列数更新 */
     document.getElementById("columnSelector").addEventListener("change", function () {
       const columnCount = parseInt(this.value, 10);
-      document.getElementById("memoGrid").style.gridTemplateColumns = `repeat(${Math.min(Math.max(columnCount, 1), 100)}, 1fr)`;
+      document.getElementById("memoGrid").style.gridTemplateColumns =
+        `repeat(${Math.min(Math.max(columnCount, 1), 100)}, 1fr)`;
     });
 
     /* 初期表示 */
