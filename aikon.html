@@ -2,412 +2,489 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>おしゃれな文字アイコン作成＆スマホ用アイコン出力アプリ</title>
-  <!-- Google Fonts：日本語フォント -->
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&family=Yu+Gothic&family=Meiryo&family=Hiragino+Kaku+Gothic+Pro&display=swap" rel="stylesheet">
-  <!-- JSZip ライブラリ -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+  <title>高機能文字アイコン作成アプリ - 日本語フォント・グラデーション対応</title>
   <style>
+    /* 基本のリセット＆フォント設定（日本語フォント） */
     body {
-      font-family: sans-serif;
-      background: #f2f2f2;
+      font-family: "Noto Sans JP", "メイリオ", "游ゴシック", "ＭＳ ゴシック", sans-serif;
+      background-color: #f2f2f2;
       padding: 20px;
     }
-    h1, h2 {
-      text-align: center;
-    }
-    .controls {
-      max-width: 700px;
-      margin: 0 auto 20px;
-      background: #fff;
-      padding: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      border-radius: 8px;
-    }
-    .controls label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
-    }
-    .controls input,
-    .controls select {
-      width: 100%;
-      padding: 8px;
-      margin-top: 4px;
-      border-radius: 4px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-    }
-    .controls input[type="checkbox"] {
-      width: auto;
-      margin-right: 5px;
-    }
-    .controls .option-group {
-      margin-top: 10px;
-      padding: 10px;
-      border: 1px dashed #ccc;
-      border-radius: 4px;
-    }
-    .controls button {
-      margin-top: 20px;
-      width: 100%;
-      padding: 10px;
-      font-size: 16px;
-      border: none;
-      border-radius: 4px;
-      background: #007bff;
-      color: #fff;
-      cursor: pointer;
-    }
-    .controls button:hover {
-      background: #0056b3;
-    }
-    .preview {
-      max-width: 700px;
+    .container {
+      max-width: 1000px;
       margin: 0 auto;
+    }
+    h1 {
       text-align: center;
     }
-    #svgPreview {
-      margin-top: 20px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      background: #fff;
-      display: inline-block;
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 15px;
     }
-    .download-link {
-      display: inline-block;
-      margin-top: 20px;
-      font-size: 18px;
-      text-decoration: none;
-      color: #fff;
-      background: #28a745;
-      padding: 10px 20px;
+    .control {
+      margin-right: 20px;
+      margin-bottom: 10px;
+    }
+    label {
+      margin-right: 8px;
+    }
+    select,
+    input,
+    textarea {
+      padding: 5px;
+      border: 1px solid #ccc;
       border-radius: 4px;
     }
-    .download-link:hover {
-      background: #1e7e34;
+    /* プレビュー領域 */
+    .preview {
+      text-align: center;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <h1>おしゃれな文字アイコン作成＆スマホ用アイコン出力アプリ</h1>
-  
-  <div class="controls">
-    <!-- アイコンの文字 -->
-    <label for="iconText">アイコンに表示するテキスト</label>
-    <input type="text" id="iconText" placeholder="例: アプリ" value="アプリ">
-
-    <!-- アイコンサイズ -->
-    <label for="iconSize">アイコンサイズ ※元の基準サイズ</label>
-    <select id="iconSize">
-      <option value="16">16×16 ピクセル (カーソル等)</option>
-      <option value="32">32×32 ピクセル (ファイルマネージャ等)</option>
-      <option value="48">48×48 ピクセル</option>
-      <option value="64" selected>64×64 ピクセル (一般的なアプリ)</option>
-      <option value="128">128×128 ピクセル</option>
-    </select>
-
-    <!-- フォントサイズ -->
-    <label for="fontSize">フォントサイズ（px）</label>
-    <input type="number" id="fontSize" value="38">
-
-    <!-- フォントファミリー（日本語） -->
-    <label for="fontFamily">フォントファミリー</label>
-    <select id="fontFamily">
-      <option value="'Noto Sans JP', sans-serif" selected>Noto Sans JP</option>
-      <option value="'游ゴシック', sans-serif">游ゴシック</option>
-      <option value="'メイリオ', sans-serif">メイリオ</option>
-      <option value="'Hiragino Kaku Gothic Pro', sans-serif">ヒラギノ角ゴ Pro</option>
-      <option value="'MS Gothic', monospace">MS ゴシック</option>
-    </select>
-
-    <!-- 文字色 -->
-    <label for="textColor">文字の色</label>
-    <input type="color" id="textColor" value="#ffffff">
-
-    <!-- 背景スタイル -->
-    <label for="bgStyle">背景スタイル</label>
-    <select id="bgStyle">
-      <option value="solid" selected>単色</option>
-      <option value="gradient">グラデーション</option>
-    </select>
-    <div id="solidBgOptions" class="option-group">
-      <label for="backgroundColor">背景の色</label>
-      <input type="color" id="backgroundColor" value="#007bff">
+  <div class="container">
+    <h1>高機能文字アイコン作成アプリ</h1>
+    
+    <!-- 各種入力フォーム -->
+    <div class="controls">
+      <!-- テキスト入力 -->
+      <div class="control-row">
+        <div class="control">
+          <label for="iconText">アイコンに表示するテキスト:</label>
+          <textarea id="iconText" rows="3" cols="30">サンプルアイコン</textarea>
+        </div>
+      </div>
+      
+      <!-- サイズとフォント設定 -->
+      <div class="control-row">
+        <div class="control">
+          <label for="iconSize">アイコンサイズ(正方形 px):</label>
+          <select id="iconSize">
+            <option value="32">32×32</option>
+            <option value="64">64×64</option>
+            <option value="128" selected>128×128</option>
+            <option value="256">256×256</option>
+            <option value="518">518×518</option>
+          </select>
+        </div>
+        <div class="control">
+          <label for="fontSize">フォントサイズ(px):</label>
+          <!-- ズーム式（スライダー） -->
+          <input type="range" id="fontSize" min="16" max="518" value="32" oninput="this.nextElementSibling.value = this.value">
+          <output>32</output>
+        </div>
+        <div class="control">
+          <label for="fontFamily">フォントファミリー:</label>
+          <select id="fontFamily">
+            <option value="'Noto Sans JP', sans-serif" selected>Noto Sans JP</option>
+            <option value="'メイリオ', sans-serif">メイリオ</option>
+            <option value="'游ゴシック', sans-serif">游ゴシック</option>
+            <option value="'ＭＳ ゴシック', monospace">ＭＳ ゴシック</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- 色設定：文字色／背景色／グラデーション -->
+      <div class="control-row">
+        <div class="control">
+          <label for="textColor">文字色:</label>
+          <input type="color" id="textColor" value="#000000">
+        </div>
+        <div class="control">
+          <label for="bgStyle">背景スタイル:</label>
+          <select id="bgStyle">
+            <option value="solid" selected>単色</option>
+            <option value="gradient">グラデーション</option>
+          </select>
+        </div>
+        <!-- 単色用 -->
+        <div class="control" id="bgColorSolid">
+          <label for="bgColor">背景色:</label>
+          <input type="color" id="bgColor" value="#FFFFFF">
+        </div>
+        <!-- グラデーション用：2色 -->
+        <div class="control" id="bgGradient" style="display: none;">
+          <label for="gradColor1">グラデーション色1:</label>
+          <input type="color" id="gradColor1" value="#FFD700">
+          <label for="gradColor2">グラデーション色2:</label>
+          <input type="color" id="gradColor2" value="#ADD8E6">
+        </div>
+      </div>
+      
+      <!-- シャドウ、アウトライン、アニメーション -->
+      <div class="control-row">
+        <div class="control">
+          <span>ドロップシャドウ オフセット(px):</span>
+          <input type="radio" name="dropShadowOffset" value="0" id="ds0" checked>
+          <label for="ds0">0</label>
+          <input type="radio" name="dropShadowOffset" value="5" id="ds5">
+          <label for="ds5">5</label>
+          <input type="radio" name="dropShadowOffset" value="10" id="ds10">
+          <label for="ds10">10</label>
+        </div>
+        <div class="control">
+          <span>シャドウブラー(px):</span>
+          <input type="radio" name="shadowBlur" value="0" id="blur0" checked>
+          <label for="blur0">0</label>
+          <input type="radio" name="shadowBlur" value="5" id="blur5">
+          <label for="blur5">5</label>
+          <input type="radio" name="shadowBlur" value="10" id="blur10">
+          <label for="blur10">10</label>
+        </div>
+      </div>
+      <div class="control-row">
+        <div class="control">
+          <input type="checkbox" id="addOutline">
+          <label for="addOutline">アウトライン追加</label>
+        </div>
+        <div class="control" id="outlineOptions" style="display: none;">
+          <label for="outlineColor">アウトライン色:</label>
+          <input type="color" id="outlineColor" value="#000000">
+          <span>幅(px):</span>
+          <input type="radio" name="outlineWidth" value="1" id="outlineWidth1" checked>
+          <label for="outlineWidth1">1</label>
+          <input type="radio" name="outlineWidth" value="3" id="outlineWidth3">
+          <label for="outlineWidth3">3</label>
+          <input type="radio" name="outlineWidth" value="5" id="outlineWidth5">
+          <label for="outlineWidth5">5</label>
+        </div>
+      </div>
+      <div class="control-row">
+        <div class="control">
+          <input type="checkbox" id="addAnimation">
+          <label for="addAnimation">アニメーション追加</label>
+        </div>
+        <div class="control" id="animationOptions" style="display: none;">
+          <label for="animationPattern">アニメーションパターン:</label>
+          <select id="animationPattern">
+            <option value="pulse" selected>パルス</option>
+            <option value="rotate">回転</option>
+            <option value="bounce">バウンス</option>
+            <option value="flip">フリップ</option>
+            <option value="shake">シェイク</option>
+            <option value="wave">ウェーブ</option>
+          </select>
+        </div>
+      </div>
+      <!-- 出力形式 -->
+      <div class="control-row">
+        <div class="control">
+          <label for="outputFormat">出力形式:</label>
+          <select id="outputFormat">
+            <option value="png" selected>PNG</option>
+            <option value="jpeg">JPEG</option>
+            <option value="svg">SVG</option>
+            <option value="gif">GIF</option>
+          </select>
+        </div>
+      </div>
+      
+      <!-- アクションボタン -->
+      <div class="control-row">
+        <button id="createIcon">アイコン作成</button>
+        <button id="downloadIcon">アイコンダウンロード</button>
+      </div>
     </div>
-    <div id="gradientOptions" class="option-group" style="display:none;">
-      <label for="gradientStartColor">グラデーション開始色</label>
-      <input type="color" id="gradientStartColor" value="#007bff">
-      <label for="gradientEndColor">グラデーション終了色</label>
-      <input type="color" id="gradientEndColor" value="#00d4ff">
+    
+    <!-- プレビューエリア -->
+    <div class="preview">
+      <canvas id="iconCanvas" width="128" height="128"></canvas>
+      <div id="svgPreview" style="display: none;"></div>
     </div>
-
-    <!-- ドロップシャドウ -->
-    <label for="shadowColor">ドロップシャドウの色</label>
-    <input type="color" id="shadowColor" value="#000000">
-    <label for="shadowOffset">ドロップシャドウのオフセット（px）</label>
-    <input type="number" id="shadowOffset" value="2">
-    <label for="shadowBlur">シャドウブラー（ぼかし）</label>
-    <input type="number" id="shadowBlur" value="1">
-
-    <!-- アウトライン -->
-    <label>
-      <input type="checkbox" id="useOutline">
-      文字のアウトラインを追加する
-    </label>
-    <div id="outlineOptions" class="option-group" style="display:none;">
-      <label for="outlineColor">アウトラインの色</label>
-      <select id="outlineColor">
-        <option value="red">赤</option>
-        <option value="blue">青</option>
-        <option value="yellow">黄</option>
-        <option value="black" selected>黒</option>
-        <option value="white">白</option>
-        <option value="purple">紫</option>
-      </select>
-      <label for="outlineWidth">アウトラインの幅 (px)</label>
-      <input type="number" id="outlineWidth" value="2">
-    </div>
-
-    <!-- アニメーション -->
-    <label>
-      <input type="checkbox" id="useAnimation">
-      アニメーションを追加する
-    </label>
-    <div id="animationOptions" class="option-group" style="display:none;">
-      <label for="animationType">アニメーションタイプ</label>
-      <select id="animationType">
-        <option value="rotate" selected>回転</option>
-        <option value="blink">点滅</option>
-      </select>
-    </div>
-
-    <!-- 出力形式 -->
-    <label for="outputFormat">出力形式</label>
-    <select id="outputFormat">
-      <option value="svg" selected>SVG (ベクター)</option>
-      <option value="png">PNG (ラスター)</option>
-      <option value="jpeg">JPEG (ラスター)</option>
-      <option value="smartphone">スマホ用アイコン (複数サイズ, ZIP)</option>
-    </select>
-
-    <button id="generateBtn">アイコンを生成</button>
-  </div>
-  
-  <div class="preview">
-    <h2>プレビュー</h2>
-    <div id="svgPreview"></div>
-    <a id="downloadLink" class="download-link" href="#" download="icon.svg">アイコンをダウンロード</a>
   </div>
   
   <script>
-    // 背景の設定切替
+    // アウトラインの表示／非表示
+    document.getElementById("addOutline").addEventListener("change", function() {
+      document.getElementById("outlineOptions").style.display = this.checked ? "flex" : "none";
+    });
+    // アニメーションの表示／非表示
+    document.getElementById("addAnimation").addEventListener("change", function() {
+      document.getElementById("animationOptions").style.display = this.checked ? "flex" : "none";
+    });
+    // 背景スタイルによるカラーフィールドの切り替え
     document.getElementById("bgStyle").addEventListener("change", function() {
-      if (this.value === "gradient") {
-        document.getElementById("gradientOptions").style.display = "block";
-        document.getElementById("solidBgOptions").style.display = "none";
+      if(this.value === "gradient") {
+        document.getElementById("bgColorSolid").style.display = "none";
+        document.getElementById("bgGradient").style.display = "flex";
       } else {
-        document.getElementById("gradientOptions").style.display = "none";
-        document.getElementById("solidBgOptions").style.display = "block";
+        document.getElementById("bgColorSolid").style.display = "flex";
+        document.getElementById("bgGradient").style.display = "none";
       }
     });
     
-    // アウトライン表示切替
-    document.getElementById("useOutline").addEventListener("change", function() {
-      document.getElementById("outlineOptions").style.display = this.checked ? "block" : "none";
-    });
+    let animationRequestId, frameCount = 0, animating = false;
     
-    // アニメーション表示切替
-    document.getElementById("useAnimation").addEventListener("change", function() {
-      document.getElementById("animationOptions").style.display = this.checked ? "block" : "none";
-    });
+    // 入力値をパラメータオブジェクトにまとめる
+    function getParams() {
+      const iconSize = parseInt(document.getElementById("iconSize").value);
+      return {
+        text: document.getElementById("iconText").value,
+        iconSize: iconSize,
+        fontSize: parseInt(document.getElementById("fontSize").value),
+        fontFamily: document.getElementById("fontFamily").value,
+        textColor: document.getElementById("textColor").value,
+        bgStyle: document.getElementById("bgStyle").value,
+        bgColor: document.getElementById("bgColor").value,
+        gradColor1: document.getElementById("gradColor1").value,
+        gradColor2: document.getElementById("gradColor2").value,
+        dropShadowOffset: parseInt(document.querySelector('input[name="dropShadowOffset"]:checked').value),
+        shadowBlur: parseInt(document.querySelector('input[name="shadowBlur"]:checked').value),
+        addOutline: document.getElementById("addOutline").checked,
+        outlineColor: document.getElementById("outlineColor").value,
+        outlineWidth: parseInt(document.querySelector('input[name="outlineWidth"]:checked').value),
+        animationEnabled: document.getElementById("addAnimation").checked,
+        animationPattern: document.getElementById("animationPattern") ? document.getElementById("animationPattern").value : "pulse",
+        outputFormat: document.getElementById("outputFormat").value
+      };
+    }
     
-    // アイコンサイズ変更時にデフォルトのフォントサイズ更新（約60%換算、最低8px）
-    document.getElementById("iconSize").addEventListener("change", function() {
-      const iconSize = parseInt(this.value, 10);
-      const newFontSize = Math.max(Math.floor(iconSize * 0.6), 8);
-      document.getElementById("fontSize").value = newFontSize;
-    });
-    
-    // ヘルパー：SVG文字列からPNGへコンバートするPromise版関数
-    function convertSVGtoPNG(svgStr, size) {
-      return new Promise((resolve, reject) => {
-        const canvas = document.createElement("canvas");
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext("2d");
-        const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgStr);
-        const img = new Image();
-        // ※ data: URL の場合、crossOrigin指定は不要
-        img.onload = function() {
-          ctx.clearRect(0, 0, size, size);
-          ctx.drawImage(img, 0, 0);
-          const dataURL = canvas.toDataURL("image/png");
-          resolve({ size: size, dataUrl: dataURL });
-        };
-        img.onerror = function(e) { reject(e); };
-        img.src = svgData;
+    // キャンバスへ基本アイコン（背景・テキスト・アウトライン）を描画
+    function drawBaseIcon(ctx, params) {
+      ctx.clearRect(0, 0, params.iconSize, params.iconSize);
+      if (params.bgStyle === "solid") {
+        ctx.fillStyle = params.bgColor;
+        ctx.fillRect(0, 0, params.iconSize, params.iconSize);
+      } else if (params.bgStyle === "gradient") {
+        let gradient = ctx.createLinearGradient(0, 0, params.iconSize, params.iconSize);
+        gradient.addColorStop(0, params.gradColor1);
+        gradient.addColorStop(1, params.gradColor2);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, params.iconSize, params.iconSize);
+      }
+      ctx.shadowOffsetX = params.dropShadowOffset;
+      ctx.shadowOffsetY = params.dropShadowOffset;
+      ctx.shadowBlur = params.shadowBlur;
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      
+      ctx.font = params.fontSize + "px " + params.fontFamily;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const lines = params.text.split("\n");
+      const totalTextHeight = lines.length * params.fontSize;
+      
+      if (params.addOutline) {
+        ctx.lineWidth = params.outlineWidth;
+        ctx.strokeStyle = params.outlineColor;
+        lines.forEach((line, index) => {
+          let y = (params.iconSize/2 - totalTextHeight/2 + params.fontSize/2) + index * params.fontSize;
+          ctx.strokeText(line, params.iconSize/2, y);
+        });
+      }
+      ctx.fillStyle = params.textColor;
+      lines.forEach((line, index) => {
+        let y = (params.iconSize/2 - totalTextHeight/2 + params.fontSize/2) + index * params.fontSize;
+        ctx.fillText(line, params.iconSize/2, y);
       });
     }
     
-    // イベント：アイコン生成
-    document.getElementById("generateBtn").addEventListener("click", function () {
-      // 各パラメータの取得
-      const text = document.getElementById("iconText").value || "アプリ";
-      const baseIconSize = parseInt(document.getElementById("iconSize").value, 10) || 64; // ユーザー指定の基準サイズ
-      const userFontSize = parseInt(document.getElementById("fontSize").value, 10) || Math.floor(baseIconSize * 0.6);
-      const fontFamily = document.getElementById("fontFamily").value;
-      const textColor = document.getElementById("textColor").value;
+    // アニメーション変形のパターンをキャンバスに適用
+    function applyAnimationTransform(ctx, pattern, frame, totalFrames, centerX, centerY) {
+      ctx.translate(centerX, centerY);
+      let progress = frame / totalFrames;
+      switch (pattern) {
+        case "pulse":
+          let scaleVal = 1 + 0.1 * Math.sin(progress * 2 * Math.PI);
+          ctx.scale(scaleVal, scaleVal);
+          break;
+        case "rotate":
+          ctx.rotate(progress * 2 * Math.PI);
+          break;
+        case "bounce":
+          ctx.translate(0, 10 * Math.sin(progress * 2 * Math.PI));
+          break;
+        case "flip":
+          ctx.scale(Math.cos(progress * Math.PI), 1);
+          break;
+        case "shake":
+          ctx.translate(5 * Math.sin(progress * 10 * Math.PI), 0);
+          break;
+        case "wave":
+          ctx.rotate(0.1 * Math.sin(progress * 2 * Math.PI));
+          ctx.translate(0, 5 * Math.sin(progress * 2 * Math.PI));
+          break;
+      }
+      ctx.translate(-centerX, -centerY);
+    }
+    
+    // 1フレーム分の描画（変形含む）
+    function drawIconFrame(ctx, params, frame, totalFrames) {
+      ctx.save();
+      if (params.animationEnabled) {
+        applyAnimationTransform(ctx, params.animationPattern, frame, totalFrames, params.iconSize/2, params.iconSize/2);
+      }
+      drawBaseIcon(ctx, params);
+      ctx.restore();
+    }
+    
+    // 動的アニメーションを実行（requestAnimationFrame）
+    function animateIcon() {
+      let params = getParams();
+      const canvas = document.getElementById("iconCanvas");
+      let ctx = canvas.getContext("2d");
+      const totalFrames = 60;
+      drawIconFrame(ctx, params, frameCount, totalFrames);
+      frameCount = (frameCount + 1) % totalFrames;
+      animationRequestId = requestAnimationFrame(animateIcon);
+    }
+    
+    // アイコン作成ボタン押下
+    document.getElementById("createIcon").addEventListener("click", function() {
+      let params = getParams();
+      const canvas = document.getElementById("iconCanvas");
+      canvas.width = params.iconSize;
+      canvas.height = params.iconSize;
       
-      // 背景処理
-      const bgStyle = document.getElementById("bgStyle").value;
-      let backgroundFill = "";
-      let gradientDef = "";
-      if(bgStyle === "gradient") {
-        const gradStart = document.getElementById("gradientStartColor").value;
-        const gradEnd = document.getElementById("gradientEndColor").value;
-        backgroundFill = 'url(#grad1)';
-        gradientDef = `
-          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="${gradStart}"/>
-            <stop offset="100%" stop-color="${gradEnd}"/>
-          </linearGradient>`;
+      // 既存のアニメーション停止
+      if (animating) {
+        cancelAnimationFrame(animationRequestId);
+        animating = false;
+      }
+      
+      if (params.animationEnabled && params.outputFormat !== "gif") {
+        animating = true;
+        frameCount = 0;
+        animateIcon();
       } else {
-        backgroundFill = document.getElementById("backgroundColor").value;
+        let ctx = canvas.getContext("2d");
+        drawIconFrame(ctx, params, 0, 1);
       }
       
-      // ドロップシャドウ設定
-      const shadowColor = document.getElementById("shadowColor").value;
-      const shadowOffset = parseInt(document.getElementById("shadowOffset").value, 10) || 0;
-      const shadowBlur = parseInt(document.getElementById("shadowBlur").value, 10) || 1;
-      
-      // アウトライン設定
-      let outlineAttributes = "";
-      if(document.getElementById("useOutline").checked) {
-        const outlineColor = document.getElementById("outlineColor").value;
-        const outlineWidth = parseInt(document.getElementById("outlineWidth").value, 10) || 2;
-        outlineAttributes = ` stroke="${outlineColor}" stroke-width="${outlineWidth}"`;
-      }
-      
-      // アニメーション設定
-      let animationContent = "";
-      if(document.getElementById("useAnimation").checked) {
-        const animType = document.getElementById("animationType").value;
-        if(animType === "rotate") {
-          // 回転アニメーション：中心を軸に4秒で1回転
-          animationContent = `<animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0 ${baseIconSize/2} ${baseIconSize/2}" to="360 ${baseIconSize/2} ${baseIconSize/2}" dur="4s" repeatCount="indefinite"/>`;
-        } else if(animType === "blink") {
-          // 点滅：1秒でフェードイン・アウト
-          animationContent = `<animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>`;
-        }
-      }
-      
-      // 共通：defs 部分の構築
-      const defsContent = `
-        <filter id="dropshadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="${shadowOffset}" dy="${shadowOffset}" stdDeviation="${shadowBlur}" flood-color="${shadowColor}" flood-opacity="0.5"/>
-        </filter>
-        ${gradientDef}
-      `;
-      
-      // 出力形式の分岐
-      const outputFormat = document.getElementById("outputFormat").value;
-      const downloadLink = document.getElementById("downloadLink");
-      
-      // 共通のSVG生成テンプレート（サイズ、フォントサイズなどは可変に）
-      function generateSVG(currentSize, currentFontSize) {
-        // ※ スマホ用の場合、角丸は currentSize/5 としてより丸みを強調（スマホアイコン風）
-        return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${currentSize}" height="${currentSize}">
-  <defs>
-    ${defsContent}
-  </defs>
-  <rect width="100%" height="100%" fill="${backgroundFill}" rx="${currentSize/5}" ry="${currentSize/5}" />
-  <text x="50%" y="50%" fill="${textColor}" font-family="${fontFamily}" font-size="${currentFontSize}"
-        text-anchor="middle" dominant-baseline="middle" filter="url(#dropshadow)"${outlineAttributes}>
-    ${text}
-    ${animationContent}
-  </text>
-</svg>
-        `;
-      }
-      
-      // 出力形式：SVG、PNG、JPEGの場合は1ファイル出力（従来の処理）
-      if(outputFormat === "svg" || outputFormat === "png" || outputFormat === "jpeg") {
-        // まず、元の基準サイズでSVG文字列生成
-        const svgString = generateSVG(baseIconSize, userFontSize);
-        // SVGの場合はそのまま保存
-        if(outputFormat === "svg") {
-          document.getElementById("svgPreview").innerHTML = svgString;
-          const blob = new Blob([svgString], { type: "image/svg+xml" });
-          const url = URL.createObjectURL(blob);
-          downloadLink.href = url;
-          downloadLink.download = "icon.svg";
-        } else {
-          // PNG/JPEGの場合、Canvas を用いて変換
-          const canvas = document.createElement("canvas");
-          canvas.width = baseIconSize;
-          canvas.height = baseIconSize;
-          const ctx = canvas.getContext("2d");
-          const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
-          const img = new Image();
-          img.onload = function() {
-            ctx.clearRect(0, 0, baseIconSize, baseIconSize);
-            ctx.drawImage(img, 0, 0);
-            let mimeType = outputFormat === "png" ? "image/png" : "image/jpeg";
-            let ext = outputFormat === "png" ? "png" : "jpeg";
-            const dataURL = canvas.toDataURL(mimeType);
-            downloadLink.href = dataURL;
-            downloadLink.download = `icon.${ext}`;
-            // プレビューにはラスター画像を表示
-            document.getElementById("svgPreview").innerHTML = `<img src="${dataURL}" alt="アイコンプレビュー">`;
-          };
-          img.onerror = function(e) {
-            alert("変換エラーが発生しました。");
-          };
-          img.src = svgData;
-        }
-      }
-      else if(outputFormat === "smartphone") {
-        // スマホ用の場合、複数サイズでPNGを生成し ZIP で保存
-        // ここでは代表的なサイズとして 48, 72, 96, 144, 192 ピクセルのアイコンを作成
-        const smartphoneSizes = [48, 72, 96, 144, 192];
-        const promises = smartphoneSizes.map((s) => {
-          // 基準サイズとの比率でフォントサイズを調整
-          const scale = s / baseIconSize;
-          const newFontSize = userFontSize * scale;
-          const svgStr = generateSVG(s, newFontSize);
-          return convertSVGtoPNG(svgStr, s);
-        });
-        // 複数サイズのPNG画像の生成完了を待つ
-        Promise.all(promises).then((results) => {
-          // ZIP に各PNG画像を格納
-          const zip = new JSZip();
-          results.forEach((res) => {
-            // dataUrl は "data:image/png;base64,....." となっているので、base64 部分を抽出
-            const base64data = res.dataUrl.split(',')[1];
-            zip.file(`icon_${res.size}.png`, base64data, { base64: true });
-          });
-          // ZIP ファイルを Blob として生成
-          zip.generateAsync({ type: "blob" }).then((zipBlob) => {
-            const url = URL.createObjectURL(zipBlob);
-            downloadLink.href = url;
-            downloadLink.download = "smartphone-icons.zip";
-            // プレビューには最大サイズの 192x192 を表示
-            const previewImg = results.find(r => r.size === 192);
-            if (previewImg) {
-              document.getElementById("svgPreview").innerHTML = `<img src="${previewImg.dataUrl}" alt="スマホ用アイコンプレビュー">`;
-            } else {
-              document.getElementById("svgPreview").innerHTML = "スマホ用アイコンの生成が完了しました。";
-            }
-          });
-        }).catch((err) => {
-          alert("スマホ用アイコン生成中にエラーが発生しました。");
-          console.error(err);
-        });
+      // SVG出力の場合、プレビューを切り替え
+      if (params.outputFormat === "svg") {
+        document.getElementById("svgPreview").style.display = "block";
+        document.getElementById("iconCanvas").style.display = "none";
+        document.getElementById("svgPreview").innerHTML = generateSVGIcon(params);
+      } else {
+        document.getElementById("svgPreview").style.display = "none";
+        document.getElementById("iconCanvas").style.display = "block";
       }
     });
+    
+    // SVGアイコン生成（SMILアニメーション付き ※簡易例）
+    function generateSVGIcon(params) {
+      const svgNS = "http://www.w3.org/2000/svg";
+      let svg = `<svg xmlns="${svgNS}" width="${params.iconSize}" height="${params.iconSize}">`;
+      svg += `<defs>
+                <filter id="dropShadow">
+                  <feDropShadow dx="${params.dropShadowOffset}" dy="${params.shadowBlur}" stdDeviation="${params.shadowBlur}" flood-color="black" flood-opacity="0.5"/>
+                </filter>`;
+      if (params.bgStyle === "gradient") {
+        svg += `<linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:${params.gradColor1};stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:${params.gradColor2};stop-opacity:1" />
+                </linearGradient>`;
+      }
+      svg += `</defs>`;
+      let fillValue = (params.bgStyle === "solid") ? params.bgColor : "url(#grad1)";
+      svg += `<rect x="0" y="0" width="${params.iconSize}" height="${params.iconSize}" fill="${fillValue}" filter="url(#dropShadow)"/>`;
+      svg += `<g id="iconGroup">`;
+      let lines = params.text.split("\n");
+      let textY = params.iconSize/2 - ((lines.length - 1) * params.fontSize) / 2;
+      svg += `<text x="50%" y="${textY}" dominant-baseline="middle" text-anchor="middle" fill="${params.textColor}" font-family="${params.fontFamily}" font-size="${params.fontSize}"`;
+      if (params.addOutline) {
+         svg += ` stroke="${params.outlineColor}" stroke-width="${params.outlineWidth}"`;
+      }
+      svg += `>`;
+      if (lines.length > 0) {
+         svg += lines[0];
+         for (let i = 1; i < lines.length; i++) {
+           svg += `<tspan x="50%" dy="${params.fontSize}">${lines[i]}</tspan>`;
+         }
+      }
+      svg += `</text>`;
+      
+      if (params.animationEnabled) {
+        let animateTag = "";
+        switch (params.animationPattern) {
+          case "pulse":
+            animateTag = `<animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="1s" repeatCount="indefinite" />`;
+            break;
+          case "rotate":
+            animateTag = `<animateTransform attributeName="transform" type="rotate" from="0 ${params.iconSize/2} ${params.iconSize/2}" to="360 ${params.iconSize/2} ${params.iconSize/2}" dur="2s" repeatCount="indefinite" />`;
+            break;
+          case "bounce":
+            animateTag = `<animateTransform attributeName="transform" type="translate" values="0,0;0,10;0,0" dur="1s" repeatCount="indefinite" />`;
+            break;
+          case "flip":
+            animateTag = `<animateTransform attributeName="transform" type="scale" values="1,1;-1,1;1,1" dur="1s" repeatCount="indefinite" />`;
+            break;
+          case "shake":
+            animateTag = `<animateTransform attributeName="transform" type="translate" values="0,0;5,0;-5,0;0,0" dur="0.5s" repeatCount="indefinite" />`;
+            break;
+          case "wave":
+            animateTag = `<animateTransform attributeName="transform" type="rotate" from="0 ${params.iconSize/2} ${params.iconSize/2}" to="10 ${params.iconSize/2} ${params.iconSize/2}" dur="0.5s" repeatCount="indefinite" />`;
+            break;
+        }
+        svg = svg.replace('</g>', animateTag + '</g>');
+      }
+      
+      svg += `</svg>`;
+      return svg;
+    }
+    
+    // アイコンダウンロード処理
+    document.getElementById("downloadIcon").addEventListener("click", function() {
+      let params = getParams();
+      if (params.outputFormat === "png" || params.outputFormat === "jpeg") {
+         const canvas = document.getElementById("iconCanvas");
+         const mimeType = params.outputFormat === "jpeg" ? "image/jpeg" : "image/png";
+         const dataURL = canvas.toDataURL(mimeType);
+         let link = document.createElement("a");
+         link.href = dataURL;
+         link.download = "icon." + params.outputFormat;
+         link.click();
+      } else if (params.outputFormat === "svg") {
+         const svgData = generateSVGIcon(params);
+         const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+         const url = URL.createObjectURL(blob);
+         let link = document.createElement("a");
+         link.href = url;
+         link.download = "icon.svg";
+         link.click();
+      } else if (params.outputFormat === "gif") {
+         if (params.animationEnabled) {
+            generateGIFIcon(params);
+         } else {
+            const canvas = document.getElementById("iconCanvas");
+            const dataURL = canvas.toDataURL("image/gif");
+            let link = document.createElement("a");
+            link.href = dataURL;
+            link.download = "icon.gif";
+            link.click();
+         }
+      }
+    });
+    
+    // GIFアニメーション生成 (gif.js 利用)
+    function generateGIFIcon(params) {
+      let gif = new GIF({
+         workers: 2,
+         quality: 10,
+         workerScript: "https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js"
+      });
+      const totalFrames = 20;
+      let tempCanvas = document.createElement("canvas");
+      tempCanvas.width = params.iconSize;
+      tempCanvas.height = params.iconSize;
+      let tempCtx = tempCanvas.getContext("2d");
+      for (let frame = 0; frame < totalFrames; frame++) {
+         tempCtx.clearRect(0, 0, params.iconSize, params.iconSize);
+         drawIconFrame(tempCtx, params, frame, totalFrames);
+         gif.addFrame(tempCtx, {copy: true, delay: 100});
+      }
+      gif.on('finished', function(blob) {
+         const url = URL.createObjectURL(blob);
+         let link = document.createElement("a");
+         link.href = url;
+         link.download = "icon.gif";
+         link.click();
+      });
+      gif.render();
+    }
   </script>
 </body>
 </html>
