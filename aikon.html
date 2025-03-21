@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>おしゃれな文字アイコン作成アプリ</title>
+  <!-- Google Fonts：日本語フォント -->
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP&family=Yu+Gothic&family=Meiryo&family=Hiragino+Kaku+Gothic+Pro&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f2f2f2;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    .controls {
+      max-width: 700px;
+      margin: 0 auto 20px;
+      background: #fff;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+    }
+    .controls label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .controls input,
+    .controls select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    .controls input[type="checkbox"] {
+      width: auto;
+      margin-right: 5px;
+    }
+    .controls .option-group {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+    }
+    .controls button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      background: #007bff;
+      color: #fff;
+      cursor: pointer;
+    }
+    .controls button:hover {
+      background: #0056b3;
+    }
+    .preview {
+      max-width: 700px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    #svgPreview {
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #fff;
+      display: inline-block;
+    }
+    .download-link {
+      display: inline-block;
+      margin-top: 20px;
+      font-size: 18px;
+      text-decoration: none;
+      color: #fff;
+      background: #28a745;
+      padding: 10px 20px;
+      border-radius: 4px;
+    }
+    .download-link:hover {
+      background: #1e7e34;
+    }
+  </style>
+</head>
+<body>
+  <h1>おしゃれな文字アイコン作成アプリ</h1>
+  <div class="controls">
+    <!-- ① アイコンの文字 -->
+    <label for="iconText">アイコンに表示するテキスト</label>
+    <input type="text" id="iconText" placeholder="例: アプリ" value="アプリ">
+
+    <!-- ② アイコンサイズ -->
+    <label for="iconSize">アイコンサイズ</label>
+    <select id="iconSize">
+      <option value="16">16×16 ピクセル (カーソル等)</option>
+      <option value="32">32×32 ピクセル (ファイルマネージャ等)</option>
+      <option value="48">48×48 ピクセル</option>
+      <option value="64" selected>64×64 ピクセル (一般的なアプリ)</option>
+      <option value="128">128×128 ピクセル</option>
+    </select>
+
+    <!-- ③ フォントサイズ -->
+    <label for="fontSize">フォントサイズ（px）</label>
+    <input type="number" id="fontSize" value="38">
+
+    <!-- ④ フォントファミリー（日本語） -->
+    <label for="fontFamily">フォントファミリー</label>
+    <select id="fontFamily">
+      <option value="'Noto Sans JP', sans-serif" selected>Noto Sans JP</option>
+      <option value="'游ゴシック', sans-serif">游ゴシック</option>
+      <option value="'メイリオ', sans-serif">メイリオ</option>
+      <option value="'Hiragino Kaku Gothic Pro', sans-serif">ヒラギノ角ゴ Pro</option>
+      <option value="'MS Gothic', monospace">MS ゴシック</option>
+    </select>
+
+    <!-- ⑤ 文字色 -->
+    <label for="textColor">文字の色</label>
+    <input type="color" id="textColor" value="#ffffff">
+
+    <!-- ⑥ 背景スタイル -->
+    <label for="bgStyle">背景スタイル</label>
+    <select id="bgStyle">
+      <option value="solid" selected>単色</option>
+      <option value="gradient">グラデーション</option>
+    </select>
+
+    <div id="solidBgOptions" class="option-group">
+      <label for="backgroundColor">背景の色</label>
+      <input type="color" id="backgroundColor" value="#007bff">
+    </div>
+
+    <div id="gradientOptions" class="option-group" style="display:none;">
+      <label for="gradientStartColor">グラデーション開始色</label>
+      <input type="color" id="gradientStartColor" value="#007bff">
+      <label for="gradientEndColor">グラデーション終了色</label>
+      <input type="color" id="gradientEndColor" value="#00d4ff">
+    </div>
+
+    <!-- ⑦ ドロップシャドウ -->
+    <label for="shadowColor">ドロップシャドウの色</label>
+    <input type="color" id="shadowColor" value="#000000">
+    <label for="shadowOffset">ドロップシャドウのオフセット（px）</label>
+    <input type="number" id="shadowOffset" value="2">
+    <label for="shadowBlur">シャドウブラー（ぼかし）</label>
+    <input type="number" id="shadowBlur" value="1">
+
+    <!-- ⑧ アウトライン（文字の縁取り） -->
+    <label>
+      <input type="checkbox" id="useOutline">
+      文字のアウトラインを追加する
+    </label>
+    <div id="outlineOptions" class="option-group" style="display:none;">
+      <label for="outlineColor">アウトラインの色</label>
+      <select id="outlineColor">
+        <option value="red">赤</option>
+        <option value="blue">青</option>
+        <option value="yellow">黄</option>
+        <option value="black" selected>黒</option>
+        <option value="white">白</option>
+        <option value="purple">紫</option>
+      </select>
+      <label for="outlineWidth">アウトラインの幅 (px)</label>
+      <input type="number" id="outlineWidth" value="2">
+    </div>
+
+    <!-- ⑨ アニメーション -->
+    <label>
+      <input type="checkbox" id="useAnimation">
+      アニメーションを追加する
+    </label>
+    <div id="animationOptions" class="option-group" style="display:none;">
+      <label for="animationType">アニメーションタイプ</label>
+      <select id="animationType">
+        <option value="rotate" selected>回転</option>
+        <option value="blink">点滅</option>
+      </select>
+    </div>
+
+    <!-- ⑩ 出力形式 -->
+    <label for="outputFormat">出力形式</label>
+    <select id="outputFormat">
+      <option value="svg" selected>SVG (ベクター)</option>
+      <option value="png">PNG (ラスター)</option>
+      <option value="jpeg">JPEG (ラスター)</option>
+    </select>
+
+    <button id="generateBtn">アイコンを生成</button>
+  </div>
+  
+  <div class="preview">
+    <h2>プレビュー</h2>
+    <div id="svgPreview"></div>
+    <a id="downloadLink" class="download-link" href="#" download="icon.svg">アイコンをダウンロード</a>
+  </div>
+  
+  <script>
+    // 背景スタイルの切替
+    document.getElementById("bgStyle").addEventListener("change", function() {
+      if (this.value === "gradient") {
+        document.getElementById("gradientOptions").style.display = "block";
+        document.getElementById("solidBgOptions").style.display = "none";
+      } else {
+        document.getElementById("gradientOptions").style.display = "none";
+        document.getElementById("solidBgOptions").style.display = "block";
+      }
+    });
+    
+    // アウトライン表示切替
+    document.getElementById("useOutline").addEventListener("change", function() {
+      document.getElementById("outlineOptions").style.display = this.checked ? "block" : "none";
+    });
+    
+    // アニメーションの表示切替
+    document.getElementById("useAnimation").addEventListener("change", function() {
+      document.getElementById("animationOptions").style.display = this.checked ? "block" : "none";
+    });
+    
+    // アイコンサイズ変更時にフォントサイズの既定値も更新（約60%換算、最低8px）
+    document.getElementById("iconSize").addEventListener("change", function() {
+      const iconSize = parseInt(this.value, 10);
+      const newFontSize = Math.max(Math.floor(iconSize * 0.6), 8);
+      document.getElementById("fontSize").value = newFontSize;
+    });
+    
+    // アイコン生成処理
+    document.getElementById("generateBtn").addEventListener("click", function () {
+      // 入力値の取得
+      const text = document.getElementById("iconText").value || "アプリ";
+      const iconSize = parseInt(document.getElementById("iconSize").value, 10) || 64;
+      const fontSize = parseInt(document.getElementById("fontSize").value, 10) || Math.floor(iconSize * 0.6);
+      const fontFamily = document.getElementById("fontFamily").value;
+      const textColor = document.getElementById("textColor").value;
+      
+      const bgStyle = document.getElementById("bgStyle").value;
+      let backgroundFill = "";
+      let gradientDef = "";
+      if(bgStyle === "gradient") {
+        const gradStart = document.getElementById("gradientStartColor").value;
+        const gradEnd = document.getElementById("gradientEndColor").value;
+        backgroundFill = 'url(#grad1)';
+        gradientDef = `
+          <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="${gradStart}"/>
+            <stop offset="100%" stop-color="${gradEnd}"/>
+          </linearGradient>`;
+      } else {
+        backgroundFill = document.getElementById("backgroundColor").value;
+      }
+      
+      const shadowColor = document.getElementById("shadowColor").value;
+      const shadowOffset = parseInt(document.getElementById("shadowOffset").value, 10) || 0;
+      const shadowBlur = parseInt(document.getElementById("shadowBlur").value, 10) || 1;
+      
+      let outlineAttributes = "";
+      if(document.getElementById("useOutline").checked) {
+        const outlineColor = document.getElementById("outlineColor").value;
+        const outlineWidth = parseInt(document.getElementById("outlineWidth").value, 10) || 2;
+        outlineAttributes = ` stroke="${outlineColor}" stroke-width="${outlineWidth}"`;
+      }
+      
+      let animationContent = "";
+      if(document.getElementById("useAnimation").checked) {
+        const animType = document.getElementById("animationType").value;
+        if(animType === "rotate") {
+          // 回転アニメーション：アイコン中央を軸に4秒で1回転
+          animationContent = `<animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0 ${iconSize/2} ${iconSize/2}" to="360 ${iconSize/2} ${iconSize/2}" dur="4s" repeatCount="indefinite"/>`;
+        } else if(animType === "blink") {
+          // 点滅アニメーション：1秒間でフェードイン・フェードアウト
+          animationContent = `<animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>`;
+        }
+      }
+      
+      // defs 部分の作成：ドロップシャドウと必要ならグラデーションを含む
+      const defsContent = `
+        <filter id="dropshadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="${shadowOffset}" dy="${shadowOffset}" stdDeviation="${shadowBlur}" flood-color="${shadowColor}" flood-opacity="0.5"/>
+        </filter>
+        ${gradientDef}
+      `;
+      
+      // SVG文字列生成
+      let svgString = `
+<svg xmlns="http://www.w3.org/2000/svg" width="${iconSize}" height="${iconSize}">
+  <defs>
+    ${defsContent}
+  </defs>
+  <rect width="100%" height="100%" fill="${backgroundFill}" rx="${iconSize/10}" ry="${iconSize/10}" />
+  <text x="50%" y="50%" fill="${textColor}" font-family="${fontFamily}" font-size="${fontSize}"
+        text-anchor="middle" dominant-baseline="middle" filter="url(#dropshadow)"${outlineAttributes}>
+    ${text}
+    ${animationContent}
+  </text>
+</svg>
+      `;
+      
+      // プレビューにSVF文字列を表示
+      document.getElementById("svgPreview").innerHTML = svgString;
+      
+      // 出力形式に応じたダウンロード処理
+      const outputFormat = document.getElementById("outputFormat").value;
+      const downloadLink = document.getElementById("downloadLink");
+      
+      if(outputFormat === "svg") {
+        // SVGの場合、BlobからURLを作成
+        const blob = new Blob([svgString], { type: "image/svg+xml" });
+        const url = URL.createObjectURL(blob);
+        downloadLink.href = url;
+        downloadLink.download = "icon.svg";
+      } else {
+        // PNGやJPEGの場合、Canvas経由で変換
+        // 新規Canvasを作成
+        const canvas = document.createElement("canvas");
+        canvas.width = iconSize;
+        canvas.height = iconSize;
+        const ctx = canvas.getContext("2d");
+        
+        // SVG文字列からData URLを作成
+        const svgData = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
+        const img = new Image();
+        img.onload = function() {
+          ctx.clearRect(0, 0, iconSize, iconSize);
+          ctx.drawImage(img, 0, 0);
+          // 出力形式に応じたMIMEタイプ
+          let mimeType = "image/png";
+          let ext = "png";
+          if(outputFormat === "jpeg") {
+            mimeType = "image/jpeg";
+            ext = "jpeg";
+          }
+          const dataURL = canvas.toDataURL(mimeType);
+          downloadLink.href = dataURL;
+          downloadLink.download = `icon.${ext}`;
+          // プレビューにラスター画像も表示（オプション）
+          document.getElementById("svgPreview").innerHTML = `<img src="${dataURL}" alt="アイコンプレビュー">`;
+        };
+        img.onerror = function(e) {
+          alert("変換エラーが発生しました。ブラウザのセキュリティ設定等を確認してください。");
+        };
+        img.src = svgData;
+      }
+    });
+  </script>
+</body>
+</html>
