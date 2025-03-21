@@ -37,6 +37,11 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
+    .comment {
+      font-size: 0.85em;
+      color: #555;
+      margin-left: 8px;
+    }
     /* プレビュー領域 */
     .preview {
       text-align: center;
@@ -69,6 +74,9 @@
             <option value="256">256×256</option>
             <option value="518">518×518</option>
           </select>
+          <span class="comment">
+            ※ 小さいサイズは favicon やボタン用、大きいサイズはSNS投稿などに最適
+          </span>
         </div>
         <div class="control">
           <label for="fontSize">フォントサイズ(px):</label>
@@ -180,6 +188,9 @@
             <option value="gif">GIF</option>
             <option value="ico">ICO</option>
           </select>
+          <span class="comment">
+            ※ PNG: Web用、JPEG: 写真向け、SVG: ベクター、GIF: アニメーション、ICO: Windows用アイコン
+          </span>
         </div>
       </div>
       
@@ -310,7 +321,7 @@
       ctx.translate(-centerX, -centerY);
     }
     
-    // 1フレーム分の描画（変形含む）
+    // 1フレーム分描画（変形含む）
     function drawIconFrame(ctx, params, frame, totalFrames) {
       ctx.save();
       if (params.animationEnabled) {
@@ -426,7 +437,7 @@
       return svg;
     }
     
-    // ICO生成処理：canvasからPNGデータを取得しICO用ヘッダを付与
+    // ICO生成処理：canvasからPNGデータを取得しICO用ヘッダを付加
     function canvasToICO(canvas) {
       // 1. PNGデータを取得
       const pngDataUrl = canvas.toDataURL("image/png");
