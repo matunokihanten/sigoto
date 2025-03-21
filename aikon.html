@@ -2,20 +2,26 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>高機能文字アイコン作成アプリ - ICO出力対応</title>
+  <title>高機能文字アイコン作成アプリ</title>
   <style>
-    /* 基本のリセット＆日本語フォント設定 */
+    /* ベースリセット＆日本語フォント設定 */
     body {
-      font-family: "Noto Sans JP", "メイリオ", "游ゴシック", "ＭＳ ゴシック", sans-serif;
+      margin: 0;
       background-color: #f2f2f2;
-      padding: 20px;
+      font-family: "Noto Sans JP", "メイリオ", "游ゴシック", "ＭＳ ゴシック", sans-serif;
     }
     .container {
       max-width: 1000px;
-      margin: 0 auto;
+      margin: 40px auto;
+      background-color: #fff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
     }
     h1 {
       text-align: center;
+      margin-bottom: 30px;
+      color: #333;
     }
     .control-row {
       display: flex;
@@ -29,23 +35,61 @@
     }
     label {
       margin-right: 8px;
+      font-weight: 500;
+      color: #333;
     }
     select,
-    input,
-    textarea {
-      padding: 5px;
+    input[type="range"],
+    input[type="color"],
+    textarea,
+    output {
+      padding: 6px 8px;
       border: 1px solid #ccc;
-      border-radius: 4px;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      transition: border 0.2s;
+    }
+    select:focus,
+    input[type="range"]:focus,
+    input[type="color"]:focus,
+    textarea:focus {
+      border-color: #4a90e2;
+    }
+    textarea {
+      resize: vertical;
     }
     .comment {
       font-size: 0.85em;
       color: #555;
       margin-left: 8px;
     }
+    /* ボタンスタイル */
+    button {
+      cursor: pointer;
+      background: linear-gradient(135deg, #4a90e2, #50e3c2);
+      border: none;
+      color: #fff;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.2s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    button:hover {
+      background: linear-gradient(135deg, #50e3c2, #4a90e2);
+    }
+    button:active {
+      transform: scale(0.97);
+    }
     /* プレビュー領域 */
     .preview {
       text-align: center;
-      margin-top: 20px;
+      margin-top: 25px;
+    }
+    canvas, #svgPreview {
+      border: 2px solid #ddd;
+      border-radius: 8px;
     }
   </style>
 </head>
@@ -53,37 +97,34 @@
   <div class="container">
     <h1>高機能文字アイコン作成アプリ</h1>
     
-    <!-- 各種入力フォーム -->
     <div class="controls">
       <!-- テキスト入力 -->
       <div class="control-row">
         <div class="control">
           <label for="iconText">アイコンに表示するテキスト:</label>
-          <!-- 初期状態は「松」に設定 -->
-          <textarea id="iconText" rows="3" cols="30">松</textarea>
+          <!-- 初期サンプルは「松」 -->
+          <textarea id="iconText" rows="2" cols="20">松</textarea>
         </div>
       </div>
       
-      <!-- サイズとフォント設定 -->
+      <!-- サイズ・フォント設定 -->
       <div class="control-row">
         <div class="control">
-          <label for="iconSize">アイコンサイズ(正方形 px):</label>
+          <label for="iconSize">アイコンサイズ (正方形 px):</label>
           <select id="iconSize">
             <option value="32">32×32</option>
             <option value="64">64×64</option>
-            <option value="128" selected>128×128</option>
-            <option value="256">256×256</option>
+            <option value="128">128×128</option>
+            <option value="256" selected>256×256</option>
             <option value="518">518×518</option>
           </select>
-          <span class="comment">
-            ※ 小さいサイズは favicon やボタン用、大きいサイズはSNS投稿などに最適
-          </span>
+          <span class="comment">※ 小さいサイズは favicon やボタン用、大きいサイズはSNS投稿用</span>
         </div>
         <div class="control">
-          <label for="fontSize">フォントサイズ(px):</label>
+          <label for="fontSize">フォントサイズ (px):</label>
           <!-- ズーム式（スライダー） -->
-          <input type="range" id="fontSize" min="16" max="518" value="32" oninput="this.nextElementSibling.value = this.value">
-          <output>32</output>
+          <input type="range" id="fontSize" min="16" max="518" value="150" oninput="this.nextElementSibling.value = this.value">
+          <output>150</output>
         </div>
         <div class="control">
           <label for="fontFamily">フォントファミリー:</label>
@@ -96,7 +137,7 @@
         </div>
       </div>
       
-      <!-- 色設定：文字色／背景色／グラデーション -->
+      <!-- 色設定（文字色／背景色／グラデーション） -->
       <div class="control-row">
         <div class="control">
           <label for="textColor">文字色:</label>
@@ -104,9 +145,10 @@
         </div>
         <div class="control">
           <label for="bgStyle">背景スタイル:</label>
+          <!-- 背景はデフォルトでグラデーション -->
           <select id="bgStyle">
-            <option value="solid" selected>単色</option>
-            <option value="gradient">グラデーション</option>
+            <option value="solid">単色</option>
+            <option value="gradient" selected>グラデーション</option>
           </select>
         </div>
         <!-- 単色用 -->
@@ -114,19 +156,19 @@
           <label for="bgColor">背景色:</label>
           <input type="color" id="bgColor" value="#FFFFFF">
         </div>
-        <!-- グラデーション用：2色 -->
-        <div class="control" id="bgGradient" style="display: none;">
+        <!-- グラデーション用（2色指定） -->
+        <div class="control" id="bgGradient" style="display: flex;">
           <label for="gradColor1">グラデーション色1:</label>
-          <input type="color" id="gradColor1" value="#FFD700">
+          <input type="color" id="gradColor1" value="#FF4500">
           <label for="gradColor2">グラデーション色2:</label>
-          <input type="color" id="gradColor2" value="#ADD8E6">
+          <input type="color" id="gradColor2" value="#FFD700">
         </div>
       </div>
       
-      <!-- シャドウ、アウトライン、アニメーション -->
+      <!-- シャドウ・アウトライン・アニメーション -->
       <div class="control-row">
         <div class="control">
-          <span>ドロップシャドウ オフセット(px):</span>
+          <span>ドロップシャドウ オフセット (px):</span>
           <input type="radio" name="dropShadowOffset" value="0" id="ds0" checked>
           <label for="ds0">0</label>
           <input type="radio" name="dropShadowOffset" value="5" id="ds5">
@@ -135,7 +177,7 @@
           <label for="ds10">10</label>
         </div>
         <div class="control">
-          <span>シャドウブラー(px):</span>
+          <span>シャドウブラー (px):</span>
           <input type="radio" name="shadowBlur" value="0" id="blur0" checked>
           <label for="blur0">0</label>
           <input type="radio" name="shadowBlur" value="5" id="blur5">
@@ -152,7 +194,7 @@
         <div class="control" id="outlineOptions" style="display: none;">
           <label for="outlineColor">アウトライン色:</label>
           <input type="color" id="outlineColor" value="#000000">
-          <span>幅(px):</span>
+          <span>幅 (px):</span>
           <input type="radio" name="outlineWidth" value="1" id="outlineWidth1" checked>
           <label for="outlineWidth1">1</label>
           <input type="radio" name="outlineWidth" value="3" id="outlineWidth3">
@@ -162,15 +204,14 @@
         </div>
       </div>
       <div class="control-row">
-        <!-- アニメーション初期状態はチェック済み -->
         <div class="control">
           <input type="checkbox" id="addAnimation" checked>
           <label for="addAnimation">アニメーション追加</label>
         </div>
         <div class="control" id="animationOptions" style="display: flex;">
-          <!-- デフォルトのアニメーションパターンは「回転」 -->
           <label for="animationPattern">アニメーションパターン:</label>
           <select id="animationPattern">
+            <!-- 初期状態は回転 -->
             <option value="rotate" selected>回転</option>
             <option value="pulse">パルス</option>
             <option value="bounce">バウンス</option>
@@ -180,7 +221,8 @@
           </select>
         </div>
       </div>
-      <!-- 出力形式 -->
+      
+      <!-- 出力形式（フィールドの右側に用途記載） -->
       <div class="control-row">
         <div class="control">
           <label for="outputFormat">出力形式:</label>
@@ -192,7 +234,7 @@
             <option value="ico">ICO</option>
           </select>
           <span class="comment">
-            ※ PNG: Web用、JPEG: 写真向け、SVG: ベクター、GIF: アニメーション、ICO: Windows用アイコン
+            ※ PNG: Web用・透過対応, JPEG: 写真・圧縮用, SVG: 無劣化拡大, GIF: アニメーション, ICO: Windows用
           </span>
         </div>
       </div>
@@ -204,13 +246,14 @@
       </div>
     </div>
     
-    <!-- プレビューエリア -->
+    <!-- プレビュー領域 -->
     <div class="preview">
-      <canvas id="iconCanvas" width="128" height="128"></canvas>
+      <canvas id="iconCanvas" width="256" height="256"></canvas>
       <div id="svgPreview" style="display: none;"></div>
     </div>
   </div>
   
+  <!-- GIF用ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
   <script>
     // 各種表示切り替え
@@ -232,7 +275,7 @@
     
     let animationRequestId, frameCount = 0, animating = false;
     
-    // 入力値をまとめたパラメータ
+    // 各入力値をパラメータオブジェクトにまとめる
     function getParams() {
       const iconSize = parseInt(document.getElementById("iconSize").value);
       return {
@@ -324,7 +367,7 @@
       ctx.translate(-centerX, -centerY);
     }
     
-    // 1フレーム分描画（変形含む）
+    // 1フレーム分の描画（変形含む）
     function drawIconFrame(ctx, params, frame, totalFrames) {
       ctx.save();
       if (params.animationEnabled) {
@@ -334,7 +377,7 @@
       ctx.restore();
     }
     
-    // アニメーション用ループ
+    // アニメーションループ
     function animateIcon() {
       let params = getParams();
       const canvas = document.getElementById("iconCanvas");
@@ -345,7 +388,7 @@
       animationRequestId = requestAnimationFrame(animateIcon);
     }
     
-    // アイコン作成ボタン押下時
+    // 「アイコン作成」ボタン押下時の処理
     document.getElementById("createIcon").addEventListener("click", function() {
       let params = getParams();
       const canvas = document.getElementById("iconCanvas");
@@ -367,7 +410,7 @@
         drawIconFrame(ctx, params, 0, 1);
       }
       
-      // SVG出力の場合のプレビュー切り替え
+      // SVG出力の場合はプレビューを切り替え
       if (params.outputFormat === "svg") {
         document.getElementById("svgPreview").style.display = "block";
         document.getElementById("iconCanvas").style.display = "none";
@@ -474,7 +517,7 @@
       view.setUint32(offset, pngLength, true); offset += 4; // PNGデータサイズ
       view.setUint32(offset, headerSize + entrySize, true); offset += 4; // PNGデータ開始オフセット
       
-      // PNGデータをそのまま貼り付け（バイナリストリングの各文字コードを1バイトずつ書き込み）
+      // PNGデータをそのまま貼り付け（各文字コードを1バイトずつ書き込み）
       for (let i = 0; i < pngLength; i++) {
         view.setUint8(offset + i, pngStr.charCodeAt(i));
       }
@@ -532,7 +575,7 @@
       }
     });
     
-    // GIFアニメーション生成 (gif.js 利用)
+    // GIFアニメーション生成 (gif.js 使用)
     function generateGIFIcon(params) {
       let gif = new GIF({
          workers: 2,
@@ -547,7 +590,7 @@
       for (let frame = 0; frame < totalFrames; frame++) {
          tempCtx.clearRect(0, 0, params.iconSize, params.iconSize);
          drawIconFrame(tempCtx, params, frame, totalFrames);
-         gif.addFrame(tempCtx, {copy: true, delay: 100});
+         gif.addFrame(tempCtx, { copy: true, delay: 100 });
       }
       gif.on('finished', function(blob) {
          const url = URL.createObjectURL(blob);
