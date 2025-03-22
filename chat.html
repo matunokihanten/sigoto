@@ -4,43 +4,96 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>リアルタイムチャット</title>
-  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    ul { list-style: none; padding: 0; }
-    li { padding: 8px; background: #f4f4f4; margin: 5px 0; }
-    input { padding: 10px; width: 80%; margin-right: 5px; }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+    #chatContainer {
+      width: 90%;
+      height: 60vh;
+      border: 1px solid #ccc;
+      margin: 10px auto;
+      padding: 10px;
+      overflow-y: scroll;
+      background-color: #f9f9f9;
+    }
+    .chatMessage {
+      padding: 5px;
+      margin-bottom: 5px;
+      border-bottom: 1px solid #ccc;
+    }
   </style>
 </head>
 <body>
-  <ul id="messages"></ul>
-  <form id="form">
-    <input id="username" placeholder="ユーザー名" required>
-    <input id="message" placeholder="メッセージ" required>
-    <button type="submit">送信</button>
-  </form>
-  <script>
-    const socket = io();
-    const form = document.getElementById('form');
-    const username = document.getElementById('username');
-    const messageInput = document.getElementById('message');
-    const messages = document.getElementById('messages');
+  <header>
+    <h1>リアルタイムチャット</h1>
+  </header>
 
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      if (username.value && messageInput.value) {
-        socket.emit('send message', {
-          username: username.value,
-          text: messageInput.value,
-        });
-        messageInput.value = '';
+  <div id="chatContainer"></div>
+  <input type="text" id="nameInput" placeholder="名前 (空の場合は『名無し』)">
+  <input type="text" id="textInput" placeholder="メッセージを入力">
+  <button id="sendButton">送信</button>
+
+  <script>
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyCluZ07gfC31CH5njxq_inel53KOvV6jG8",
+      authDomain: "chat-c59bf.firebaseapp.com",
+      databaseURL: "https://chat-c59bf-default-rtdb.firebaseio.com",
+      projectId: "chat-c59bf",
+      storageBucket: "chat-c59bf.appspot.com",
+      messagingSenderId: "383217078378",
+      appId: "1:383217078378:web:3b90e80e25f7351d6bba13"
+    };
+
+    // Firebase初期化
+    firebase.initializeApp(firebaseConfig);
+
+    const db = firebase.database();
+    const chatRef = db.ref("chat");
+
+    // DOMエレメント
+    const chatContainer = document.getElementById("chatContainer");
+    const textInput = document.getElementById("textInput");
+    const nameInput = document.getElementById("nameInput");
+    const sendButton = document.getElementById("sendButton");
+
+    // メッセージを送信
+    sendButton.addEventListener("click", function() {
+      const name = nameInput.value.trim() || "名無し";
+      const message = textInput.value.trim();
+      const timestamp = new Date().toLocaleString();
+
+      if (message === "") {
+        alert("メッセージを入力してください");
+        return;
       }
+
+      chatRef.push({
+        name: name,
+        message: message,
+        time: timestamp
+      });
+
+      textInput.value = ""; // 入力欄をクリア
     });
 
-    socket.on('new message', (msg) => {
-      const item = document.createElement('li');
-      item.textContent = `${msg.username}: ${msg.text}`;
-      messages.appendChild(item);
+    // メッセージのリアルタイム受信
+    chatRef.on("child_added", function(snapshot) {
+      const data = snapshot.val();
+      const messageDiv = document.createElement("div");
+      messageDiv.classList.add("chatMessage");
+      messageDiv.textContent = `${data.time} | ${data.name}: ${data.message}`;
+      chatContainer.appendChild(messageDiv);
+
+      // 最新メッセージにスクロール
+      chatContainer.scrollTop = chatContainer.scrollHeight;
     });
   </script>
 </body>
