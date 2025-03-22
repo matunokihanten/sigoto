@@ -1,51 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <title>美形カメラ</title>
-    <style>
-        canvas {
-            display: block;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>リアルタイムチャット</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    ul { list-style: none; padding: 0; }
+    li { padding: 8px; background: #f4f4f4; margin: 5px 0; }
+    input { padding: 10px; width: 80%; margin-right: 5px; }
+  </style>
 </head>
 <body>
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
+  <ul id="messages"></ul>
+  <form id="form">
+    <input id="username" placeholder="ユーザー名" required>
+    <input id="message" placeholder="メッセージ" required>
+    <button type="submit">送信</button>
+  </form>
+  <script>
+    const socket = io();
+    const form = document.getElementById('form');
+    const username = document.getElementById('username');
+    const messageInput = document.getElementById('message');
+    const messages = document.getElementById('messages');
 
-    <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // カメラ映像の取得
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                video.srcObject = stream;
-            })
-            .catch(err => console.error('カメラ取得エラー:', err));
-
-        // エフェクトの適用
-        video.addEventListener('play', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-
-            const draw = () => {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                
-                // 色調調整 (例: 明るさを増やす)
-                let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                let data = imageData.data;
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] += 20;      // 赤チャンネルを増加
-                    data[i + 1] += 20;  // 緑チャンネルを増加
-                    data[i + 2] += 20;  // 青チャンネルを増加
-                }
-                ctx.putImageData(imageData, 0, 0);
-                
-                requestAnimationFrame(draw);
-            };
-            draw();
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (username.value && messageInput.value) {
+        socket.emit('send message', {
+          username: username.value,
+          text: messageInput.value,
         });
-    </script>
+        messageInput.value = '';
+      }
+    });
+
+    socket.on('new message', (msg) => {
+      const item = document.createElement('li');
+      item.textContent = `${msg.username}: ${msg.text}`;
+      messages.appendChild(item);
+    });
+  </script>
 </body>
 </html>
