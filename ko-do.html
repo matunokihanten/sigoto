@@ -224,10 +224,11 @@
     let isDarkMode = false;
 
     window.addEventListener("load", () => {
+      // エディター初期値は空文字に設定
       editor = CodeMirror(document.getElementById("editor"), {
         mode: "htmlmixed",
         lineNumbers: true,
-        value: "<!-- HTMLコードをここに入力 -->",
+        value: "",
         theme: "default"
       });
       updatePreview();
@@ -280,9 +281,10 @@
       } else {
         newFileName = "ファイル" + (Object.keys(projectFiles).length + 1);
       }
+      // 新規ファイルの内容は空文字に設定
       projectFiles[newFileName] = {
         title: newFileName,
-        content: "<!-- 新規ファイル -->",
+        content: "",
         versions: []
       };
       saveProjectToLocalStorage();
