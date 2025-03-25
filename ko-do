@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>高機能HTMLエディタ</title>
+
+  <!-- CodeMirror CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.css">
+  <!-- CodeMirror ダークテーマ (material-darker) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/theme/material-darker.min.css">
+  
+  <style>
+    /* 全体レイアウト */
+    body {
+      margin: 0;
+      display: flex;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+    }
+    /* サイドバー */
+    #sidebar {
+      width: 240px;
+      background: #f0f0f0;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      border-right: 1px solid #ccc;
+    }
+    #sidebar h3 {
+      margin-top: 0;
+      font-size: 16px;
+    }
+    #sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 5px 0;
+    }
+    #sidebar li {
+      margin-bottom: 5px;
+    }
+    #sidebar button {
+      cursor: pointer;
+      padding: 4px 6px;
+      border: 1px solid #999;
+      background: #fff;
+      font-size: 12px;
+    }
+    /* サイドバー中のプロジェクト名入力欄 */
+    #projectNameInput {
+      width: 100%;
+      padding: 4px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    /* メイン部分 */
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    /* 上部コントロール */
+    #topbar {
+      padding: 8px 10px;
+      background: #ddd;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    #topbar label {
+      font-weight: bold;
+    }
+    #topbar input[type="text"] {
+      padding: 4px;
+      font-size: 14px;
+    }
+    #topbar button {
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    /* エディター＋プレビュー領域 */
+    #editor-container {
+      flex: 1;
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+    #editor {
+      flex: 1;
+      height: 100%;
+    }
+    #preview {
+      flex: 1;
+      border-left: 1px solid #ccc;
+    }
+    /* ダークモード */
+    .dark-mode {
+      background: #333;
+      color: #ddd;
+    }
+    .dark-mode #sidebar {
+      background: #444;
+      border-color: #555;
+    }
+    .dark-mode #topbar {
+      background: #555;
+    }
+    /* 操作説明モーダル */
+    #instructionsModal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; 
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.5);
+    }
+    #instructionsContent {
+      background-color: #fefefe;
+      margin: 10% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-width: 600px;
+      position: relative;
+    }
+    #instructionsContent h2 {
+      margin-top: 0;
+    }
+    #closeModalBtn {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+  </style>
+
+  <!-- CodeMirror 本体と HTML モード -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.15/mode/htmlmixed/htmlmixed.min.js"></script>
+
+  <!-- js-beautify (コード整形) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.7/beautify-html.min.js"></script>
+
+  <!-- HTMLHint (Lintチェック) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/HTMLHint/1.1.0/htmlhint.min.js"></script>
+
+  <!-- JSZip (プロジェクトZIPのエクスポート／インポート) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.0/jszip.min.js"></script>
+</head>
+<body>
+  <!-- サイドバー：プロジェクト管理＆バージョン履歴 -->
+  <div id="sidebar">
+    <h3>プロジェクトファイル</h3>
+    <!-- プロジェクト名入力欄（エクスポート時のZIPファイル名に利用） -->
+    <label for="projectNameInput">プロジェクト名:</label>
+    <input type="text" id="projectNameInput" placeholder="プロジェクト名">
+    <ul id="fileList"></ul>
+    <button id="newFileBtn">新規ファイル</button>
+    <button id="exportProjectBtn">プロジェクトエクスポート</button>
+    <input type="file" id="importProjectInput" accept=".zip" style="display:none">
+    <button id="importProjectBtn">プロジェクトインポート</button>
+    <hr>
+    <h3>バージョン履歴</h3>
+    <ul id="versionList"></ul>
+    <button id="saveVersionBtn">バージョン保存</button>
+  </div>
+
+  <!-- メイン：上部コントロールとエディター／プレビュー領域 -->
+  <div id="main">
+    <div id="topbar">
+      <label>タイトル:
+        <input type="text" id="titleInput" placeholder="タイトルを入力">
+      </label>
+      <button id="saveFileBtn">ファイル保存（ダウンロード）</button>
+      <button id="saveToProjectBtn">プロジェクトに保存</button>
+      <button id="beautifyBtn">自動整形</button>
+      <button id="lintBtn">Lintチェック</button>
+      <button id="themeToggleBtn">テーマ切替</button>
+      <button id="clearCodeBtn">全削除</button>
+      <button id="readHtmlFileBtn">HTMLファイル読み込み</button>
+      <button id="helpBtn">操作説明</button>
+    </div>
+    <div id="editor-container">
+      <div id="editor"></div>
+      <iframe id="preview"></iframe>
+    </div>
+  </div>
+
+  <!-- HTMLファイル読み込み用 隠し入力 -->
+  <input type="file" id="htmlFileInput" accept=".html,text/html" style="display:none">
+
+  <!-- 操作説明モーダル -->
+  <div id="instructionsModal">
+    <div id="instructionsContent">
+      <button id="closeModalBtn">閉じる</button>
+      <h2>操作説明</h2>
+      <p>このエディタは以下の機能を提供します：</p>
+      <ul>
+        <li>リアルタイムプレビュー：エディターに入力したHTMLコードが即時にプレビューに反映されます。</li>
+        <li>シンタックスハイライト：CodeMirrorにより、コードが見やすく表示されます。</li>
+        <li>自動整形：コードのインデントや改行を整えます。</li>
+        <li>Lintチェック：HTMLHintによる文法チェックが可能です。</li>
+        <li>テーマ切替：ライト／ダークモードを切り替えられます。</li>
+        <li>プロジェクト管理：複数のファイル作成、保存、読み込み、バージョン管理ができます。</li>
+        <li>不要なファイルの削除：サイドバー内の各ファイル横の「削除」ボタンで削除可能です。</li>
+        <li>全削除：エディター内の全コード消去が可能です。</li>
+        <li>HTMLファイル読み込み：既存のHTMLファイルを読み込み、エディターに展開できます。</li>
+        <li>プロジェクトエクスポート／インポート：ZIPファイルとしてエクスポート／インポートができます。</li>
+        <li>キーボードショートカット：Ctrl/Cmd+Sでプロジェクト保存が実行されます。</li>
+        <li>自動保存：5秒ごとに自動でプロジェクトが保存されます。</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // グローバル変数
+    let editor, currentFileName = "タイトル無";
+    // プロジェクト内ファイル管理： { fileName: { title, content, versions: [{ timestamp, content }] } }
+    let projectFiles = {};
+    let autoSaveInterval = 5000; // 5秒ごとに自動保存
+    let isDarkMode = false;
+
+    window.addEventListener("load", () => {
+      editor = CodeMirror(document.getElementById("editor"), {
+        mode: "htmlmixed",
+        lineNumbers: true,
+        value: "<!-- HTMLコードをここに入力 -->",
+        theme: "default"
+      });
+      updatePreview();
+      editor.on("change", updatePreview);
+      loadProjectFromLocalStorage();
+      setInterval(autoSaveProject, autoSaveInterval);
+    });
+
+    // リアルタイムプレビュー
+    function updatePreview() {
+      const previewFrame = document.getElementById("preview");
+      const doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+      doc.open();
+      doc.write(editor.getValue());
+      doc.close();
+    }
+
+    // ファイル保存（ダウンロード）
+    document.getElementById("saveFileBtn").addEventListener("click", () => {
+      let title = document.getElementById("titleInput").value.trim() || "タイトル無";
+      let fileName = title.endsWith(".html") ? title : title + ".html";
+      const blob = new Blob([editor.getValue()], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // プロジェクトへの保存（ローカルストレージ＆バージョン追加）
+    document.getElementById("saveToProjectBtn").addEventListener("click", () => {
+      let title = document.getElementById("titleInput").value.trim() || "タイトル無";
+      let fileName = title;
+      projectFiles[fileName] = projectFiles[fileName] || { title: title, content: "", versions: [] };
+      projectFiles[fileName].title = title;
+      projectFiles[fileName].content = editor.getValue();
+      addVersionSnapshot(fileName, editor.getValue());
+      saveProjectToLocalStorage();
+      updateFileList();
+      alert("プロジェクトに保存しました。");
+    });
+
+    // 新規ファイル作成（新規ファイル名はプロジェクト名優先、空欄なら数字を付加）
+    document.getElementById("newFileBtn").addEventListener("click", () => {
+      let projectName = document.getElementById("projectNameInput").value.trim();
+      let newFileName;
+      if (projectName) {
+        newFileName = projectName;
+      } else {
+        newFileName = "ファイル" + (Object.keys(projectFiles).length + 1);
+      }
+      projectFiles[newFileName] = {
+        title: newFileName,
+        content: "<!-- 新規ファイル -->",
+        versions: []
+      };
+      saveProjectToLocalStorage();
+      updateFileList();
+      loadProjectFile(newFileName);
+    });
+
+    // サイドバーのファイル一覧更新（削除ボタン付き）
+    function updateFileList() {
+      const fileListEl = document.getElementById("fileList");
+      fileListEl.innerHTML = "";
+      for (let file in projectFiles) {
+        let li = document.createElement("li");
+        // 読み込みボタン
+        let loadBtn = document.createElement("button");
+        loadBtn.textContent = file;
+        loadBtn.addEventListener("click", () => loadProjectFile(file));
+        li.appendChild(loadBtn);
+        // 削除ボタン
+        let deleteBtn = document.createElement("button");
+        deleteBtn.textContent = "削除";
+        deleteBtn.style.marginLeft = "5px";
+        deleteBtn.style.backgroundColor = "#ffcccc";
+        deleteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (confirm(file + " を削除しますか？")) {
+            if (currentFileName === file) {
+              editor.setValue("");
+              document.getElementById("titleInput").value = "";
+              document.getElementById("versionList").innerHTML = "";
+            }
+            delete projectFiles[file];
+            updateFileList();
+            saveProjectToLocalStorage();
+          }
+        });
+        li.appendChild(deleteBtn);
+        fileListEl.appendChild(li);
+      }
+    }
+
+    // プロジェクトファイル読み込み
+    function loadProjectFile(fileName) {
+      currentFileName = fileName;
+      const fileData = projectFiles[fileName];
+      if (fileData) {
+        document.getElementById("titleInput").value = fileData.title;
+        editor.setValue(fileData.content);
+        updatePreview();
+        updateVersionList(fileName);
+      }
+    }
+
+    // 自動整形 (Beautify)
+    document.getElementById("beautifyBtn").addEventListener("click", () => {
+      const beautified = html_beautify(editor.getValue());
+      editor.setValue(beautified);
+      updatePreview();
+    });
+
+    // Lintチェック (HTMLHint 利用)
+    document.getElementById("lintBtn").addEventListener("click", () => {
+      const messages = HTMLHint.verify(editor.getValue(), HTMLHint.defaultRuleset);
+      if (messages.length === 0) {
+        alert("Lintエラーはありません。");
+      } else {
+        const errorMsg = messages.map(m => `Line ${m.line}, Col ${m.col}: ${m.message}`).join("\n");
+        alert("Lintエラー：\n" + errorMsg);
+      }
+    });
+
+    // テーマ切替（ライト／ダーク）
+    document.getElementById("themeToggleBtn").addEventListener("click", () => {
+      isDarkMode = !isDarkMode;
+      if (isDarkMode) {
+        document.body.classList.add("dark-mode");
+        editor.setOption("theme", "material-darker");
+      } else {
+        document.body.classList.remove("dark-mode");
+        editor.setOption("theme", "default");
+      }
+    });
+
+    // エディター内全削除
+    document.getElementById("clearCodeBtn").addEventListener("click", () => {
+      if (confirm("エディター内の全コードを削除しますか？")) {
+        editor.setValue("");
+        updatePreview();
+      }
+    });
+
+    // HTMLファイル読み込みボタン
+    document.getElementById("readHtmlFileBtn").addEventListener("click", () => {
+      document.getElementById("htmlFileInput").click();
+    });
+    document.getElementById("htmlFileInput").addEventListener("change", (evt) => {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        editor.setValue(e.target.result);
+        updatePreview();
+        // ファイル名から拡張子を除いたものをタイトルにセット
+        let fileName = file.name;
+        let titleWithoutExt = fileName.replace(/\.html?$/i, '');
+        document.getElementById("titleInput").value = titleWithoutExt;
+      };
+      reader.readAsText(file, "UTF-8");
+    });
+
+    // 操作説明モーダル
+    document.getElementById("helpBtn").addEventListener("click", () => {
+      document.getElementById("instructionsModal").style.display = "block";
+    });
+    document.getElementById("closeModalBtn").addEventListener("click", () => {
+      document.getElementById("instructionsModal").style.display = "none";
+    });
+
+    // バージョン履歴保存
+    document.getElementById("saveVersionBtn").addEventListener("click", () => {
+      let title = document.getElementById("titleInput").value.trim() || "タイトル無";
+      let fileName = title;
+      addVersionSnapshot(fileName, editor.getValue());
+      saveProjectToLocalStorage();
+      updateVersionList(fileName);
+      alert("バージョンを保存しました。");
+    });
+    function addVersionSnapshot(fileName, content) {
+      if (!projectFiles[fileName]) {
+        projectFiles[fileName] = { title: fileName, content: content, versions: [] };
+      }
+      projectFiles[fileName].versions.push({
+        timestamp: new Date().toLocaleString(),
+        content: content
+      });
+    }
+    function updateVersionList(fileName) {
+      const versionListEl = document.getElementById("versionList");
+      versionListEl.innerHTML = "";
+      const versions = projectFiles[fileName]?.versions || [];
+      versions.forEach((v) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.textContent = v.timestamp;
+        btn.addEventListener("click", () => {
+          if (confirm("このバージョンに戻しますか？")) {
+            editor.setValue(v.content);
+            updatePreview();
+          }
+        });
+        li.appendChild(btn);
+        versionListEl.appendChild(li);
+      });
+    }
+    
+    // キーボードショートカット: Ctrl/Cmd+S でプロジェクト保存
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        document.getElementById("saveToProjectBtn").click();
+      }
+    });
+
+    // 自動保存（5秒ごと）
+    function autoSaveProject() {
+      let title = document.getElementById("titleInput").value.trim() || "タイトル無";
+      if (projectFiles[title]) {
+        projectFiles[title].content = editor.getValue();
+        addVersionSnapshot(title, editor.getValue());
+      }
+      saveProjectToLocalStorage();
+    }
+    function saveProjectToLocalStorage() {
+      localStorage.setItem("projectFiles", JSON.stringify(projectFiles));
+    }
+    function loadProjectFromLocalStorage() {
+      const data = localStorage.getItem("projectFiles");
+      if (data) {
+        projectFiles = JSON.parse(data);
+      }
+      updateFileList();
+    }
+
+    // プロジェクトエクスポート（ZIP形式）
+    document.getElementById("exportProjectBtn").addEventListener("click", () => {
+      const zip = new JSZip();
+      for (let file in projectFiles) {
+        const fileName = file.endsWith(".html") ? file : file + ".html";
+        zip.file(fileName, projectFiles[file].content);
+      }
+      let projectName = document.getElementById("projectNameInput").value.trim() || "myProject";
+      zip.generateAsync({ type: "blob" }).then((content) => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = projectName + ".zip";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+    });
+
+    // プロジェクトインポート（ZIP形式）
+    document.getElementById("importProjectBtn").addEventListener("click", () => {
+      document.getElementById("importProjectInput").click();
+    });
+    document.getElementById("importProjectInput").addEventListener("change", (evt) => {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        JSZip.loadAsync(e.target.result).then((zip) => {
+          Object.keys(zip.files).forEach((filename) => {
+            zip.files[filename].async("string").then((content) => {
+              const title = filename.replace(/\.html?$/i, '');
+              projectFiles[title] = { title: title, content: content, versions: [] };
+              updateFileList();
+            });
+          });
+          alert("プロジェクトをインポートしました。");
+        });
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  </script>
+</body>
+</html>
