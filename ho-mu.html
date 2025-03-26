@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>HTMLファイルエディタ</title>
+  <style>
+    /* 基本スタイル */
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header { background-color: #f0f0f0; padding: 10px; }
+    button { margin: 5px; padding: 8px 12px; }
+    #editor { margin: 10px; padding: 10px; border: 1px solid #ccc; min-height: 400px; }
+    
+    /* リンクボタン用スタイル */
+    .link-button {
+      display: inline-block;
+      padding: 8px 12px;
+      text-decoration: none;
+      color: white;
+      border-radius: 5px;
+      margin: 3px;
+    }
+    
+    /* モーダルウィンドウ */
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90%;
+      overflow-y: auto;
+      border-radius: 8px;
+    }
+    /* モーダル内の入力欄 */
+    .modal-content input[type="text"],
+    .modal-content input[type="number"],
+    .modal-content select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 5px;
+      font-size: 14px;
+      color: #000;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+    th, td { padding: 8px; text-align: left; }
+    /* 並び順セルに固定幅 */
+    td:first-child { width: 40px; }
+    .draggable { cursor: move; }
+    
+    /* 豪華にするためのデザイン */
+    .fancy {
+      background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
+      font-family: 'Georgia', serif;
+      border: 2px solid #333;
+      box-shadow: 4px 4px 15px rgba(0,0,0,0.3);
+      padding: 20px;
+      border-radius: 10px;
+    }
+    
+    /* リンクボタンのグリッドレイアウト */
+    .link-grid { display: grid; gap: 5px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <!-- 非表示のファイル選択 input -->
+    <input type="file" id="fileInput" accept=".html" style="display:none">
+    <button id="selectFile">ファイル選択</button>
+    <button id="saveFile">保存</button>
+    <button id="undoBtn">戻る</button>
+    <button id="redoBtn">進む</button>
+    <button id="editLinks">リンク編集</button>
+    <button id="insertStyledText">スタイル付きテキスト挿入</button>
+    <button id="generateTOC">ホームページ整理</button>
+    <button id="makeFancy">豪華にする</button>
+  </header>
+
+  <!-- 編集領域 -->
+  <div id="editor" contenteditable="true">
+    <p>ここにHTMLコンテンツを編集できます。</p>
+  </div>
+
+  <!-- リンク編集モーダル -->
+  <div class="modal" id="linkModal">
+    <div class="modal-content">
+      <h2>リンク編集</h2>
+      <label>リンク表示列数: <input type="number" id="linkColumns" value="5" min="1"></label>
+      <br><br>
+      <table id="linkTable">
+        <thead>
+          <tr>
+            <th>並び順</th>
+            <th>リンクテキスト</th>
+            <th>リンクURL</th>
+            <th>ボタン色</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- リンク行が動的に追加 -->
+        </tbody>
+      </table>
+      <br>
+      <button id="addNewLinkRow">新規リンク追加</button>
+      <button id="applyLinkChanges">適用</button>
+      <button id="cancelLinkChanges">キャンセル</button>
+    </div>
+  </div>
+
+  <!-- スタイル付きテキスト挿入モーダル -->
+  <div class="modal" id="textModal">
+    <div class="modal-content">
+      <h2>スタイル付きテキスト挿入</h2>
+      <label>挿入するテキスト: <input type="text" id="styledText"></label><br><br>
+      <label>フォントサイズ（px）: <input type="number" id="fontSize" value="14"></label><br><br>
+      <label>文字色: <input type="color" id="fontColor" value="#000000"></label><br><br>
+      <label>フォント:
+        <select id="fontFamily">
+          <option value="Arial">Arial</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Courier New">Courier New</option>
+          <option value="Georgia">Georgia</option>
+          <option value="Verdana">Verdana</option>
+        </select>
+      </label><br><br>
+      <label><input type="checkbox" id="boldCheck"> 太字</label>
+      <label><input type="checkbox" id="italicCheck"> 斜体</label>
+      <label><input type="checkbox" id="underlineCheck"> 下線</label><br><br>
+      <button id="applyStyledText">適用</button>
+      <button id="cancelStyledText">キャンセル</button>
+    </div>
+  </div>
+
+  <script>
+    // 現在のファイル名を保持する変数（読み込んだファイル名がなければ "edited.html"）
+    let currentFileName = "edited.html";
+    
+    const fileInput = document.getElementById("fileInput");
+    const selectFileBtn = document.getElementById("selectFile");
+    const saveFileBtn = document.getElementById("saveFile");
+    const editor = document.getElementById("editor");
+
+    // ファイル読み込み後、editor内の <a> 要素をボタン風に変換
+    function transformLinksToButtons() {
+      const links = editor.querySelectorAll("a:not(.link-button)");
+      links.forEach(link => {
+        link.classList.add("link-button");
+        if (!link.style.backgroundColor) {
+          link.style.backgroundColor = "red";
+        }
+        link.style.padding = "8px 12px";
+        link.style.textDecoration = "none";
+        link.style.borderRadius = "5px";
+        link.style.color = "white";
+      });
+    }
+
+    // ファイル選択
+    selectFileBtn.addEventListener("click", () => { fileInput.click(); });
+    fileInput.addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) {
+        currentFileName = file.name; // 読み込んだファイル名を記憶
+        const reader = new FileReader();
+        reader.onload = evt => {
+          editor.innerHTML = evt.target.result;
+          editor.focus();
+          transformLinksToButtons();
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // ドラッグ＆ドロップによるファイル読み込み
+    editor.addEventListener("dragover", e => { e.preventDefault(); e.stopPropagation(); });
+    editor.addEventListener("drop", e => {
+      e.preventDefault(); e.stopPropagation();
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        currentFileName = file.name;
+        const reader = new FileReader();
+        reader.onload = evt => {
+          editor.innerHTML = evt.target.result;
+          editor.focus();
+          transformLinksToButtons();
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    // 保存ボタン押下時、現在のスタイルも含めたHTMLを元ファイル名で保存
+    saveFileBtn.addEventListener("click", () => {
+      const styleTag = document.querySelector("head style");
+      const styleContent = styleTag ? styleTag.innerHTML : "";
+      const fullHTML = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Saved File</title>
+  <style>
+${styleContent}
+  </style>
+</head>
+<body>
+${editor.innerHTML}
+</body>
+</html>`;
+      const blob = new Blob([fullHTML], { type: "text/html" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = currentFileName;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // Undo／Redo ボタン
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    undoBtn.addEventListener("click", () => { document.execCommand("undo", false, null); });
+    redoBtn.addEventListener("click", () => { document.execCommand("redo", false, null); });
+    
+    // ========== リンク編集機能 ==========
+    const editLinksBtn = document.getElementById("editLinks");
+    const linkModal = document.getElementById("linkModal");
+    const linkTableBody = document.querySelector("#linkTable tbody");
+    const addNewLinkRowBtn = document.getElementById("addNewLinkRow");
+    const applyLinkChangesBtn = document.getElementById("applyLinkChanges");
+    const cancelLinkChangesBtn = document.getElementById("cancelLinkChanges");
+    const linkColumnsInput = document.getElementById("linkColumns");
+    let draggedRow = null;
+
+    // 「リンク編集」ボタン押下時、editor内のリンクボタン一覧を編集モーダルへ展開
+    editLinksBtn.addEventListener("click", () => {
+      linkTableBody.innerHTML = "";
+      const links = editor.querySelectorAll("a.link-button");
+      links.forEach(link => {
+        addLinkRow(
+          link.textContent || "",
+          link.href || "",
+          getColorName(link.style.backgroundColor)
+        );
+      });
+      linkModal.style.display = "flex";
+    });
+
+    // 色の逆引き（簡易実装）
+    function getColorName(rgb) {
+      const colorMap = {
+        "赤": "red", "あお": "blue", "黄": "yellow",
+        "緑": "green", "紫": "purple", "水色": "lightblue",
+        "黄緑": "yellowgreen"
+      };
+      for (const [name, value] of Object.entries(colorMap)) {
+        const dummy = document.createElement("div");
+        dummy.style.color = value;
+        document.body.appendChild(dummy);
+        const compColor = window.getComputedStyle(dummy).color;
+        document.body.removeChild(dummy);
+        if (compColor === rgb) { return name; }
+      }
+      return "赤";
+    }
+
+    // リンク編集テーブルへ行追加（プレースホルダー付き）
+    function addLinkRow(text = "", url = "", color = "赤") {
+      const tr = document.createElement("tr");
+      tr.classList.add("draggable");
+      tr.setAttribute("draggable", "true");
+
+      const tdOrder = document.createElement("td");
+      tdOrder.textContent = "";
+      
+      const tdText = document.createElement("td");
+      const inputText = document.createElement("input");
+      inputText.type = "text";
+      inputText.value = text;
+      inputText.placeholder = "リンク名を入力";
+      tdText.appendChild(inputText);
+      
+      const tdURL = document.createElement("td");
+      const inputURL = document.createElement("input");
+      inputURL.type = "text";
+      inputURL.value = url;
+      inputURL.placeholder = "リンクURLを入力";
+      tdURL.appendChild(inputURL);
+      
+      const tdColor = document.createElement("td");
+      const selectColor = document.createElement("select");
+      ["赤","あお","黄","緑","紫","水色","黄緑"].forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        if(c === color) { opt.selected = true; }
+        selectColor.appendChild(opt);
+      });
+      tdColor.appendChild(selectColor);
+      
+      tr.appendChild(tdOrder);
+      tr.appendChild(tdText);
+      tr.appendChild(tdURL);
+      tr.appendChild(tdColor);
+      
+      tr.addEventListener("dragstart", e => {
+        draggedRow = tr;
+        e.dataTransfer.effectAllowed = "move";
+      });
+      tr.addEventListener("dragover", e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+      });
+      tr.addEventListener("drop", e => {
+        e.preventDefault();
+        if(draggedRow && draggedRow !== tr) {
+          const rows = Array.from(linkTableBody.children);
+          if (rows.indexOf(draggedRow) < rows.indexOf(tr)) {
+            linkTableBody.insertBefore(draggedRow, tr.nextSibling);
+          } else {
+            linkTableBody.insertBefore(draggedRow, tr);
+          }
+          updateOrderNumbers();
+        }
+      });
+      
+      linkTableBody.appendChild(tr);
+      updateOrderNumbers();
+    }
+
+    function updateOrderNumbers() {
+      const rows = Array.from(linkTableBody.children);
+      rows.forEach((row, index) => { row.firstChild.textContent = index + 1; });
+    }
+
+    addNewLinkRowBtn.addEventListener("click", () => { addLinkRow("", "", "赤"); });
+
+    applyLinkChangesBtn.addEventListener("click", () => {
+      const columns = parseInt(linkColumnsInput.value) || 1;
+      const rows = Array.from(linkTableBody.children);
+      const linksData = rows.map(row => {
+        const cells = row.querySelectorAll("td");
+        return {
+          text: cells[1].querySelector("input").value,
+          url: cells[2].querySelector("input").value,
+          color: { "赤": "red", "あお": "blue", "黄": "yellow", "緑": "green", "紫": "purple", "水色": "lightblue", "黄緑": "yellowgreen" }[cells[3].querySelector("select").value] || "red"
+        };
+      });
+      
+      const existingLinks = editor.querySelectorAll("a.link-button");
+      existingLinks.forEach(link => { link.remove(); });
+      
+      let linkContainer = document.getElementById("linkContainer");
+      if (!linkContainer) {
+        linkContainer = document.createElement("div");
+        linkContainer.id = "linkContainer";
+        editor.insertBefore(linkContainer, editor.firstChild);
+      }
+      linkContainer.innerHTML = "";
+      
+      if (columns > 1) {
+        linkContainer.classList.add("link-grid");
+        linkContainer.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+      } else {
+        linkContainer.classList.remove("link-grid");
+      }
+      
+      linksData.forEach(data => {
+        const a = document.createElement("a");
+        a.href = data.url;
+        a.textContent = data.text;
+        a.className = "link-button";
+        a.style.backgroundColor = data.color;
+        a.style.padding = "8px 12px";
+        a.style.textDecoration = "none";
+        a.style.borderRadius = "5px";
+        a.style.color = "white";
+        linkContainer.appendChild(a);
+      });
+      linkModal.style.display = "none";
+    });
+
+    cancelLinkChangesBtn.addEventListener("click", () => { linkModal.style.display = "none"; });
+    
+    // ========== スタイル付きテキスト挿入 ==========
+    const insertStyledTextBtn = document.getElementById("insertStyledText");
+    const textModal = document.getElementById("textModal");
+    const applyStyledTextBtn = document.getElementById("applyStyledText");
+    const cancelStyledTextBtn = document.getElementById("cancelStyledText");
+
+    insertStyledTextBtn.addEventListener("click", () => { textModal.style.display = "flex"; });
+
+    applyStyledTextBtn.addEventListener("click", () => {
+      const text = document.getElementById("styledText").value;
+      const size = document.getElementById("fontSize").value;
+      const color = document.getElementById("fontColor").value;
+      const fontFamily = document.getElementById("fontFamily").value;
+      const bold = document.getElementById("boldCheck").checked;
+      const italic = document.getElementById("italicCheck").checked;
+      const underline = document.getElementById("underlineCheck").checked;
+      
+      let styleString = `font-size: ${size}px; color: ${color}; font-family: ${fontFamily};`;
+      if(bold) styleString += " font-weight: bold;";
+      if(italic) styleString += " font-style: italic;";
+      if(underline) styleString += " text-decoration: underline;";
+      
+      const span = document.createElement("span");
+      span.setAttribute("style", styleString);
+      span.textContent = text;
+      insertNodeAtCaret(span);
+      
+      textModal.style.display = "none";
+      document.getElementById("styledText").value = "";
+    });
+
+    cancelStyledTextBtn.addEventListener("click", () => { textModal.style.display = "none"; });
+
+    function insertNodeAtCaret(node) {
+      let sel = window.getSelection();
+      if (sel && sel.getRangeAt && sel.rangeCount) {
+        const range = sel.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(node);
+        range.setStartAfter(node);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } else {
+        editor.appendChild(node);
+      }
+    }
+
+    // ========== 目次自動生成 ==========
+    const generateTOCBtn = document.getElementById("generateTOC");
+    generateTOCBtn.addEventListener("click", () => {
+      const headings = editor.querySelectorAll("h1, h2, h3");
+      if(headings.length === 0) {
+        alert("見出しがありません。");
+        return;
+      }
+      let toc = document.getElementById("toc");
+      if (!toc) {
+        toc = document.createElement("div");
+        toc.id = "toc";
+        toc.style.border = "1px solid #ccc";
+        toc.style.padding = "10px";
+        toc.style.marginBottom = "10px";
+        editor.insertBefore(toc, editor.firstChild);
+      }
+      toc.innerHTML = "<h2>目次</h2>";
+      const ul = document.createElement("ul");
+      headings.forEach((heading, index) => {
+        if (!heading.id) { heading.id = "heading-" + index; }
+        const li = document.createElement("li");
+        li.style.marginLeft = heading.tagName === "H2" ? "20px" : (heading.tagName === "H3" ? "40px" : "0px");
+        const a = document.createElement("a");
+        a.href = "#" + heading.id;
+        a.textContent = heading.textContent;
+        li.appendChild(a);
+        ul.appendChild(li);
+      });
+      toc.appendChild(ul);
+    });
+
+    // ========== 豪華デザイン適用 ==========
+    const fancyBtn = document.getElementById("makeFancy");
+    fancyBtn.addEventListener("click", () => {
+      editor.classList.toggle("fancy");
+    });
+    
+  </script>
+</body>
+</html>
