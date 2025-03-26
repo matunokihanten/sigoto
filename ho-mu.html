@@ -7,6 +7,7 @@
     /* 基本スタイル */
     body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
     header { background-color: #f0f0f0; padding: 10px; }
+    header label { margin-left: 10px; }
     button { margin: 5px; padding: 8px 12px; }
     #editor { margin: 10px; padding: 10px; border: 1px solid #ccc; min-height: 400px; }
     
@@ -20,12 +21,22 @@
       margin: 3px;
     }
     
+    /* シンプルボタン用スタイル */
+    .simple-button {
+      background-color: #eee !important;
+      color: #333 !important;
+      border-radius: 0 !important;
+      padding: 8px 12px !important;
+      text-decoration: none !important;
+      border: 1px solid #ccc;
+    }
+    
     /* モーダルウィンドウ */
     .modal {
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0, 0, 0, 0.5);
       display: none;
       justify-content: center;
       align-items: center;
@@ -59,17 +70,9 @@
     th, td { padding: 8px; text-align: left; }
     /* 並び順セルに固定幅 */
     td:first-child { width: 40px; }
+    /* 削除ボタンセルにも固定幅 */
+    td:last-child { width: 60px; }
     .draggable { cursor: move; }
-    
-    /* 豪華にするためのデザイン */
-    .fancy {
-      background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
-      font-family: 'Georgia', serif;
-      border: 2px solid #333;
-      box-shadow: 4px 4px 15px rgba(0,0,0,0.3);
-      padding: 20px;
-      border-radius: 10px;
-    }
     
     /* リンクボタンのグリッドレイアウト */
     .link-grid { display: grid; gap: 5px; }
@@ -78,20 +81,23 @@
 <body>
 
   <header>
-    <!-- ファイル選択用 input（非表示） -->
+    <!-- 背景色変更 -->
+    <label>背景色: <input type="color" id="bgColorPicker" value="#ffffff"></label>
+    <!-- 非表示のファイル選択 -->
     <input type="file" id="fileInput" accept=".html" style="display:none">
     <button id="selectFile">ファイル選択</button>
     <button id="saveFile">保存</button>
-    <!-- カスタム undo/redo ボタン -->
+    <!-- Undo/Redo -->
     <button id="undoBtn">戻る</button>
     <button id="redoBtn">進む</button>
     <button id="editLinks">リンク編集</button>
     <button id="insertStyledText">スタイル付きテキスト挿入</button>
     <button id="generateTOC">ホームページ整理</button>
-    <button id="makeFancy">豪華にする</button>
+    <!-- 豪華ボタン廃止、シンプルボタンに変更 -->
+    <button id="makeSimple">シンプルにする</button>
   </header>
 
-  <!-- 編集領域 -->
+  <!-- 編集領域（画像・その他はそのまま残す） -->
   <div id="editor" contenteditable="true">
     <p>ここにHTMLコンテンツを編集できます。</p>
   </div>
@@ -109,10 +115,11 @@
             <th>リンクテキスト</th>
             <th>リンクURL</th>
             <th>ボタン色</th>
+            <th>削除</th>
           </tr>
         </thead>
         <tbody>
-          <!-- リンク行が動的に追加される -->
+          <!-- 編集用行が動的に追加 -->
         </tbody>
       </table>
       <br>
@@ -148,57 +155,47 @@
 
   <script>
     // --- グローバル変数 ---
-    // 現在のファイル名（読み込んだ場合はその名前、なければ "edited.html"）
-    let currentFileName = "edited.html";
-
-    // カスタム履歴管理用
+    let currentFileName = "edited.html";  // 読み込んだファイル名
     let historyStack = [];
     let historyPointer = -1;
-    let inputTimeout;  // 入力イベントのデバウンス用タイマー
-
-    const fileInput = document.getElementById("fileInput");
-    const selectFileBtn = document.getElementById("selectFile");
-    const saveFileBtn = document.getElementById("saveFile");
+    let inputTimeout;
     const editor = document.getElementById("editor");
 
-    // 初期状態を履歴に保存
+    // カラーマッピング（日本語表記 → CSS色）
+    const colorMap = {
+      "赤": "red",
+      "青": "blue",
+      "黄": "yellow",
+      "緑": "green",
+      "紫": "purple",
+      "水色": "lightblue",
+      "黄緑": "yellowgreen",
+      "黒": "black",
+      "灰色": "gray"
+    };
+
+    // --- 履歴管理 ---
     function pushHistory() {
       const currentContent = editor.innerHTML;
-      if (historyPointer >= 0 && historyStack[historyPointer] === currentContent) {
-        return;
-      }
-      // 既存の履歴があれば、現在位置以降を破棄
+      if (historyPointer >= 0 && historyStack[historyPointer] === currentContent) return;
       historyStack = historyStack.slice(0, historyPointer + 1);
       historyStack.push(currentContent);
       historyPointer = historyStack.length - 1;
     }
     pushHistory();
-
-    // 入力イベントにより、一定時間（300ms）経過後に履歴を更新
     editor.addEventListener("input", () => {
       clearTimeout(inputTimeout);
       inputTimeout = setTimeout(pushHistory, 300);
     });
 
-    // ファイル読み込み後、<a> 要素をボタン風に変換する関数
-    function transformLinksToButtons() {
-      const links = editor.querySelectorAll("a:not(.link-button)");
-      links.forEach(link => {
-        link.classList.add("link-button");
-        if (!link.style.backgroundColor) { link.style.backgroundColor = "red"; }
-        link.style.padding = "8px 12px";
-        link.style.textDecoration = "none";
-        link.style.borderRadius = "5px";
-        link.style.color = "white";
-      });
-    }
-
-    // --- ファイルの読み込み ---
+    // --- ファイル読み込み ---
+    const fileInput = document.getElementById("fileInput");
+    const selectFileBtn = document.getElementById("selectFile");
     selectFileBtn.addEventListener("click", () => { fileInput.click(); });
     fileInput.addEventListener("change", e => {
       const file = e.target.files[0];
       if (file) {
-        currentFileName = file.name; // 読み込んだファイル名を記録
+        currentFileName = file.name;
         const reader = new FileReader();
         reader.onload = evt => {
           editor.innerHTML = evt.target.result;
@@ -209,8 +206,6 @@
         reader.readAsText(file);
       }
     });
-
-    // ドラッグ＆ドロップでのファイル読み込み
     editor.addEventListener("dragover", e => { e.preventDefault(); e.stopPropagation(); });
     editor.addEventListener("drop", e => {
       e.preventDefault(); e.stopPropagation();
@@ -228,12 +223,12 @@
       }
     });
 
-    // --- 保存機能 ---
+    // --- 保存 ---
+    const saveFileBtn = document.getElementById("saveFile");
     saveFileBtn.addEventListener("click", () => {
       const styleTag = document.querySelector("head style");
       const styleContent = styleTag ? styleTag.innerHTML : "";
-      const fullHTML =
-`<!DOCTYPE html>
+      const fullHTML = `<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -254,17 +249,15 @@ ${editor.innerHTML}
       URL.revokeObjectURL(a.href);
     });
 
-    // --- カスタム Undo/Redo ---
+    // --- Undo/Redo ---
     const undoBtn = document.getElementById("undoBtn");
     const redoBtn = document.getElementById("redoBtn");
-
     undoBtn.addEventListener("click", () => {
       if (historyPointer > 0) {
         historyPointer--;
         editor.innerHTML = historyStack[historyPointer];
       }
     });
-
     redoBtn.addEventListener("click", () => {
       if (historyPointer < historyStack.length - 1) {
         historyPointer++;
@@ -282,38 +275,39 @@ ${editor.innerHTML}
     const linkColumnsInput = document.getElementById("linkColumns");
     let draggedRow = null;
 
+    // リンク生成時、選択した色を data-color に保存するようにする
+    function transformLinksToButtons() {
+      const links = editor.querySelectorAll("a:not(.link-button)");
+      links.forEach(link => {
+        link.classList.add("link-button");
+        // 既に data-color があれば利用。なければデフォルト「赤」
+        if (!link.getAttribute("data-color")) {
+          link.setAttribute("data-color", "赤");
+          link.style.backgroundColor = colorMap["赤"];
+        }
+        link.style.padding = "8px 12px";
+        link.style.textDecoration = "none";
+        link.style.borderRadius = "5px";
+        link.style.color = "white";
+      });
+    }
+    
+    // リンク編集ボタン押下時、常にエディタ内の a.link-button を対象とする
     editLinksBtn.addEventListener("click", () => {
       linkTableBody.innerHTML = "";
       const links = editor.querySelectorAll("a.link-button");
       links.forEach(link => {
+        // リンク編集時は data-color 属性を利用
         addLinkRow(
           link.textContent || "",
           link.href || "",
-          getColorName(link.style.backgroundColor)
+          link.getAttribute("data-color") || "赤"
         );
       });
       linkModal.style.display = "flex";
     });
 
-    // 色名の逆引き（簡易実装）
-    function getColorName(rgb) {
-      const colorMap = {
-        "赤": "red", "あお": "blue", "黄": "yellow",
-        "緑": "green", "紫": "purple", "水色": "lightblue",
-        "黄緑": "yellowgreen"
-      };
-      for (const [name, value] of Object.entries(colorMap)) {
-        const dummy = document.createElement("div");
-        dummy.style.color = value;
-        document.body.appendChild(dummy);
-        const compColor = window.getComputedStyle(dummy).color;
-        document.body.removeChild(dummy);
-        if (compColor === rgb) { return name; }
-      }
-      return "赤";
-    }
-
-    // リンク編集テーブルへの行追加（プレースホルダー付き）
+    // --- リンク編集テーブルへの行追加（削除ボタン付き） ---
     function addLinkRow(text = "", url = "", color = "赤") {
       const tr = document.createElement("tr");
       tr.classList.add("draggable");
@@ -338,20 +332,33 @@ ${editor.innerHTML}
       
       const tdColor = document.createElement("td");
       const selectColor = document.createElement("select");
-      ["赤", "あお", "黄", "緑", "紫", "水色", "黄緑"].forEach(c => {
+      const options = ["赤","青","黄","緑","紫","水色","黄緑","黒","灰色"];
+      options.forEach(c => {
         const opt = document.createElement("option");
         opt.value = c;
         opt.textContent = c;
-        if(c === color) { opt.selected = true; }
+        if(c === color){ opt.selected = true; }
         selectColor.appendChild(opt);
       });
       tdColor.appendChild(selectColor);
+
+      // 削除ボタン
+      const tdDelete = document.createElement("td");
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "削除";
+      deleteBtn.addEventListener("click", () => {
+        tr.remove();
+        updateOrderNumbers();
+      });
+      tdDelete.appendChild(deleteBtn);
       
       tr.appendChild(tdOrder);
       tr.appendChild(tdText);
       tr.appendChild(tdURL);
       tr.appendChild(tdColor);
+      tr.appendChild(tdDelete);
       
+      // ドラッグ＆ドロップ処理
       tr.addEventListener("dragstart", e => {
         draggedRow = tr;
         e.dataTransfer.effectAllowed = "move";
@@ -372,17 +379,17 @@ ${editor.innerHTML}
           updateOrderNumbers();
         }
       });
-      
       linkTableBody.appendChild(tr);
       updateOrderNumbers();
     }
-
+    
     function updateOrderNumbers() {
       const rows = Array.from(linkTableBody.children);
       rows.forEach((row, index) => { row.firstChild.textContent = index + 1; });
     }
-
+    
     addNewLinkRowBtn.addEventListener("click", () => { addLinkRow("", "", "赤"); });
+    
     applyLinkChangesBtn.addEventListener("click", () => {
       const columns = parseInt(linkColumnsInput.value) || 1;
       const rows = Array.from(linkTableBody.children);
@@ -391,20 +398,22 @@ ${editor.innerHTML}
         return {
           text: cells[1].querySelector("input").value,
           url: cells[2].querySelector("input").value,
-          color: { "赤": "red", "あお": "blue", "黄": "yellow", "緑": "green", "紫": "purple", "水色": "lightblue", "黄緑": "yellowgreen" }[cells[3].querySelector("select").value] || "red"
+          // 選択された日本語色を格納（data-color に保存する）
+          chosenColor: cells[3].querySelector("select").value,
+          cssColor: colorMap[cells[3].querySelector("select").value] || "red"
         };
       });
       
-      const existingLinks = editor.querySelectorAll("a.link-button");
-      existingLinks.forEach(link => { link.remove(); });
-      
+      // リンク専用コンテナ（#linkContainer）を利用。存在すれば中身クリア、なければ作成
       let linkContainer = document.getElementById("linkContainer");
       if (!linkContainer) {
         linkContainer = document.createElement("div");
         linkContainer.id = "linkContainer";
-        editor.insertBefore(linkContainer, editor.firstChild);
+        // 画像やその他のコンテンツは残し、リンク専用で末尾に追加
+        editor.appendChild(linkContainer);
+      } else {
+        linkContainer.innerHTML = "";
       }
-      linkContainer.innerHTML = "";
       
       if (columns > 1) {
         linkContainer.classList.add("link-grid");
@@ -418,24 +427,27 @@ ${editor.innerHTML}
         a.href = data.url;
         a.textContent = data.text;
         a.className = "link-button";
-        a.style.backgroundColor = data.color;
+        a.style.backgroundColor = data.cssColor;
         a.style.padding = "8px 12px";
         a.style.textDecoration = "none";
         a.style.borderRadius = "5px";
         a.style.color = "white";
+        // data-color 属性に選択した日本語の色を保存
+        a.setAttribute("data-color", data.chosenColor);
         linkContainer.appendChild(a);
       });
       linkModal.style.display = "none";
+      pushHistory();
     });
-
+    
     cancelLinkChangesBtn.addEventListener("click", () => { linkModal.style.display = "none"; });
     
-    // ========== スタイル付きテキスト挿入 ==========
+    // --- スタイル付きテキスト挿入 ---
     const insertStyledTextBtn = document.getElementById("insertStyledText");
     const textModal = document.getElementById("textModal");
     const applyStyledTextBtn = document.getElementById("applyStyledText");
     const cancelStyledTextBtn = document.getElementById("cancelStyledText");
-
+    
     insertStyledTextBtn.addEventListener("click", () => { textModal.style.display = "flex"; });
     applyStyledTextBtn.addEventListener("click", () => {
       const text = document.getElementById("styledText").value;
@@ -447,9 +459,9 @@ ${editor.innerHTML}
       const underline = document.getElementById("underlineCheck").checked;
       
       let styleString = `font-size: ${size}px; color: ${color}; font-family: ${fontFamily};`;
-      if(bold) styleString += " font-weight: bold;";
-      if(italic) styleString += " font-style: italic;";
-      if(underline) styleString += " text-decoration: underline;";
+      if (bold) styleString += " font-weight: bold;";
+      if (italic) styleString += " font-style: italic;";
+      if (underline) styleString += " text-decoration: underline;";
       
       const span = document.createElement("span");
       span.setAttribute("style", styleString);
@@ -457,6 +469,7 @@ ${editor.innerHTML}
       insertNodeAtCaret(span);
       textModal.style.display = "none";
       document.getElementById("styledText").value = "";
+      pushHistory();
     });
     cancelStyledTextBtn.addEventListener("click", () => { textModal.style.display = "none"; });
     
@@ -473,15 +486,12 @@ ${editor.innerHTML}
         editor.appendChild(node);
       }
     }
-
-    // ========== 目次自動生成 ==========
+    
+    // --- 目次自動生成 ---
     const generateTOCBtn = document.getElementById("generateTOC");
     generateTOCBtn.addEventListener("click", () => {
       const headings = editor.querySelectorAll("h1, h2, h3");
-      if(headings.length === 0) {
-        alert("見出しがありません。");
-        return;
-      }
+      if (headings.length === 0) { alert("見出しがありません。"); return; }
       let toc = document.getElementById("toc");
       if (!toc) {
         toc = document.createElement("div");
@@ -505,10 +515,30 @@ ${editor.innerHTML}
       });
       toc.appendChild(ul);
     });
-
-    // ========== 豪華デザイン適用 ==========
-    const fancyBtn = document.getElementById("makeFancy");
-    fancyBtn.addEventListener("click", () => { editor.classList.toggle("fancy"); });
+    
+    // --- シンプルにするボタン ---
+    const makeSimpleBtn = document.getElementById("makeSimple");
+    // ヘッダーに表示しているボタンID を "makeSimple" に変更
+    makeSimpleBtn.addEventListener("click", () => {
+      const links = editor.querySelectorAll("a.link-button");
+      links.forEach(link => {
+        applySimpleStyleToLink(link);
+      });
+      pushHistory();
+    });
+    
+    function applySimpleStyleToLink(link) {
+      // シンプルなボタンにするスタイル
+      link.classList.add("simple-button");
+      // 必要に応じ、既存の背景色などを上書き
+    }
+    
+    // --- 背景色変更 ---
+    const bgColorPicker = document.getElementById("bgColorPicker");
+    bgColorPicker.addEventListener("input", e => {
+      editor.style.backgroundColor = e.target.value;
+      pushHistory();
+    });
   </script>
 </body>
 </html>
