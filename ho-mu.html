@@ -55,9 +55,7 @@
       width: 100%;
       border-collapse: collapse;
     }
-    table, th, td {
-      border: 1px solid #ddd;
-    }
+    table, th, td { border: 1px solid #ddd; }
     th, td { padding: 8px; text-align: left; }
     /* 並び順セルに固定幅 */
     td:first-child { width: 40px; }
@@ -80,10 +78,11 @@
 <body>
 
   <header>
-    <!-- 非表示のファイル選択 input -->
+    <!-- ファイル選択用 input（非表示） -->
     <input type="file" id="fileInput" accept=".html" style="display:none">
     <button id="selectFile">ファイル選択</button>
     <button id="saveFile">保存</button>
+    <!-- カスタム undo/redo ボタン -->
     <button id="undoBtn">戻る</button>
     <button id="redoBtn">進む</button>
     <button id="editLinks">リンク編集</button>
@@ -113,7 +112,7 @@
           </tr>
         </thead>
         <tbody>
-          <!-- リンク行が動的に追加 -->
+          <!-- リンク行が動的に追加される -->
         </tbody>
       </table>
       <br>
@@ -148,22 +147,45 @@
   </div>
 
   <script>
-    // 現在のファイル名を保持する変数（読み込んだファイル名がなければ "edited.html"）
+    // --- グローバル変数 ---
+    // 現在のファイル名（読み込んだ場合はその名前、なければ "edited.html"）
     let currentFileName = "edited.html";
-    
+
+    // カスタム履歴管理用
+    let historyStack = [];
+    let historyPointer = -1;
+    let inputTimeout;  // 入力イベントのデバウンス用タイマー
+
     const fileInput = document.getElementById("fileInput");
     const selectFileBtn = document.getElementById("selectFile");
     const saveFileBtn = document.getElementById("saveFile");
     const editor = document.getElementById("editor");
 
-    // ファイル読み込み後、editor内の <a> 要素をボタン風に変換
+    // 初期状態を履歴に保存
+    function pushHistory() {
+      const currentContent = editor.innerHTML;
+      if (historyPointer >= 0 && historyStack[historyPointer] === currentContent) {
+        return;
+      }
+      // 既存の履歴があれば、現在位置以降を破棄
+      historyStack = historyStack.slice(0, historyPointer + 1);
+      historyStack.push(currentContent);
+      historyPointer = historyStack.length - 1;
+    }
+    pushHistory();
+
+    // 入力イベントにより、一定時間（300ms）経過後に履歴を更新
+    editor.addEventListener("input", () => {
+      clearTimeout(inputTimeout);
+      inputTimeout = setTimeout(pushHistory, 300);
+    });
+
+    // ファイル読み込み後、<a> 要素をボタン風に変換する関数
     function transformLinksToButtons() {
       const links = editor.querySelectorAll("a:not(.link-button)");
       links.forEach(link => {
         link.classList.add("link-button");
-        if (!link.style.backgroundColor) {
-          link.style.backgroundColor = "red";
-        }
+        if (!link.style.backgroundColor) { link.style.backgroundColor = "red"; }
         link.style.padding = "8px 12px";
         link.style.textDecoration = "none";
         link.style.borderRadius = "5px";
@@ -171,23 +193,24 @@
       });
     }
 
-    // ファイル選択
+    // --- ファイルの読み込み ---
     selectFileBtn.addEventListener("click", () => { fileInput.click(); });
     fileInput.addEventListener("change", e => {
       const file = e.target.files[0];
       if (file) {
-        currentFileName = file.name; // 読み込んだファイル名を記憶
+        currentFileName = file.name; // 読み込んだファイル名を記録
         const reader = new FileReader();
         reader.onload = evt => {
           editor.innerHTML = evt.target.result;
           editor.focus();
           transformLinksToButtons();
+          pushHistory();
         };
         reader.readAsText(file);
       }
     });
 
-    // ドラッグ＆ドロップによるファイル読み込み
+    // ドラッグ＆ドロップでのファイル読み込み
     editor.addEventListener("dragover", e => { e.preventDefault(); e.stopPropagation(); });
     editor.addEventListener("drop", e => {
       e.preventDefault(); e.stopPropagation();
@@ -199,16 +222,18 @@
           editor.innerHTML = evt.target.result;
           editor.focus();
           transformLinksToButtons();
+          pushHistory();
         };
         reader.readAsText(file);
       }
     });
 
-    // 保存ボタン押下時、現在のスタイルも含めたHTMLを元ファイル名で保存
+    // --- 保存機能 ---
     saveFileBtn.addEventListener("click", () => {
       const styleTag = document.querySelector("head style");
       const styleContent = styleTag ? styleTag.innerHTML : "";
-      const fullHTML = `<!DOCTYPE html>
+      const fullHTML =
+`<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -229,13 +254,25 @@ ${editor.innerHTML}
       URL.revokeObjectURL(a.href);
     });
 
-    // Undo／Redo ボタン
+    // --- カスタム Undo/Redo ---
     const undoBtn = document.getElementById("undoBtn");
     const redoBtn = document.getElementById("redoBtn");
-    undoBtn.addEventListener("click", () => { document.execCommand("undo", false, null); });
-    redoBtn.addEventListener("click", () => { document.execCommand("redo", false, null); });
-    
-    // ========== リンク編集機能 ==========
+
+    undoBtn.addEventListener("click", () => {
+      if (historyPointer > 0) {
+        historyPointer--;
+        editor.innerHTML = historyStack[historyPointer];
+      }
+    });
+
+    redoBtn.addEventListener("click", () => {
+      if (historyPointer < historyStack.length - 1) {
+        historyPointer++;
+        editor.innerHTML = historyStack[historyPointer];
+      }
+    });
+
+    // --- リンク編集機能 ---
     const editLinksBtn = document.getElementById("editLinks");
     const linkModal = document.getElementById("linkModal");
     const linkTableBody = document.querySelector("#linkTable tbody");
@@ -245,7 +282,6 @@ ${editor.innerHTML}
     const linkColumnsInput = document.getElementById("linkColumns");
     let draggedRow = null;
 
-    // 「リンク編集」ボタン押下時、editor内のリンクボタン一覧を編集モーダルへ展開
     editLinksBtn.addEventListener("click", () => {
       linkTableBody.innerHTML = "";
       const links = editor.querySelectorAll("a.link-button");
@@ -259,7 +295,7 @@ ${editor.innerHTML}
       linkModal.style.display = "flex";
     });
 
-    // 色の逆引き（簡易実装）
+    // 色名の逆引き（簡易実装）
     function getColorName(rgb) {
       const colorMap = {
         "赤": "red", "あお": "blue", "黄": "yellow",
@@ -277,7 +313,7 @@ ${editor.innerHTML}
       return "赤";
     }
 
-    // リンク編集テーブルへ行追加（プレースホルダー付き）
+    // リンク編集テーブルへの行追加（プレースホルダー付き）
     function addLinkRow(text = "", url = "", color = "赤") {
       const tr = document.createElement("tr");
       tr.classList.add("draggable");
@@ -302,7 +338,7 @@ ${editor.innerHTML}
       
       const tdColor = document.createElement("td");
       const selectColor = document.createElement("select");
-      ["赤","あお","黄","緑","紫","水色","黄緑"].forEach(c => {
+      ["赤", "あお", "黄", "緑", "紫", "水色", "黄緑"].forEach(c => {
         const opt = document.createElement("option");
         opt.value = c;
         opt.textContent = c;
@@ -326,7 +362,7 @@ ${editor.innerHTML}
       });
       tr.addEventListener("drop", e => {
         e.preventDefault();
-        if(draggedRow && draggedRow !== tr) {
+        if (draggedRow && draggedRow !== tr) {
           const rows = Array.from(linkTableBody.children);
           if (rows.indexOf(draggedRow) < rows.indexOf(tr)) {
             linkTableBody.insertBefore(draggedRow, tr.nextSibling);
@@ -347,7 +383,6 @@ ${editor.innerHTML}
     }
 
     addNewLinkRowBtn.addEventListener("click", () => { addLinkRow("", "", "赤"); });
-
     applyLinkChangesBtn.addEventListener("click", () => {
       const columns = parseInt(linkColumnsInput.value) || 1;
       const rows = Array.from(linkTableBody.children);
@@ -402,7 +437,6 @@ ${editor.innerHTML}
     const cancelStyledTextBtn = document.getElementById("cancelStyledText");
 
     insertStyledTextBtn.addEventListener("click", () => { textModal.style.display = "flex"; });
-
     applyStyledTextBtn.addEventListener("click", () => {
       const text = document.getElementById("styledText").value;
       const size = document.getElementById("fontSize").value;
@@ -421,13 +455,11 @@ ${editor.innerHTML}
       span.setAttribute("style", styleString);
       span.textContent = text;
       insertNodeAtCaret(span);
-      
       textModal.style.display = "none";
       document.getElementById("styledText").value = "";
     });
-
     cancelStyledTextBtn.addEventListener("click", () => { textModal.style.display = "none"; });
-
+    
     function insertNodeAtCaret(node) {
       let sel = window.getSelection();
       if (sel && sel.getRangeAt && sel.rangeCount) {
@@ -476,10 +508,7 @@ ${editor.innerHTML}
 
     // ========== 豪華デザイン適用 ==========
     const fancyBtn = document.getElementById("makeFancy");
-    fancyBtn.addEventListener("click", () => {
-      editor.classList.toggle("fancy");
-    });
-    
+    fancyBtn.addEventListener("click", () => { editor.classList.toggle("fancy"); });
   </script>
 </body>
 </html>
