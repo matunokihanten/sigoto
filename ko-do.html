@@ -7,74 +7,63 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
   <!-- CodeMirror ダークテーマ -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/dracula.min.css">
-  <!-- ダイアログ用 CSS（検索・置換用） -->
+  <!-- ダイアログ用 CSS（検索・置換ダイアログ用） -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/dialog/dialog.min.css">
   <style>
     /* 全体レイアウト */
     body { margin: 0; font-family: sans-serif; }
+    /* コンテナー：上部操作バーとエディタ＋プレビュー領域 */
     #container { display: flex; flex-direction: column; height: 100vh; }
     /* 上部操作バー */
     #topbar {
-      padding: 5px;
-      background-color: #ddd;
-      display: flex;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 5px;
-      border-bottom: 1px solid #ccc;
+      padding: 5px; background-color: #ddd;
+      display: flex; flex-wrap: wrap; gap: 5px; border-bottom: 1px solid #ccc;
     }
     #topbar input[type="text"] { padding: 5px; font-size: 1em; }
     #topbar button { padding: 5px 8px; cursor: pointer; }
     /* エディタ＆プレビュー領域 */
     #content { flex: 1; display: flex; overflow: hidden; }
-    #editorContainer, #previewContainer { height: 100%; }
+    /* エディタ領域は常に100%幅（プレビュー表示時はJSで50%に調整） */
     #editorContainer { width: 100%; }
-    /* プレビュー領域：初期は非表示 */
-    #previewContainer { width: 50%; position: relative; overflow: auto; display: none; }
+    /* プレビュー領域：初期状態は非表示 */
+    #previewContainer {
+      width: 50%; display: none; position: relative; overflow: auto;
+    }
     /* iframe によるプレビュー表示 */
     #previewFrame {
-      width: 100%;
-      height: 100%;
-      border: none;
-      transform: scale(0.8);
-      transform-origin: top left;
+      width: 100%; height: 100%; border: none;
+      transform: scale(0.8); transform-origin: top left;
     }
     /* 操作説明モーダル */
     .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
+      display: none; position: fixed; z-index: 1000;
+      left: 0; top: 0; width: 100%; height: 100%;
       background-color: rgba(0,0,0,0.5);
     }
     .modal-content {
-      background-color: #fff;
-      margin: 10% auto;
-      padding: 20px;
-      width: 80%;
-      position: relative;
-      border-radius: 4px;
+      background-color: white; margin: 10% auto; padding: 20px;
+      width: 80%; border-radius: 4px; position: relative;
     }
     .modal-close { position: absolute; right: 10px; top: 10px; cursor: pointer; font-size: 20px; }
     /* ダークモード用 */
     .dark { background-color: #333; color: #eee; }
     .dark #topbar { background-color: #555; }
     .dark .modal-content { background-color: #666; color: #fff; }
-    /* 検索で見つかった文字のハイライト */
+    /* 検索で見つかった文字列のハイライト */
     .search-highlight { background-color: yellow !important; }
   </style>
 </head>
 <body>
   <div id="container">
-    <!-- 上部操作バー：ファイル名入力、各種ボタン -->
+    <!-- 上部操作バー（シングルファイル用） -->
     <div id="topbar">
       <input type="text" id="fileName" placeholder="ファイル名">
       <button id="autoFormatBtn">自動整形</button>
       <button id="lintCheckBtn">Lintチェック</button>
       <button id="minifyBtn">コード短縮</button>
+      <!-- 戻す／進むボタン -->
+      <button id="undoBtn">戻す</button>
+      <button id="redoBtn">進む</button>
       <button id="themeToggleBtn">テーマ切替</button>
       <button id="clearAllBtn">全削除</button>
       <button id="loadHtmlBtn">HTMLファイル読み込み</button>
@@ -84,7 +73,7 @@
       <button id="searchReplaceBtn">検索/置換</button>
       <button id="showHelpBtn">操作説明</button>
       <!-- HTMLファイル読み込み用非表示入力 -->
-      <input type="file" id="htmlFileInput" style="display:none;" accept=".html">
+      <input type="file" id="htmlFileInput" style="display:none;" accept=".html,.htm">
     </div>
     <!-- エディタ＆プレビュー領域 -->
     <div id="content">
@@ -103,11 +92,13 @@
       <span id="modalClose" class="modal-close">&times;</span>
       <h2>操作説明</h2>
       <p>
-        このエディタは、HTMLコードの入力・編集、リアルタイムプレビュー、コードの自動整形、Lintチェック、<br>
-        そしてコード短縮（余分な改行や空白の削除）機能を備えています。<br>
-        ファイル名欄に保存したい名前を入力し、HTMLまたはPDFとして保存が可能です。<br>
-        「検索/置換」ボタンを押すと、検索文字列を入力するダイアログが表示され、<br>
-        一致した文字列は黄色にハイライトされた状態で残ります。（置換も実行可能です）
+        このエディタはシングルファイル用のHTMLエディタです。<br>
+        上部のファイル名入力欄に保存したい名前を入力してください。<br>
+        ※ファイル名にすでに拡張子（例："index.html" や "readme.txt"）が含まれている場合はそのまま使用します。<br>
+        含まれていなければ、HTML保存時に自動で「.html」、PDF保存時に「.pdf」を付与します。<br>
+        「戻す」ボタン／「進む」ボタンで変更履歴を順次戻したり進めたりできます。<br>
+        検索/置換機能では、検索文字列を入力後すぐに一致箇所が黄色にハイライトされます。<br>
+        その他、自動整形、Lintチェック、コード短縮、全削除、HTMLファイル読み込み、プレビュー表示機能も備えています。
       </p>
     </div>
   </div>
@@ -115,7 +106,7 @@
   <!-- 各種ライブラリ読み込み -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/htmlmixed/htmlmixed.min.js"></script>
-  <!-- 検索／置換用ダイアログ -->
+  <!-- 検索/置換用 -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/search/searchcursor.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/search/search.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/addon/dialog/dialog.min.js"></script>
@@ -125,12 +116,8 @@
   <!-- PDF保存用ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
-  <!-- メインスクリプト -->
   <script>
-    // persistent search markers 用の配列
-    var searchMarkers = [];
-    
-    // CodeMirror エディタ初期化（コード補完／インテリセンスは削除）
+    // CodeMirror エディタ初期化（補完機能は削除）
     var codeEditor = CodeMirror.fromTextArea(document.getElementById("codeEditor"), {
       mode: "htmlmixed",
       lineNumbers: true,
@@ -158,16 +145,19 @@
         reader.onload = function(e) {
           codeEditor.setValue(e.target.result);
           updatePreview();
+          // 読み込んだファイル名をファイル名入力欄に設定
           document.getElementById("fileName").value = file.name;
         };
-        reader.readAsText(file);
+        reader.readAsText(file, "UTF-8");
       }
     });
     
-    // HTML保存：ファイル名にピリオドがなければ ".html" を付与
+    // HTML保存：ファイル名にすでにピリオドが含まれていればそのまま使用、なければ ".html" を付与
     document.getElementById("downloadFileBtn").addEventListener("click", function() {
       var fileName = document.getElementById("fileName").value.trim() || "タイトル無";
-      if (fileName.indexOf('.') === -1) { fileName += ".html"; }
+      if (fileName.indexOf('.') === -1) { 
+        fileName += ".html"; 
+      }
       var blob = new Blob([codeEditor.getValue()], { type: "text/html" });
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
@@ -175,7 +165,7 @@
       a.click();
     });
     
-    // PDF保存：プレビュー表示中でないと警告
+    // PDF保存：同様に、拡張子がなければ ".pdf" を付与
     document.getElementById("downloadPdfBtn").addEventListener("click", function() {
       var previewContainer = document.getElementById("previewContainer");
       if (previewContainer.style.display === "none" || previewContainer.style.display === "") {
@@ -195,14 +185,14 @@
       html2pdf().set(opt).from(previewDoc).save();
     });
     
-    // 自動整形（js-beautify 利用）
+    // 自動整形（js-beautify利用）
     document.getElementById("autoFormatBtn").addEventListener("click", function() {
       var formatted = html_beautify(codeEditor.getValue());
       codeEditor.setValue(formatted);
       updatePreview();
     });
     
-    // Lintチェック（HTMLHint 利用）
+    // Lintチェック（HTMLHint利用）
     document.getElementById("lintCheckBtn").addEventListener("click", function() {
       var results = HTMLHint.verify(codeEditor.getValue());
       if (results.length > 0) {
@@ -229,6 +219,18 @@
       alert("コードが短縮されました。");
     });
     
+    // 戻すボタン（undo）
+    document.getElementById("undoBtn").addEventListener("click", function() {
+      codeEditor.execCommand("undo");
+      updatePreview();
+    });
+    
+    // 進むボタン（redo）
+    document.getElementById("redoBtn").addEventListener("click", function() {
+      codeEditor.execCommand("redo");
+      updatePreview();
+    });
+    
     // テーマ切替
     var isDarkMode = false;
     document.getElementById("themeToggleBtn").addEventListener("click", function() {
@@ -251,35 +253,32 @@
     });
     
     // 検索/置換機能（永続的ハイライト付き）
+    var searchMarkers = [];
     document.getElementById("searchReplaceBtn").addEventListener("click", function() {
       // 既存のハイライトをクリア
-      searchMarkers.forEach(function(marker) { marker.clear(); });
+      searchMarkers.forEach(marker => marker.clear());
       searchMarkers = [];
       
-      var searchQuery = window.prompt("検索文字列を入力してください：", "");
-      if (!searchQuery) { return; }
+      var searchQuery = prompt("検索文字列を入力してください：", "");
+      if (!searchQuery) return;
       
-      // 検索して一致箇所をマーク（markText）
       var cursor = codeEditor.getSearchCursor(searchQuery, { line: 0, ch: 0 });
       while (cursor.findNext()) {
         var marker = codeEditor.markText(cursor.from(), cursor.to(), { className: "search-highlight", clearWhenEmpty: false });
         searchMarkers.push(marker);
       }
       
-      // 置換を行うか確認（キャンセルならハイライトはそのまま）
-      var replaceQuery = window.prompt("置換文字列を入力してください（キャンセルで置換なし）：", "");
+      var replaceQuery = prompt("置換文字列を入力してください（キャンセルで置換なし）：", "");
       if (replaceQuery !== null) {
-        // すべての一致箇所を置換
         var content = codeEditor.getValue();
-        // 正規表現用に検索文字列をエスケープ
         var escapedSearch = searchQuery.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
         var re = new RegExp(escapedSearch, "g");
         var newContent = content.replace(re, replaceQuery);
         codeEditor.setValue(newContent);
         updatePreview();
         
-        // 置換後もハイライトを残すため、再度検索文字列として置換後の値を用いてハイライト
-        searchMarkers.forEach(function(marker) { marker.clear(); });
+        // ハイライトを更新（置換後の文字列で再マーク）
+        searchMarkers.forEach(marker => marker.clear());
         searchMarkers = [];
         var newCursor = codeEditor.getSearchCursor(replaceQuery, { line: 0, ch: 0 });
         while (newCursor.findNext()) {
@@ -307,9 +306,16 @@
     
     // 操作説明モーダルの表示／非表示
     var modal = document.getElementById("modal");
-    document.getElementById("showHelpBtn").addEventListener("click", function() { modal.style.display = "block"; });
-    document.getElementById("modalClose").addEventListener("click", function() { modal.style.display = "none"; });
-    window.addEventListener("click", function(event) { if (event.target == modal) { modal.style.display = "none"; } });
+    document.getElementById("showHelpBtn").addEventListener("click", function() {
+      modal.style.display = "block";
+    });
+    document.getElementById("modalClose").addEventListener("click", function() {
+      modal.style.display = "none";
+    });
+    window.addEventListener("click", function(event) {
+      if (event.target == modal)
+        modal.style.display = "none";
+    });
   </script>
 </body>
 </html>
