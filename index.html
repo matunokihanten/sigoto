@@ -9,13 +9,17 @@
     body {
       margin: 0;
       padding: 20px;
-      background: #f0f0f0;
+      /* 背景画像を hideout.jpg に設定（同じフォルダー内） */
+      background: url('hideout.jpg') no-repeat center center;
+      background-size: cover;
       font-family: sans-serif;
     }
     #scoreboard {
       text-align: center;
       font-size: 24px;
       margin-bottom: 10px;
+      color: #fff;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
     }
     /* ゲームボード内で広告が動く領域 */
     #game-board {
@@ -23,7 +27,7 @@
       width: 100vw;
       height: 80vh;
       border: 2px solid #ccc;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.7);
       overflow: hidden;
     }
     /* 共通の広告要素 */
@@ -183,7 +187,7 @@
     // 初期配置
     ads.forEach(ad => repositionAd(ad));
     
-    // 広告の位置を一定間隔（5秒ごと）で再配置
+    // 広告の位置を一定間隔で再配置
     setInterval(() => {
       ads.forEach(ad => repositionAd(ad));
     }, 5000);
@@ -217,7 +221,7 @@
       
       // クリック時のリップル効果とスコア加算
       ad.addEventListener('click', function(e) {
-        e.preventDefault(); // リンク先ページは後で新タブで開く
+        e.preventDefault(); // 後で新タブでリンクを開くため
         const ripple = document.createElement('span');
         ripple.classList.add('ripple');
         ad.appendChild(ripple);
