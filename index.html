@@ -3,23 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>広告キャッチゲーム：滑らかに逃げ回る</title>
+  <title>広告キャッチゲーム：逃げ回る広告＋楽天広告</title>
   <style>
     /* 全体レイアウト */
     body {
       margin: 0;
       padding: 20px;
-      /* 背景画像を hideout.jpg に設定（同じフォルダー内） */
-      background: url('hideout.jpg') no-repeat center center;
-      background-size: cover;
+      background: #f0f0f0;
       font-family: sans-serif;
     }
     #scoreboard {
       text-align: center;
       font-size: 24px;
       margin-bottom: 10px;
-      color: #fff;
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
     }
     /* ゲームボード内で広告が動く領域 */
     #game-board {
@@ -30,6 +26,7 @@
       background: rgba(255, 255, 255, 0.7);
       overflow: hidden;
     }
+    
     /* 共通の広告要素 */
     .ad {
       position: absolute;
@@ -51,7 +48,7 @@
     .floating {
       animation: floating 4s ease-in-out infinite;
     }
-    /* 輝くグロー効果（疑似要素） */
+    /* 輝くグロー効果（共通疑似要素） */
     .ad::before {
       content: '';
       position: absolute;
@@ -69,6 +66,7 @@
       50% { opacity: 1; }
       100% { opacity: 0.8; }
     }
+    
     /* クリック時のリップル効果 */
     .ripple {
       position: absolute;
@@ -83,6 +81,7 @@
         opacity: 0;
       }
     }
+    
     /* マウスムーブに連動する光のフォロワー */
     .mouse-follower {
       position: absolute;
@@ -95,6 +94,7 @@
       opacity: 0;
       transition: opacity 0.3s ease;
     }
+    
     /* スパークル（キラキラ）効果 */
     .sparkle {
       position: absolute;
@@ -110,12 +110,14 @@
       0% { opacity: 1; transform: scale(1); }
       100% { opacity: 0; transform: scale(2); }
     }
-    /* Amazon広告専用：画像サイズ */
+    
+    /* Amazon広告専用 */
     .amazon-ad img {
       display: block;
       width: 200px;
     }
-    /* ムームードメイン広告専用：テキストリンク */
+    
+    /* ムームードメイン広告専用 */
     .mmd-ad {
       padding: 10px 20px;
       background: linear-gradient(45deg, #00aaff, #0077ff);
@@ -124,8 +126,25 @@
       font-weight: bold;
       border-radius: 8px;
     }
-    /* ムームードメインのトラッキング画像は必ず残す（非表示でOK） */
     .mmd-ad img {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      left: 0;
+      top: 0;
+      opacity: 0;
+    }
+    
+    /* 楽天広告専用：表示テキストは「楽天」だけ */
+    .rkt-ad {
+      padding: 10px 20px;
+      background: linear-gradient(45deg, #e60012, #ff4c4c);
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 8px;
+    }
+    .rkt-ad img {
       position: absolute;
       width: 1px;
       height: 1px;
@@ -152,6 +171,14 @@
       ムームードメイン
       <img border="0" width="1" height="1" src="https://www10.a8.net/0.gif?a8mat=35UH69+4T95TE+348+1C11DE" alt="">
     </a>
+    <!-- 楽天広告（テキストリンク＋トラッキング画像） -->
+    <a class="ad rkt-ad floating" 
+       href="https://rpx.a8.net/svt/ejp?a8mat=2NE322+DSJJAQ+2HOM+6D4GI&rakuten=y&a8ejpredirect=http%3A%2F%2Fhb.afl.rakuten.co.jp%2Fhgc%2F0ea62065.34400275.0ea62066.204f04c0%2Fa16022053228_2NE322_DSJJAQ_2HOM_6D4GI%3Fpc%3Dhttp%253A%252F%252Fwww.rakuten.co.jp%252F%26m%3Dhttp%253A%252F%252Fm.rakuten.co.jp%252F" 
+       rel="nofollow" 
+       target="_blank">
+      楽天
+      <img border="0" width="1" height="1" src="https://www15.a8.net/0.gif?a8mat=2NE322+DSJJAQ+2HOM+6D4GI" alt="">
+    </a>
   </div>
   
   <script>
@@ -159,10 +186,11 @@
     const scoreboard = document.getElementById('scoreboard');
     const gameBoard = document.getElementById('game-board');
     
-    // 広告要素を配列で管理
+    // 広告要素（Amazon、ムームードメイン、楽天）の管理
     const amazonAd = document.querySelector('.amazon-ad');
     const mmdAd = document.querySelector('.mmd-ad');
-    const ads = [amazonAd, mmdAd];
+    const rktAd = document.querySelector('.rkt-ad');
+    const ads = [amazonAd, mmdAd, rktAd];
     
     // スコア更新関数
     function updateScore(points) {
@@ -170,7 +198,7 @@
       scoreboard.textContent = "Score: " + score;
     }
     
-    // ゲームボード内で広告の位置をランダムに決める関数
+    // ゲームボード内で広告の位置をランダムに決定
     function repositionAd(ad) {
       const boardRect = gameBoard.getBoundingClientRect();
       const adWidth = ad.offsetWidth;
@@ -179,7 +207,6 @@
       const maxY = boardRect.height - adHeight;
       const randomX = Math.random() * maxX;
       const randomY = Math.random() * maxY;
-      // CSS transition により位置が5秒かけて滑らかに移動
       ad.style.left = randomX + "px";
       ad.style.top = randomY + "px";
     }
@@ -187,12 +214,12 @@
     // 初期配置
     ads.forEach(ad => repositionAd(ad));
     
-    // 広告の位置を一定間隔で再配置
+    // 広告の位置を一定間隔（5秒）ごとに再配置
     setInterval(() => {
       ads.forEach(ad => repositionAd(ad));
     }, 5000);
     
-    // 広告にインタラクションを追加する関数
+    // 広告に共通のインタラクションを追加する関数
     function addInteractions(ad) {
       const mouseFollower = document.createElement('span');
       mouseFollower.classList.add('mouse-follower');
@@ -219,9 +246,9 @@
         mouseFollower.style.opacity = "0";
       });
       
-      // クリック時のリップル効果とスコア加算
+      // クリック時（クリック効果・スコア加算・リンク新規タブで開く）
       ad.addEventListener('click', function(e) {
-        e.preventDefault(); // 後で新タブでリンクを開くため
+        e.preventDefault(); // リンク先は後で新タブで開く
         const ripple = document.createElement('span');
         ripple.classList.add('ripple');
         ad.appendChild(ripple);
