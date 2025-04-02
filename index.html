@@ -3,113 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>超豪華ムームードメインリンク with Mouse Follower</title>
+  <title>広告キャッチゲーム：滑らかに逃げ回る</title>
   <style>
-    /* 背景に流れるグラデーションアニメーション */
+    /* 全体レイアウト */
     body {
       margin: 0;
-      padding: 0;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      background: linear-gradient(-45deg, #ff9966, #ff5e62, #ff9966, #ff5e62);
-      background-size: 400% 400%;
-      animation: gradient 15s ease infinite;
-      overflow: hidden;
+      padding: 20px;
+      background: #f0f0f0;
+      font-family: sans-serif;
     }
-    @keyframes gradient {
-      0%   { background-position: 0% 50%; }
-      50%  { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    
-    /* ボタンの基本スタイル */
-    .affiliate-button {
-      position: relative;
+    #scoreboard {
+      text-align: center;
       font-size: 24px;
-      font-weight: bold;
-      padding: 20px 40px;
-      color: #fff;
-      background: linear-gradient(45deg, #ff9900, #ff7700);
-      border: 2px solid transparent;
-      border-radius: 12px;
-      text-decoration: none;
-      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    /* ゲームボード内で広告が動く領域 */
+    #game-board {
+      position: relative;
+      width: 100vw;
+      height: 80vh;
+      border: 2px solid #ccc;
+      background: #fff;
       overflow: hidden;
-      box-shadow: 0 12px 20px rgba(0,0,0,0.2);
-      transition: transform 0.3s ease, box-shadow 0.3s ease;
     }
-    /* 常時輝くシェイニー効果（::before） */
-    .affiliate-button::before {
-      content: "";
+    /* 共通の広告要素 */
+    .ad {
       position: absolute;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
-      transform: rotate(45deg);
-      opacity: 0;
-      transition: opacity 0.5s ease;
+      cursor: pointer;
+      display: inline-block;
+      /* 位置(left, top)の変更が5秒で滑らかに遷移 */
+      transition: left 5s ease-in-out, top 5s ease-in-out, transform 0.3s ease, box-shadow 0.3s ease;
     }
-    .affiliate-button:hover::before {
-      opacity: 1;
-    }
-    /* ホバー時に現れる回転するダッシュボーダー（::after） */
-    .affiliate-button::after {
-      content: "";
-      position: absolute;
-      top: -5px;
-      left: -5px;
-      right: -5px;
-      bottom: -5px;
-      border: 2px dashed rgba(255,255,255,0.8);
-      border-radius: inherit;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-    .affiliate-button:hover::after {
-      opacity: 1;
-      animation: rotateBorder 4s linear infinite;
-    }
-    @keyframes rotateBorder {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    .ad:hover {
+      transform: scale(1.1) rotate(3deg);
+      box-shadow: 0 15px 25px rgba(0, 0, 0, 0.3);
     }
     /* 浮遊アニメーション */
     @keyframes floating {
-      0%   { transform: translateY(0); }
-      50%  { transform: translateY(-15px); }
+      0% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
       100% { transform: translateY(0); }
     }
-    .affiliate-button.floating {
+    .floating {
       animation: floating 4s ease-in-out infinite;
     }
-    /* ホバー時の拡大＆影効果 */
-    .affiliate-button:hover {
-      transform: scale(1.1);
-      box-shadow: 0 16px 25px rgba(0,0,0,0.3);
+    /* 輝くグロー効果（疑似要素） */
+    .ad::before {
+      content: '';
+      position: absolute;
+      top: -5%;
+      left: -5%;
+      width: 110%;
+      height: 110%;
+      border-radius: inherit;
+      background: linear-gradient(45deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+      animation: glow 2s infinite;
+      pointer-events: none;
     }
-    /* テキストのシマー効果 */
-    .affiliate-button span {
-      background: linear-gradient(45deg, #ffffff, #ffcc00, #ffffff);
-      background-size: 200% 200%;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      animation: textShimmer 2s linear infinite;
+    @keyframes glow {
+      0% { opacity: 0.8; }
+      50% { opacity: 1; }
+      100% { opacity: 0.8; }
     }
-    @keyframes textShimmer {
-      0% { background-position: 0% 50%; }
-      100% { background-position: 100% 50%; }
-    }
-    /* クリック時のリップルエフェクト */
+    /* クリック時のリップル効果 */
     .ripple {
       position: absolute;
       border-radius: 50%;
+      background: rgba(255,255,255,0.7);
       transform: scale(0);
-      background: rgba(255, 255, 255, 0.8);
-      animation: ripple 0.8s ease-out;
       pointer-events: none;
     }
     @keyframes ripple {
@@ -118,132 +79,162 @@
         opacity: 0;
       }
     }
-    /* クリック時のスパークルエフェクト */
-    .sparkle {
-      position: absolute;
-      background: radial-gradient(circle, #fff 50%, transparent 60%);
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      opacity: 0;
-      animation: sparkleFade 1s ease-out forwards;
-    }
-    @keyframes sparkleFade {
-      0%   { opacity: 1; transform: translate(0, 0) scale(1); }
-      100% { opacity: 0; transform: translate(50px, -50px) scale(2); }
-    }
-    /* コンフェッティエフェクト */
-    .confetti {
-      position: absolute;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      opacity: 1;
-      animation: confettiFall 1.5s ease-out forwards;
-    }
-    @keyframes confettiFall {
-      0% { transform: translate(0, 0) rotate(0deg); opacity: 1; }
-      100% { transform: translate(var(--tx), 150px) rotate(var(--angle)); opacity: 0; }
-    }
-    /* マウスムーブに連動する効果：ボタン上の光の球 */
+    /* マウスムーブに連動する光のフォロワー */
     .mouse-follower {
       position: absolute;
-      width: 30px;
-      height: 30px;
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+      background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, transparent 70%);
       pointer-events: none;
       transform: translate(-50%, -50%);
       opacity: 0;
       transition: opacity 0.3s ease;
     }
+    /* スパークル（キラキラ）効果 */
+    .sparkle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fff 50%, transparent 60%);
+      pointer-events: none;
+      opacity: 0;
+      animation: sparkle 1s ease-out forwards;
+    }
+    @keyframes sparkle {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(2); }
+    }
+    /* Amazon広告専用：画像サイズ */
+    .amazon-ad img {
+      display: block;
+      width: 200px;
+    }
+    /* ムームードメイン広告専用：テキストリンク */
+    .mmd-ad {
+      padding: 10px 20px;
+      background: linear-gradient(45deg, #00aaff, #0077ff);
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      border-radius: 8px;
+    }
+    /* ムームードメインのトラッキング画像は必ず残す（非表示でOK） */
+    .mmd-ad img {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      left: 0;
+      top: 0;
+      opacity: 0;
+    }
   </style>
 </head>
 <body>
-  <!-- 豪華なムームードメインリンク -->
-  <a href="https://px.a8.net/svt/ejp?a8mat=35UH69+4T95TE+348+1C11DE" rel="nofollow" class="affiliate-button floating">
-    <span>ムームードメイン</span>
-  </a>
-  
-  <!-- A8.net トラッキング用画像 -->
-  <img border="0" width="1" height="1" src="https://www10.a8.net/0.gif?a8mat=35UH69+4T95TE+348+1C11DE" alt="">
+  <div id="scoreboard">Score: 0</div>
+  <div id="game-board">
+    <!-- Amazon広告（画像リンク） -->
+    <a class="ad amazon-ad floating" 
+       href="https://www.amazon.co.jp/ref=as_li_ss_tl?&_encoding=UTF8&linkCode=sl2&tag=matunokihan05-22&linkId=cf69714f8c8dd3e4dd92f9b7a6369b18&language=ja_JP" 
+       target="_blank">
+      <img src="amazon.png" alt="Amazon">
+    </a>
+    <!-- ムームードメイン広告（テキストリンク＋トラッキング画像） -->
+    <a class="ad mmd-ad floating" 
+       href="https://px.a8.net/svt/ejp?a8mat=35UH69+4T95TE+348+1C11DE" 
+       rel="nofollow" 
+       target="_blank">
+      ムームードメイン
+      <img border="0" width="1" height="1" src="https://www10.a8.net/0.gif?a8mat=35UH69+4T95TE+348+1C11DE" alt="">
+    </a>
+  </div>
   
   <script>
-    const button = document.querySelector('.affiliate-button');
-
-    // マウスムーブに連動する効果用フォロワーを作成
-    let mouseFollower = document.createElement('span');
-    mouseFollower.classList.add('mouse-follower');
-    button.appendChild(mouseFollower);
-
-    button.addEventListener('mousemove', function(e) {
-      const rect = button.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      mouseFollower.style.left = x + 'px';
-      mouseFollower.style.top = y + 'px';
-      mouseFollower.style.opacity = "1";
-    });
-    button.addEventListener('mouseleave', function() {
-      mouseFollower.style.opacity = "0";
-    });
+    let score = 0;
+    const scoreboard = document.getElementById('scoreboard');
+    const gameBoard = document.getElementById('game-board');
     
-    // クリック時のリップル、スパークル、コンフェッティエフェクト
-    button.addEventListener('click', function(e) {
-      // リップルエフェクト
-      const ripple = document.createElement('span');
-      ripple.classList.add('ripple');
-      this.appendChild(ripple);
+    // 広告要素を配列で管理
+    const amazonAd = document.querySelector('.amazon-ad');
+    const mmdAd = document.querySelector('.mmd-ad');
+    const ads = [amazonAd, mmdAd];
+    
+    // スコア更新関数
+    function updateScore(points) {
+      score += points;
+      scoreboard.textContent = "Score: " + score;
+    }
+    
+    // ゲームボード内で広告の位置をランダムに決める関数
+    function repositionAd(ad) {
+      const boardRect = gameBoard.getBoundingClientRect();
+      const adWidth = ad.offsetWidth;
+      const adHeight = ad.offsetHeight;
+      const maxX = boardRect.width - adWidth;
+      const maxY = boardRect.height - adHeight;
+      const randomX = Math.random() * maxX;
+      const randomY = Math.random() * maxY;
+      // CSS transition により位置が5秒かけて滑らかに移動
+      ad.style.left = randomX + "px";
+      ad.style.top = randomY + "px";
+    }
+    
+    // 初期配置
+    ads.forEach(ad => repositionAd(ad));
+    
+    // 広告の位置を一定間隔（5秒ごと）で再配置
+    setInterval(() => {
+      ads.forEach(ad => repositionAd(ad));
+    }, 5000);
+    
+    // 広告にインタラクションを追加する関数
+    function addInteractions(ad) {
+      const mouseFollower = document.createElement('span');
+      mouseFollower.classList.add('mouse-follower');
+      ad.appendChild(mouseFollower);
       
-      const rect = this.getBoundingClientRect();
-      const size = Math.max(rect.width, rect.height);
-      ripple.style.width = ripple.style.height = size + 'px';
-      ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
-      ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
-      
-      ripple.addEventListener('animationend', function() {
-        ripple.remove();
-      });
-      
-      // スパークルエフェクト
-      const sparklesCount = 5;
-      for (let i = 0; i < sparklesCount; i++) {
+      ad.addEventListener('mousemove', function(e) {
+        const rect = ad.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        mouseFollower.style.left = x + 'px';
+        mouseFollower.style.top = y + 'px';
+        mouseFollower.style.opacity = "1";
+        
+        // マウス移動時にランダムなスパークルを発生
         const sparkle = document.createElement('span');
         sparkle.classList.add('sparkle');
-        const randomX = Math.random() * rect.width;
-        const randomY = Math.random() * rect.height;
-        sparkle.style.left = randomX + 'px';
-        sparkle.style.top = randomY + 'px';
-        this.appendChild(sparkle);
+        sparkle.style.left = (x + (Math.random() * 20 - 10)) + 'px';
+        sparkle.style.top = (y + (Math.random() * 20 - 10)) + 'px';
+        ad.appendChild(sparkle);
+        sparkle.addEventListener('animationend', () => sparkle.remove());
+      });
       
-        sparkle.addEventListener('animationend', function() {
-          sparkle.remove();
-        });
-      }
+      ad.addEventListener('mouseleave', function() {
+        mouseFollower.style.opacity = "0";
+      });
       
-      // コンフェッティエフェクト
-      const confettiColors = ['#FFC700', '#FF0000', '#2E3192', '#41BBC7'];
-      const confettiCount = 10;
-      for (let i = 0; i < confettiCount; i++) {
-        const confetti = document.createElement('div');
-        confetti.classList.add('confetti');
-        confetti.style.backgroundColor = confettiColors[Math.floor(Math.random() * confettiColors.length)];
-        confetti.style.left = (Math.random() * rect.width) + 'px';
-        confetti.style.top = (Math.random() * rect.height) + 'px';
-        const randomX = (Math.random() - 0.5) * 200;
-        const randomAngle = Math.floor(Math.random() * 720) + 'deg';
-        confetti.style.setProperty('--tx', randomX + 'px');
-        confetti.style.setProperty('--angle', randomAngle);
-        this.appendChild(confetti);
+      // クリック時のリップル効果とスコア加算
+      ad.addEventListener('click', function(e) {
+        e.preventDefault(); // リンク先ページは後で新タブで開く
+        const ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        ad.appendChild(ripple);
+        const rect = ad.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = (e.clientX - rect.left - size/2) + 'px';
+        ripple.style.top = (e.clientY - rect.top - size/2) + 'px';
+        ripple.style.animation = 'ripple 0.6s linear';
+        ripple.addEventListener('animationend', () => ripple.remove());
         
-        confetti.addEventListener('animationend', function() {
-          confetti.remove();
-        });
-      }
-    });
+        updateScore(1);
+        window.open(ad.href, '_blank');
+      });
+    }
+    
+    ads.forEach(ad => addInteractions(ad));
   </script>
-  
-  <!-- 外部スクリプトの追加（A8.net提供） -->
-  <script type="text/javascript" src="//rot1.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
 </body>
 </html>
