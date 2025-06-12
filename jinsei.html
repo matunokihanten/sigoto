@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>契約診断ストーリー 4.0</title>
+
+<style>
+/* ---------- BASIC LAYOUT ---------- */
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto;
+  min-height:100vh;display:flex;justify-content:center;align-items:flex-start;
+  background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);color:#fff;
+}
+#app{
+  width:clamp(320px,90vw,740px);margin:3rem auto 1.5rem;
+  padding:2rem 2.5rem;border-radius:14px;
+  background:rgba(255,255,255,.08);backdrop-filter:blur(6px);
+  box-shadow:0 10px 28px rgba(0,0,0,.4);
+}
+
+/* ---------- PROGRESS BAR ---------- */
+#progress{height:6px;width:100%;background:rgba(255,255,255,.18);border-radius:3px;overflow:hidden;margin-bottom:1.35rem}
+#bar{height:100%;width:0;background:#4caf50;transition:width .35s ease}
+
+/* ---------- SCENE & CHOICES ---------- */
+#scene{white-space:pre-line;line-height:1.8;font-size:1.08rem;margin-bottom:1.4rem;min-height:180px;} /* Increased min-height */
+.info-box{
+  background:rgba(255,255,255,.1);border-left:4px solid #ff9800;
+  padding:.8rem 1.2rem;margin-top:1rem;font-size:.9rem;line-height:1.5;
+}
+button{
+  display:block;width:100%;text-align:center;
+  margin:.28rem 0;padding:.65rem 1rem;
+  font-size:1rem;border:none;border-radius:7px;cursor:pointer;
+  background:#ff9800;color:#fff;font-weight:600;letter-spacing:.3px;
+  transition:all .2s ease;
+}
+button:hover{background:#ffc107;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.28)}
+button:active{transform:translateY(0);box-shadow:none}
+input[type=range]{width:100%}
+
+/* ---------- GRAPH ---------- */
+#chartContainer{margin-top:1.5rem;background:rgba(0,0,0,.2);padding:1rem;border-radius:8px;}
+#myChart{display:block;width:100%;height:180px;}
+
+/* ---------- FADE ANIMATION ---------- */
+.fade{animation:fadeIn .5s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+
+<body>
+  <div id="app" class="fade">
+    <div id="progress"><div id="bar"></div></div>
+    <div id="scene"></div>
+    <div id="choices"></div>
+    <div id="chartContainer">
+      <canvas id="myChart"></canvas>
+    </div>
+  </div>
+
+<script>
+/* ========== STATE ========== */
+const state={
+  name:"あなた",
+  risk:3,          // 1–5
+  value:"flex",    // safe | flex
+  contractType:null, // 'employment' | 'biz'
+  annualIncome:0,
+  taxAmount:0,
+  netIncome:0, // 手取り額 (税金+社会保険料を差し引いた額)
+  step:0,
+  maxStep:25, // Further increased max steps
+  incomeHistory:[], // For graph
+  taxHistory:[]     // For graph
+};
+
+/* ========== UTILITIES ========== */
+function formatNumber(num) {
+  return num.toLocaleString('ja-JP');
+}
+
+function calculateTaxAndSocialInsurance(income, contractType) {
+  // Simplified tax calculation (Income tax + Resident tax + rough Social Insurance)
+  // This is a very rough estimate for demonstration.
+  let taxableIncome = 0;
+  let socialInsurance = 0;
+
+  if (contractType === 'employment') {
+    // 雇用契約の場合: 給与所得控除を考慮し、社会保険料も控除
+    taxableIncome = Math.max(0, income * 0.7 - 480000); // ざっくり給与所得控除と基礎控除
+    socialInsurance = income * 0.15; // 健康保険+厚生年金 ざっくり15%
+  } else if (contractType === 'biz') {
+    // 業務委託の場合: 必要経費を考慮し、社会保険料は国保・国民年金
+    taxableIncome = Math.max(0, income * 0.6 - 480000); // ざっくり経費控除と基礎控除
+    socialInsurance = income * 0.10; // 国保+国民年金 ざっくり10% (所得比例と定額分)
+  }
+  
+  taxableIncome = Math.max(0, taxableIncome - socialInsurance); // 社会保険料控除
+
+  let incomeTax = 0;
+  if (taxableIncome > 9000000) incomeTax = (taxableIncome - 9000000) * 0.33 + 1536000;
+  else if (taxableIncome > 6950000) incomeTax = (taxableIncome - 6950000) * 0.23 + 636000;
+  else if (taxableIncome > 3300000) incomeTax = (taxableIncome - 3300000) * 0.20 + 427500;
+  else if (taxableIncome > 1950000) incomeTax = (taxableIncome - 1950000) * 0.10 + 97500;
+  else if (taxableIncome > 0) incomeTax = taxableIncome * 0.05;
+
+  let residentTax = taxableIncome * 0.1; // ざっくり住民税
+
+  const totalTax = Math.round((incomeTax + residentTax) / 1000) * 1000;
+  const totalSocialInsurance = Math.round(socialInsurance / 1000) * 1000;
+  
+  return {
+    totalTax: totalTax,
+    totalSocialInsurance: totalSocialInsurance,
+    netIncome: Math.max(0, income - totalTax - totalSocialInsurance)
+  };
+}
+
+/* ========== CORE RENDERING ========== */
+function show(text, choices=[]){
+  state.step=Math.min(state.step+1,state.maxStep);      // progress
+  const taxCalcResult = calculateTaxAndSocialInsurance(state.annualIncome, state.contractType);
+  state.taxAmount = taxCalcResult.totalTax;
+  state.socialInsurance = taxCalcResult.totalSocialInsurance;
+  state.netIncome = taxCalcResult.netIncome;
+
+  scene.innerHTML=text.replace(/\{name\}/g,state.name)
+                       .replace(/\{risk\}/g,state.risk)
+                       .replace(/\{val\}/g,state.value==="safe"?"安定志向":"自由追求")
+                       .replace(/\{income\}/g,formatNumber(state.annualIncome))
+                       .replace(/\{tax\}/g,formatNumber(state.taxAmount))
+                       .replace(/\{socialIns\}/g,formatNumber(state.socialInsurance))
+                       .replace(/\{netIncome\}/g,formatNumber(state.netIncome));
+  choicesDiv.innerHTML="";
+  choices.forEach(c=>{
+    const b=document.createElement("button");
+    b.textContent=c.label;b.onclick=c.action;choicesDiv.appendChild(b);
+  });
+  bar.style.width=(state.step/state.maxStep*100)+"%";
+  app.classList.remove("fade");void app.offsetWidth;app.classList.add("fade"); // restart fade
+  
+  // Update graph history
+  state.incomeHistory.push(state.annualIncome);
+  state.taxHistory.push(state.taxAmount + state.socialInsurance); // Graph total deductions
+
+  updateChart();
+}
+const scene=document.getElementById("scene");
+const choicesDiv=document.getElementById("choices");
+const bar=document.getElementById("bar");
+const app=document.getElementById("app");
+const chartCanvas = document.getElementById('myChart');
+let myChart = null; // Chart instance
+
+function updateChart() {
+    if (myChart) {
+        myChart.destroy(); // Destroy previous chart instance
+    }
+    const ctx = chartCanvas.getContext('2d');
+
+    const labels = Array.from({length: state.incomeHistory.length}, (_, i) => `Step ${i + 1}`);
+
+    myChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: '年収',
+                    data: state.incomeHistory,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+                    fill: false,
+                    tension: 0.1
+                },
+                {
+                    label: '税金・社会保険料',
+                    data: state.taxHistory,
+                    borderColor: '#FF9800',
+                    backgroundColor: 'rgba(255, 152, 0, 0.2)',
+                    fill: false,
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#fff'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    ticks: {
+                        color: '#fff',
+                        callback: function(value) {
+                            return (value / 10000).toLocaleString() + '万円';
+                        }
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#fff'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += formatNumber(context.parsed.y) + '円';
+                            }
+                            return label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+/* ========== STORY NODES ========== */
+function intro(){
+  state.step=0;
+  state.annualIncome = 0;
+  state.taxAmount = 0;
+  state.socialInsurance = 0;
+  state.netIncome = 0;
+  state.incomeHistory = [];
+  state.taxHistory = [];
+  if (myChart) myChart.destroy(); // Clear chart on restart
+
+  show(`◆ 契約診断ストーリー 4.0 へようこそ！
+
+あなたのキャリア選択が未来をどう変え、財政にどう影響するか、より深くシミュレーションしてみましょう。`,[{label:"スタート",action:askName}]);
+}
+
+function askName(){
+  state.name=prompt("あなたの名前は？（例：秀和）")||"あなた";
+  askRisk();
+}
+
+function askRisk(){
+  show("まず、あなたのリスク許容度を教えてください。\n\n**1: 安定志向**（リスクは避けたい）\n**5: 挑戦志向**（新しいことに挑みたい）");
+  choicesDiv.innerHTML=
+    `<input type="range" id="risk" min="1" max="5" value="${state.risk}" 
+        oninput="document.getElementById('rv').textContent=this.value">
+     <span id="rv">${state.risk}</span>
+     <button onclick="saveRisk()">決定</button>`;
+}
+function saveRisk(){state.risk=+document.getElementById("risk").value;askValue();}
+
+function askValue(){
+  show("次に、仕事で最も重要視する価値観は何ですか？\n\n「安定」か「自由」か、あなたの本音を聞かせてください。",[
+    {label:"安定した収入・福利厚生（安定志向）",action:()=>{state.value="safe";mainBranch();}},
+    {label:"自由な働き方・柔軟性（自由追求）",    action:()=>{state.value="flex";mainBranch();}}
+  ]);
+}
+
+function mainBranch() {
+  let initialIncome = 0;
+  if (state.value === "safe" && state.risk <= 3) {
+    initialIncome = 3600000;
+    state.contractType = 'employment';
+  } else if (state.value === "safe" && state.risk > 3) {
+    initialIncome = 3800000;
+    state.contractType = 'employment';
+  } else if (state.value === "flex" && state.risk <= 3) {
+    initialIncome = 3200000;
+    state.contractType = 'biz';
+  } else { // flex && risk > 3
+    initialIncome = 4500000;
+    state.contractType = 'biz';
+  }
+  state.annualIncome = initialIncome;
+  
+  show(
+`{name}さんの診断結果…
+
+• リスク許容度：{risk}/5
+• 価値観　　　：{val}
+
+現時点での目安年収：**約 ${formatNumber(state.annualIncome)}円**
+推定税金（所得税・住民税）: **約 ${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約 ${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約 ${formatNumber(state.netIncome)}円**
+
+では、この診断結果を元に、どちらの契約形態で進んでみますか？`,[
+    {label:"就業契約（雇用）で進む",action:employment1},
+    {label:"業務委託契約（フリーランス）で進む",action:biz1}
+  ]);
+}
+
+/* ----- EMPLOYMENT ROUTE ----- */
+function employment1(){
+  state.contractType = 'employment';
+  state.annualIncome = 4000000; // Initial income for employment
+  show(
+`🎯 **就業契約ルート**
+
+あなたは大手IT企業に正社員として採用されました。
+初年度の推定年収は**約${formatNumber(state.annualIncome)}円**です。
+推定税金: **約${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約${formatNumber(state.netIncome)}円**
+
+安定した給与と手厚い福利厚生がある一方で、会社のルールに従う必要があります。
+入社して3ヶ月後、あなたはこんな状況に直面しました。
+
+• 残業：月60h
+• 副業禁止規定あり
+
+さて、どうしますか？
+<div class="info-box">
+💡 **就業契約のポイント**: 安定した収入、社会保険、福利厚生が充実。しかし、労働時間や業務内容の自由度は低い傾向にあります。手取り額を考える際は、税金だけでなく社会保険料も大きな割合を占めます。
+</div>`,[
+    {label:"昇進を目指し、待遇改善を狙う",action:employment2_promote},
+    {label:"副業が認められる部署への異動を願い出る",action:employment2_moon}
+  ]);
+}
+function employment2_promote(){
+  state.annualIncome = 5500000;
+  show(
+`あなたは努力を重ね、管理職へ昇格！
+推定年収は**約${formatNumber(state.annualIncome)}円**にUPしました。
+推定税金: **約${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約${formatNumber(state.netIncome)}円**
+
+しかし、労働時間も大幅に増え、責任も重くなりました。
+ある日、部下が過労で倒れ、労働基準監督署が調査に入ることになりました。
+あなたはどのように対応しますか？
+<div class="info-box">
+💡 **管理職の責任**: 権限が大きくなるほど、部下の労働環境への配慮や法遵守の責任が増します。高い年収には高い責任が伴います。
+</div>`,[
+    {label:"労基署に全面的に協力し、会社と共に改善案を提示する",action:employment3_good_leader},
+    {label:"会社を守るため、事実を隠蔽しようと画策する",action:employment3_black_end}
+  ]);
+}
+function employment3_good_leader(){
+  state.annualIncome = 6500000;
+  show(
+`あなたは労基署に協力し、働き方改革を推進するリーダーとなりました。
+推定年収は**約${formatNumber(state.annualIncome)}円**にさらにUP。
+会社の労働環境は劇的に改善され、対外的な評価も向上。あなたは社内で尊敬される存在となりました。
+しかし、改革は道のり長く、大きな抵抗勢力も存在します。
+
+あなたはさらなる改革を進めますか？
+<div class="info-box">
+💡 **変革のリーダー**: 組織を変えるには、強い意志と周りを巻き込む力が必要です。短期的な利益だけでなく、長期的な視点を持つことが重要です。
+</div>`,[
+    {label:"全社的なワークライフバランス改革を推進する",action:()=>ending("employment_ultimate_leader")},
+    {label:"改革はほどほどに、自身の安定したキャリアを優先する",action:()=>ending("employment_safe_leader")}
+  ]);
+}
+function employment3_black_end(){
+  state.annualIncome = 3000000;
+  show(
+`会社を守るために事実を隠蔽しようとしましたが、情報漏洩やSNSでの告発により事態は悪化。
+推定年収は**約${formatNumber(state.annualIncome)}円**に激減しました。
+会社は炎上し、あなたは降格、さらには行政処分を受けることになりました。社会的信用も失墜。
+
+あなたのキャリアは絶望的です。この状況からどう挽回しますか？
+<div class="info-box">
+💡 **倫理とリスク**: 一時的な隠蔽は、より大きな問題を引き起こす可能性があります。倫理的な判断は、時にキャリアを左右する重要な要素です。
+</div>`,[
+    {label:"新たな業界でゼロからやり直す",action:()=>ending("employment_restart_from_zero")},
+    {label:"社会貢献活動を通じて、失った信用を取り戻す",action:()=>ending("employment_redemption")}
+  ]);
+}
+
+function employment2_moon(){
+  state.annualIncome = 4800000;
+  show(
+`副業認可を求めた結果、あなたは社内ベンチャー支援部へ異動することに。
+推定年収は**約${formatNumber(state.annualIncome)}円**（成果報酬を含む）に。
+推定税金: **約${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約${formatNumber(state.netIncome)}円**
+
+自由度は増しましたが、給与が成果に左右されるため、安定感は少し薄れました。
+この部署で、あなたは次に何をしますか？
+<div class="info-box">
+💡 **社内異動の可能性**: 会社内でキャリアチェンジを図ることで、働き方や業務内容を柔軟に変えられます。成果報酬型はリスクとリターンが連動します。
+</div>`,[
+    {label:"成果を出して社内起業を目指す",action:employment3_intrapreneur},
+    {label:"安定を求め、元の部署に戻ることを検討する",action:()=>ending("employment_dejavu")}
+  ]);
+}
+function employment3_intrapreneur(){
+  state.annualIncome = 7000000;
+  show(
+`あなたは社内ベンチャー支援部で目覚ましい成果を上げ、新サービスを立ち上げました。
+推定年収は**約${formatNumber(state.annualIncome)}円**に飛躍的に上昇。
+あなたの事業は会社に大きな利益をもたらし、あなたは社内起業家として注目されています。
+この勢いで、さらに大きな野望を抱きますか？
+<div class="info-box">
+💡 **社内起業の道**: 会社の資源を活用しつつ、自身のアイデアを実現できる魅力的なキャリアパスです。上場やM&Aによる大きなリターンも期待できます。
+</div>`,[
+    {label:"新サービスの株式上場を目指し、億り人になる",action:()=>ending("employment_unicorn")},
+    {label:"安定した社内事業として継続し、ワークライフバランスを重視する",action:()=>ending("employment_balanced_intrapreneur")}
+  ]);
+}
+
+/* ----- BUSINESS CONTRACT ROUTE ----- */
+function biz1(){
+  state.contractType = 'biz';
+  state.annualIncome = 4800000; // Initial income for business contract
+  show(
+`📂 **業務委託契約ルート**
+
+あなたは個人事業主として契約を開始しました。
+初年度の推定年収は**約${formatNumber(state.annualIncome)}円**です。
+推定税金（所得税・住民税）: **約${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約${formatNumber(state.netIncome)}円**
+
+しかし、社会保険や退職金はなく、国民健康保険、国民年金、そして税金はすべて自分で処理する必要があります。
+税金について、あなたはどのように対応しますか？
+<div class="info-box">
+💡 **業務委託契約のポイント**: 自由な働き方と高い報酬の可能性がありますが、税務・社会保険の手続きは自己責任。経費計上などによる節税が重要です。手取り額には、雇用契約とは異なる社会保険料の計算方式が影響します。
+</div>`,[
+    {label:"顧問税理士を雇い、プロに任せる",action:biz2_tax},
+    {label:"自分で勉強し、全部自分で処理する",  action:biz2_diy}
+  ]);
+}
+function biz2_tax(){
+  state.annualIncome = 5500000;
+  show(
+`プロの税理士に任せた結果、帳簿は最適化され、無駄な税金を払うことなく所得もUP！
+推定年収は**約${formatNumber(state.annualIncome)}円**に。
+推定税金: **約${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約${formatNumber(state.netIncome)}円**
+
+税務調査もスムーズに終わり、あなたは次のステップを考えます。
+次に取るべき行動は何ですか？
+<div class="info-box">
+💡 **税理士の活用**: 費用はかかりますが、複雑な税務処理から解放され、節税のアドバイスも得られます。事業成長に集中できるでしょう。
+</div>`,[
+    {label:"事業を拡大し、法人化を検討する",action:biz3_corporation},
+    {label:"海外クライアントを開拓し、活動拠点を広げる",action:biz3_global_nomad}
+  ]);
+}
+function biz3_corporation(){
+  state.annualIncome = 8000000;
+  show(
+`事業拡大に伴い法人化を決断。
+推定年収（役員報酬）は**約${formatNumber(state.annualIncome)}円**に。
+推定税金: **約${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約${formatNumber(state.netIncome)}円**
+
+役員報酬と配当を最適化することで、手取り額が大幅に増加しました。社会的な信用も上がり、新たな取引先も増えました。
+この状況で、あなたはさらに事業を成長させますか？それとも安定を選びますか？
+<div class="info-box">
+💡 **法人化のメリット**: 社会的信用の向上、節税対策の幅が広がる、事業継続性の確保などが挙げられます。しかし、設立・運営費用や会計処理の複雑さも増します。
+</div>`,[
+    {label:"積極的に投資を行い、資産を増やす",action:()=>ending("biz_investor_king")},
+    {label:"M&Aにより事業売却を検討する",action:()=>ending("biz_exit_strategy")}
+  ]);
+}
+function biz3_global_nomad(){
+  state.annualIncome = 9000000;
+  show(
+`海外クライアント開拓に成功し、あなたは世界中を旅しながらリモートで仕事をする生活を手に入れました。
+推定年収は**約${formatNumber(state.annualIncome)}円**に到達。
+推定税金: **約${formatNumber(state.taxAmount)}円**
+推定社会保険料: **約${formatNumber(state.socialInsurance)}円**
+推定手取り額: **約${formatNumber(state.netIncome)}円**
+
+場所や時間に縛られない自由な働き方で、人生を謳歌しています。
+しかし、異文化での生活や時差によるコミュニケーションの課題も出てきました。
+この自由をどう維持・発展させますか？
+<div class="info-box">
+💡 **グローバルノマドの挑戦**: 自由と高い報酬の反面、文化の違いや孤独感、税務や法規制の複雑さなどの課題もあります。
+</div>`,[
+    {label:"現地のコミュニティに積極的に参加し、人脈を広げる",action:()=>ending("biz_connected_nomad")},
+    {label:"日本に拠点を戻し、海外の仕事はリモートで請け負う",action:()=>ending("biz_hybrid_nomad")}
+  ]);
+}
+
+function biz2_diy(){
+  state.annualIncome = 4500000;
+  state.taxAmount = calculateTaxAndSocialInsurance(state.annualIncome, state.contractType).totalTax + 300000; // + additional tax due to error
+  state.socialInsurance = calculateTaxAndSocialInsurance(state.annualIncome, state.contractType).totalSocialInsurance;
+  state.netIncome = state.annualIncome - state.taxAmount - state.socialInsurance;
+  show(
+`あなたは夜通し青色申告書を作成しましたが、慣れない作業でミスが発生。
+税務署から追徴課税として**約${formatNumber(300000)}円**を請求され、推定税金が**約${formatNumber(state.taxAmount)}円**に増加。
+手元のキャッシュが厳しくなりました。
+推定年収は**約${formatNumber(state.annualIncome)}円**のままですが、実質的な手取りは減少しています。
+
+このピンチをどう乗り切りますか？
+<div class="info-box">
+💡 **自己処理のリスク**: 自分で税務処理を行うことは節約になりますが、知識不足によるミスは追徴課税につながることも。特に青色申告は複雑です。
+</div>`,[
+    {label:"銀行融資を受けて、資金繰りを安定させる",action:biz3_loan_debt},
+    {label:"一時的にアルバイトをして、足りない分を補填する",action:biz3_side_hustle}
+  ]);
+}
+function biz3_loan_debt(){
+  state.annualIncome = 3000000; // Business might stagnate due to debt focus
+  show(
+`銀行融資で一時的に資金繰りを凌ぎましたが、その後の返済に追われる日々が始まりました。
+事業は継続できたものの、推定年収は**約${formatNumber(state.annualIncome)}円**と停滞気味。
+常に借金がつきまとう、慎ましい生活が続きました。
+あなたは事業の成長を諦め、安定的な返済を優先しますか？
+<div class="info-box">
+💡 **安易な借入れの危険性**: 事業資金の融資は慎重に計画すべきです。返済負担が重すぎると、事業の成長を妨げ、精神的な負担にもなりかねません。
+</div>`,[
+    {label:"事業内容を見直し、高単価案件に特化する",action:()=>ending("biz_high_value_rebirth")},
+    {label:"事業は現状維持で、副業でコツコツ稼ぐ",action:()=>ending("biz_debt_relief_sidejob")}
+  ]);
+}
+function biz3_side_hustle(){
+  state.annualIncome = 3500000; // Total income from biz + side job
+  show(
+`足りないキャッシュを補うため、昼は受託業務、夜はアルバイトという「二刀流」生活に。
+推定年収は**約${formatNumber(state.annualIncome)}円**に増加しました。
+大変な日々でしたが、様々な経験を積むことで、自身のスキルや人脈が広がり、やがて本業も軌道に乗りました。
+この「二刀流」を続けますか？それとも本業に集中しますか？
+<div class="info-box">
+💡 **副業のメリット**: 本業の収入が不安定な時期のセーフティネットとなり、新たなスキルや人脈の獲得にもつながります。しかし、時間管理が重要です。
+</div>`,[
+    {label:"アルバイトで得たスキルを本業に活かし、高みを目指す",action:()=>ending("biz_skill_master")},
+    {label:"二刀流を継続し、リスク分散を図る",action:()=>ending("biz_diversified_income")}
+  ]);
+}
+
+/* ----- UNIVERSAL ENDING ----- */
+function ending(type){
+  let resultText = "";
+  let finalComment = "";
+  switch(type){
+    case "employment_ultimate_leader":
+      resultText = `【**🌟 究極のリーダーエンド 🌟**】
+あなたは全社的なワークライフバランス改革を成功させ、社員の幸福度と生産性を両立させました。
+革新的な働き方のモデル企業として世界に名を馳せ、あなたは真の社会貢献者となりました。
+最終年収: **約 ${formatNumber(state.annualIncome = 8000000)}円**`;
+      finalComment = `学び：真のリーダーシップは、組織の収益だけでなく、働く人々の生活をも豊かにするものです。`;
+      break;
+    case "employment_safe_leader":
+      resultText = `【**💼 安定志向リーダーエンド 💼**】
+改革はほどほどに、自身の安定したキャリアを優先する道を選びました。
+会社は緩やかに改善しましたが、大きな変革には至りませんでした。
+あなたは安定した地位とそれなりの収入を確保し、平穏な日々を送ります。
+最終年収: **約 ${formatNumber(state.annualIncome = 6000000)}円**`;
+      finalComment = `学び：全ての人が変革者である必要はありません。自身の価値観に合った安定を選ぶことも、一つの賢明な選択です。`;
+      break;
+    case "employment_restart_from_zero":
+      resultText = `【**🌱 ゼロからの再出発エンド 🌱**】
+失った信用を取り戻すため、あなたは全く新しい業界でゼロからキャリアを再構築しました。
+最初は苦労しましたが、過去の経験と反省を活かし、再び信頼を築き始めました。
+最終年収: **約 ${formatNumber(state.annualIncome = 4000000)}円** (再出発後)`;
+      finalComment = `学び
