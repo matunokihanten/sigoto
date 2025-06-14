@@ -38,7 +38,7 @@
         #htmlSourceInput {
             width: calc(100% - 20px);
             padding: 12px;
-            margin-top: 20px;
+            margin-top: 20px; /* マージン調整 */
             border: 1px solid #c0c0c0;
             border-radius: 8px;
             min-height: 180px;
@@ -46,7 +46,28 @@
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 0.95em;
             box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 15px; /* ボタンとの間にスペース */
         }
+
+        .input-actions {
+            display: flex;
+            justify-content: flex-end; /* 右寄せ */
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .input-actions .action-button {
+            padding: 8px 15px;
+            font-size: 0.9em;
+            border-radius: 8px;
+            background: #6c757d; /* 共通のグレー系 */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .input-actions .action-button:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
 
         .button-group {
             display: grid;
@@ -185,6 +206,13 @@
             .link-item-container {
                 grid-template-columns: 1fr; /* 非常に狭い画面では1列に */
             }
+            .input-actions {
+                flex-direction: column; /* 縦並びにする */
+                align-items: flex-end; /* 右寄せ維持 */
+            }
+            .input-actions .action-button {
+                width: 100%; /* 幅をいっぱいに */
+            }
         }
     </style>
 </head>
@@ -195,6 +223,11 @@
         
         <textarea id="htmlSourceInput" placeholder="ここにHTML断片を貼り付けてください..."></textarea>
         
+        <div class="input-actions">
+            <button id="pasteButton" class="action-button">貼り付け</button>
+            <button id="clearInputButton" class="action-button">クリア</button>
+        </div>
+
         <div class="button-group">
             <button id="generateHtmlFileButton" class="action-button">HTMLファイルを生成</button>
             <button id="processHtmlButton" class="action-button">リンクを抽出して選択</button>
@@ -245,10 +278,12 @@
         const htmlSourceInput = document.getElementById('htmlSourceInput');
         const processHtmlButton = document.getElementById('processHtmlButton');
         const generateHtmlFileButton = document.getElementById('generateHtmlFileButton');
-        const linkSelectionArea = document.getElementById('linkSelectionArea'); // 新規
-        const linkItemContainer = document.getElementById('linkItemContainer'); // 新規
-        const selectAllButton = document.getElementById('selectAllButton');   // 新規
-        const deselectAllButton = document.getElementById('deselectAllButton'); // 新規
+        const linkSelectionArea = document.getElementById('linkSelectionArea');
+        const linkItemContainer = document.getElementById('linkItemContainer');
+        const selectAllButton = document.getElementById('selectAllButton');
+        const deselectAllButton = document.getElementById('deselectAllButton');
+        const clearInputButton = document.getElementById('clearInputButton'); // 新しいボタン
+        const pasteButton = document.getElementById('pasteButton'); // 新しいボタン
 
         // デフォルトで表示するHTML断片を定義
         const providedHtmlFragment = `
@@ -281,6 +316,9 @@
             const doc = parser.parseFromString(htmlString, 'text/html');
             const extractedLinks = [];
             
+            // ベースURLは固定値を使用
+            const baseUrl = defaultBaseUrl; 
+
             const anchorElements = doc.querySelectorAll(defaultCssSelector);
 
             if (anchorElements.length === 0) {
@@ -300,7 +338,8 @@
                 
                 let absoluteUrl;
                 try {
-                    absoluteUrl = new URL(url, defaultBaseUrl).href; 
+                    // 固定のベースURLを使用して絶対URLを解決
+                    absoluteUrl = new URL(url, baseUrl).href; 
                 } catch (e) {
                     console.warn(`無効なURLをスキップしました: ${url} (エラー: ${e.message})`);
                     return;
@@ -453,18 +492,16 @@
                     currentPrefix = prefix;
                     isFirstGroup = false;
 
-                    // 新しいプレフィックスなので色をリセットして再割り当て
-                    colorMap.clear();
-                    colorIndex = 0;
+                    // 新しいプレフィックスなので色を割り当てる
+                    // ここで colorMap にそのプレフィックスの色がまだないかチェックし、
+                    // なければ新しい色を割り当て、あれば既存の色を使う
+                    if (!colorMap.has(prefix)) {
+                        colorMap.set(prefix, buttonColors[colorIndex % buttonColors.length]);
+                        colorIndex++;
+                    }
                 }
 
-                let colors = colorMap.get(prefix);
-
-                if (!colors) {
-                    colors = buttonColors[colorIndex % buttonColors.length];
-                    colorMap.set(prefix, colors);
-                    colorIndex++;
-                }
+                const colors = colorMap.get(prefix);
 
                 const displayName = link.name;
                 let formattedName = '';
@@ -507,6 +544,10 @@
                 return;
             }
             try {
+                // 新しい抽出のたびに色割り当てをリセット
+                colorMap.clear();
+                colorIndex = 0;
+
                 const links = extractLinksFromHtml(htmlCode);
                 if (links.length > 0) {
                     window.extractedLinks = links;
@@ -551,6 +592,26 @@
             checkboxes.forEach(checkbox => {
                 checkbox.checked = false;
             });
+        });
+
+        // クリアボタンのイベントリスナー
+        clearInputButton.addEventListener('click', () => {
+            htmlSourceInput.value = '';
+            linkSelectionArea.style.display = 'none'; // リンク選択エリアも非表示にする
+            alert('入力内容がクリアされました。');
+        });
+
+        // 貼り付けボタンのイベントリスナー
+        pasteButton.addEventListener('click', async () => {
+            try {
+                // Clipboard APIを使用してクリップボードからテキストを読み込む
+                const text = await navigator.clipboard.readText();
+                htmlSourceInput.value = text;
+                alert('クリップボードの内容が貼り付けられました。');
+            } catch (err) {
+                console.error('クリップボードからの貼り付けに失敗しました: ', err);
+                alert('クリップボードからの貼り付けに失敗しました。ブラウザのセキュリティ設定により、手動で貼り付けを行う必要がある場合があります（Ctrl+V または Command+V）。');
+            }
         });
 
         // ページロード時に、提供されたデフォルトのHTML断片をテキストエリアにセット
