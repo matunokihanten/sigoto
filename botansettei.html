@@ -353,7 +353,7 @@
                 return;
             }
 
-            // **リンクをリンク名の最初の3文字でソートして、同じ色のボタンが近くに配置されるようにする**
+            // リンクをリンク名の最初の3文字でソート
             linksToInclude.sort((a, b) => {
                 const prefixA = a.name.substring(0, 3);
                 const prefixB = b.name.substring(0, 3);
@@ -374,6 +374,22 @@
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f8f8; color: #333; }
         h1 { color: #0056b3; text-align: center; margin-bottom: 30px; }
+        .group-container { /* 新しいグループ用のコンテナ */
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed #e0e0e0;
+        }
+        .group-container:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .group-title {
+            font-size: 1.3em;
+            color: #0056b3;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
         .button-grid {
             display: grid;
             /* 画面幅に応じて最大4列に調整 */
@@ -419,21 +435,37 @@
 </head>
 <body>
     <h1>${roomName} - リンク一覧</h1>
-    <div class="button-grid">
 `;
+            let currentPrefix = '';
+            let isFirstGroup = true;
+
             linksToInclude.forEach(link => {
-                // リンク名から最初の3文字を取得
                 const prefix = link.name.substring(0, 3);
+                
+                // プレフィックスが変わったら新しいグループを開始
+                if (prefix !== currentPrefix) {
+                    if (!isFirstGroup) {
+                        htmlContent += `        </div></div>\n`; // 前のグループを閉じる
+                    }
+                    htmlContent += `    <div class="group-container">\n`;
+                    htmlContent += `        <h2 class="group-title">${prefix}で始まるリンク</h2>\n`; // グループタイトル
+                    htmlContent += `        <div class="button-grid">\n`;
+                    currentPrefix = prefix;
+                    isFirstGroup = false;
+
+                    // 新しいプレフィックスなので色をリセットして再割り当て
+                    colorMap.clear();
+                    colorIndex = 0;
+                }
+
                 let colors = colorMap.get(prefix);
 
-                // 最初の3文字が新しい場合は新しい色を割り当てる
                 if (!colors) {
                     colors = buttonColors[colorIndex % buttonColors.length];
                     colorMap.set(prefix, colors);
                     colorIndex++;
                 }
 
-                // リンク名を9文字目で分割し、spanでラップ
                 const displayName = link.name;
                 let formattedName = '';
                 if (displayName.length > 8) {
@@ -445,8 +477,12 @@
                 htmlContent += `        <a href="${link.url}" class="link-button" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(145deg, ${colors[0]}, ${colors[1]});">${formattedName}</a>\n`;
             });
 
+            // 最後のグループを閉じる
+            if (linksToInclude.length > 0) {
+                htmlContent += `        </div></div>\n`;
+            }
+
             htmlContent += `
-    </div>
 </body>
 </html>
 `;
@@ -473,12 +509,11 @@
             try {
                 const links = extractLinksFromHtml(htmlCode);
                 if (links.length > 0) {
-                    // 抽出されたリンクをグローバル変数に保存し、選択エリアに表示
                     window.extractedLinks = links;
                     displayLinksForSelection(links);
                     alert('リンクの抽出が完了しました。下の「生成するリンクの選択」エリアで確認してください。');
                 } else {
-                    linkSelectionArea.style.display = 'none'; // リンクが見つからない場合は非表示に
+                    linkSelectionArea.style.display = 'none';
                     alert('有効なリンクは見つかりませんでした。');
                 }
             } catch (e) {
@@ -494,7 +529,6 @@
                 return;
             }
 
-            // チェックボックスが選択されているリンクのみをフィルタリング
             const selectedLinks = window.extractedLinks.filter(link => {
                 const checkbox = document.getElementById(link.id);
                 return checkbox && checkbox.checked;
