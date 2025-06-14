@@ -449,14 +449,21 @@
 
         // <head>タグ内にBootstrap CSSを追加
         if (!currentCode.includes(bootstrapCss)) {
-            currentCode = currentCode.replace(/<\/head>/, `  ${bootstrapCss}\n</head>`);
+            currentCode = currentCode.replace(/<\/head>/i, `  ${bootstrapCss}\n</head>`);
+            showMessage("Bootstrap CSSを追加しました");
+        } else {
+            showMessage("Bootstrap CSSは既に追加されています", true);
         }
 
         // <body>タグの閉じタグの直前にBootstrap JSを追加
         if (!currentCode.includes(bootstrapJs)) {
-            currentCode = currentCode.replace(/<\/body>/, `  ${bootstrapJs}\n</body>`);
+            // bodyタグの閉じタグが複数ある場合を考慮して、最後のタグを置換
+            currentCode = currentCode.replace(/(<\/body>)(?![\s\S]*<\/body>)/i, `  ${bootstrapJs}\n</body>`);
+            showMessage("Bootstrap JavaScriptを追加しました");
+        } else {
+            showMessage("Bootstrap JavaScriptは既に追加されています", true);
         }
-
+        
         // もしHTMLの基本構造がない場合は、テンプレートを挿入してから追加を試みる
         if (!currentCode.includes('<!DOCTYPE html>')) {
             const defaultTemplate = `<!DOCTYPE html>
@@ -471,13 +478,20 @@
   <p>ここにコンテンツを追加してください。</p>
 </body>
 </html>`;
-            currentCode = defaultTemplate; // 基本構造がないならテンプレートで置き換え
-            currentCode = currentCode.replace(/<\/head>/, `  ${bootstrapCss}\n</head>`);
-            currentCode = currentCode.replace(/<\/body>/, `  ${bootstrapJs}\n</body>`);
+            // 既存のコンテンツを保持しつつ、基本テンプレートのbody内に挿入を試みる
+            const originalContent = cm.getValue();
+            currentCode = defaultTemplate.replace('</body>', `${originalContent}\n</body>`);
+            // 追加後に改めてBootstrapを挿入
+            if (!currentCode.includes(bootstrapCss)) {
+              currentCode = currentCode.replace(/<\/head>/i, `  ${bootstrapCss}\n</head>`);
+            }
+            if (!currentCode.includes(bootstrapJs)) {
+              currentCode = currentCode.replace(/(<\/body>)(?![\s\S]*<\/body>)/i, `  ${bootstrapJs}\n</body>`);
+            }
+            showMessage("HTMLテンプレートを適用し、Bootstrapを追加しました");
         }
 
         cm.setValue(currentCode);
-        showMessage("ホームページを変身させました！");
     });
 
 
