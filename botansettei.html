@@ -1,408 +1,528 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">脳トレ部屋 - リンク抽出</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 20px;
+            box-sizing: border-box;
+        }
 
-<script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+            margin-bottom: 30px;
+        }
 
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ファイル実行ボタン設定ツール</title>
-  <style>
-    html, body {
-      margin: 0; padding: 0; height: 100vh; overflow: hidden; 
-      font-family: 'Montserrat', sans-serif;
-      background: linear-gradient(135deg, #ff9a9e 0%, #fad0c4 100%);
-    }
-    #wrapper { display: flex; flex-direction: column; height: 100vh; }
-    header {
-      height: 50px; display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.3); color: #fff; font-size: 1.5em;
-    }
-    main { flex: 1; overflow: auto; padding: 5px; }
-    footer {
-      height: 40px; display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.1); font-size: 0.9em;
-    }
-    /* ボタン表示エリア */
-    #button-container {
-      width: 100%; max-width: 1000px;
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px;
-    }
-    .button-wrapper { position: relative; }
-    .custom-button {
-      box-sizing: border-box; cursor: pointer; padding: 5px; font-size: 0.9em;
-    }
-    /* 削除・編集ボタン：transformを -150% に変更 */
-    .delete-button, .edit-button {
-      position: absolute; top: 0; border: none; border-radius: 50%;
-      width: 20px; height: 20px; cursor: pointer; font-size: 12px; z-index: 2;
-      transform: translate(-150%, 0%);
-    }
-    .delete-button { right: 0; background: #ff5656; color: white; }
-    .edit-button { right: 22px; background: #00bfff; color: white; }
-    /* フォーム */
-    form { margin: 5px; }
-    form label { display: inline-block; width: 100px; font-size: 0.9em; }
-    form input, form select { font-size: 0.9em; padding: 3px; margin: 2px; }
-    /* プレビュー・アクション */
-    #preview-area { font-size: 0.9em; padding: 5px; border: 1px dashed #aaa; margin: 5px 0; }
-    #action-buttons button { font-size: 0.9em; padding: 5px 10px; margin: 2px; }
-    /* 操作方法パネル（右横固定、非表示） */
-    #instructions {
-      display: none; position: fixed; right: 10px; top: 70px;
-      width: 250px; background: rgba(255,255,255,0.95); border: 1px solid #ccc;
-      padding: 10px; font-size: 0.9em; line-height: 1.4;
-      box-shadow: -2px 0 5px rgba(0,0,0,0.3); z-index: 1000;
-    }
-    /* スマホ向け調整 */
-    @media (max-width: 600px) {
-      form input, form select, button { font-size: 1em; padding: 5px; }
-      .delete-button, .edit-button { width: 30px; height: 30px; font-size: 14px; transform: translate(-150%, 0%); }
-    }
-  </style>
-  <!-- SheetJSライブラリ（Excel用） -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            font-weight: 700;
+        }
+
+        #htmlSourceInput {
+            width: calc(100% - 20px);
+            padding: 12px;
+            margin-top: 20px;
+            border: 1px solid #c0c0c0;
+            border-radius: 8px;
+            min-height: 180px;
+            resize: vertical;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.95em;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 25px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .action-button {
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.05rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            display: block;
+            width: 100%;
+        }
+
+        .action-button:hover {
+            background: linear-gradient(145deg, #0056b3, #003d80);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+        }
+
+        #generateHtmlFileButton {
+            background: linear-gradient(145deg, #28a745, #1e7e34);
+        }
+
+        #generateHtmlFileButton:hover {
+            background: linear-gradient(145deg, #1e7e34, #155d28);
+        }
+
+        /* リンク選択エリアのスタイル */
+        #linkSelectionArea {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fcfcfc;
+            max-height: 450px; /* 最大高さを設定 */
+            overflow-y: auto; /* 内容が多すぎる場合にスクロール */
+            box-shadow: inset 0 1px 5px rgba(0,0,0,0.05);
+        }
+        #linkSelectionArea h2 {
+            color: #0056b3;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .link-item-container {
+            display: grid;
+            grid-template-columns: 1fr; /* デフォルトは1列 */
+            gap: 10px;
+        }
+        .link-item {
+            display: flex;
+            align-items: center;
+            background-color: #e9f2ff;
+            border: 1px solid #cce0ff;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            word-break: break-all;
+            position: relative;
+            cursor: pointer; /* チェックボックスのクリックしやすさのため */
+        }
+        .link-item input[type="checkbox"] {
+            margin-right: 10px;
+            min-width: 18px; /* チェックボックスの最小幅 */
+            min-height: 18px; /* チェックボックスの最小高さ */
+            cursor: pointer;
+        }
+        .link-item label {
+            flex-grow: 1; /* ラベルが残りのスペースを占める */
+            cursor: pointer;
+            font-weight: normal; /* 通常の太さに */
+            margin-top: 0; /* デフォルトのラベルマージンをリセット */
+            margin-bottom: 0;
+            line-height: 1.4; /* 行の高さ */
+        }
+        .link-item span.link-url {
+            display: block;
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 2px;
+        }
+        /* 全選択/全解除ボタン */
+        #selectAllButton, #deselectAllButton {
+            background-color: #6c757d;
+            margin-top: 10px;
+            margin-right: 10px;
+            padding: 8px 15px;
+            font-size: 0.9em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #selectAllButton:hover, #deselectAllButton:hover {
+            background-color: #5a6268;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .button-group {
+                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+                gap: 10px;
+            }
+            .container {
+                padding: 25px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            /* リンク選択エリアを2列表示に */
+            .link-item-container {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+            .action-button {
+                padding: 12px 20px;
+                font-size: 0.95rem;
+            }
+            .link-item-container {
+                grid-template-columns: 1fr; /* 非常に狭い画面では1列に */
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="wrapper">
-    <header><h1>ファイル実行ボタン設定ツール</h1></header>
-    <main>
-      <div id="button-container"></div>
-      <div id="col-settings">
-        <label for="columns-input">列数:</label>
-        <input type="number" id="columns-input" value="5" min="1">
-        <button id="update-columns">更新</button>
-      </div>
-      <div id="form-area">
-        <h2>新規追加／編集</h2>
-        <form id="add-button-form">
-          <label for="text">テキスト:</label>
-          <input type="text" name="text" id="text" placeholder="（空なら『テスト』）"><br>
-          <label for="file">実行ファイル:</label>
-          <input type="text" name="file" id="file" placeholder="（空なら『t.html』）"><br>
-          <label for="width">幅:</label>
-          <input type="text" name="width" id="width" value="150px"><br>
-          <label for="height">高さ:</label>
-          <input type="text" name="height" id="height" value="50px"><br>
-          <label for="textColor">文字色:</label>
-          <select name="textColor" id="textColor">
-            <option value="black" selected>黒</option>
-            <option value="white">白</option>
-            <option value="red">赤</option>
-            <option value="yellow">黄</option>
-            <option value="blue">青</option>
-            <option value="purple">紫</option>
-            <option value="yellowgreen">黄緑</option>
-          </select><br>
-          <label for="bgColor">背景色:</label>
-          <select name="bgColor" id="bgColor">
-            <option value="black">黒</option>
-            <option value="white">白</option>
-            <option value="red">赤</option>
-            <option value="yellow">黄</option>
-            <option value="blue">青</option>
-            <option value="purple">紫</option>
-            <option value="yellowgreen" selected>黄緑</option>
-          </select><br>
-          <label for="fontSize">フォントサイズ:</label>
-          <input type="text" name="fontSize" id="fontSize" value="16px"><br>
-          <label for="borderRadius">角丸:</label>
-          <input type="text" name="borderRadius" id="borderRadius" value="30px"><br>
-          <label for="borderColor">枠線色:</label>
-          <input type="color" name="borderColor" id="borderColor" value="#cccccc"><br>
-          <button type="submit" id="submit-btn">追加</button>
-          <button type="button" id="cancel-edit" style="display:none;">編集キャンセル</button>
-        </form>
-        <div id="preview-area">
-          <span>プレビュー: </span>
-          <button id="preview-button" class="custom-button">サンプル</button>
+    <div class="container">
+        <h1 id="roomName"></h1>
+        <p>下のテキストエリアに、抽出したいリンクを含むHTMLコードを貼り付けてください。</p>
+        
+        <textarea id="htmlSourceInput" placeholder="ここにHTML断片を貼り付けてください..."></textarea>
+        
+        <div class="button-group">
+            <button id="generateHtmlFileButton" class="action-button">HTMLファイルを生成</button>
+            <button id="processHtmlButton" class="action-button">リンクを抽出して選択</button>
         </div>
-      </div>
-      <div id="action-buttons">
-        <button id="save-config">HTML保存</button>
-        <button id="export-json">JSONエクスポート</button>
-        <button id="import-json">JSONインポート</button>
-        <input type="file" id="import-file" accept=".json" style="display:none;">
-        <button id="export-excel">Excelエクスポート</button>
-        <button id="import-excel">Excelインポート</button>
-        <input type="file" id="import-excel-file" accept=".xlsx,.xls" style="display:none;">
-        <button id="toggle-instructions">操作方法</button>
-      </div>
-      <!-- 操作方法説明パネル -->
-      <div id="instructions">
-        <h3>【操作方法】</h3>
-        <ul>
-          <li>フォームに必要な情報を入力し「追加」または「更新する」を押してください。</li>
-          <li>テキストや実行ファイルが空の場合、デフォルトで「テスト」と「t.html」が使用されます。</li>
-          <li>各ボタンの削除は右上の「✖」、編集は右横の「✎」を押してください。</li>
-          <li>ボタンはタッチ操作にも対応し、ダブルタップまたはタップで実行されます。</li>
-          <li>列数は上部の入力欄で変更できます。</li>
-          <li>HTML保存、JSON/Excelエクスポート／インポートも利用可能です。</li>
-          <li>実行ファイルの中にリンク名とアドレスが入っている場合、そのリンクに移動します。</li>
-        </ul>
-        <button id="close-instructions">閉じる</button>
-      </div>
-    </main>
-    <footer>&copy; 2023 Beautiful Config</footer>
-  </div>
-  <script>
-    const allowedExtensions = ['exe','bat','sh','html','htm'];
-    let buttonsConfig = [], nextId = 0, currentEditId = null;
-    const buttonContainer = document.getElementById("button-container"),
-          previewButton = document.getElementById("preview-button"),
-          submitBtn = document.getElementById("submit-btn"),
-          cancelEditBtn = document.getElementById("cancel-edit");
 
-    // 操作方法パネルの表示切替
-    document.getElementById("toggle-instructions").addEventListener("click", function() {
-      const instr = document.getElementById("instructions");
-      instr.style.display = (instr.style.display === "block") ? "none" : "block";
-    });
-    document.getElementById("close-instructions").addEventListener("click", () => {
-      document.getElementById("instructions").style.display = "none";
-    });
+        <p style="margin-top: 25px; text-align: center; font-size: 0.9em; color: #555;">
+            「リンクを抽出して選択」ボタンでリンクの一覧が表示されます。<br>
+            不要なリンクのチェックを外してから「HTMLファイルを生成」ボタンを押してください。<br>
+            生成されたHTMLファイルは、**リンク名のみ**が表示され、長いリンク名は9文字目から折り返されます。<br>
+            リンク名の最初の3文字が同じ場合は、同じ色のボタンになります。
+        </p>
 
-    function updatePreview() {
-      const t = document.getElementById("text").value || "サンプル",
-            w = document.getElementById("width").value || "150px",
-            h = document.getElementById("height").value || "50px",
-            tc = document.getElementById("textColor").value || "black",
-            bg = document.getElementById("bgColor").value || "yellowgreen",
-            fs = document.getElementById("fontSize").value || "16px",
-            br = document.getElementById("borderRadius").value || "30px",
-            bc = document.getElementById("borderColor").value || "#cccccc";
-      previewButton.textContent = t;
-      Object.assign(previewButton.style, { width: w, height: h, color: tc, backgroundColor: bg, fontSize: fs, borderRadius: br, border: "1px solid " + bc });
-    }
-    document.querySelectorAll("#add-button-form input, #add-button-form select").forEach(el => el.addEventListener("input", updatePreview));
-    updatePreview();
+        <div id="linkSelectionArea" style="display:none;">
+            <h2>生成するリンクの選択</h2>
+            <button id="selectAllButton" class="action-button" style="background-color: #6c757d;">全選択</button>
+            <button id="deselectAllButton" class="action-button" style="background-color: #6c757d;">全解除</button>
+            <div id="linkItemContainer" class="link-item-container">
+                </div>
+        </div>
+    </div>
 
-    function updateButtons() {
-      buttonContainer.innerHTML = "";
-      buttonsConfig.slice().sort((a, b) => (a.order || 0) - (b.order || 0)).forEach(btnObj => {
-        const wrapper = document.createElement("div");
-        wrapper.className = "button-wrapper";
-        wrapper.dataset.id = btnObj.id;
-        const btn = document.createElement("button");
-        btn.textContent = btnObj.text;
-        btn.className = "custom-button";
-        Object.assign(btn.style, {
-          width: btnObj.width, height: btnObj.height, color: btnObj.textColor,
-          backgroundColor: btnObj.bgColor, fontSize: btnObj.fontSize, borderRadius: btnObj.borderRadius,
-          border: "1px solid " + btnObj.borderColor
-        });
-        // 変更：既存の拡張子チェックを削除し、常に btnObj.file のリンクへ移動
-        btn.addEventListener("pointerup", () => {
-          window.open(btnObj.file);
-        });
-        wrapper.appendChild(btn);
-        const editBtn = document.createElement("button");
-        editBtn.textContent = "✎"; editBtn.className = "edit-button";
-        editBtn.addEventListener("pointerup", e => {
-          e.stopPropagation();
-          currentEditId = btnObj.id;
-          document.getElementById("text").value = btnObj.text;
-          document.getElementById("file").value = btnObj.file;
-          document.getElementById("width").value = btnObj.width;
-          document.getElementById("height").value = btnObj.height;
-          document.getElementById("textColor").value = btnObj.textColor;
-          document.getElementById("bgColor").value = btnObj.bgColor;
-          document.getElementById("fontSize").value = btnObj.fontSize;
-          document.getElementById("borderRadius").value = btnObj.borderRadius;
-          document.getElementById("borderColor").value = btnObj.borderColor;
-          updatePreview();
-          submitBtn.textContent = "更新する";
-          cancelEditBtn.style.display = "inline";
-        });
-        wrapper.appendChild(editBtn);
-        const delBtn = document.createElement("button");
-        delBtn.textContent = "✖"; delBtn.className = "delete-button";
-        delBtn.addEventListener("pointerup", e => { e.stopPropagation(); buttonsConfig = buttonsConfig.filter(b => b.id !== btnObj.id); updateButtons(); });
-        wrapper.appendChild(delBtn);
-        buttonContainer.appendChild(wrapper);
-      });
-      if (buttonContainer.sortable) { buttonContainer.sortable.destroy(); }
-      Sortable.create(buttonContainer, {
-        animation: 150,
-        onEnd: evt => {
-          Array.from(buttonContainer.children).forEach((child, newOrder) => {
-            const id = parseInt(child.dataset.id);
-            let btn = buttonsConfig.find(b => b.id === id);
-            if (btn) btn.order = newOrder;
-          });
+    <script>
+        const roomName = "脳トレ部屋"; // 部屋の名前をここで簡単に変更できます
+        const defaultCssSelector = "ul.list0 li a"; // 固定のセレクタ
+        const defaultBaseUrl = "https://ldbyq.crayonsite.com/p/61/"; // 固定のベースURL
+
+        // リンクボタンに割り当てる色のリスト (例: グラデーションの始点と終点)
+        const buttonColors = [
+            ['#6a11cb', '#2575fc'], // 紫-青
+            ['#fc6076', '#ff9a44'], // 赤-オレンジ
+            ['#34e89e', '#0f3443'], // 緑-濃緑
+            ['#ee9ca7', '#ffdde1'], // パステルピンク
+            ['#a18cd1', '#fbc2eb'], // ラベンダー-ピンク
+            ['#00c6fb', '#005bea'], // 水色-濃青
+            ['#fccb90', '#d57eeb'], // 黄土-マゼンタ
+            ['#84fab0', '#8fd3f4'], // エメラルド-水色
+            ['#c79081', '#dfa579'], // 茶色系
+            ['#a3a3a3', '#6a6a6a'], // グレースケール
+            ['#ff4b1f', '#ff9068']  // オレンジ-赤オレンジ
+        ];
+        // リンク名の最初の3文字と色のマッピングを保存するマップ
+        const colorMap = new Map();
+        let colorIndex = 0;
+
+        document.getElementById('pageTitle').textContent = roomName + " - リンク抽出";
+        document.getElementById('roomName').textContent = roomName;
+
+        const htmlSourceInput = document.getElementById('htmlSourceInput');
+        const processHtmlButton = document.getElementById('processHtmlButton');
+        const generateHtmlFileButton = document.getElementById('generateHtmlFileButton');
+        const linkSelectionArea = document.getElementById('linkSelectionArea'); // 新規
+        const linkItemContainer = document.getElementById('linkItemContainer'); // 新規
+        const selectAllButton = document.getElementById('selectAllButton');   // 新規
+        const deselectAllButton = document.getElementById('deselectAllButton'); // 新規
+
+        // デフォルトで表示するHTML断片を定義
+        const providedHtmlFragment = `
+            <ul class="list0">
+                <li><a href="/memory-test.html"><div class="txt">記憶力テスト</div></a></li>
+                <li><a href="https://www.google.com/search?q=math+drill"><div class="txt">計算ドリル</div></a></li>
+                <li><a href="/find-differences.html"><div class="txt">間違い探しゲーム</div></a></li>
+                <li><a href="http://www.a8.net/affiliate-link-example?id=123"><div class="txt">これはアフィリエイトリンクです（スキップされます）</div></a></li>
+                <li><a href="/empty-name-link"><div class="txt"></div></a></li> <li><a href="https://ldbyq.crayonsite.com/p/61/puzzle-game"><div class="txt">パズルゲームに挑戦</div></a></li>
+                <li><a href="invalid-url-example"><div class="txt">無効なURLの例</div></a></li>
+                <li><a href="/focus-game.html"><div class="txt">集中力アップゲーム</div></a></li>
+                <li><a href="/logic-puzzle.html"><div class="txt">ロジックパズル</div></a></li>
+                <li><a href="/word-game.html"><div class="txt">単語ゲームで語彙力アップ</div></a></li>
+                <li><a href="/reaction-test.html"><div class="txt">反応速度テスト</div></a></li>
+                <li><a href="/quick-math.html"><div class="txt">速算チャレンジ</div></a></li>
+                <li><a href="/spatial-reasoning.html"><div class="txt">空間認識ゲーム</div></a></li>
+                <li><a href="/memory-game-pro.html"><div class="txt">記憶力プロテスト</div></a></li>
+                <li><a href="/math-speed-up.html"><div class="txt">計算ドリルスピードアップ</div></a></li>
+            </ul>
+            <div id="other-links">
+                <a href="/not-extracted-div-link"><div class="txt">抽出されないdiv内のリンク</div></a>
+                <p><a href="/another-random-link"><div class="txt">どこかのランダムリンク</div></a></p>
+            </div>
+            <p>この段落には関係のないテキストが含まれています。</p>
+        `;
+
+        // リンクを抽出する関数
+        function extractLinksFromHtml(htmlString) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const extractedLinks = [];
+            
+            const anchorElements = doc.querySelectorAll(defaultCssSelector);
+
+            if (anchorElements.length === 0) {
+                console.warn(`指定されたセレクタ "${defaultCssSelector}" で抽出できるリンクが見つかりませんでした。`);
+                return extractedLinks;
+            }
+
+            anchorElements.forEach(aTag => {
+                const url = aTag.href;
+                const nameElement = aTag.querySelector('div.txt');
+                let name = nameElement ? nameElement.textContent.trim() : '';
+
+                if (name === '' || url.includes('a8.net')) {
+                    console.log(`スキップされたリンク: ${name || '名前なし'} - ${url}`);
+                    return;
+                }
+                
+                let absoluteUrl;
+                try {
+                    absoluteUrl = new URL(url, defaultBaseUrl).href; 
+                } catch (e) {
+                    console.warn(`無効なURLをスキップしました: ${url} (エラー: ${e.message})`);
+                    return;
+                }
+
+                // リンクに一意のIDを追加（チェックボックスのため）
+                const linkId = `link-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                extractedLinks.push({ id: linkId, name: name, url: absoluteUrl });
+            });
+
+            return extractedLinks;
         }
-      });
-    }
 
-    document.getElementById("add-button-form").addEventListener("submit", e => {
-      e.preventDefault();
-      const form = e.target;
-      let t = form.elements["text"].value.trim() || "テスト";
-      let f = form.elements["file"].value.trim() || "t.html";
-      let w = form.elements["width"].value.trim();
-      if(w && !/(px|em|rem|%|vh|vw)$/.test(w)) w += "px"; w = w || "150px";
-      let h = form.elements["height"].value.trim();
-      if(h && !/(px|em|rem|%|vh|vw)$/.test(h)) h += "px"; h = h || "50px";
-      const tc = form.elements["textColor"].value,
-            bg = form.elements["bgColor"].value,
-            fs = form.elements["fontSize"].value || "16px",
-            br = form.elements["borderRadius"].value || "30px",
-            bc = form.elements["borderColor"].value || "#cccccc";
-      if(currentEditId !== null) {
-        let btn = buttonsConfig.find(b => b.id === currentEditId);
-        if(btn){ Object.assign(btn, { text: t, file: f, width: w, height: h, textColor: tc, bgColor: bg, fontSize: fs, borderRadius: br, borderColor: bc }); }
-        currentEditId = null; 
-        submitBtn.textContent = "ボタンを追加"; 
-        cancelEditBtn.style.display = "none";
-      } else {
-        buttonsConfig.push({ id: nextId++, text: t, file: f, width: w, height: h, textColor: tc, bgColor: bg, fontSize: fs, borderRadius: br, borderColor: bc, order: buttonsConfig.length });
-      }
-      updateButtons();
-      form.elements["text"].value = ""; form.elements["file"].value = "";
-      updatePreview();
-    });
+        // 抽出されたリンクをHTMLファイル生成前に選択できるように表示する関数
+        function displayLinksForSelection(links) {
+            linkItemContainer.innerHTML = ''; // 既存の内容をクリア
+            linkSelectionArea.style.display = 'block'; // 選択エリアを表示
 
-    document.getElementById("update-columns").addEventListener("click", () => {
-      const cols = parseInt(document.getElementById("columns-input").value, 10);
-      if(isNaN(cols) || cols < 1)return;
-      buttonContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-    });
+            if (links.length === 0) {
+                linkItemContainer.innerHTML = '<p style="text-align: center; color: #888;">有効なリンクは見つかりませんでした。</p>';
+                return;
+            }
 
-    document.getElementById("save-config").addEventListener("click", () => {
-      const cols = parseInt(document.getElementById("columns-input").value,10)||5;
-      const savedHtml = `<!DOCTYPE html>
+            links.forEach(link => {
+                const linkItem = document.createElement('div');
+                linkItem.classList.add('link-item');
+                linkItem.innerHTML = `
+                    <input type="checkbox" id="${link.id}" value="${link.id}" checked>
+                    <label for="${link.id}">
+                        ${link.name}
+                        <span class="link-url">${link.url}</span>
+                    </label>
+                `;
+                linkItemContainer.appendChild(linkItem);
+
+                // ラベルクリックでチェックボックスのトグル
+                linkItem.querySelector('label').addEventListener('click', (e) => {
+                    // label自体がcheckboxのidを持つので、直接チェックボックスを操作
+                    const checkbox = document.getElementById(link.id);
+                    checkbox.checked = !checkbox.checked;
+                    e.preventDefault(); // ラベルクリックによるデフォルト動作を停止
+                });
+            });
+        }
+
+        // 抽出されたリンクからHTMLファイルを生成しダウンロードする関数
+        function generateAndDownloadHtmlFile(linksToInclude) {
+            if (linksToInclude.length === 0) {
+                alert('ダウンロードするリンクが選択されていません。');
+                return;
+            }
+
+            // **リンクをリンク名の最初の3文字でソートして、同じ色のボタンが近くに配置されるようにする**
+            linksToInclude.sort((a, b) => {
+                const prefixA = a.name.substring(0, 3);
+                const prefixB = b.name.substring(0, 3);
+                return prefixA.localeCompare(prefixB);
+            });
+
+            // 色のマッピングをクリアして再構築
+            colorMap.clear();
+            colorIndex = 0;
+
+            let htmlContent = `
+<!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>保存されたファイル実行ボタン</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-  <style>
-    body{font-family:'Montserrat',sans-serif;background:linear-gradient(135deg,#ff9a9e 0%,#fad0c4 100%);margin:0;padding:0;display:flex;flex-direction:column;align-items:center;color:#333}
-    header{background:rgba(0,0,0,0.3);width:100%;padding:20px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,0.3)}
-    header h1{margin:0;font-size:2.5em;letter-spacing:2px;color:#fff;text-shadow:2px 2px 4px rgba(0,0,0,0.5)}
-    #button-container{display:grid;grid-template-columns:repeat(${cols},1fr);gap:20px;width:90%;max-width:1000px;margin-top:40px;padding:20px;background-color:#ffffffcc;border-radius:15px;box-shadow:0 4px 10px rgba(0,0,0,0.15);justify-items:center}
-    .custom-button{font-size:1.2em;border:none;border-radius:12px;padding:15px;cursor:pointer;transition:transform 0.3s,box-shadow 0.3s}
-    .custom-button:hover{transform:translateY(-5px);box-shadow:0 10px 20px rgba(0,0,0,0.25)}
-    footer{text-align:center;width:100%;margin-top:40px;padding:10px;background:rgba(0,0,0,0.1);font-size:0.9em;color:#333}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${roomName} - リンク一覧</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f8f8; color: #333; }
+        h1 { color: #0056b3; text-align: center; margin-bottom: 30px; }
+        .button-grid {
+            display: grid;
+            /* 画面幅に応じて最大4列に調整 */
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px;
+            padding: 0 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        @media (min-width: 900px) { /* 特定のブレークポイント以上で4列を強制 */
+            .button-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        .link-button {
+            display: block;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        /* リンク名の9文字目から強制的に折り返すためのCSS */
+        .link-button span.wrapped-text {
+            word-break: break-all;
+            display: block;
+        }
+        .link-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+        }
+    </style>
 </head>
 <body>
-  <header><h1>カラフルファイル実行ボタン</h1></header>
-  <div id="button-container"></div>
-  <footer>&copy; 2023 Beautiful Config</footer>
-  <script>
-    const allowedExtensions = ${JSON.stringify(allowedExtensions)};
-    const buttonsConfig = ${JSON.stringify(buttonsConfig)};
-    const container = document.getElementById("button-container");
-    function createButton(button){
-      const btn = document.createElement("button");
-      btn.textContent = button.text;
-      btn.className="custom-button";
-      Object.assign(btn.style, {
-        width: button.width, height: button.height, color: button.textColor,
-        backgroundColor: button.bgColor, fontSize: button.fontSize, borderRadius: button.borderRadius,
-        border:"1px solid " + button.borderColor
-      });
-      btn.addEventListener("dblclick", ()=>{
-        window.open(button.file);
-      });
-      container.appendChild(btn);
-    }
-    buttonsConfig.forEach(b=> createButton(b));
-  <\/script>
+    <h1>${roomName} - リンク一覧</h1>
+    <div class="button-grid">
+`;
+            linksToInclude.forEach(link => {
+                // リンク名から最初の3文字を取得
+                const prefix = link.name.substring(0, 3);
+                let colors = colorMap.get(prefix);
+
+                // 最初の3文字が新しい場合は新しい色を割り当てる
+                if (!colors) {
+                    colors = buttonColors[colorIndex % buttonColors.length];
+                    colorMap.set(prefix, colors);
+                    colorIndex++;
+                }
+
+                // リンク名を9文字目で分割し、spanでラップ
+                const displayName = link.name;
+                let formattedName = '';
+                if (displayName.length > 8) {
+                    formattedName = `${displayName.substring(0, 8)}<span class="wrapped-text">${displayName.substring(8)}</span>`;
+                } else {
+                    formattedName = displayName;
+                }
+
+                htmlContent += `        <a href="${link.url}" class="link-button" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(145deg, ${colors[0]}, ${colors[1]});">${formattedName}</a>\n`;
+            });
+
+            htmlContent += `
+    </div>
 </body>
-</html>`;
-      const blob = new Blob([savedHtml], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "index.html";
-      document.body.appendChild(a); a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-    });
+</html>
+`;
 
-    document.getElementById("export-json").addEventListener("click", () => {
-      const json = JSON.stringify(buttonsConfig);
-      const blob = new Blob([json], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "config.json";
-      document.body.appendChild(a); a.click();
-      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-    });
-
-    document.getElementById("import-json").addEventListener("click", () => {
-      document.getElementById("import-file").click();
-    });
-    document.getElementById("import-file").addEventListener("change", e => {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = event => {
-        try { 
-          buttonsConfig = JSON.parse(event.target.result);
-          nextId = buttonsConfig.reduce((max, btn) => Math.max(max, btn.id), 0) + 1;
-          updateButtons();
-        } catch(err){ alert("JSON読み込みエラー"); }
-      };
-      reader.readAsText(file);
-    });
-
-    document.getElementById("export-excel").addEventListener("click", () => {
-      const header = ["ボタンテキスト","実行ファイル","幅","高さ","背景色","フォントサイズ","角丸","枠線色"];
-      const ws_data = [ header ];
-      buttonsConfig.forEach(btn => {
-        ws_data.push([ btn.text, btn.file, btn.width, btn.height, btn.bgColor, btn.fontSize, btn.borderRadius, btn.borderColor ]);
-      });
-      const ws = XLSX.utils.aoa_to_sheet(ws_data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "Buttons");
-      XLSX.writeFile(wb, "buttons_config.xlsx");
-    });
-
-    document.getElementById("import-excel").addEventListener("click", () => {
-      document.getElementById("import-excel-file").click();
-    });
-    document.getElementById("import-excel-file").addEventListener("change", e => {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      reader.onload = event => {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, {type:"array"});
-        const wsname = workbook.SheetNames[0];
-        const ws = workbook.Sheets[wsname];
-        const jsonData = XLSX.utils.sheet_to_json(ws, {header:1});
-        if(jsonData.length < 2) return;
-        const headerRow = jsonData[0], mapping = {
-          "ボタンテキスト": "text", "実行ファイル": "file", "幅": "width",
-          "高さ": "height", "背景色": "bgColor", "フォントサイズ": "fontSize",
-          "角丸": "borderRadius", "枠線色": "borderColor"
-        };
-        buttonsConfig = [];
-        for(let i = 1; i < jsonData.length; i++){
-          const row = jsonData[i];
-          if(row.length === 0) continue;
-          let btnObj = {};
-          headerRow.forEach((colName,index)=>{
-            const prop = mapping[colName];
-            if(prop) btnObj[prop] = row[index];
-          });
-          btnObj.id = nextId++;
-          btnObj.order = buttonsConfig.length;
-          if(!btnObj.text) btnObj.text = "テスト";
-          if(!btnObj.file) btnObj.file = "t.html";
-          if(!btnObj.width) btnObj.width = "150px";
-          if(!btnObj.height) btnObj.height = "50px";
-          if(!btnObj.fontSize) btnObj.fontSize = "16px";
-          if(!btnObj.borderRadius) btnObj.borderRadius = "30px";
-          if(!btnObj.borderColor) btnObj.borderColor = "#cccccc";
-          if(!btnObj.bgColor) btnObj.bgColor = "yellowgreen";
-          buttonsConfig.push(btnObj);
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `extracted_links_${roomName.replace(/\s/g, '_')}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert('抽出されたリンクを含むHTMLファイルがダウンロードされました。');
         }
-        updateButtons();
-      };
-      reader.readAsArrayBuffer(file);
-    });
-  </script>
+
+        // 「リンクを抽出して選択」ボタンクリック時の処理
+        processHtmlButton.addEventListener('click', function() {
+            const htmlCode = htmlSourceInput.value.trim();
+            if (!htmlCode) {
+                alert('解析するHTMLコードをテキストエリアに貼り付けてください。');
+                return;
+            }
+            try {
+                const links = extractLinksFromHtml(htmlCode);
+                if (links.length > 0) {
+                    // 抽出されたリンクをグローバル変数に保存し、選択エリアに表示
+                    window.extractedLinks = links;
+                    displayLinksForSelection(links);
+                    alert('リンクの抽出が完了しました。下の「生成するリンクの選択」エリアで確認してください。');
+                } else {
+                    linkSelectionArea.style.display = 'none'; // リンクが見つからない場合は非表示に
+                    alert('有効なリンクは見つかりませんでした。');
+                }
+            } catch (e) {
+                alert(`HTML解析にエラーがあります: ${e.message}`);
+                console.error("解析エラー:", e);
+            }
+        });
+
+        // 「HTMLファイルを生成」ボタンクリック時の処理
+        generateHtmlFileButton.addEventListener('click', function() {
+            if (!window.extractedLinks || window.extractedLinks.length === 0) {
+                alert('まず「リンクを抽出して選択」ボタンでリンクを抽出してください。');
+                return;
+            }
+
+            // チェックボックスが選択されているリンクのみをフィルタリング
+            const selectedLinks = window.extractedLinks.filter(link => {
+                const checkbox = document.getElementById(link.id);
+                return checkbox && checkbox.checked;
+            });
+
+            generateAndDownloadHtmlFile(selectedLinks);
+        });
+
+        // 全選択ボタンのイベントリスナー
+        selectAllButton.addEventListener('click', () => {
+            const checkboxes = linkItemContainer.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+        });
+
+        // 全解除ボタンのイベントリスナー
+        deselectAllButton.addEventListener('click', () => {
+            const checkboxes = linkItemContainer.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+        });
+
+        // ページロード時に、提供されたデフォルトのHTML断片をテキストエリアにセット
+        window.addEventListener('load', () => {
+            htmlSourceInput.value = providedHtmlFragment.trim();
+        });
+    </script>
 </body>
 </html>
