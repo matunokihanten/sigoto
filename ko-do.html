@@ -48,16 +48,26 @@
       padding: 12px 20px; /* パディングを少し増やす */
       background: linear-gradient(to right, var(--gradient-start), var(--gradient-end)); /* グラデーション背景 */
       display: flex;
+      flex-wrap: wrap; /* ボタンの折り返しを有効に保つ */
       align-items: center;
-      flex-wrap: wrap;
+      gap: 12px; /* ★追加: 要素間のギャップを設定。margin-rightの代わりに使う */
       border-bottom: 1px solid var(--border-color);
       box-shadow: 0 4px 10px rgba(0,0,0,0.08); /* 影を強調 */
       z-index: 10; /* 他の要素より手前に表示 */
+      /* overflow-x: auto; /* ★検討: 横スクロールを許可する場合 */
+    }
+
+    /* ★追加: ボタンをグループ化するコンテナのスタイル */
+    .button-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px; /* グループ内のボタン間のギャップ */
+        align-items: center;
     }
 
     .controls button, .controls select {
-      margin-right: 12px; /* マージンを少し増やす */
-      margin-bottom: 10px; /* 下方向のマージンを少し増やす */
+      /* margin-right: 12px; ★削除: gapで代替 */
+      margin-bottom: 0; /* ★変更: flexコンテナのgapで調整するため0にする */
       padding: 9px 18px; /* パディングを増やす */
       cursor: pointer;
       border: 1px solid rgba(0, 0, 0, 0.15); /* ボーダーをより控えめに */
@@ -98,7 +108,7 @@
     }
 
     #messageArea {
-      margin-left: auto;
+      /* margin-left: auto; ★削除: flexコンテナの配置で調整 */
       padding: 8px 15px; /* パディングを増やす */
       font-size: 0.9em;
       white-space: nowrap;
@@ -111,6 +121,8 @@
       display: flex; /* アイコンとテキストを横並びに */
       align-items: center;
       justify-content: flex-end; /* 右寄せ */
+      margin-left: auto; /* ★追加: 引き続き右寄せにするため */
+      flex-shrink: 0; /* ★追加: 縮小させないようにする */
     }
     #messageArea #messageIcon {
         margin-right: 8px; /* アイコンとテキストの間隔 */
@@ -212,28 +224,40 @@
 </head>
 <body>
   <div class="controls">
-    <button id="openFileBtn" title="ファイルを開く">ファイルを開く</button>
-    <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
-    <button id="saveBtn" title="保存 (Ctrl+S)">保存</button>
-    <button id="undoBtn" title="元に戻す (Ctrl+Z)">元に戻す</button>
-    <button id="redoBtn" title="やり直し (Ctrl+Y)">やり直し</button>
-    <button id="copyBtn" title="選択範囲をコピー">コピー</button>
-    <button id="pasteBtn" title="クリップボードから貼り付け">貼り付け</button>
-    <button id="clearAllBtn" title="全て削除">全て削除</button>
-    <button id="insertTemplateBtn" title="HTMLテンプレートを挿入">HTMLテンプレート挿入</button>
-    <button id="toggleLineNumbersBtn" title="行番号表示/非表示を切り替え">行番号</button>
-    <button id="searchBtn" title="検索 (Ctrl+F)">検索</button>
-    <button id="replaceBtn" title="置換 (Ctrl+H)">置換</button>
-    <select id="themeSelect" title="エディターのテーマを選択">
-      <option value="default">テーマ: 標準</option>
-      <option value="dracula">テーマ: Dracula</option>
-      <option value="material-darker">テーマ: Material Darker</option>
-      <option value="monokai">テーマ: Monokai</option>
-      <option value="seti">テーマ: Seti</option>
-      <option value="eclipse">テーマ: Eclipse</option>
-      <option value="mdn-like">テーマ: MDN Like</option>
-    </select>
-    <button id="runBtn" title="プレビューを別ウィンドウで開く (Ctrl+Enter)">実行</button>
+    <div class="button-group">
+        <button id="openFileBtn" title="ファイルを開く">ファイルを開く</button>
+        <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
+        <button id="saveBtn" title="保存 (Ctrl+S)">保存</button>
+    </div>
+    <div class="button-group">
+        <button id="undoBtn" title="元に戻す (Ctrl+Z)">元に戻す</button>
+        <button id="redoBtn" title="やり直し (Ctrl+Y)">やり直し</button>
+    </div>
+    <div class="button-group">
+        <button id="copyBtn" title="選択範囲をコピー">コピー</button>
+        <button id="pasteBtn" title="クリップボードから貼り付け">貼り付け</button>
+        <button id="clearAllBtn" title="全て削除">全て削除</button>
+    </div>
+    <div class="button-group">
+        <button id="insertTemplateBtn" title="HTMLテンプレートを挿入">HTMLテンプレート挿入</button>
+        <button id="toggleLineNumbersBtn" title="行番号表示/非表示を切り替え">行番号</button>
+    </div>
+    <div class="button-group">
+        <button id="searchBtn" title="検索 (Ctrl+F)">検索</button>
+        <button id="replaceBtn" title="置換 (Ctrl+H)">置換</button>
+    </div>
+    <div class="button-group">
+        <select id="themeSelect" title="エディターのテーマを選択">
+            <option value="default">テーマ: 標準</option>
+            <option value="dracula">テーマ: Dracula</option>
+            <option value="material-darker">テーマ: Material Darker</option>
+            <option value="monokai">テーマ: Monokai</option>
+            <option value="seti">テーマ: Seti</option>
+            <option value="eclipse">テーマ: Eclipse</option>
+            <option value="mdn-like">テーマ: MDN Like</option>
+        </select>
+        <button id="runBtn" title="プレビューを別ウィンドウで開く (Ctrl+Enter)">実行</button>
+    </div>
     <div id="messageArea"><span id="messageIcon"></span><span id="messageText"></span></div>
   </div>
 
