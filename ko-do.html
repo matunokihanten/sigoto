@@ -44,129 +44,158 @@
     }
 
     /* --- コントロールパネルのスタイル --- */
+    .controls-wrapper { /* ★追加: ツールバーをラップするコンテナ */
+        position: relative; /* メッセージエリアのposition:absoluteの基準 */
+        background: linear-gradient(to right, var(--gradient-start), var(--gradient-end)); /* グラデーション背景 */
+        border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08); /* 影を強調 */
+        z-index: 10;
+        padding-right: 200px; /* ★追加: メッセージエリアの幅を確保 */
+    }
+
     .controls {
       padding: 12px 20px; /* パディングを少し増やす */
-      background: linear-gradient(to right, var(--gradient-start), var(--gradient-end)); /* グラデーション背景 */
       display: flex;
-      flex-wrap: wrap; /* ボタンの折り返しを有効に保つ */
+      flex-wrap: wrap;
       align-items: center;
-      gap: 12px; /* ★追加: 要素間のギャップを設定。margin-rightの代わりに使う */
-      border-bottom: 1px solid var(--border-color);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08); /* 影を強調 */
-      z-index: 10; /* 他の要素より手前に表示 */
-      /* overflow-x: auto; /* ★検討: 横スクロールを許可する場合 */
+      gap: 12px;
+      /* overflow-x: auto; ★変更: controls-wrapperに移動 */
+      overflow-x: auto; /* ★追加: 横スクロールを許可 */
+      -webkit-overflow-scrolling: touch; /* iOSでのスクロールを滑らかに */
+      scrollbar-width: thin; /* Firefox */
+      scrollbar-color: var(--primary-color) var(--background-light); /* Firefox */
+    }
+    /* Webkit系ブラウザのスクロールバーのスタイル */
+    .controls::-webkit-scrollbar {
+        height: 8px;
+    }
+    .controls::-webkit-scrollbar-track {
+        background: var(--background-light);
+    }
+    .controls::-webkit-scrollbar-thumb {
+        background-color: var(--primary-color);
+        border-radius: 4px;
+        border: 2px solid var(--background-light);
+    }
+
+
+    /* ★変更: メッセージエリアをcontrols-wrapper内でabsolute配置 */
+    #messageArea {
+      position: absolute; /* ★変更 */
+      right: 20px; /* ★変更: 右端からの位置 */
+      top: 50%; /* ★変更: 上下中央に配置 */
+      transform: translateY(-50%); /* ★変更: 上下中央寄せの微調整 */
+      padding: 8px 15px;
+      font-size: 0.9em;
+      white-space: nowrap;
+      min-width: 180px;
+      text-align: right;
+      opacity: 0;
+      /* transform: translateY(10px); ★変更: topとtransformで調整するため不要 */
+      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      /* margin-left: auto; ★削除 */
+      flex-shrink: 0;
+      pointer-events: none; /* メッセージがクリックイベントをブロックしないように */
+    }
+    #messageArea #messageIcon {
+        margin-right: 8px;
+        font-size: 1.1em;
+    }
+    #messageArea.show {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0); /* ★変更: 元の位置に戻すアニメーション */
+    }
+    /* メッセージの登場アニメーションをより自然にするため、初期状態を調整 */
+    #messageArea:not(.show) {
+        transform: translateY(-40%) translateX(20px); /* 非表示時は少し右下へ */
+    }
+    #messageArea.success {
+        background-color: #e6ffed;
+        color: var(--success-color);
+    }
+    #messageArea.error {
+        background-color: #ffe6e6;
+        color: var(--error-color);
+    }
+    #messageArea.info {
+        background-color: #e0f7fa;
+        color: var(--info-color);
     }
 
     /* ★追加: ボタンをグループ化するコンテナのスタイル */
     .button-group {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px; /* グループ内のボタン間のギャップ */
+        gap: 10px;
         align-items: center;
+        flex-shrink: 0; /* ボタングループも縮小させない */
     }
 
     .controls button, .controls select {
-      /* margin-right: 12px; ★削除: gapで代替 */
-      margin-bottom: 0; /* ★変更: flexコンテナのgapで調整するため0にする */
-      padding: 9px 18px; /* パディングを増やす */
+      margin-bottom: 0;
+      padding: 9px 18px;
       cursor: pointer;
-      border: 1px solid rgba(0, 0, 0, 0.15); /* ボーダーをより控えめに */
-      border-radius: 6px; /* 角をさらに丸く */
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 6px;
       background-color: #fff;
       color: var(--text-color);
-      font-size: 0.98em; /* フォントサイズを微調整 */
-      transition: all 0.3s ease-out; /* トランジションを滑らかに */
+      font-size: 0.98em;
+      transition: all 0.3s ease-out;
       white-space: nowrap;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.08); /* 影を強調 */
-      outline: none; /* フォーカス時のアウトラインをリセット */
+      box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+      outline: none;
     }
 
     .controls button:hover {
       background-color: #e9ecef;
-      border-color: var(--primary-color); /* ホバー時にプライマリカラーのボーダー */
-      transform: translateY(-2px); /* 少し浮き上がるエフェクト */
-      box-shadow: 0 6px 12px rgba(0,0,0,0.12); /* ホバー時に影を強く */
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.12);
     }
     .controls button:active {
       transform: translateY(0);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.15); /* クリック時に凹むエフェクト */
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
       background-color: #dee2e6;
     }
 
     .controls select {
-      min-width: 140px; /* セレクトボックスの最小幅 */
-      appearance: none; /* デフォルトのスタイルを無効化 */
+      min-width: 140px;
+      appearance: none;
       background-image: url('data:image/svg+xml;utf8,<svg fill="%23343a40" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
       background-repeat: no-repeat;
-      background-position: right 10px center; /* アイコンの位置を調整 */
-      background-size: 18px; /* アイコンサイズを調整 */
+      background-position: right 10px center;
+      background-size: 18px;
       cursor: pointer;
     }
     .controls select:focus {
       border-color: var(--primary-color);
-      box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.3); /* フォーカス時の影を強調 */
+      box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.3);
     }
-
-    #messageArea {
-      /* margin-left: auto; ★削除: flexコンテナの配置で調整 */
-      padding: 8px 15px; /* パディングを増やす */
-      font-size: 0.9em;
-      white-space: nowrap;
-      min-width: 180px; /* 最小幅を増やす */
-      text-align: right;
-      opacity: 0;
-      transform: translateY(10px); /* 初期状態で少し下に配置 */
-      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
-      border-radius: 5px;
-      display: flex; /* アイコンとテキストを横並びに */
-      align-items: center;
-      justify-content: flex-end; /* 右寄せ */
-      margin-left: auto; /* ★追加: 引き続き右寄せにするため */
-      flex-shrink: 0; /* ★追加: 縮小させないようにする */
-    }
-    #messageArea #messageIcon {
-        margin-right: 8px; /* アイコンとテキストの間隔 */
-        font-size: 1.1em;
-    }
-    #messageArea.show {
-        opacity: 1;
-        transform: translateY(0); /* 表示時に元の位置へ */
-    }
-    #messageArea.success {
-        background-color: #e6ffed; /* 成功メッセージの背景色 */
-        color: var(--success-color);
-    }
-    #messageArea.error {
-        background-color: #ffe6e6; /* エラーメッセージの背景色 */
-        color: var(--error-color);
-    }
-    #messageArea.info {
-        background-color: #e0f7fa; /* 情報メッセージの背景色 */
-        color: var(--info-color);
-    }
-
 
     /* --- エディターとプレビューのコンテナスタイル --- */
     .content-area {
       flex: 1;
       display: flex;
       overflow: hidden;
-      padding: 15px; /* 全体にパディング */
-      gap: 15px; /* エディターとプレビューの間に隙間 */
+      padding: 15px;
+      gap: 15px;
     }
 
     .editor-container, .preview-container {
       flex: 1;
       height: 100%;
-      overflow: hidden; /* コンテナ自体は隠す（CodeMirrorとiframeがスクロールを担当） */
-      border: 1px solid var(--border-color); /* 境界線 */
-      border-radius: 8px; /* 角を丸く */
-      box-shadow: 0 6px 16px rgba(0,0,0,0.1); /* 影を強調 */
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.1);
       box-sizing: border-box;
-      background-color: #fff; /* 背景色 */
-      position: relative; /* ドラッグ＆ドロップオーバーレイ用 */
+      background-color: #fff;
+      position: relative;
     }
-    /* ドラッグオーバーレイ */
     .drag-overlay {
         position: absolute;
         top: 0;
@@ -182,7 +211,7 @@
         color: var(--primary-dark);
         z-index: 5;
         border-radius: 8px;
-        pointer-events: none; /* イベントを透過させる */
+        pointer-events: none;
     }
     .editor-container.drag-over .drag-overlay {
         display: flex;
@@ -193,70 +222,68 @@
       height: 100%;
       font-size: 1.1em;
       border: none;
-      padding: 5px; /* エディター内に少しパディング */
-      border-radius: 8px; /* 親コンテナに合わせて角を丸く */
+      padding: 5px;
+      border-radius: 8px;
     }
-    /* CodeMirror の行番号領域の背景色 */
     .CodeMirror-gutters {
         background-color: var(--background-light) !important;
-        border-right: 1px solid rgba(0, 0, 0, 0.1) !important; /* より控えめなボーダー */
-        border-top-left-radius: 8px; /* 角を丸く */
+        border-right: 1px solid rgba(0, 0, 0, 0.1) !important;
+        border-top-left-radius: 8px;
         border-bottom-left-radius: 8px;
     }
-    /* CodeMirror のアクティブ行 */
     .CodeMirror-activeline-background {
-        background-color: rgba(0, 123, 255, 0.08) !important; /* アクティブ行の背景を薄い青に少し濃く */
+        background-color: rgba(0, 123, 255, 0.08) !important;
     }
-    /* CodeMirror の選択範囲 */
     .CodeMirror-selected {
         background-color: rgba(0, 123, 255, 0.2) !important;
     }
-
 
     iframe {
       width: 100%;
       height: 100%;
       border: none;
       background-color: #fff;
-      border-radius: 8px; /* 親コンテナに合わせて角を丸く */
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
-  <div class="controls">
-    <div class="button-group">
-        <button id="openFileBtn" title="ファイルを開く">ファイルを開く</button>
-        <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
-        <button id="saveBtn" title="保存 (Ctrl+S)">保存</button>
-    </div>
-    <div class="button-group">
-        <button id="undoBtn" title="元に戻す (Ctrl+Z)">元に戻す</button>
-        <button id="redoBtn" title="やり直し (Ctrl+Y)">やり直し</button>
-    </div>
-    <div class="button-group">
-        <button id="copyBtn" title="選択範囲をコピー">コピー</button>
-        <button id="pasteBtn" title="クリップボードから貼り付け">貼り付け</button>
-        <button id="clearAllBtn" title="全て削除">全て削除</button>
-    </div>
-    <div class="button-group">
-        <button id="insertTemplateBtn" title="HTMLテンプレートを挿入">HTMLテンプレート挿入</button>
-        <button id="toggleLineNumbersBtn" title="行番号表示/非表示を切り替え">行番号</button>
-    </div>
-    <div class="button-group">
-        <button id="searchBtn" title="検索 (Ctrl+F)">検索</button>
-        <button id="replaceBtn" title="置換 (Ctrl+H)">置換</button>
-    </div>
-    <div class="button-group">
-        <select id="themeSelect" title="エディターのテーマを選択">
-            <option value="default">テーマ: 標準</option>
-            <option value="dracula">テーマ: Dracula</option>
-            <option value="material-darker">テーマ: Material Darker</option>
-            <option value="monokai">テーマ: Monokai</option>
-            <option value="seti">テーマ: Seti</option>
-            <option value="eclipse">テーマ: Eclipse</option>
-            <option value="mdn-like">テーマ: MDN Like</option>
-        </select>
-        <button id="runBtn" title="プレビューを別ウィンドウで開く (Ctrl+Enter)">実行</button>
+  <div class="controls-wrapper">
+    <div class="controls">
+      <div class="button-group">
+          <button id="openFileBtn" title="ファイルを開く">ファイルを開く</button>
+          <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
+          <button id="saveBtn" title="保存 (Ctrl+S)">保存</button>
+      </div>
+      <div class="button-group">
+          <button id="undoBtn" title="元に戻す (Ctrl+Z)">元に戻す</button>
+          <button id="redoBtn" title="やり直し (Ctrl+Y)">やり直し</button>
+      </div>
+      <div class="button-group">
+          <button id="copyBtn" title="選択範囲をコピー">コピー</button>
+          <button id="pasteBtn" title="クリップボードから貼り付け">貼り付け</button>
+          <button id="clearAllBtn" title="全て削除">全て削除</button>
+      </div>
+      <div class="button-group">
+          <button id="insertTemplateBtn" title="HTMLテンプレートを挿入">HTMLテンプレート挿入</button>
+          <button id="toggleLineNumbersBtn" title="行番号表示/非表示を切り替え">行番号</button>
+      </div>
+      <div class="button-group">
+          <button id="searchBtn" title="検索 (Ctrl+F)">検索</button>
+          <button id="replaceBtn" title="置換 (Ctrl+H)">置換</button>
+      </div>
+      <div class="button-group">
+          <select id="themeSelect" title="エディターのテーマを選択">
+              <option value="default">テーマ: 標準</option>
+              <option value="dracula">テーマ: Dracula</option>
+              <option value="material-darker">テーマ: Material Darker</option>
+              <option value="monokai">テーマ: Monokai</option>
+              <option value="seti">テーマ: Seti</option>
+              <option value="eclipse">テーマ: Eclipse</option>
+              <option value="mdn-like">テーマ: MDN Like</option>
+          </select>
+          <button id="runBtn" title="プレビューを別ウィンドウで開く (Ctrl+Enter)">実行</button>
+      </div>
     </div>
     <div id="messageArea"><span id="messageIcon"></span><span id="messageText"></span></div>
   </div>
