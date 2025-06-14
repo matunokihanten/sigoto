@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>高機能HTMLエディター</title>
+  <title>HTMLエディター</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
@@ -17,66 +17,133 @@
 
 
   <style>
+    :root {
+      /* カラーパレット */
+      --primary-color: #007bff; /* 青 */
+      --primary-dark: #0056b3;
+      --secondary-color: #6c757d; /* グレー */
+      --border-color: #dee2e6; /* 明るいグレー */
+      --background-light: #f8f9fa; /* 非常に明るいグレー */
+      --text-color: #343a40; /* 濃いグレー */
+      --success-color: #28a745; /* 緑 */
+      --error-color: #dc3545; /* 赤 */
+    }
+
     body {
       margin: 0;
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
       flex-direction: column;
       height: 100vh;
-      overflow: hidden; /* 全体でスクロールバーが出ないように */
+      overflow: hidden;
+      color: var(--text-color);
     }
+
+    /* --- コントロールパネルのスタイル --- */
     .controls {
-      padding: 10px;
-      background-color: #f0f0f0;
+      padding: 10px 15px;
+      background-color: var(--background-light);
       display: flex;
       align-items: center;
-      flex-wrap: wrap; /* ボタンが多すぎる場合に折り返す */
-      border-bottom: 1px solid #ccc;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
+
     .controls button, .controls select {
       margin-right: 10px;
-      margin-bottom: 5px; /* 折り返した時に下にスペース */
+      margin-bottom: 8px; /* 下方向のマージンを少し増やす */
       padding: 8px 15px;
       cursor: pointer;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      border-radius: 5px; /* 角を丸く */
       background-color: #fff;
-      transition: background-color 0.2s;
-      white-space: nowrap; /* ボタン内のテキスト折り返しを防ぐ */
+      color: var(--text-color);
+      font-size: 0.95em;
+      transition: all 0.2s ease-in-out;
+      white-space: nowrap;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
+
     .controls button:hover {
-      background-color: #e0e0e0;
+      background-color: #e9ecef;
+      border-color: var(--secondary-color);
+      transform: translateY(-1px); /* 少し浮き上がるエフェクト */
     }
+    .controls button:active {
+      transform: translateY(0);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .controls select {
+      min-width: 120px; /* セレクトボックスの最小幅 */
+      appearance: none; /* デフォルトのスタイルを無効化 */
+      background-image: url('data:image/svg+xml;utf8,<svg fill="%23343a40" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      background-size: 20px;
+    }
+    .controls select:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
     #messageArea {
-      margin-left: auto; /* 右端に寄せる */
+      margin-left: auto;
       padding: 5px 10px;
       font-size: 0.9em;
       white-space: nowrap;
-      min-width: 150px; /* メッセージエリアの最小幅を確保 */
-      text-align: right; /* テキストを右寄せ */
+      min-width: 150px;
+      text-align: right;
+      transition: opacity 0.3s ease-in-out;
+    }
+    #messageArea.show {
+        opacity: 1;
+    }
+    #messageArea.success {
+        color: var(--success-color);
+    }
+    #messageArea.error {
+        color: var(--error-color);
     }
 
-    /* エディターとプレビューのコンテナ */
+
+    /* --- エディターとプレビューのコンテナスタイル --- */
     .content-area {
       flex: 1;
-      display: flex; /* 左右に分割 */
+      display: flex;
       overflow: hidden;
     }
+
     .editor-container, .preview-container {
-      flex: 1; /* 等しい幅 */
+      flex: 1;
       height: 100%;
-      overflow: hidden; /* コンテナ内でスクロールバーを管理 */
-      border: 1px solid #ccc; /* 境界線 */
-      box-sizing: border-box; /* パディング・ボーダーを幅に含める */
+      overflow: auto; /* コンテナ内でスクロールバーを管理 */
+      border: 1px solid var(--border-color); /* 境界線 */
+      box-sizing: border-box;
     }
     .editor-container {
-      border-right: none; /* エディターとプレビュー間の線はプレビュー側で */
+      border-right: none; /* エディターとプレビュー間の線はプレビュー側で表示 */
     }
+
     .CodeMirror {
       height: 100%;
       font-size: 1.1em;
-      border: none; /* 親コンテナがボーダーを持つため不要 */
+      border: none;
+      padding: 5px; /* エディター内に少しパディング */
     }
+    /* CodeMirror の行番号領域の背景色 */
+    .CodeMirror-gutters {
+        background-color: var(--background-light) !important;
+        border-right: 1px solid var(--border-color) !important;
+    }
+    /* CodeMirror のアクティブ行 */
+    .CodeMirror-activeline-background {
+        background-color: rgba(0, 123, 255, 0.05) !important; /* アクティブ行の背景を薄い青に */
+    }
+
+
     iframe {
       width: 100%;
       height: 100%;
@@ -87,25 +154,26 @@
 </head>
 <body>
   <div class="controls">
-    <button id="openFileBtn">開く</button>
+    <button id="openFileBtn">ファイルを開く</button>
     <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
     <button id="saveBtn">保存 (Ctrl+S)</button>
+    <button id="undoBtn">元に戻す (Ctrl+Z)</button>
+    <button id="redoBtn">やり直し (Ctrl+Y)</button>
     <button id="copyBtn">コピー</button>
-    <button id="pasteBtn">貼付け</button>
-    <button id="clearAllBtn">全削除</button>
+    <button id="pasteBtn">貼り付け</button>
+    <button id="clearAllBtn">全て削除</button>
     <button id="insertTemplateBtn">HTMLテンプレート挿入</button>
-    <button id="formatCodeBtn">整形</button>
     <button id="toggleLineNumbersBtn">行番号表示/非表示</button>
     <button id="searchBtn">検索 (Ctrl+F)</button>
     <button id="replaceBtn">置換 (Ctrl+H)</button>
     <select id="themeSelect">
-      <option value="default">Default</option>
-      <option value="dracula">Dracula</option>
-      <option value="material-darker">Material Darker</option>
-      <option value="monokai">Monokai</option>
-      <option value="seti">Seti</option>
-      <option value="eclipse">Eclipse</option>
-      <option value="mdn-like">MDN Like</option>
+      <option value="default">テーマ: 標準</option>
+      <option value="dracula">テーマ: Dracula</option>
+      <option value="material-darker">テーマ: Material Darker</option>
+      <option value="monokai">テーマ: Monokai</option>
+      <option value="seti">テーマ: Seti</option>
+      <option value="eclipse">テーマ: Eclipse</option>
+      <option value="mdn-like">テーマ: MDN Like</option>
     </select>
     <button id="runBtn">実行 (Ctrl+Enter)</button>
     <div id="messageArea"></div>
@@ -140,8 +208,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/brace-fold.min.js"></script>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-beautify/1.14.0/beautify-html.min.js"></script>
 
 
   <script>
@@ -209,15 +275,17 @@
     const themeSelect = document.getElementById('themeSelect');
     const searchBtn = document.getElementById('searchBtn');
     const replaceBtn = document.getElementById('replaceBtn');
-    const formatCodeBtn = document.getElementById('formatCodeBtn');
     const insertTemplateBtn = document.getElementById('insertTemplateBtn');
     const toggleLineNumbersBtn = document.getElementById('toggleLineNumbersBtn');
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
 
     // メッセージ表示関数
     function showMessage(msg, isError = false) {
       messageArea.textContent = msg;
-      messageArea.style.color = isError ? 'red' : 'green';
+      messageArea.className = 'show ' + (isError ? 'error' : 'success'); // クラスを追加
       setTimeout(() => {
+        messageArea.className = ''; // クラスをリセットして非表示
         messageArea.textContent = '';
       }, 2000);
     }
@@ -246,9 +314,9 @@
 
     // 全削除ボタン
     clearAllBtn.addEventListener('click', function() {
-      if (confirm("本当に全削除しますか？")) {
+      if (confirm("本当に全て削除しますか？")) {
         cm.setValue("");
-        showMessage("すべて削除しました");
+        showMessage("全て削除しました");
       }
     });
 
@@ -291,7 +359,6 @@
     runBtn.addEventListener('click', function() {
       var blob = new Blob([cm.getValue()], { type: "text/html" });
       var url = URL.createObjectURL(blob);
-      // ここを修正: 新しいタブを開かず、"html_editor_preview" という名前の既存のタブを再利用する
       window.open(url, "html_editor_preview");
       showMessage("コードを実行しました");
     });
@@ -301,7 +368,7 @@
       const selectedTheme = this.value;
       cm.setOption("theme", selectedTheme);
       localStorage.setItem("cmTheme", selectedTheme); // テーマを保存
-      showMessage(`テーマを "${selectedTheme}" にしました`);
+      showMessage(`テーマを「${themeSelect.options[themeSelect.selectedIndex].text.replace('テーマ: ','')}」に設定しました`);
     });
 
     // 検索ボタン
@@ -340,25 +407,23 @@
         }
     });
 
-    // コード整形ボタン
-    formatCodeBtn.addEventListener('click', function() {
-        try {
-            const formattedCode = html_beautify(cm.getValue(), {
-                indent_size: 2,
-                space_in_empty_paren: true // 空の括弧内にスペースを追加
-            });
-            cm.setValue(formattedCode);
-            showMessage("コードを整形しました");
-        } catch (e) {
-            showMessage("コードの整形に失敗しました: " + e.message, true);
-        }
-    });
-
     // 行番号表示/非表示ボタン
     toggleLineNumbersBtn.addEventListener('click', function() {
         const current = cm.getOption("lineNumbers");
         cm.setOption("lineNumbers", !current);
         showMessage(`行番号を${!current ? '表示' : '非表示'}にしました`);
+    });
+
+    // 元に戻すボタン (Undo)
+    undoBtn.addEventListener('click', function() {
+        cm.undo();
+        showMessage("操作を元に戻しました");
+    });
+
+    // やり直しボタン (Redo)
+    redoBtn.addEventListener('click', function() {
+        cm.redo();
+        showMessage("操作をやり直しました");
     });
 
 
@@ -369,7 +434,6 @@
           e.preventDefault(); // ブラウザのデフォルト保存動作を抑制
           saveBtn.click();
         } else if (e.key === 'Enter') {
-          // e.preventDefault(); // 実行ボタンはEnterで改行もできるため、ここでは抑制しない
           runBtn.click();
         } else if (e.key === 'f' || e.key === 'F') {
             e.preventDefault();
@@ -377,7 +441,18 @@
         } else if (e.key === 'h' || e.key === 'H') {
             e.preventDefault();
             replaceBtn.click();
+        } else if (e.key === 'z' || e.key === 'Z') {
+            e.preventDefault();
+            undoBtn.click();
+        } else if (e.key === 'y' || e.key === 'Y') {
+            e.preventDefault();
+            redoBtn.click();
         }
+      }
+      // MacのCommand+Shift+Z (Redo) に対応
+      if ((e.ctrlKey || e.metaKey) && (e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+          e.preventDefault();
+          redoBtn.click();
       }
     });
   </script>
