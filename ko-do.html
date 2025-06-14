@@ -448,17 +448,21 @@
         const bootstrapJs = `<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>`;
 
         // <head>タグ内にBootstrap CSSを追加
+        // 正規表現リテラルの代わりにRegExpオブジェクトを使用
+        const headCloseTagRegex = new RegExp('<\\/head>', 'i');
         if (!currentCode.includes(bootstrapCss)) {
-            currentCode = currentCode.replace(/<\/head>/i, `  ${bootstrapCss}\n</head>`);
+            currentCode = currentCode.replace(headCloseTagRegex, `  ${bootstrapCss}\n</head>`);
             showMessage("Bootstrap CSSを追加しました");
         } else {
             showMessage("Bootstrap CSSは既に追加されています", true);
         }
 
         // <body>タグの閉じタグの直前にBootstrap JSを追加
+        // 正規表現リテラルの代わりにRegExpオブジェクトを使用
+        // 最後の</body>タグをターゲットにする正規表現をより安全な形に
+        const bodyCloseTagRegex = new RegExp('(<\/body>)(?![\s\\S]*<\/body>)', 'i');
         if (!currentCode.includes(bootstrapJs)) {
-            // bodyタグの閉じタグが複数ある場合を考慮して、最後のタグを置換
-            currentCode = currentCode.replace(/(<\/body>)(?![\s\S]*<\/body>)/i, `  ${bootstrapJs}\n</body>`);
+            currentCode = currentCode.replace(bodyCloseTagRegex, `  ${bootstrapJs}\n</body>`);
             showMessage("Bootstrap JavaScriptを追加しました");
         } else {
             showMessage("Bootstrap JavaScriptは既に追加されています", true);
@@ -480,13 +484,22 @@
 </html>`;
             // 既存のコンテンツを保持しつつ、基本テンプレートのbody内に挿入を試みる
             const originalContent = cm.getValue();
-            currentCode = defaultTemplate.replace('</body>', `${originalContent}\n</body>`);
+            // bodyタグの内容を検索し、その中に元のコンテンツを挿入
+            // ここもRegExpオブジェクトを使用し、より明確に
+            const bodyContentRegex = new RegExp('(<body[^>]*>)([\\s\\S]*?)(<\/body>)', 'i');
+            if (bodyContentRegex.test(defaultTemplate)) {
+                currentCode = defaultTemplate.replace(bodyContentRegex, `$1\n  ${originalContent}\n$3`);
+            } else {
+                // bodyタグが見つからない場合は、単純にテンプレートで置き換え
+                currentCode = defaultTemplate;
+            }
+
             // 追加後に改めてBootstrapを挿入
             if (!currentCode.includes(bootstrapCss)) {
-              currentCode = currentCode.replace(/<\/head>/i, `  ${bootstrapCss}\n</head>`);
+              currentCode = currentCode.replace(headCloseTagRegex, `  ${bootstrapCss}\n</head>`);
             }
             if (!currentCode.includes(bootstrapJs)) {
-              currentCode = currentCode.replace(/(<\/body>)(?![\s\S]*<\/body>)/i, `  ${bootstrapJs}\n</body>`);
+              currentCode = currentCode.replace(bodyCloseTagRegex, `  ${bootstrapJs}\n</body>`);
             }
             showMessage("HTMLテンプレートを適用し、Bootstrapを追加しました");
         }
