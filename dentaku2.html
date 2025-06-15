@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飲食店向け高機能電卓</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .calculator-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 20px;
+            height: 100vh;
+        }
+
+        .calculator {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            cursor: move;
+        }
+
+        .calculator.dragging {
+            opacity: 0.8;
+            transform: rotate(2deg);
+        }
+
+        .display {
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: 'Courier New', monospace;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .main-display {
+            font-size: 2.5em;
+            text-align: right;
+            margin-bottom: 10px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .sub-display {
+            font-size: 1em;
+            text-align: right;
+            color: #90EE90;
+            min-height: 20px;
+        }
+
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+        }
+
+        button {
+            height: 60px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.2em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .number {
+            background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
+            color: #333;
+        }
+
+        .operator {
+            background: linear-gradient(145deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+
+        .special {
+            background: linear-gradient(145deg, #4ecdc4, #44a08d);
+            color: white;
+            font-size: 0.9em;
+        }
+
+        .equals {
+            background: linear-gradient(145deg, #45b7d1, #3498db);
+            color: white;
+            grid-column: span 1;
+        }
+
+        .wide {
+            grid-column: span 2;
+        }
+
+        .restaurant-functions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .restaurant-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #555;
+            text-align: center;
+        }
+
+        .restaurant-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .restaurant-btn {
+            background: linear-gradient(145deg, #f39c12, #e67e22);
+            color: white;
+            font-size: 0.9em;
+            height: 50px;
+        }
+
+        .history-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-height: 100vh;
+            overflow-y: auto;
+        }
+
+        .history-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #555;
+            text-align: center;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4ecdc4;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .history-item:hover {
+            background: #e3f2fd;
+            transform: translateX(5px);
+        }
+
+        .history-expression {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .history-result {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .clear-history {
+            width: 100%;
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .clear-history:hover {
+            background: linear-gradient(145deg, #c0392b, #a93226);
+        }
+
+        .tax-display {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border-left: 4px solid #4caf50;
+        }
+
+        .tax-rate {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .tax-amount {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+
+        @media (max-width: 768px) {
+            .calculator-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .buttons {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .main-display {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator-container">
+        <div class="calculator" id="calculator">
+            <div class="display">
+                <div class="main-display" id="mainDisplay">0</div>
+                <div class="sub-display" id="subDisplay"></div>
+            </div>
+
+            <div class="tax-display" id="taxDisplay" style="display: none;">
+                <div class="tax-rate">消費税率: <span id="taxRateDisplay">10%</span></div>
+                <div class="tax-amount">税込金額: ¥<span id="taxAmountDisplay">0</span></div>
+            </div>
+
+            <div class="buttons">
+                <button class="special" onclick="clearAll()">AC</button>
+                <button class="special" onclick="clearEntry()">CE</button>
+                <button class="special" onclick="backspace()">⌫</button>
+                <button class="operator" onclick="inputOperator('/')">/</button>
+                <button class="special" onclick="inputOperator('√')">√</button>
+
+                <button class="number" onclick="inputNumber('7')">7</button>
+                <button class="number" onclick="inputNumber('8')">8</button>
+                <button class="number" onclick="inputNumber('9')">9</button>
+                <button class="operator" onclick="inputOperator('*')">×</button>
+                <button class="special" onclick="inputOperator('%')">%</button>
+
+                <button class="number" onclick="inputNumber('4')">4</button>
+                <button class="number" onclick="inputNumber('5')">5</button>
+                <button class="number" onclick="inputNumber('6')">6</button>
+                <button class="operator" onclick="inputOperator('-')">-</button>
+                <button class="special" onclick="inputOperator('^')">x²</button>
+
+                <button class="number" onclick="inputNumber('1')">1</button>
+                <button class="number" onclick="inputNumber('2')">2</button>
+                <button class="number" onclick="inputNumber('3')">3</button>
+                <button class="operator" onclick="inputOperator('+')">+</button>
+                <button class="special" onclick="memoryStore()">MS</button>
+
+                <button class="number wide" onclick="inputNumber('0')">0</button>
+                <button class="number" onclick="inputNumber('.')">.</button>
+                <button class="equals" onclick="calculate()">=</button>
+                <button class="special" onclick="memoryRecall()">MR</button>
+            </div>
+
+            <div class="restaurant-functions">
+                <div class="restaurant-title">🍽️ 飲食店機能</div>
+                <div class="restaurant-buttons">
+                    <button class="restaurant-btn" onclick="calculateTax()">税込計算</button>
+                    <button class="restaurant-btn" onclick="showSplitBill()">割り勘</button>
+                    <button class="restaurant-btn" onclick="showDiscount()">割引計算</button>
+                    <button class="restaurant-btn" onclick="showTip()">チップ計算</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="history-panel">
+            <div class="history-title">📋 計算履歴</div>
+            <div id="historyList"></div>
+            <button class="clear-history" onclick="clearHistory()">履歴をクリア</button>
+        </div>
+    </div>
+
+    <script>
+        let currentInput = '0';
+        let previousInput = '';
+        let operator = '';
+        let shouldResetDisplay = false;
+        let memory = 0;
+        let history = [];
+        let taxRate = 0.1; // 消費税率 10%
+
+        // ドラッグ&ドロップ機能
+        let isDragging = false;
+        let startX, startY, initialX, initialY;
+
+        const calculator = document.getElementById('calculator');
+
+        calculator.addEventListener('mousedown', dragStart);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', dragEnd);
+
+        function dragStart(e) {
+            if (e.target.tagName === 'BUTTON') return;
+            isDragging = true;
+            calculator.classList.add('dragging');
+            
+            startX = e.clientX;
+            startY = e.clientY;
+            const rect = calculator.getBoundingClientRect();
+            initialX = rect.left;
+            initialY = rect.top;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            const deltaX = e.clientX - startX;
+            const deltaY = e.clientY - startY;
+            
+            calculator.style.position = 'absolute';
+            calculator.style.left = (initialX + deltaX) + 'px';
+            calculator.style.top = (initialY + deltaY) + 'px';
+        }
+
+        function dragEnd() {
+            isDragging = false;
+            calculator.classList.remove('dragging');
+        }
+
+        function updateDisplay() {
+            document.getElementById('mainDisplay').textContent = formatNumber(currentInput);
+            document.getElementById('subDisplay').textContent = previousInput + ' ' + operator;
+        }
+
+        function formatNumber(num) {
+            if (num === '') return '0';
+            const number = parseFloat(num);
+            if (isNaN(number)) return num;
+            return number.toLocaleString('ja-JP');
+        }
+
+        function inputNumber(num) {
+            if (shouldResetDisplay) {
+                currentInput = '';
+                shouldResetDisplay = false;
+            }
+            
+            if (currentInput === '0' && num !== '.') {
+                currentInput = num;
+            } else {
+                currentInput += num;
+            }
+            updateDisplay();
+        }
+
+        function inputOperator(op) {
+            if (op === '√') {
+                const num = parseFloat(currentInput);
+                if (num >= 0) {
+                    const result = Math.sqrt(num);
+                    addToHistory(currentInput, '√', '', result);
+                    currentInput = result.toString();
+                    shouldResetDisplay = true;
+                }
+                updateDisplay();
+                return;
+            }
+
+            if (op === '^') {
+                const num = parseFloat(currentInput);
+                const result = Math.pow(num, 2);
+                addToHistory(currentInput, '^2', '', result);
+                currentInput = result.toString();
+                shouldResetDisplay = true;
+                updateDisplay();
+                return;
+            }
+
+            if (op === '%') {
+                const num = parseFloat(currentInput);
+                const result = num / 100;
+                addToHistory(currentInput, '%', '', result);
+                currentInput = result.toString();
+                shouldResetDisplay = true;
+                updateDisplay();
+                return;
+            }
+
+            if (previousInput && operator && !shouldResetDisplay) {
+                calculate();
+            }
+            
+            previousInput = currentInput;
+            operator = op;
+            shouldResetDisplay = true;
+            updateDisplay();
+        }
+
+        function calculate() {
+            if (!previousInput || !operator) return;
+            
+            const prev = parseFloat(previousInput);
+            const current = parseFloat(currentInput);
+            let result;
+            
+            switch (operator) {
+                case '+':
+                    result = prev + current;
+                    break;
+                case '-':
+                    result = prev - current;
+                    break;
+                case '*':
+                    result = prev * current;
+                    break;
+                case '/':
+                    if (current === 0) {
+                        alert('0で割ることはできません');
+                        return;
+                    }
+                    result = prev / current;
+                    break;
+                default:
+                    return;
+            }
+            
+            addToHistory(previousInput, operator, currentInput, result);
+            currentInput = result.toString();
+            previousInput = '';
+            operator = '';
+            shouldResetDisplay = true;
+            updateDisplay();
+        }
+
+        function clearAll() {
+            currentInput = '0';
+            previousInput = '';
+            operator = '';
+            shouldResetDisplay = false;
+            updateDisplay();
+            hideTaxDisplay();
+        }
+
+        function clearEntry() {
+            currentInput = '0';
+            updateDisplay();
+        }
+
+        function backspace() {
+            if (currentInput.length > 1) {
+                currentInput = currentInput.slice(0, -1);
+            } else {
+                currentInput = '0';
+            }
+            updateDisplay();
+        }
+
+        function memoryStore() {
+            memory = parseFloat(currentInput);
+        }
+
+        function memoryRecall() {
+            currentInput = memory.toString();
+            updateDisplay();
+        }
+
+        function addToHistory(prev, op, curr, result) {
+            const expression = curr ? `${prev} ${op} ${curr}` : `${op}${prev}`;
+            history.unshift({
+                expression: expression,
+                result: result,
+                timestamp: new Date().toLocaleTimeString('ja-JP')
+            });
+            
+            if (history.length > 50) {
+                history = history.slice(0, 50);
+            }
+            
+            updateHistoryDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            const historyList = document.getElementById('historyList');
+            historyList.innerHTML = '';
+            
+            history.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.onclick = () => useHistoryResult(item.result);
+                div.innerHTML = `
+                    <div class="history-expression">${item.expression}</div>
+                    <div class="history-result">= ${formatNumber(item.result.toString())} <small>(${item.timestamp})</small></div>
+                `;
+                historyList.appendChild(div);
+            });
+        }
+
+        function useHistoryResult(result) {
+            currentInput = result.toString();
+            updateDisplay();
+        }
+
+        function clearHistory() {
+            history = [];
+            updateHistoryDisplay();
+        }
+
+        // 飲食店向け機能
+        function calculateTax() {
+            const amount = parseFloat(currentInput);
+            if (isNaN(amount)) {
+                alert('有効な金額を入力してください');
+                return;
+            }
+            
+            const taxAmount = Math.floor(amount * (1 + taxRate));
+            const tax = taxAmount - amount;
+            
+            document.getElementById('taxRateDisplay').textContent = (taxRate * 100) + '%';
+            document.getElementById('taxAmountDisplay').textContent = taxAmount.toLocaleString('ja-JP');
+            document.getElementById('taxDisplay').style.display = 'block';
+            
+            addToHistory(amount.toString(), '税込', '', taxAmount);
+            currentInput = taxAmount.toString();
+            updateDisplay();
+        }
+
+        function showSplitBill() {
+            const total = parseFloat(currentInput);
+            if (isNaN(total)) {
+                alert('有効な金額を入力してください');
+                return;
+            }
+            
+            const people = prompt('何名で割り勘しますか？', '2');
+            if (people && !isNaN(people) && people > 0) {
+                const perPerson = Math.ceil(total / parseInt(people));
+                addToHistory(total.toString(), `÷${people}人`, '', perPerson);
+                currentInput = perPerson.toString();
+                updateDisplay();
+                alert(`1人あたり: ¥${perPerson.toLocaleString('ja-JP')}`);
+            }
+        }
+
+        function showDiscount() {
+            const amount = parseFloat(currentInput);
+            if (isNaN(amount)) {
+                alert('有効な金額を入力してください');
+                return;
+            }
+            
+            const discount = prompt('割引率を入力してください（例：10 で10%off）', '10');
+            if (discount && !isNaN(discount) && discount >= 0 && discount <= 100) {
+                const discountAmount = amount * (parseFloat(discount) / 100);
+                const finalAmount = amount - discountAmount;
+                addToHistory(amount.toString(), `${discount}%OFF`, '', finalAmount);
+                currentInput = finalAmount.toString();
+                updateDisplay();
+                alert(`割引額: ¥${discountAmount.toLocaleString('ja-JP')}\n最終金額: ¥${finalAmount.toLocaleString('ja-JP')}`);
+            }
+        }
+
+        function showTip() {
+            const amount = parseFloat(currentInput);
+            if (isNaN(amount)) {
+                alert('有効な金額を入力してください');
+                return;
+            }
+            
+            const tipRate = prompt('チップ率を入力してください（例：15 で15%）', '15');
+            if (tipRate && !isNaN(tipRate) && tipRate >= 0) {
+                const tipAmount = amount * (parseFloat(tipRate) / 100);
+                const totalAmount = amount + tipAmount;
+                addToHistory(amount.toString(), `tip${tipRate}%`, '', totalAmount);
+                currentInput = totalAmount.toString();
+                updateDisplay();
+                alert(`チップ額: ¥${tipAmount.toLocaleString('ja-JP')}\n合計金額: ¥${totalAmount.toLocaleString('ja-JP')}`);
+            }
+        }
+
+        function hideTaxDisplay() {
+            document.getElementById('taxDisplay').style.display = 'none';
+        }
+
+        // キーボードサポート
+        document.addEventListener('keydown', function(e) {
+            if (e.key >= '0' && e.key <= '9') {
+ 
