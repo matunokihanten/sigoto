@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>シンプルHTMLエディター</title>
+  <title>豪華HTMLエディター</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
   <style>
     /* ページ全体を縦に並べた1画面とする */
     body {
       margin: 0;
-      font-family: sans-serif;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* モダンなフォントに変更 */
       display: flex;
       flex-direction: column;
       height: 100vh;
+      background-color: #263238; /* 全体の背景色をダーク系に */
       /* iOS の Safe Area に対応するための最小設定 */
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
@@ -22,27 +24,40 @@
     /* 操作パネルのスタイル */
     .controls {
       padding: 10px;
-      background-color: #f0f0f0;
-      display: flex; /* ボタンを横並びにするためにflexboxを使用 */
-      flex-wrap: wrap; /* ボタンが多すぎたら改行する */
-      gap: 5px; /* ボタン間のスペース */
-      position: relative; /* メッセージ表示用にpositionを付与 */
-      z-index: 10; /* 他の要素より手前に表示 */
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 少し影をつける */
+      background-color: #37474F; /* コントロールパネルの背景色 */
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px; /* ボタン間のスペースを少し広げる */
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3); /* 影を濃くする */
+      border-bottom: 1px solid #455A64; /* 下部に区切り線 */
+      align-items: center; /* ボタンの垂直方向中央揃え */
     }
     .controls button {
-      /* margin-right: 5px; */ /* gapを使うので不要 */
-      padding: 8px 12px; /* ボタンのパディングを少し増やして押しやすく */
+      flex: 1 1 calc(25% - 6px); /* ★変更: 4列表示の計算 (gap 8px の場合) */
+      max-width: calc(25% - 6px); /* ★追加: 最大幅を設定し、ボタンの大きさを揃える */
+      padding: 10px 15px; /* ボタンのパディングを増やす */
       cursor: pointer;
-      border: 1px solid #ccc;
-      border-radius: 4px; /* 角を少し丸く */
-      background-color: #e0e0e0;
-      transition: background-color 0.2s, box-shadow 0.2s; /* ホバーエフェクト */
+      border: none; /* ボーダーを削除 */
+      border-radius: 6px; /* 角をさらに丸く */
+      background-color: #546E7A; /* ボタンの背景色 */
+      color: #ECEFF1; /* ボタンの文字色 */
+      font-size: 0.9em;
+      font-weight: 600; /* フォントを太く */
+      transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; /* ホバーエフェクトを豪華に */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
     .controls button:hover {
-      background-color: #d0d0d0;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      background-color: #607D8B; /* ホバー時の背景色 */
+      transform: translateY(-2px); /* 少し上に浮き上がる */
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
+    .controls button:active {
+      transform: translateY(0); /* クリック時は元に戻る */
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+
     /* エディター領域（CodeMirror用の全画面エリア） */
     .editor {
       flex: 1;
@@ -51,62 +66,76 @@
     /* CodeMirrorエディターの高さを100%に */
     .CodeMirror {
       height: 100%;
-      border: 1px solid #ddd; /* エディターに枠線を追加 */
-      border-top: none; /* 上部の枠線はコントロールパネルと区別するため削除 */
+      border: none; /* ボーダーを削除 */
+      font-size: 16px; /* フォントサイズを少し大きく */
+      line-height: 1.5; /* 行の高さを調整 */
     }
 
-    /* メッセージエリアのスタイル (追加) */
+    /* メッセージエリアのスタイル */
     #messageArea {
       position: absolute;
       right: 10px;
       top: 50%; /* デフォルトのデスクトップ表示用 */
       transform: translateY(-50%); /* デフォルトのデスクトップ表示用 */
-      padding: 8px 15px;
-      font-size: 0.85em;
+      padding: 10px 20px; /* パディングを増やす */
+      font-size: 0.9em; /* フォントサイズ調整 */
       white-space: nowrap;
-      background-color: rgba(0, 0, 0, 0.7);
+      background-color: rgba(0, 0, 0, 0.85); /* 背景をより濃く */
       color: white;
-      border-radius: 5px;
+      border-radius: 8px; /* 角をさらに丸く */
       opacity: 0;
       transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
-      z-index: 100; /* 最前面に表示 */
-      pointer-events: none; /* クリックイベントを無効化 */
+      z-index: 100;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4); /* 影を追加 */
     }
     #messageArea.show {
         opacity: 1;
         transform: translateY(-50%) translateX(0);
     }
     #messageArea:not(.show) {
-        transform: translateY(-50%) translateX(20px); /* 非表示時は少し右へ */
+        transform: translateY(-50%) translateX(20px);
     }
     #messageArea.success {
-        background-color: #28a745;
+        background-color: #4CAF50; /* 緑 */
     }
     #messageArea.error {
-        background-color: #dc3545;
+        background-color: #F44336; /* 赤 */
     }
     #messageArea.info {
-        background-color: #17a2b8;
+        background-color: #2196F3; /* 青 */
     }
 
     /* スマートフォンでの表示調整 */
     @media (max-width: 768px) {
         .controls {
             /* env(safe-area-inset-top)でデバイスのノッチやアドレスバー領域を考慮し、
-               さらにボタン約3個分の高さを確保するために追加でパディングを設定 */
-            padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px)); /* ★変更: 150pxはボタン約3個分の目安、10pxは既存パディング */
-            padding-bottom: 10px; /* 下部パディングも調整 */
+               ボタンが4列になるように高さを確保 */
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+            padding-bottom: 10px;
+        }
+        .controls button {
+            flex: 1 1 calc(50% - 6px); /* スマートフォンでは2列表示にする */
+            max-width: calc(50% - 6px);
         }
         /* メッセージエリアの調整 */
         #messageArea {
-            top: calc(70px + env(safe-area-inset-top, 0px)); /* 約1.5個分のボタン高さを目安に調整 */
-            transform: translateY(0); /* topプロパティで位置を調整するため、transformは0に */
+            top: calc(70px + env(safe-area-inset-top, 0px));
+            transform: translateY(0);
         }
         #messageArea.show {
-            transform: translateY(0) translateX(0); /* 表示時もtransformを0に */
+            transform: translateY(0) translateX(0);
         }
         #messageArea:not(.show) {
-            transform: translateY(0) translateX(20px); /* 非表示時もtransformを0に */
+            transform: translateY(0) translateX(20px);
+        }
+    }
+
+    /* さらに小さな画面（スマートフォン横向きなど）での調整 */
+    @media (max-width: 480px) {
+        .controls button {
+            flex: 1 1 calc(100% - 0px); /* 1列表示にする */
+            max-width: calc(100% - 0px);
         }
     }
   </style>
@@ -119,9 +148,10 @@
     <button id="copyBtn">コピー</button>
     <button id="pasteBtn">貼付け</button>
     <button id="clearAllBtn">全削除</button>
+    <button id="undoBtn">戻す</button>
+    <button id="redoBtn">進む</button>
     <button id="openFileBtn">開く</button>
-    <input type="file" id="fileInput" accept=".html" style="display:none">
-    <button id="saveBtn">保存</button>
+    <input type="file" id="fileInput" accept=".html,.css,.js,.txt" style="display:none"> <button id="saveBtn">保存</button>
     <button id="runBtn">実行</button>
   </div>
 
@@ -134,13 +164,21 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
+
 
   <script>
     // CodeMirror でエディターを初期化（元の <textarea> を置換）
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
       mode: "htmlmixed",
       lineNumbers: true,
-      theme: "default"
+      theme: "material-darker", // ★変更: テーマを material-darker に設定
+      // ★追加: いくつか便利なオプション
+      autoCloseTags: true, // HTMLタグの自動補完
+      matchBrackets: true, // 括弧の対応をハイライト
+      styleActiveLine: true // 現在の行をハイライト
     });
 
     // localStorage に保存されたコードがあれば復元
@@ -162,7 +200,11 @@
     const fileInput = document.getElementById('fileInput');
     const saveBtn = document.getElementById('saveBtn');
     const runBtn = document.getElementById('runBtn');
-    const messageArea = document.getElementById('messageArea'); // メッセージエリアの要素を追加取得
+    const messageArea = document.getElementById('messageArea');
+
+    // ★追加: 戻す・進むボタンの要素を取得
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
 
     /**
      * メッセージ表示関数
@@ -216,6 +258,18 @@
       }
     });
 
+    // ★追加: 戻すボタン
+    undoBtn.addEventListener('click', function() {
+      cm.undo();
+      showMessage("元に戻しました", "info");
+    });
+
+    // ★追加: 進むボタン
+    redoBtn.addEventListener('click', function() {
+      cm.redo();
+      showMessage("やり直しました", "info");
+    });
+
     // ファイルを開くボタン：非表示の file input をクリック
     openFileBtn.addEventListener('click', function() {
       fileInput.click();
@@ -229,6 +283,20 @@
         reader.onload = function(evt) {
           cm.setValue(evt.target.result);
           showMessage(`ファイル「${file.name}」を開きました`, "success");
+
+          // ★追加: ファイル拡張子に基づいてCodeMirrorのモードを切り替える
+          const fileName = file.name.toLowerCase();
+          if (fileName.endsWith('.html') || fileName.endsWith('.htm')) {
+            cm.setOption('mode', 'htmlmixed');
+          } else if (fileName.endsWith('.css')) {
+            cm.setOption('mode', 'css');
+          } else if (fileName.endsWith('.js')) {
+            cm.setOption('mode', 'javascript');
+          } else if (fileName.endsWith('.xml')) {
+            cm.setOption('mode', 'xml');
+          } else {
+            cm.setOption('mode', null); // テキストファイルなど
+          }
         }
         reader.readAsText(file);
       }
@@ -237,11 +305,31 @@
 
     // 保存ボタン：現在の内容をHTMLファイルとしてダウンロード
     saveBtn.addEventListener('click', function() {
-      var blob = new Blob([cm.getValue()], { type: "text/html" });
+      // 現在のCodeMirrorのモードに基づいてファイル名とタイプを設定
+      let fileName = "index.html";
+      let fileType = "text/html";
+      const currentMode = cm.getOption('mode');
+
+      if (currentMode === 'css') {
+        fileName = "style.css";
+        fileType = "text/css";
+      } else if (currentMode === 'javascript') {
+        fileName = "script.js";
+        fileType = "application/javascript";
+      } else if (currentMode === 'xml') {
+        fileName = "document.xml";
+        fileType = "application/xml";
+      } else {
+        // htmlmixed の場合や、特定できない場合はHTMLとして扱う
+        fileName = "index.html";
+        fileType = "text/html";
+      }
+
+      var blob = new Blob([cm.getValue()], { type: fileType });
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = url;
-      a.download = "index.html";
+      a.download = fileName; // ★変更: ファイル名を動的に設定
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
