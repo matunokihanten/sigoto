@@ -231,19 +231,96 @@
             color: #2e7d32;
         }
 
+        .tab-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap; /* ボタンが多すぎるときに折り返す */
+        }
+
+        .tab-btn {
+            background: linear-gradient(145deg, #a7b7ed, #8a96d1);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            min-width: 60px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(145deg, #45b7d1, #3498db);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            transform: translateY(-1px);
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: linear-gradient(145deg, #c1cff0, #acb9db);
+        }
+
+        .add-tab-btn, .delete-tab-btn {
+            background: linear-gradient(145deg, #4ecdc4, #44a08d);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-left: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+        .delete-tab-btn {
+             background: linear-gradient(145deg, #e74c3c, #c0392b);
+        }
+        .add-tab-btn:hover {
+            background: linear-gradient(145deg, #3bb2aa, #398e7e);
+        }
+        .delete-tab-btn:hover {
+             background: linear-gradient(145deg, #c0392b, #a93226);
+        }
+
+        #currentTabName {
+            font-weight: bold;
+            color: #555;
+            margin-right: 10px;
+        }
+
         @media (max-width: 768px) {
             .calculator-container {
                 grid-template-columns: 1fr;
                 height: auto;
             }
             
-            /* スマートフォン縦表示でのボタン配列固定のため、このメディアクエリ内のbuttons設定を削除 */
-            /* .buttons {
-                grid-template-columns: repeat(4, 1fr);
-            } */
-            
             .main-display {
                 font-size: 2em;
+            }
+
+            .tab-controls {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .tab-buttons {
+                width: 100%;
+                justify-content: flex-start;
+            }
+
+            .add-tab-btn, .delete-tab-btn {
+                width: 100%;
+                margin-left: 0;
             }
         }
     </style>
@@ -301,6 +378,14 @@
                     <button class="restaurant-btn" onclick="showDiscount()">割引計算</button>
                 </div>
             </div>
+
+            <div class="tab-controls">
+                <span id="currentTabName">タブ1</span>
+                <div class="tab-buttons" id="tabButtons">
+                    </div>
+                <button class="add-tab-btn" onclick="addTab()">タブ追加</button>
+                <button class="delete-tab-btn" onclick="deleteTab()">タブ削除</button>
+            </div>
         </div>
 
         <div class="history-panel">
@@ -311,6 +396,7 @@
     </div>
 
     <script>
+        // 電卓の状態変数
         let currentInput = '0';
         let previousInput = '';
         let operator = '';
@@ -318,6 +404,11 @@
         let memory = 0;
         let history = [];
         let taxRate = 0.1; // 消費税率 10%
+
+        // タブ機能関連
+        let tabs = {}; // 各タブの状態を保存するオブジェクト
+        let currentTabId = 1; // 現在選択されているタブのID
+        let nextTabId = 1; // 次に追加されるタブのID
 
         // ドラッグ&ドロップ機能
         let isDragging = false;
@@ -330,7 +421,8 @@
         document.addEventListener('mouseup', dragEnd);
 
         function dragStart(e) {
-            if (e.target.tagName === 'BUTTON') return;
+            // ボタン上でドラッグを開始しないようにする
+            if (e.target.tagName === 'BUTTON' || e.target.closest('.tab-controls')) return;
             isDragging = true;
             calculator.classList.add('dragging');
             
@@ -347,6 +439,7 @@
             const deltaX = e.clientX - startX;
             const deltaY = e.clientY - startY;
             
+            // ドラッグ中は、電卓のスタイルを直接変更
             calculator.style.position = 'absolute';
             calculator.style.left = (initialX + deltaX) + 'px';
             calculator.style.top = (initialY + deltaY) + 'px';
@@ -357,20 +450,32 @@
             calculator.classList.remove('dragging');
         }
 
+        /**
+         * ディスプレイを更新します。
+         */
         function updateDisplay() {
             document.getElementById('mainDisplay').textContent = formatNumber(currentInput);
             document.getElementById('subDisplay').textContent = previousInput + ' ' + operator;
+            document.getElementById('currentTabName').textContent = `タブ${currentTabId}`; // 現在のタブ名を表示
         }
 
+        /**
+         * 数値を3桁区切りでフォーマットします。
+         * @param {string} num - フォーマットする数値の文字列。
+         * @returns {string} フォーマットされた数値の文字列。
+         */
         function formatNumber(num) {
             if (num === '') return '0';
-            const number = parseFloat(num);
-            if (isNaN(number)) return num;
-            return number.toLocaleString('ja-JP');
+            const parts = num.split('.');
+            parts[0] = parseFloat(parts[0]).toLocaleString('ja-JP');
+            return parts.join('.');
         }
 
+        /**
+         * 数字ボタンが押されたときの処理。
+         * @param {string} num - 入力された数字または小数点。
+         */
         function inputNumber(num) {
-            // ここを修正：shouldResetDisplayがtrueの場合のみcurrentInputをリセット
             if (shouldResetDisplay) {
                 currentInput = num; // 新しい数字で開始
                 shouldResetDisplay = false;
@@ -385,10 +490,17 @@
                     currentInput += num;
                 }
             }
+            saveCurrentTabState(); // タブの状態を保存
             updateDisplay();
         }
 
+        /**
+         * 演算子ボタンが押されたときの処理。
+         * @param {string} op - 入力された演算子。
+         */
         function inputOperator(op) {
+            hideTaxDisplay(); // 税金表示を非表示にする
+
             if (op === '√') {
                 const num = parseFloat(currentInput);
                 if (num >= 0) {
@@ -400,16 +512,18 @@
                     currentInput = 'エラー'; // 負の数の平方根
                     shouldResetDisplay = true;
                 }
+                saveCurrentTabState();
                 updateDisplay();
                 return;
             }
 
-            if (op === '^') {
+            if (op === '^') { // x²
                 const num = parseFloat(currentInput);
                 const result = Math.pow(num, 2);
                 addToHistory(currentInput, '^2', '', result);
                 currentInput = result.toString();
                 shouldResetDisplay = true;
+                saveCurrentTabState();
                 updateDisplay();
                 return;
             }
@@ -420,6 +534,7 @@
                 addToHistory(currentInput, '%', '', result);
                 currentInput = result.toString();
                 shouldResetDisplay = true;
+                saveCurrentTabState();
                 updateDisplay();
                 return;
             }
@@ -431,9 +546,13 @@
             previousInput = currentInput;
             operator = op;
             shouldResetDisplay = true;
+            saveCurrentTabState();
             updateDisplay();
         }
 
+        /**
+         * 計算を実行します。
+         */
         function calculate() {
             if (!previousInput || !operator) return;
             
@@ -456,6 +575,7 @@
                         alert('0で割ることはできません');
                         currentInput = 'エラー';
                         shouldResetDisplay = true;
+                        saveCurrentTabState();
                         updateDisplay();
                         return;
                     }
@@ -470,24 +590,37 @@
             previousInput = '';
             operator = '';
             shouldResetDisplay = true;
+            saveCurrentTabState();
             updateDisplay();
         }
 
+        /**
+         * 全ての入力と状態をクリアします。
+         */
         function clearAll() {
             currentInput = '0';
             previousInput = '';
             operator = '';
             shouldResetDisplay = false;
+            memory = 0; // メモリもクリア
+            saveCurrentTabState();
             updateDisplay();
             hideTaxDisplay();
         }
 
+        /**
+         * 現在の入力をクリアします。
+         */
         function clearEntry() {
             currentInput = '0';
+            saveCurrentTabState();
             updateDisplay();
             hideTaxDisplay();
         }
 
+        /**
+         * 最後の文字を削除します。
+         */
         function backspace() {
             if (currentInput === 'エラー') {
                 currentInput = '0';
@@ -496,36 +629,55 @@
             } else {
                 currentInput = '0';
             }
+            saveCurrentTabState();
             updateDisplay();
             hideTaxDisplay();
         }
 
+        /**
+         * 現在の表示値をメモリーに保存します。
+         */
         function memoryStore() {
             memory = parseFloat(currentInput);
+            saveCurrentTabState();
             hideTaxDisplay();
         }
 
+        /**
+         * メモリーに保存された値を呼び出します。
+         */
         function memoryRecall() {
             currentInput = memory.toString();
+            saveCurrentTabState();
             updateDisplay();
             hideTaxDisplay();
         }
 
+        /**
+         * 計算履歴に項目を追加します。
+         * @param {string} prev - 以前の入力値。
+         * @param {string} op - 演算子。
+         * @param {string} curr - 現在の入力値。
+         * @param {number} result - 計算結果。
+         */
         function addToHistory(prev, op, curr, result) {
-            const expression = curr ? `${prev} ${op} ${curr}` : `${op}${prev}`;
+            const expression = curr ? `${formatNumber(prev)} ${op} ${formatNumber(curr)}` : `${op}${formatNumber(prev)}`;
             history.unshift({
                 expression: expression,
                 result: result,
                 timestamp: new Date().toLocaleTimeString('ja-JP')
             });
             
-            if (history.length > 50) {
+            if (history.length > 50) { // 履歴の最大数を50に制限
                 history = history.slice(0, 50);
             }
             
             updateHistoryDisplay();
         }
 
+        /**
+         * 計算履歴の表示を更新します。
+         */
         function updateHistoryDisplay() {
             const historyList = document.getElementById('historyList');
             historyList.innerHTML = '';
@@ -542,18 +694,29 @@
             });
         }
 
+        /**
+         * 履歴の計算結果を現在の入力値として使用します。
+         * @param {number} result - 履歴から選択された計算結果。
+         */
         function useHistoryResult(result) {
             currentInput = result.toString();
+            saveCurrentTabState();
             updateDisplay();
             hideTaxDisplay();
         }
 
+        /**
+         * 計算履歴を全てクリアします。
+         */
         function clearHistory() {
             history = [];
             updateHistoryDisplay();
         }
 
         // 飲食店向け機能
+        /**
+         * 税込金額を計算します。
+         */
         function calculateTax() {
             const amount = parseFloat(currentInput);
             if (isNaN(amount)) {
@@ -561,8 +724,7 @@
                 return;
             }
             
-            // 小数点以下を考慮せず、税額を整数で計算
-            const taxAmount = Math.floor(amount * (1 + taxRate));
+            const taxAmount = Math.floor(amount * (1 + taxRate)); // 小数点以下を考慮せず、税額を整数で計算
             
             document.getElementById('taxRateDisplay').textContent = (taxRate * 100) + '%';
             document.getElementById('taxAmountDisplay').textContent = taxAmount.toLocaleString('ja-JP');
@@ -570,9 +732,13 @@
             
             addToHistory(amount.toString(), '税込', '', taxAmount);
             currentInput = taxAmount.toString();
+            saveCurrentTabState();
             updateDisplay();
         }
 
+        /**
+         * 税抜き金額を計算します。
+         */
         function calculateTaxExcluding() {
             const amount = parseFloat(currentInput);
             if (isNaN(amount)) {
@@ -588,9 +754,13 @@
 
             addToHistory(amount.toString(), '税抜', '', taxExcludedAmount);
             currentInput = taxExcludedAmount.toString();
+            saveCurrentTabState();
             updateDisplay();
         }
 
+        /**
+         * 割増計算を行います。
+         */
         function calculateMarkup() {
             const amount = parseFloat(currentInput);
             if (isNaN(amount)) {
@@ -599,16 +769,22 @@
             }
             
             const markupRate = prompt('割増率を入力してください（例：10 で10%割増）', '10');
-            if (markupRate && !isNaN(markupRate) && markupRate >= 0) {
+            if (markupRate && !isNaN(markupRate) && parseFloat(markupRate) >= 0) {
                 const markupAmount = amount * (parseFloat(markupRate) / 100);
                 const finalAmount = amount + markupAmount;
                 addToHistory(amount.toString(), `${markupRate}%割増`, '', finalAmount);
                 currentInput = finalAmount.toString();
+                saveCurrentTabState();
                 updateDisplay();
                 alert(`割増額: ¥${markupAmount.toLocaleString('ja-JP')}\n最終金額: ¥${finalAmount.toLocaleString('ja-JP')}`);
+            } else {
+                 alert('有効な割増率を入力してください。');
             }
         }
 
+        /**
+         * 割引計算を行います。
+         */
         function showDiscount() {
             const amount = parseFloat(currentInput);
             if (isNaN(amount)) {
@@ -617,18 +793,139 @@
             }
             
             const discount = prompt('割引率を入力してください（例：10 で10%off）', '10');
-            if (discount && !isNaN(discount) && discount >= 0 && discount <= 100) {
+            if (discount && !isNaN(discount) && parseFloat(discount) >= 0 && parseFloat(discount) <= 100) {
                 const discountAmount = amount * (parseFloat(discount) / 100);
                 const finalAmount = amount - discountAmount;
                 addToHistory(amount.toString(), `${discount}%OFF`, '', finalAmount);
                 currentInput = finalAmount.toString();
+                saveCurrentTabState();
                 updateDisplay();
                 alert(`割引額: ¥${discountAmount.toLocaleString('ja-JP')}\n最終金額: ¥${finalAmount.toLocaleString('ja-JP')}`);
+            } else {
+                alert('有効な割引率を入力してください（0から100の範囲）。');
             }
         }
 
+        /**
+         * 税金表示を非表示にします。
+         */
         function hideTaxDisplay() {
             document.getElementById('taxDisplay').style.display = 'none';
+        }
+
+        // --- タブ機能のロジック ---
+
+        /**
+         * 現在のタブの状態を保存します。
+         */
+        function saveCurrentTabState() {
+            tabs[currentTabId] = {
+                currentInput: currentInput,
+                previousInput: previousInput,
+                operator: operator,
+                shouldResetDisplay: shouldResetDisplay,
+                memory: memory,
+                history: history // 履歴もタブごとに保存
+            };
+        }
+
+        /**
+         * 指定されたタブの状態をロードします。
+         * @param {number} tabId - ロードするタブのID。
+         */
+        function loadTabState(tabId) {
+            const state = tabs[tabId];
+            if (state) {
+                currentInput = state.currentInput;
+                previousInput = state.previousInput;
+                operator = state.operator;
+                shouldResetDisplay = state.shouldResetDisplay;
+                memory = state.memory;
+                history = state.history || []; // 履歴がない場合は空の配列
+            } else {
+                // 存在しないタブの場合、初期状態にリセット
+                currentInput = '0';
+                previousInput = '';
+                operator = '';
+                shouldResetDisplay = false;
+                memory = 0;
+                history = [];
+            }
+            updateDisplay();
+            updateHistoryDisplay(); // 履歴表示も更新
+            hideTaxDisplay();
+        }
+
+        /**
+         * タブボタンを生成し、表示を更新します。
+         */
+        function renderTabButtons() {
+            const tabButtonsContainer = document.getElementById('tabButtons');
+            tabButtonsContainer.innerHTML = ''; // 一度クリア
+
+            Object.keys(tabs).sort((a, b) => a - b).forEach(tabId => {
+                const button = document.createElement('button');
+                button.className = `tab-btn ${parseInt(tabId) === currentTabId ? 'active' : ''}`;
+                button.textContent = `タブ${tabId}`;
+                button.onclick = () => switchTab(parseInt(tabId));
+                tabButtonsContainer.appendChild(button);
+            });
+        }
+
+        /**
+         * 新しいタブを追加します。
+         */
+        function addTab() {
+            const newTabId = nextTabId++;
+            tabs[newTabId] = {
+                currentInput: '0',
+                previousInput: '',
+                operator: '',
+                shouldResetDisplay: false,
+                memory: 0,
+                history: []
+            };
+            switchTab(newTabId); // 新しいタブに切り替える
+            renderTabButtons();
+        }
+
+        /**
+         * タブを切り替えます。
+         * @param {number} tabId - 切り替えるタブのID。
+         */
+        function switchTab(tabId) {
+            if (tabs[tabId]) {
+                saveCurrentTabState(); // 現在のタブの状態を保存
+                currentTabId = tabId;
+                loadTabState(currentTabId); // 新しいタブの状態をロード
+                renderTabButtons(); // アクティブなボタンを更新
+            }
+        }
+
+        /**
+         * 現在のタブを削除します。
+         */
+        function deleteTab() {
+            const tabIds = Object.keys(tabs).map(Number).sort((a, b) => a - b);
+            if (tabIds.length <= 1) {
+                alert('最後のタブは削除できません。');
+                return;
+            }
+
+            if (confirm(`タブ${currentTabId}を削除しますか？`)) {
+                delete tabs[currentTabId];
+
+                // 削除後、残っているタブの中から次のアクティブなタブを選択
+                const remainingTabIds = Object.keys(tabs).map(Number).sort((a, b) => a - b);
+                if (remainingTabIds.length > 0) {
+                    currentTabId = remainingTabIds[0]; // 最小のIDを持つタブに切り替え
+                } else {
+                    // 全てのタブが削除された場合（実際には最後のタブは削除できないので発生しないはずだが念のため）
+                    addTab(); // 新しいタブを作成
+                }
+                loadTabState(currentTabId);
+                renderTabButtons();
+            }
         }
 
         // キーボードサポート
@@ -641,7 +938,7 @@
                 inputOperator('+');
             } else if (e.key === '-') {
                 inputOperator('-');
-            } else if (e.key === '*') {
+            } else if (e.key === '*' || e.key === 'x' || e.key === 'X') {
                 inputOperator('*');
             } else if (e.key === '/') {
                 e.preventDefault(); // スラッシュで検索バーが開くのを防ぐ
@@ -652,10 +949,19 @@
                 clearAll();
             } else if (e.key === 'Backspace') {
                 backspace();
+            } else if (e.key === 'm' || e.key === 'M') { // Mキーでメモリー関連
+                if (e.shiftKey) { // Shift + M で MR (メモリー呼び出し)
+                    memoryRecall();
+                } else { // M で MS (メモリー保存)
+                    memoryStore();
+                }
             }
         });
 
         // 初期化
+        // 最初のタブを作成し、その状態をロード
+        addTab(); 
+        switchTab(1); // 初期表示はタブ1
         updateDisplay();
     </script>
 </body>
