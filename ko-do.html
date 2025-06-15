@@ -6,6 +6,9 @@
   <title>豪華HTMLエディター</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.css">
+
   <style>
     /* ページ全体を縦に並べた1画面とする */
     body {
@@ -35,8 +38,8 @@
       align-items: center; /* ボタンの垂直方向中央揃え */
     }
     .controls button {
-      flex: 1 1 calc(25% - 6px); /* ★変更: 4列表示の計算 (gap 8px の場合) */
-      max-width: calc(25% - 6px); /* ★追加: 最大幅を設定し、ボタンの大きさを揃える */
+      flex: 1 1 calc(25% - 6px); /* 4列表示の計算 (gap 8px の場合) */
+      max-width: calc(25% - 6px); /* 最大幅を設定し、ボタンの大きさを揃える */
       padding: 10px 15px; /* ボタンのパディングを増やす */
       cursor: pointer;
       border: none; /* ボーダーを削除 */
@@ -109,8 +112,6 @@
     /* スマートフォンでの表示調整 */
     @media (max-width: 768px) {
         .controls {
-            /* env(safe-area-inset-top)でデバイスのノッチやアドレスバー領域を考慮し、
-               ボタンが4列になるように高さを確保 */
             padding-top: calc(10px + env(safe-area-inset-top, 0px));
             padding-bottom: 10px;
         }
@@ -145,15 +146,16 @@
     <div id="messageArea"></div>
 
     <button id="selectAllBtn">全選択</button>
-    <button id="copyBtn">コピー</button>
+    <button id="deselectAllBtn">全選択解除</button> <button id="copyBtn">コピー</button>
     <button id="pasteBtn">貼付け</button>
     <button id="clearAllBtn">全削除</button>
     <button id="undoBtn">戻す</button>
     <button id="redoBtn">進む</button>
     <button id="openFileBtn">開く</button>
-    <input type="file" id="fileInput" accept=".html,.css,.js,.txt" style="display:none"> <button id="saveBtn">保存</button>
+    <input type="file" id="fileInput" accept=".html,.css,.js,.txt,.xml" style="display:none">
+    <button id="openHtmlBtn">HTMLを開く</button> <input type="file" id="htmlFileInput" accept=".html,.htm" style="display:none"> <button id="saveBtn">保存</button>
     <button id="runBtn">実行</button>
-  </div>
+    <button id="scrollToCursorBtn">カーソルへ</button> <button id="findBtn">検索</button> <button id="replaceBtn">置換</button> </div>
 
   <div class="editor">
     <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
@@ -167,6 +169,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/search.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/jump-to-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/match-highlighter.min.js"></script>
 
 
   <script>
@@ -174,11 +181,12 @@
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
       mode: "htmlmixed",
       lineNumbers: true,
-      theme: "material-darker", // ★変更: テーマを material-darker に設定
-      // ★追加: いくつか便利なオプション
-      autoCloseTags: true, // HTMLタグの自動補完
-      matchBrackets: true, // 括弧の対応をハイライト
-      styleActiveLine: true // 現在の行をハイライト
+      theme: "material-darker",
+      autoCloseTags: true,
+      matchBrackets: true,
+      styleActiveLine: true,
+      // ★追加: 検索機能関連のオプション
+      highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
     });
 
     // localStorage に保存されたコードがあれば復元
@@ -193,18 +201,22 @@
 
     // 各ボタン要素の取得
     const selectAllBtn = document.getElementById('selectAllBtn');
+    const deselectAllBtn = document.getElementById('deselectAllBtn'); // ★追加
     const copyBtn = document.getElementById('copyBtn');
     const pasteBtn = document.getElementById('pasteBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
-    const openFileBtn = document.getElementById('openFileBtn');
-    const fileInput = document.getElementById('fileInput');
-    const saveBtn = document.getElementById('saveBtn');
-    const runBtn = document.getElementById('runBtn');
-    const messageArea = document.getElementById('messageArea');
-
-    // ★追加: 戻す・進むボタンの要素を取得
     const undoBtn = document.getElementById('undoBtn');
     const redoBtn = document.getElementById('redoBtn');
+    const openFileBtn = document.getElementById('openFileBtn');
+    const fileInput = document.getElementById('fileInput');
+    const openHtmlBtn = document.getElementById('openHtmlBtn'); // ★追加
+    const htmlFileInput = document.getElementById('htmlFileInput'); // ★追加
+    const saveBtn = document.getElementById('saveBtn');
+    const runBtn = document.getElementById('runBtn');
+    const scrollToCursorBtn = document.getElementById('scrollToCursorBtn'); // ★追加
+    const findBtn = document.getElementById('findBtn'); // ★追加
+    const replaceBtn = document.getElementById('replaceBtn'); // ★追加
+    const messageArea = document.getElementById('messageArea');
 
     /**
      * メッセージ表示関数
@@ -226,6 +238,12 @@
       cm.focus();
       cm.execCommand("selectAll");
       showMessage("全選択しました", "info");
+    });
+
+    // ★追加: 全選択解除ボタン
+    deselectAllBtn.addEventListener('click', function() {
+      cm.setSelection(cm.getCursor(), cm.getCursor()); // 選択を解除する
+      showMessage("全選択を解除しました", "info");
     });
 
     // コピーボタン：選択範囲がない場合は全選択後にコピーを実行
@@ -258,13 +276,13 @@
       }
     });
 
-    // ★追加: 戻すボタン
+    // 戻すボタン
     undoBtn.addEventListener('click', function() {
       cm.undo();
       showMessage("元に戻しました", "info");
     });
 
-    // ★追加: 進むボタン
+    // 進むボタン
     redoBtn.addEventListener('click', function() {
       cm.redo();
       showMessage("やり直しました", "info");
@@ -284,7 +302,7 @@
           cm.setValue(evt.target.result);
           showMessage(`ファイル「${file.name}」を開きました`, "success");
 
-          // ★追加: ファイル拡張子に基づいてCodeMirrorのモードを切り替える
+          // ファイル拡張子に基づいてCodeMirrorのモードを切り替える
           const fileName = file.name.toLowerCase();
           if (fileName.endsWith('.html') || fileName.endsWith('.htm')) {
             cm.setOption('mode', 'htmlmixed');
@@ -303,9 +321,28 @@
       fileInput.value = ''; // 同じファイルを再度選択できるようにする
     });
 
-    // 保存ボタン：現在の内容をHTMLファイルとしてダウンロード
+    // ★追加: HTMLファイルを開くボタン
+    openHtmlBtn.addEventListener('click', function() {
+      htmlFileInput.click();
+    });
+
+    // ★追加: HTMLファイルが選択されたら CodeMirror に読み込む
+    htmlFileInput.addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (file) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          cm.setValue(evt.target.result);
+          cm.setOption('mode', 'htmlmixed'); // 強制的にhtmlmixedモードにする
+          showMessage(`HTMLファイル「${file.name}」を開きました`, "success");
+        }
+        reader.readAsText(file);
+      }
+      htmlFileInput.value = '';
+    });
+
+    // 保存ボタン：現在の内容をファイルとしてダウンロード
     saveBtn.addEventListener('click', function() {
-      // 現在のCodeMirrorのモードに基づいてファイル名とタイプを設定
       let fileName = "index.html";
       let fileType = "text/html";
       const currentMode = cm.getOption('mode');
@@ -319,17 +356,19 @@
       } else if (currentMode === 'xml') {
         fileName = "document.xml";
         fileType = "application/xml";
-      } else {
-        // htmlmixed の場合や、特定できない場合はHTMLとして扱う
+      } else if (currentMode === 'htmlmixed') { // htmlmixed の場合も html として扱う
         fileName = "index.html";
         fileType = "text/html";
+      } else { // その他はテキストファイル
+        fileName = "document.txt";
+        fileType = "text/plain";
       }
 
       var blob = new Blob([cm.getValue()], { type: fileType });
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = url;
-      a.download = fileName; // ★変更: ファイル名を動的に設定
+      a.download = fileName;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();
@@ -344,6 +383,22 @@
       var url = URL.createObjectURL(blob);
       window.open(url, "_blank");
       showMessage("コードを実行しました", "info");
+    });
+
+    // ★追加: カーソル行までスクロールボタン
+    scrollToCursorBtn.addEventListener('click', function() {
+      cm.scrollIntoView(null, 20); // カーソルをビューポートの中央付近にスクロール
+      showMessage("カーソル位置へ移動しました", "info");
+    });
+
+    // ★追加: 検索ボタン
+    findBtn.addEventListener('click', function() {
+        cm.execCommand("find");
+    });
+
+    // ★追加: 置換ボタン
+    replaceBtn.addEventListener('click', function() {
+        cm.execCommand("replace");
     });
   </script>
 </body>
