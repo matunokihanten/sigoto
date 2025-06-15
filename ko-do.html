@@ -67,6 +67,33 @@
       box-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
 
+    /* ★追加: 大きいボタンのスタイル */
+    .controls button.large-button {
+        font-size: 1.1em; /* フォントサイズを大きく */
+        padding: 12px 20px; /* パディングを増やしてボタンを大きく */
+        flex: 2 1 calc((200% / var(--button-columns)) - (var(--button-gap) * (var(--button-columns) - 1) / var(--button-columns))); /* 優先的に広めの幅を確保 */
+        max-width: calc((200% / var(--button-columns)) - (var(--button-gap) * (var(--button-columns) - 1) / var(--button-columns))); /* 最大幅も調整 */
+        min-width: 120px; /* 小さくなりすぎないように最小幅を設定 */
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3), 0 0 0 3px rgba(255, 255, 255, 0.2); /* 影と枠線を強調 */
+    }
+
+    /* 各大きいボタンの色を設定 */
+    .controls button#runBtn.large-button {
+        background-color: #00A381; /* 実行ボタンは緑系 */
+    }
+    .controls button#pasteBtn.large-button {
+        background-color: #FFA000; /* 貼り付けボタンはオレンジ系 */
+    }
+    .controls button#clearAllBtn.large-button {
+        background-color: #D32F2F; /* 全削除ボタンは赤系 */
+    }
+
+    .controls button.large-button:hover {
+        transform: translateY(-3px); /* ホバー時の浮き上がりを強調 */
+        box-shadow: 0 6px 12px rgba(0,0,0,0.4), 0 0 0 4px rgba(255, 255, 255, 0.3);
+    }
+
+
     /* 列数選択ラジオボタンのスタイル */
     .column-selector {
       margin-left: auto; /* 右寄せにする */
@@ -179,6 +206,13 @@
             flex: 1 1 calc(50% - 6px); /* 2列表示 */
             max-width: calc(50% - 6px);
         }
+        /* 大きいボタンのサイズはスマートフォンでも維持したいが、レイアウトが崩れないように調整 */
+        .controls button.large-button {
+            flex: 1 1 calc(100% - 0px); /* 1列に拡大表示 */
+            max-width: calc(100% - 0px);
+            font-size: 1em; /* フォントサイズは少し抑える */
+            padding: 10px 15px; /* パディングも調整 */
+        }
         .column-selector {
           margin-top: 10px; /* スマートフォンでは下部に少しマージン */
           margin-left: 0; /* 左寄せに戻す */
@@ -204,6 +238,10 @@
             flex: 1 1 calc(100% - 0px); /* 1列表示 */
             max-width: calc(100% - 0px);
         }
+        .controls button.large-button {
+            flex: 1 1 calc(100% - 0px); /* 1列に拡大表示 */
+            max-width: calc(100% - 0px);
+        }
     }
   </style>
 </head>
@@ -214,17 +252,14 @@
     <button id="selectAllBtn">全選択</button>
     <button id="deselectAllBtn">全選択解除</button>
     <button id="copyBtn">コピー</button>
-    <button id="pasteBtn">貼付け</button>
-    <button id="clearAllBtn">全削除</button>
-    <button id="undoBtn">戻す</button>
+    <button id="pasteBtn" class="large-button">貼付け</button> <button id="clearAllBtn" class="large-button">全削除</button> <button id="undoBtn">戻す</button>
     <button id="redoBtn">進む</button>
     <button id="openFileBtn">開く</button>
     <input type="file" id="fileInput" accept=".html,.css,.js,.txt,.xml" style="display:none">
     <button id="openHtmlBtn">HTMLを開く</button>
     <input type="file" id="htmlFileInput" accept=".html,.htm" style="display:none">
     <button id="saveBtn">保存</button>
-    <button id="runBtn">実行</button>
-    <button id="scrollToCursorBtn">カーソルへ</button>
+    <button id="runBtn" class="large-button">実行</button> <button id="scrollToCursorBtn">カーソルへ</button>
     <button id="findBtn">検索</button>
     <button id="replaceBtn">置換</button>
 
@@ -283,6 +318,7 @@
     });
 
     // 各ボタン要素の取得
+    const controlsDiv = document.querySelector('.controls');
     const selectAllBtn = document.getElementById('selectAllBtn');
     const deselectAllBtn = document.getElementById('deselectAllBtn');
     const copyBtn = document.getElementById('copyBtn');
@@ -301,7 +337,7 @@
     const replaceBtn = document.getElementById('replaceBtn');
     const messageArea = document.getElementById('messageArea');
 
-    // ★追加: 列数選択ラジオボタンの要素を取得
+    // 列数選択ラジオボタンの要素を取得
     const columnRadios = document.querySelectorAll('input[name="columnCount"]');
     const root = document.documentElement; // CSS変数にアクセスするためのルート要素
 
@@ -385,6 +421,8 @@
         .then(text => {
           cm.replaceSelection(text);
           showMessage("貼り付けました", "success");
+          // 貼り付け後にコントロールパネルの位置までスクロール
+          controlsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         })
         .catch(err => showMessage("貼り付けに失敗しました: " + err, "error"));
     });
@@ -436,6 +474,8 @@
           } else {
             cm.setOption('mode', null); // テキストファイルなど
           }
+          // ファイル読み込み後にコントロールパネルの位置までスクロール
+          controlsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         reader.readAsText(file);
       }
@@ -456,6 +496,8 @@
           cm.setValue(evt.target.result);
           cm.setOption('mode', 'htmlmixed'); // 強制的にhtmlmixedモードにする
           showMessage(`HTMLファイル「${file.name}」を開きました`, "success");
+          // ファイル読み込み後にコントロールパネルの位置までスクロール
+          controlsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
         reader.readAsText(file);
       }
