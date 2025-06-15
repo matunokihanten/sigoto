@@ -10,15 +10,20 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.css">
 
   <style>
+    /* CSS変数でボタンの列数を管理 */
+    :root {
+      --button-columns: 4; /* デフォルトは4列 */
+      --button-gap: 8px; /* ボタン間のスペース */
+    }
+
     /* ページ全体を縦に並べた1画面とする */
     body {
       margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* モダンなフォントに変更 */
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       display: flex;
       flex-direction: column;
       height: 100vh;
-      background-color: #263238; /* 全体の背景色をダーク系に */
-      /* iOS の Safe Area に対応するための最小設定 */
+      background-color: #263238;
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
@@ -27,39 +32,93 @@
     /* 操作パネルのスタイル */
     .controls {
       padding: 10px;
-      background-color: #37474F; /* コントロールパネルの背景色 */
+      background-color: #37474F;
       display: flex;
       flex-wrap: wrap;
-      gap: 8px; /* ボタン間のスペースを少し広げる */
+      gap: var(--button-gap); /* CSS変数を使用 */
       position: relative;
       z-index: 10;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3); /* 影を濃くする */
-      border-bottom: 1px solid #455A64; /* 下部に区切り線 */
-      align-items: center; /* ボタンの垂直方向中央揃え */
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      border-bottom: 1px solid #455A64;
+      align-items: center;
     }
     .controls button {
-      flex: 1 1 calc(25% - 6px); /* 4列表示の計算 (gap 8px の場合) */
-      max-width: calc(25% - 6px); /* 最大幅を設定し、ボタンの大きさを揃える */
-      padding: 10px 15px; /* ボタンのパディングを増やす */
+      /* flex-basis を calc で計算し、列数に応じてボタン幅を調整 */
+      flex: 1 1 calc((100% / var(--button-columns)) - (var(--button-gap) * (var(--button-columns) - 1) / var(--button-columns)));
+      max-width: calc((100% / var(--button-columns)) - (var(--button-gap) * (var(--button-columns) - 1) / var(--button-columns)));
+      padding: 10px 15px;
       cursor: pointer;
-      border: none; /* ボーダーを削除 */
-      border-radius: 6px; /* 角をさらに丸く */
-      background-color: #546E7A; /* ボタンの背景色 */
-      color: #ECEFF1; /* ボタンの文字色 */
+      border: none;
+      border-radius: 6px;
+      background-color: #546E7A;
+      color: #ECEFF1;
       font-size: 0.9em;
-      font-weight: 600; /* フォントを太く */
-      transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; /* ホバーエフェクトを豪華に */
+      font-weight: 600;
+      transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
     .controls button:hover {
-      background-color: #607D8B; /* ホバー時の背景色 */
-      transform: translateY(-2px); /* 少し上に浮き上がる */
+      background-color: #607D8B;
+      transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(0,0,0,0.3);
     }
     .controls button:active {
-      transform: translateY(0); /* クリック時は元に戻る */
+      transform: translateY(0);
       box-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
+
+    /* 列数選択ラジオボタンのスタイル */
+    .column-selector {
+      margin-left: auto; /* 右寄せにする */
+      padding: 5px 10px;
+      background-color: #455A64;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .column-selector label {
+      color: #ECEFF1;
+      font-size: 0.85em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .column-selector input[type="radio"] {
+      /* デフォルトのラジオボタンを非表示にし、カスタムスタイルを適用 */
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #90A4AE;
+      border-radius: 50%;
+      outline: none;
+      cursor: pointer;
+      position: relative;
+      background-color: #607D8B;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+    .column-selector input[type="radio"]:checked {
+      background-color: #2196F3; /* チェック時の色 */
+      border-color: #2196F3;
+    }
+    .column-selector input[type="radio"]:checked::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background-color: #ECEFF1;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .column-selector label:hover input[type="radio"] {
+      border-color: #2196F3;
+    }
+
 
     /* エディター領域（CodeMirror用の全画面エリア） */
     .editor {
@@ -69,28 +128,28 @@
     /* CodeMirrorエディターの高さを100%に */
     .CodeMirror {
       height: 100%;
-      border: none; /* ボーダーを削除 */
-      font-size: 16px; /* フォントサイズを少し大きく */
-      line-height: 1.5; /* 行の高さを調整 */
+      border: none;
+      font-size: 16px;
+      line-height: 1.5;
     }
 
     /* メッセージエリアのスタイル */
     #messageArea {
       position: absolute;
       right: 10px;
-      top: 50%; /* デフォルトのデスクトップ表示用 */
-      transform: translateY(-50%); /* デフォルトのデスクトップ表示用 */
-      padding: 10px 20px; /* パディングを増やす */
-      font-size: 0.9em; /* フォントサイズ調整 */
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 10px 20px;
+      font-size: 0.9em;
       white-space: nowrap;
-      background-color: rgba(0, 0, 0, 0.85); /* 背景をより濃く */
+      background-color: rgba(0, 0, 0, 0.85);
       color: white;
-      border-radius: 8px; /* 角をさらに丸く */
+      border-radius: 8px;
       opacity: 0;
       transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
       z-index: 100;
       pointer-events: none;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4); /* 影を追加 */
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
     }
     #messageArea.show {
         opacity: 1;
@@ -100,13 +159,13 @@
         transform: translateY(-50%) translateX(20px);
     }
     #messageArea.success {
-        background-color: #4CAF50; /* 緑 */
+        background-color: #4CAF50;
     }
     #messageArea.error {
-        background-color: #F44336; /* 赤 */
+        background-color: #F44336;
     }
     #messageArea.info {
-        background-color: #2196F3; /* 青 */
+        background-color: #2196F3;
     }
 
     /* スマートフォンでの表示調整 */
@@ -115,9 +174,16 @@
             padding-top: calc(10px + env(safe-area-inset-top, 0px));
             padding-bottom: 10px;
         }
+        /* スマートフォンではラジオボタンの設定に関わらず、列数を自動調整 */
         .controls button {
-            flex: 1 1 calc(50% - 6px); /* スマートフォンでは2列表示にする */
+            flex: 1 1 calc(50% - 6px); /* 2列表示 */
             max-width: calc(50% - 6px);
+        }
+        .column-selector {
+          margin-top: 10px; /* スマートフォンでは下部に少しマージン */
+          margin-left: 0; /* 左寄せに戻す */
+          width: 100%; /* 全幅に広げる */
+          justify-content: center; /* 中央揃え */
         }
         /* メッセージエリアの調整 */
         #messageArea {
@@ -135,7 +201,7 @@
     /* さらに小さな画面（スマートフォン横向きなど）での調整 */
     @media (max-width: 480px) {
         .controls button {
-            flex: 1 1 calc(100% - 0px); /* 1列表示にする */
+            flex: 1 1 calc(100% - 0px); /* 1列表示 */
             max-width: calc(100% - 0px);
         }
     }
@@ -146,16 +212,34 @@
     <div id="messageArea"></div>
 
     <button id="selectAllBtn">全選択</button>
-    <button id="deselectAllBtn">全選択解除</button> <button id="copyBtn">コピー</button>
+    <button id="deselectAllBtn">全選択解除</button>
+    <button id="copyBtn">コピー</button>
     <button id="pasteBtn">貼付け</button>
     <button id="clearAllBtn">全削除</button>
     <button id="undoBtn">戻す</button>
     <button id="redoBtn">進む</button>
     <button id="openFileBtn">開く</button>
     <input type="file" id="fileInput" accept=".html,.css,.js,.txt,.xml" style="display:none">
-    <button id="openHtmlBtn">HTMLを開く</button> <input type="file" id="htmlFileInput" accept=".html,.htm" style="display:none"> <button id="saveBtn">保存</button>
+    <button id="openHtmlBtn">HTMLを開く</button>
+    <input type="file" id="htmlFileInput" accept=".html,.htm" style="display:none">
+    <button id="saveBtn">保存</button>
     <button id="runBtn">実行</button>
-    <button id="scrollToCursorBtn">カーソルへ</button> <button id="findBtn">検索</button> <button id="replaceBtn">置換</button> </div>
+    <button id="scrollToCursorBtn">カーソルへ</button>
+    <button id="findBtn">検索</button>
+    <button id="replaceBtn">置換</button>
+
+    <div class="column-selector">
+      <label>
+        <input type="radio" name="columnCount" value="1" id="columns1"> 1列
+      </label>
+      <label>
+        <input type="radio" name="columnCount" value="2" id="columns2"> 2列
+      </label>
+      <label>
+        <input type="radio" name="columnCount" value="4" id="columns4" checked> 4列
+      </label>
+    </div>
+  </div>
 
   <div class="editor">
     <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
@@ -185,7 +269,6 @@
       autoCloseTags: true,
       matchBrackets: true,
       styleActiveLine: true,
-      // ★追加: 検索機能関連のオプション
       highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}
     });
 
@@ -201,7 +284,7 @@
 
     // 各ボタン要素の取得
     const selectAllBtn = document.getElementById('selectAllBtn');
-    const deselectAllBtn = document.getElementById('deselectAllBtn'); // ★追加
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
     const copyBtn = document.getElementById('copyBtn');
     const pasteBtn = document.getElementById('pasteBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
@@ -209,14 +292,18 @@
     const redoBtn = document.getElementById('redoBtn');
     const openFileBtn = document.getElementById('openFileBtn');
     const fileInput = document.getElementById('fileInput');
-    const openHtmlBtn = document.getElementById('openHtmlBtn'); // ★追加
-    const htmlFileInput = document.getElementById('htmlFileInput'); // ★追加
+    const openHtmlBtn = document.getElementById('openHtmlBtn');
+    const htmlFileInput = document.getElementById('htmlFileInput');
     const saveBtn = document.getElementById('saveBtn');
     const runBtn = document.getElementById('runBtn');
-    const scrollToCursorBtn = document.getElementById('scrollToCursorBtn'); // ★追加
-    const findBtn = document.getElementById('findBtn'); // ★追加
-    const replaceBtn = document.getElementById('replaceBtn'); // ★追加
+    const scrollToCursorBtn = document.getElementById('scrollToCursorBtn');
+    const findBtn = document.getElementById('findBtn');
+    const replaceBtn = document.getElementById('replaceBtn');
     const messageArea = document.getElementById('messageArea');
+
+    // ★追加: 列数選択ラジオボタンの要素を取得
+    const columnRadios = document.querySelectorAll('input[name="columnCount"]');
+    const root = document.documentElement; // CSS変数にアクセスするためのルート要素
 
     /**
      * メッセージ表示関数
@@ -233,6 +320,40 @@
       }, 2500); // 2.5秒後に非表示
     }
 
+    /**
+     * ボタンの列数を更新する関数
+     * @param {string} columns - 設定する列数 (例: '1', '2', '4')
+     */
+    function updateButtonColumns(columns) {
+      root.style.setProperty('--button-columns', columns);
+      localStorage.setItem('buttonColumns', columns); // 列数をローカルストレージに保存
+      showMessage(`${columns}列表示に切り替えました`, "info");
+    }
+
+    // ローカルストレージから保存された列数を復元、なければデフォルトの4列
+    const savedColumns = localStorage.getItem('buttonColumns');
+    if (savedColumns) {
+      updateButtonColumns(savedColumns);
+      // ラジオボタンの状態も更新
+      const radioToSelect = document.getElementById(`columns${savedColumns}`);
+      if (radioToSelect) {
+        radioToSelect.checked = true;
+      }
+    } else {
+      // 保存されていなければデフォルトの4列をチェック
+      document.getElementById('columns4').checked = true;
+    }
+
+
+    // 各ラジオボタンにイベントリスナーを追加
+    columnRadios.forEach(radio => {
+      radio.addEventListener('change', (event) => {
+        updateButtonColumns(event.target.value);
+      });
+    });
+
+    // ここから下は既存のボタンイベントリスナー
+
     // 全選択ボタン：CodeMirror にフォーカスを与えて全選択する
     selectAllBtn.addEventListener('click', function() {
       cm.focus();
@@ -240,7 +361,7 @@
       showMessage("全選択しました", "info");
     });
 
-    // ★追加: 全選択解除ボタン
+    // 全選択解除ボタン
     deselectAllBtn.addEventListener('click', function() {
       cm.setSelection(cm.getCursor(), cm.getCursor()); // 選択を解除する
       showMessage("全選択を解除しました", "info");
@@ -321,12 +442,12 @@
       fileInput.value = ''; // 同じファイルを再度選択できるようにする
     });
 
-    // ★追加: HTMLファイルを開くボタン
+    // HTMLファイルを開くボタン
     openHtmlBtn.addEventListener('click', function() {
       htmlFileInput.click();
     });
 
-    // ★追加: HTMLファイルが選択されたら CodeMirror に読み込む
+    // HTMLファイルが選択されたら CodeMirror に読み込む
     htmlFileInput.addEventListener('change', function(e) {
       var file = e.target.files[0];
       if (file) {
@@ -356,10 +477,10 @@
       } else if (currentMode === 'xml') {
         fileName = "document.xml";
         fileType = "application/xml";
-      } else if (currentMode === 'htmlmixed') { // htmlmixed の場合も html として扱う
+      } else if (currentMode === 'htmlmixed') {
         fileName = "index.html";
         fileType = "text/html";
-      } else { // その他はテキストファイル
+      } else {
         fileName = "document.txt";
         fileType = "text/plain";
       }
@@ -385,18 +506,18 @@
       showMessage("コードを実行しました", "info");
     });
 
-    // ★追加: カーソル行までスクロールボタン
+    // カーソル行までスクロールボタン
     scrollToCursorBtn.addEventListener('click', function() {
-      cm.scrollIntoView(null, 20); // カーソルをビューポートの中央付近にスクロール
+      cm.scrollIntoView(null, 20);
       showMessage("カーソル位置へ移動しました", "info");
     });
 
-    // ★追加: 検索ボタン
+    // 検索ボタン
     findBtn.addEventListener('click', function() {
         cm.execCommand("find");
     });
 
-    // ★追加: 置換ボタン
+    // 置換ボタン
     replaceBtn.addEventListener('click', function() {
         cm.execCommand("replace");
     });
