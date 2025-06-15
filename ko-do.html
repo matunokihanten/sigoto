@@ -64,8 +64,8 @@
     @media (max-width: 768px) {
         .controls-wrapper {
             /* env(safe-area-inset-top)でデバイスのノッチやアドレスバー領域を考慮し、
-               さらにボタン1個分の高さを確保するために追加でパディングを設定 */
-            padding-top: calc(30px + env(safe-area-inset-top, 0px)); /* 30pxはボタン高さ+αの目安 */
+               さらにボタン約3個分の高さを確保するために追加でパディングを設定 */
+            padding-top: calc(150px + env(safe-area-inset-top, 0px)); /* ★変更: 150pxはボタン約3個分の目安 */
             padding-bottom: 15px; /* 下部パディングも調整 */
             min-height: auto; /* モバイルでは高さ固定せずコンテンツに合わせる */
         }
@@ -81,6 +81,15 @@
             min-width: 120px;
             padding: 6px 12px;
             font-size: 0.75em;
+            /* メッセージエリアも上部パディングに合わせて調整 */
+            top: calc(70px + env(safe-area-inset-top, 0px)); /* 約1.5個分のボタン高さを目安に調整 */
+            transform: translateY(0); /* topプロパティで位置を調整するため、transformは0に */
+        }
+        #messageArea.show {
+            transform: translateY(0) translateX(0); /* 表示時もtransformを0に */
+        }
+        #messageArea:not(.show) {
+            transform: translateY(0) translateX(30px); /* 非表示時もtransformを0に */
         }
     }
 
@@ -110,8 +119,8 @@
     #messageArea {
       position: absolute;
       right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
+      top: 50%; /* デフォルトのデスクトップ表示用 */
+      transform: translateY(-50%); /* デフォルトのデスクトップ表示用 */
       padding: 10px 20px; /* パディングを増やす */
       font-size: 0.9em;
       white-space: nowrap;
@@ -132,10 +141,12 @@
     }
     #messageArea.show {
         opacity: 1;
-        transform: translateY(-50%) translateX(0);
+        /* モバイルの場合、@media内で上書きされる */
+        transform: translateY(-50%) translateX(0); 
     }
     #messageArea:not(.show) {
-        transform: translateY(-50%) translateX(30px); /* 非表示時は少し右へ */
+        /* モバイルの場合、@media内で上書きされる */
+        transform: translateY(-50%) translateX(30px);
     }
     #messageArea.success {
         background-color: #e6ffed;
