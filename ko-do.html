@@ -2,86 +2,103 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>豪華なHTMLエディター</title>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>シンプルHTMLエディター</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/seti.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/monokai.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/eclipse.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/mdn-like.min.css" />
-
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css" />
-
   <style>
-    :root {
-      /* カラーパレット */
-      --primary-color: #007bff; /* 鮮やかな青 */
-      --primary-dark: #0056b3;
-      --secondary-color: #6c757d; /* グレー */
-      --border-color: #dee2e6; /* 明るいグレー */
-      --background-light: #f8f9fa; /* 非常に明るいグレー */
-      --text-color: #343a40; /* 濃いグレー */
-      --success-color: #28a745; /* 緑 */
-      --error-color: #dc3545; /* 赤 */
-      --info-color: #17a2b8; /* 水色 */
-      --gradient-start: #ffffff;
-      --gradient-end: #e9eef2; /* 少し青みがかったグラデーション */
-      --button-hover-shadow: 0 6px 12px rgba(0,0,0,0.15);
-      --editor-border-radius: 10px; /* エディタとプレビューの角丸 */
-    }
-
+    /* ページ全体を縦に並べた1画面とする */
     body {
       margin: 0;
-      font-family: 'Roboto', 'Noto Sans JP', sans-serif;
+      font-family: sans-serif;
       display: flex;
       flex-direction: column;
       height: 100vh;
+      /* iOS の Safe Area に対応するための最小設定 */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+    /* 操作パネルのスタイル */
+    .controls {
+      padding: 10px;
+      background-color: #f0f0f0;
+      display: flex; /* ボタンを横並びにするためにflexboxを使用 */
+      flex-wrap: wrap; /* ボタンが多すぎたら改行する */
+      gap: 5px; /* ボタン間のスペース */
+      position: relative; /* メッセージ表示用にpositionを付与 */
+      z-index: 10; /* 他の要素より手前に表示 */
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 少し影をつける */
+    }
+    .controls button {
+      /* margin-right: 5px; */ /* gapを使うので不要 */
+      padding: 8px 12px; /* ボタンのパディングを少し増やして押しやすく */
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 4px; /* 角を少し丸く */
+      background-color: #e0e0e0;
+      transition: background-color 0.2s, box-shadow 0.2s; /* ホバーエフェクト */
+    }
+    .controls button:hover {
+      background-color: #d0d0d0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    /* エディター領域（CodeMirror用の全画面エリア） */
+    .editor {
+      flex: 1;
       overflow: hidden;
-      color: var(--text-color);
-      background-color: #eef2f7; /* 全体の背景色を微調整 */
+    }
+    /* CodeMirrorエディターの高さを100%に */
+    .CodeMirror {
+      height: 100%;
+      border: 1px solid #ddd; /* エディターに枠線を追加 */
+      border-top: none; /* 上部の枠線はコントロールパネルと区別するため削除 */
     }
 
-    /* --- コントロールパネルのスタイル --- */
-    .controls-wrapper {
-        position: relative;
-        background: linear-gradient(to right, var(--gradient-start), var(--gradient-end)); /* グラデーション背景 */
-        border-bottom: 1px solid var(--border-color);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.08); /* 影を強調 */
-        z-index: 10;
-        padding-right: 20px; /* メッセージエリアの右側パディング */
-        padding-left: 20px; /* 左側パディング */
-        padding-top: 20px; /* 基本の上部パディング */
-        padding-bottom: 20px; /* 下部パディング */
-        min-height: 80px; /* コントロールラッパーの最小高さを確保 */
+    /* メッセージエリアのスタイル (追加) */
+    #messageArea {
+      position: absolute;
+      right: 10px;
+      top: 50%; /* デフォルトのデスクトップ表示用 */
+      transform: translateY(-50%); /* デフォルトのデスクトップ表示用 */
+      padding: 8px 15px;
+      font-size: 0.85em;
+      white-space: nowrap;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border-radius: 5px;
+      opacity: 0;
+      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
+      z-index: 100; /* 最前面に表示 */
+      pointer-events: none; /* クリックイベントを無効化 */
+    }
+    #messageArea.show {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
+    #messageArea:not(.show) {
+        transform: translateY(-50%) translateX(20px); /* 非表示時は少し右へ */
+    }
+    #messageArea.success {
+        background-color: #28a745;
+    }
+    #messageArea.error {
+        background-color: #dc3545;
+    }
+    #messageArea.info {
+        background-color: #17a2b8;
     }
 
-    /* スマートフォンでのアドレスバー対策 */
+    /* スマートフォンでの表示調整 */
     @media (max-width: 768px) {
-        .controls-wrapper {
+        .controls {
             /* env(safe-area-inset-top)でデバイスのノッチやアドレスバー領域を考慮し、
                さらにボタン約3個分の高さを確保するために追加でパディングを設定 */
-            padding-top: calc(150px + env(safe-area-inset-top, 0px)); /* ★変更: 150pxはボタン約3個分の目安 */
-            padding-bottom: 15px; /* 下部パディングも調整 */
-            min-height: auto; /* モバイルでは高さ固定せずコンテンツに合わせる */
+            padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px)); /* ★変更: 150pxはボタン約3個分の目安、10pxは既存パディング */
+            padding-bottom: 10px; /* 下部パディングも調整 */
         }
-        .controls {
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* スマホではボタンを小さく */
-            gap: 10px;
-        }
-        .controls button, .controls select {
-            padding: 8px 12px;
-            font-size: 0.85em;
-        }
+        /* メッセージエリアの調整 */
         #messageArea {
-            min-width: 120px;
-            padding: 6px 12px;
-            font-size: 0.75em;
-            /* メッセージエリアも上部パディングに合わせて調整 */
             top: calc(70px + env(safe-area-inset-top, 0px)); /* 約1.5個分のボタン高さを目安に調整 */
             transform: translateY(0); /* topプロパティで位置を調整するため、transformは0に */
         }
@@ -89,241 +106,27 @@
             transform: translateY(0) translateX(0); /* 表示時もtransformを0に */
         }
         #messageArea:not(.show) {
-            transform: translateY(0) translateX(30px); /* 非表示時もtransformを0に */
+            transform: translateY(0) translateX(20px); /* 非表示時もtransformを0に */
         }
     }
-
-
-    .controls {
-      display: grid; /* CSS Grid を使用 */
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* 4列表示のベース、最小幅を調整 */
-      gap: 15px; /* ボタン間のスペースを広げる */
-      align-items: center;
-      -webkit-overflow-scrolling: touch;
-      max-width: 1200px; /* 最大幅を設定して中央寄せ */
-      margin: 0 auto; /* 中央寄せ */
-    }
-    /* Webkit系ブラウザのスクロールバーのスタイル */
-    .controls::-webkit-scrollbar {
-        height: 8px;
-    }
-    .controls::-webkit-scrollbar-track {
-        background: var(--background-light);
-    }
-    .controls::-webkit-scrollbar-thumb {
-        background-color: var(--primary-color);
-        border-radius: 4px;
-        border: 2px solid var(--background-light);
-    }
-
-    #messageArea {
-      position: absolute;
-      right: 20px;
-      top: 50%; /* デフォルトのデスクトップ表示用 */
-      transform: translateY(-50%); /* デフォルトのデスクトップ表示用 */
-      padding: 10px 20px; /* パディングを増やす */
-      font-size: 0.9em;
-      white-space: nowrap;
-      min-width: 200px; /* 最小幅を調整 */
-      text-align: right;
-      opacity: 0;
-      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
-      border-radius: 8px; /* 角を強調 */
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      pointer-events: none;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* メッセージにも影 */
-    }
-    #messageArea #messageIcon {
-        margin-right: 10px; /* アイコンとテキストの間隔 */
-        font-size: 1.2em; /* アイコンサイズを調整 */
-    }
-    #messageArea.show {
-        opacity: 1;
-        /* モバイルの場合、@media内で上書きされる */
-        transform: translateY(-50%) translateX(0); 
-    }
-    #messageArea:not(.show) {
-        /* モバイルの場合、@media内で上書きされる */
-        transform: translateY(-50%) translateX(30px);
-    }
-    #messageArea.success {
-        background-color: #e6ffed;
-        color: var(--success-color);
-    }
-    #messageArea.error {
-        background-color: #ffe6e6;
-        color: var(--error-color);
-    }
-    #messageArea.info {
-        background-color: #e0f7fa;
-        color: var(--info-color);
-    }
-
-    /* ボタンをグループ化するコンテナのスタイル */
-    .button-group {
-        display: contents; /* グリッドレイアウトに馴染ませる */
-    }
-
-    .controls button, .controls select {
-      padding: 10px 20px; /* パディングを増やす */
-      cursor: pointer;
-      border: 1px solid rgba(0, 0, 0, 0.15);
-      border-radius: 8px; /* 角を強調 */
-      background-color: #fff;
-      color: var(--text-color);
-      font-size: 0.98em;
-      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* なめらかなアニメーション */
-      white-space: nowrap;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.08);
-      outline: none;
-      width: 100%; /* グリッドに合わせて幅を100%に */
-      box-sizing: border-box;
-      background: linear-gradient(to bottom, #ffffff, #f0f0f0); /* ボタンにグラデーション */
-    }
-
-    .controls button:hover {
-      background-color: #e9ecef;
-      border-color: var(--primary-color);
-      transform: translateY(-3px); /* 動きを強調 */
-      box-shadow: var(--button-hover-shadow); /* 影を強調 */
-      background: linear-gradient(to bottom, #f0f0f0, #e0e0e0); /* ホバー時グラデーション */
-    }
-    .controls button:active {
-      transform: translateY(0);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); /* 押し込み感を強調 */
-      background-color: #dee2e6;
-      background: linear-gradient(to top, #e0e0e0, #f0f0f0); /* アクティブ時グラデーション */
-    }
-
-    .controls select {
-      min-width: unset;
-      appearance: none;
-      background-image: url('data:image/svg+xml;utf8,<svg fill="%23343a40" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      background-size: 18px;
-    }
-    .controls select:focus {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.3);
-    }
-
-    /* --- エディターとプレビューのコンテナスタイル --- */
-    .content-area {
-      flex: 1;
-      display: flex;
-      overflow: hidden;
-      padding: 15px; /* パディングを調整 */
-      gap: 15px; /* ギャップを調整 */
-    }
-
-    .editor-container, .preview-container {
-      flex: 1;
-      height: 100%;
-      overflow: hidden;
-      border: 1px solid var(--border-color);
-      border-radius: var(--editor-border-radius); /* 角丸を適用 */
-      box-shadow: 0 8px 20px rgba(0,0,0,0.1); /* 影を強調 */
-      box-sizing: border-box;
-      background-color: #fff;
-      position: relative;
-    }
-    .drag-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 123, 255, 0.15); /* 透明度を調整 */
-        border: 3px dashed var(--primary-color); /* ボーダーを強調 */
-        display: none;
-        align-items: center;
-        justify-content: center;
-        font-size: 2.5em; /* フォントサイズを調整 */
-        color: var(--primary-dark);
-        z-index: 5;
-        border-radius: var(--editor-border-radius);
-        pointer-events: none;
-    }
-    .editor-container.drag-over .drag-overlay {
-        display: flex;
-    }
-
-    .CodeMirror {
-      height: 100%;
-      font-size: 1.1em;
-      border: none;
-      padding: 10px; /* パディングを増やす */
-      border-radius: var(--editor-border-radius);
-    }
-    .CodeMirror-gutters {
-        background-color: var(--background-light) !important;
-        border-right: 1px solid rgba(0, 0, 0, 0.1) !important;
-        border-top-left-radius: var(--editor-border-radius);
-        border-bottom-left-radius: var(--editor-border-radius);
-    }
-    .CodeMirror-activeline-background {
-        background-color: rgba(0, 123, 255, 0.08) !important;
-    }
-    .CodeMirror-selected {
-        background-color: rgba(0, 123, 255, 0.2) !important;
-    }
-
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-      background-color: #fff;
-      border-radius: var(--editor-border-radius);
-    }
-
   </style>
 </head>
 <body>
-  <div class="controls-wrapper">
-    <div id="messageArea"><span id="messageIcon"></span><span id="messageText"></span></div>
-    <div class="controls">
-      <button id="openFileBtn" title="ファイルを開く">ファイルを開く</button>
-      <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
-      <button id="saveBtn" title="保存 (Ctrl+S)">保存</button>
-      <div class="button-group">
-          <button id="undoBtn" title="元に戻す (Ctrl+Z)">元に戻す</button>
-          <button id="redoBtn" title="やり直し (Ctrl+Y)">やり直し</button>
-      </div>
-      <div class="button-group">
-          <button id="copyBtn" title="選択範囲をコピー">コピー</button>
-          <button id="pasteBtn" title="クリップボードから貼り付け">貼り付け</button>
-      </div>
-      <button id="clearAllBtn" title="全て削除">全て削除</button>
-      <button id="insertTemplateBtn" title="HTMLテンプレートを挿入">HTMLテンプレート</button>
-      <button id="toggleLineNumbersBtn" title="行番号表示/非表示を切り替え">行番号</button>
-      <div class="button-group">
-          <button id="searchBtn" title="検索 (Ctrl+F)">検索</button>
-          <button id="replaceBtn" title="置換 (Ctrl+H)">置換</button>
-      </div>
-      <select id="themeSelect" title="エディターのテーマを選択">
-          <option value="default">テーマ: 標準</option>
-          <option value="dracula">テーマ: Dracula</option>
-          <option value="material-darker">テーマ: Material Darker</option>
-          <option value="monokai">テーマ: Monokai</option>
-          <option value="seti">テーマ: Seti</option>
-          <option value="eclipse">テーマ: Eclipse</option>
-          <option value="mdn-like">テーマ: MDN Like</option>
-      </select>
-      <button id="runBtn" title="プレビューを別ウィンドウで開く (Ctrl+Enter)">実行</button>
-    </div>
+  <div class="controls">
+    <div id="messageArea"></div>
+
+    <button id="selectAllBtn">全選択</button>
+    <button id="copyBtn">コピー</button>
+    <button id="pasteBtn">貼付け</button>
+    <button id="clearAllBtn">全削除</button>
+    <button id="openFileBtn">開く</button>
+    <input type="file" id="fileInput" accept=".html" style="display:none">
+    <button id="saveBtn">保存</button>
+    <button id="runBtn">実行</button>
   </div>
 
-  <div class="content-area">
-    <div class="editor-container">
-      <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
-      <div class="drag-overlay">ファイルをここにドラッグ＆ドロップ</div>
-    </div>
-    <div class="preview-container">
-      <iframe id="previewFrame"></iframe>
-    </div>
+  <div class="editor">
+    <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
@@ -332,98 +135,34 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/search.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/jump-to-line.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/match-highlighter.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/brace-fold.min.js"></script>
-
-
   <script>
-    // CodeMirror でエディターを初期化
+    // CodeMirror でエディターを初期化（元の <textarea> を置換）
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
       mode: "htmlmixed",
-      lineNumbers: true, // 初期値
-      theme: "default", // 初期テーマ
-      indentUnit: 2,
-      tabSize: 2,
-      lineWrapping: true,
-      autoCloseTags: true,
-      matchBrackets: true,
-      extraKeys: {
-          "Ctrl-Space": "autocomplete"
-      },
-      highlightSelectionMatches: { showToken: /\w/, annotateScrollbar: true },
-      styleActiveLine: true
+      lineNumbers: true,
+      theme: "default"
     });
-
-    const previewFrame = document.getElementById('previewFrame');
-    const messageArea = document.getElementById('messageArea');
-    const messageIcon = document.getElementById('messageIcon');
-    const messageText = document.getElementById('messageText');
-    const editorContainer = document.querySelector('.editor-container');
-    const fileInput = document.getElementById('fileInput');
 
     // localStorage に保存されたコードがあれば復元
     if (localStorage.getItem("htmlCode")) {
       cm.setValue(localStorage.getItem("htmlCode"));
     }
 
-    // localStorage に保存されたテーマがあれば復元
-    if (localStorage.getItem("cmTheme")) {
-        cm.setOption("theme", localStorage.getItem("cmTheme"));
-        document.getElementById('themeSelect').value = localStorage.getItem("cmTheme");
-    }
-
-    // localStorage に保存された行番号表示設定があれば復元
-    if (localStorage.getItem("cmLineNumbers") !== null) {
-        cm.setOption("lineNumbers", localStorage.getItem("cmLineNumbers") === "true");
-    }
-
-    // エディター内容とプレビューを更新する関数
-    let updatePreviewTimer;
-    function updatePreview() {
-      clearTimeout(updatePreviewTimer);
-      updatePreviewTimer = setTimeout(() => {
-        const content = cm.getValue();
-        const doc = previewFrame.contentWindow.document;
-        doc.open();
-        doc.write(content);
-        doc.close();
-      }, 300); // 300ms の遅延で更新（タイピング中のちらつき防止）
-    }
-
-    // 初期プレビュー
-    updatePreview();
-
-    // 編集内容が変更されるたびに localStorage へ保存し、プレビューを更新
+    // 編集内容が変更されるたびに localStorage へ保存
     cm.on("change", function() {
       localStorage.setItem("htmlCode", cm.getValue());
-      updatePreview();
     });
 
     // 各ボタン要素の取得
+    const selectAllBtn = document.getElementById('selectAllBtn');
     const copyBtn = document.getElementById('copyBtn');
     const pasteBtn = document.getElementById('pasteBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
     const openFileBtn = document.getElementById('openFileBtn');
+    const fileInput = document.getElementById('fileInput');
     const saveBtn = document.getElementById('saveBtn');
     const runBtn = document.getElementById('runBtn');
-    const themeSelect = document.getElementById('themeSelect');
-    const searchBtn = document.getElementById('searchBtn');
-    const replaceBtn = document.getElementById('replaceBtn');
-    const insertTemplateBtn = document.getElementById('insertTemplateBtn');
-    const toggleLineNumbersBtn = document.getElementById('toggleLineNumbersBtn');
-    const undoBtn = document.getElementById('undoBtn');
-    const redoBtn = document.getElementById('redoBtn');
+    const messageArea = document.getElementById('messageArea'); // メッセージエリアの要素を追加取得
 
     /**
      * メッセージ表示関数
@@ -431,26 +170,23 @@
      * @param {'success'|'error'|'info'} type - メッセージの種類 (デフォルト: 'info')
      */
     function showMessage(msg, type = 'info') {
-      messageText.textContent = msg;
+      messageArea.textContent = msg;
       messageArea.className = 'show ' + type;
-
-      messageIcon.innerHTML = '';
-      if (type === 'success') {
-          messageIcon.innerHTML = '&#x2714;';
-      } else if (type === 'error') {
-          messageIcon.innerHTML = '&#x2716;';
-      } else {
-          messageIcon.innerHTML = '&#x2139;';
-      }
 
       setTimeout(() => {
         messageArea.className = '';
-        messageText.textContent = '';
-        messageIcon.innerHTML = '';
+        messageArea.textContent = '';
       }, 2500); // 2.5秒後に非表示
     }
 
-    // コピーボタン
+    // 全選択ボタン：CodeMirror にフォーカスを与えて全選択する
+    selectAllBtn.addEventListener('click', function() {
+      cm.focus();
+      cm.execCommand("selectAll");
+      showMessage("全選択しました", "info");
+    });
+
+    // コピーボタン：選択範囲がない場合は全選択後にコピーを実行
     copyBtn.addEventListener('click', function() {
       if (!cm.somethingSelected()) {
         cm.focus();
@@ -459,28 +195,28 @@
       var text = cm.getSelection();
       navigator.clipboard.writeText(text)
         .then(() => showMessage("コピーしました", "success"))
-        .catch(err => showMessage("コピーできませんでした: " + err, "error"));
+        .catch(err => showMessage("コピーに失敗しました: " + err, "error"));
     });
 
-    // 貼付けボタン
+    // 貼付けボタン：クリップボードの内容を現在のカーソル位置に挿入
     pasteBtn.addEventListener('click', function() {
       navigator.clipboard.readText()
         .then(text => {
           cm.replaceSelection(text);
           showMessage("貼り付けました", "success");
         })
-        .catch(err => showMessage("貼り付けできませんでした: " + err, "error"));
+        .catch(err => showMessage("貼り付けに失敗しました: " + err, "error"));
     });
 
-    // 全削除ボタン
+    // 全削除ボタン：エディター内の全テキストを確認後に削除
     clearAllBtn.addEventListener('click', function() {
-      if (confirm("本当に全て削除しますか？")) {
+      if (confirm("本当に全削除しますか？")) {
         cm.setValue("");
         showMessage("全て削除しました", "info");
       }
     });
 
-    // ファイルを開くボタン
+    // ファイルを開くボタン：非表示の file input をクリック
     openFileBtn.addEventListener('click', function() {
       fileInput.click();
     });
@@ -496,10 +232,10 @@
         }
         reader.readAsText(file);
       }
-      fileInput.value = '';
+      fileInput.value = ''; // 同じファイルを再度選択できるようにする
     });
 
-    // 保存ボタン
+    // 保存ボタン：現在の内容をHTMLファイルとしてダウンロード
     saveBtn.addEventListener('click', function() {
       var blob = new Blob([cm.getValue()], { type: "text/html" });
       var url = URL.createObjectURL(blob);
@@ -513,149 +249,13 @@
       URL.revokeObjectURL(url);
       showMessage("保存しました", "success");
     });
-
-    // 実行ボタン
+    
+    // 実行ボタン：エディターの内容を Blob URL として新規タブで開き実行する
     runBtn.addEventListener('click', function() {
       var blob = new Blob([cm.getValue()], { type: "text/html" });
       var url = URL.createObjectURL(blob);
-      window.open(url, "html_editor_preview", "width=800,height=600");
+      window.open(url, "_blank");
       showMessage("コードを実行しました", "info");
-    });
-
-    // テーマ選択
-    themeSelect.addEventListener('change', function() {
-      const selectedTheme = this.value;
-      cm.setOption("theme", selectedTheme);
-      localStorage.setItem("cmTheme", selectedTheme);
-      const themeName = this.options[this.selectedIndex].text.replace('テーマ: ','');
-      showMessage(`テーマを「${themeName}」に設定しました`, "info");
-    });
-
-    // 検索ボタン
-    searchBtn.addEventListener('click', function() {
-        cm.execCommand("find");
-    });
-
-    // 置換ボタン
-    replaceBtn.addEventListener('click', function() {
-        cm.execCommand("replace");
-    });
-
-    // HTMLテンプレート挿入
-    insertTemplateBtn.addEventListener('click', function() {
-        const defaultTemplate = `<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>新しいページ</title>
-  <style>
-    body {
-      font-family: 'Noto Sans JP', sans-serif;
-      margin: 20px;
-      background-color: #f4f7f6;
-      color: #333;
-    }
-    h1 {
-        color: #007bff;
-    }
-    p {
-        line-height: 1.6;
-    }
-  </style>
-</head>
-<body>
-  <h1>Hello, World!</h1>
-  <p>ここにコンテンツを追加してください。</p>
-  <p>このテンプレートは、基本的なHTML構造とシンプルなスタイルを含んでいます。</p>
-</body>
-</html>`;
-        if (cm.getValue().trim() === "" || confirm("現在の内容を上書きしてHTMLテンプレートを挿入しますか？")) {
-            cm.setValue(defaultTemplate);
-            showMessage("HTMLテンプレートを挿入しました", "success");
-        }
-    });
-
-    // 行番号表示/非表示ボタン
-    toggleLineNumbersBtn.addEventListener('click', function() {
-        const current = cm.getOption("lineNumbers");
-        cm.setOption("lineNumbers", !current);
-        localStorage.setItem("cmLineNumbers", !current);
-        showMessage(`行番号を${!current ? '表示' : '非表示'}にしました`, "info");
-    });
-
-    // 元に戻すボタン (Undo)
-    undoBtn.addEventListener('click', function() {
-        cm.undo();
-        showMessage("操作を元に戻しました", "info");
-    });
-
-    // やり直しボタン (Redo)
-    redoBtn.addEventListener('click', function() {
-        cm.redo();
-        showMessage("操作をやり直しました", "info");
-    });
-
-    // ドラッグ＆ドロップでファイルを開く機能
-    editorContainer.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        editorContainer.classList.add('drag-over');
-    });
-
-    editorContainer.addEventListener('dragleave', () => {
-        editorContainer.classList.remove('drag-over');
-    });
-
-    editorContainer.addEventListener('drop', (e) => {
-        e.preventDefault();
-        editorContainer.classList.remove('drag-over');
-
-        const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            const file = files[0];
-            if (file.type === "text/html" || file.type === "text/plain" || file.name.endsWith('.html') || file.name.endsWith('.txt')) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    cm.setValue(evt.target.result);
-                    showMessage(`ファイル「${file.name}」をドラッグ＆ドロップで開きました`, "success");
-                };
-                reader.onerror = function() {
-                    showMessage("ファイルの読み込みに失敗しました。", "error");
-                };
-                reader.readAsText(file);
-            } else {
-                showMessage("HTMLまたはテキストファイルのみ対応しています。", "error");
-            }
-        }
-    });
-
-    // キーボードショートカット
-    document.addEventListener('keydown', function(e) {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 's' || e.key === 'S') {
-          e.preventDefault();
-          saveBtn.click();
-        } else if (e.key === 'Enter') {
-          e.preventDefault();
-          runBtn.click();
-        } else if (e.key === 'f' || e.key === 'F') {
-            e.preventDefault();
-            searchBtn.click();
-        } else if (e.key === 'h' || e.key === 'H') {
-            e.preventDefault();
-            replaceBtn.click();
-        } else if (e.key === 'z' || e.key === 'Z') {
-            e.preventDefault();
-            undoBtn.click();
-        } else if (e.key === 'y' || e.key === 'Y') {
-            e.preventDefault();
-            redoBtn.click();
-        }
-      }
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
-          e.preventDefault();
-          redoBtn.click();
-      }
     });
   </script>
 </body>
