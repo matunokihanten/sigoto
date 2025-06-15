@@ -62,6 +62,7 @@
             display: flex;
             align-items: center;
             justify-content: flex-end;
+            word-break: break-all; /* 長い数字でも改行 */
         }
 
         .sub-display {
@@ -73,7 +74,7 @@
 
         .buttons {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(5, 1fr); /* 常に5列表示 */
             gap: 10px;
         }
 
@@ -236,9 +237,10 @@
                 height: auto;
             }
             
-            .buttons {
+            /* スマートフォン縦表示でのボタン配列固定のため、このメディアクエリ内のbuttons設定を削除 */
+            /* .buttons {
                 grid-template-columns: repeat(4, 1fr);
-            }
+            } */
             
             .main-display {
                 font-size: 2em;
@@ -294,9 +296,9 @@
                 <div class="restaurant-title">🍽️ 飲食店機能</div>
                 <div class="restaurant-buttons">
                     <button class="restaurant-btn" onclick="calculateTax()">税込計算</button>
-                    <button class="restaurant-btn" onclick="showSplitBill()">割り勘</button>
+                    <button class="restaurant-btn" onclick="calculateTaxExcluding()">税抜計算</button>
+                    <button class="restaurant-btn" onclick="calculateMarkup()">割増計算</button>
                     <button class="restaurant-btn" onclick="showDiscount()">割引計算</button>
-                    <button class="restaurant-btn" onclick="showTip()">チップ計算</button>
                 </div>
             </div>
         </div>
@@ -368,15 +370,20 @@
         }
 
         function inputNumber(num) {
+            // ここを修正：shouldResetDisplayがtrueの場合のみcurrentInputをリセット
             if (shouldResetDisplay) {
-                currentInput = '';
+                currentInput = num; // 新しい数字で開始
                 shouldResetDisplay = false;
-            }
-            
-            if (currentInput === '0' && num !== '.') {
-                currentInput = num;
             } else {
-                currentInput += num;
+                if (currentInput === '0' && num !== '.') {
+                    currentInput = num;
+                } else {
+                    // 小数点が既に存在する場合に再度入力させない
+                    if (num === '.' && currentInput.includes('.')) {
+                        return;
+                    }
+                    currentInput += num;
+                }
             }
             updateDisplay();
         }
@@ -388,6 +395,9 @@
                     const result = Math.sqrt(num);
                     addToHistory(currentInput, '√', '', result);
                     currentInput = result.toString();
+                    shouldResetDisplay = true;
+                } else {
+                    currentInput = 'エラー'; // 負の数の平方根
                     shouldResetDisplay = true;
                 }
                 updateDisplay();
@@ -444,6 +454,9 @@
                 case '/':
                     if (current === 0) {
                         alert('0で割ることはできません');
+                        currentInput = 'エラー';
+                        shouldResetDisplay = true;
+                        updateDisplay();
                         return;
                     }
                     result = prev / current;
@@ -472,24 +485,30 @@
         function clearEntry() {
             currentInput = '0';
             updateDisplay();
+            hideTaxDisplay();
         }
 
         function backspace() {
-            if (currentInput.length > 1) {
+            if (currentInput === 'エラー') {
+                currentInput = '0';
+            } else if (currentInput.length > 1 && currentInput !== '0') {
                 currentInput = currentInput.slice(0, -1);
             } else {
                 currentInput = '0';
             }
             updateDisplay();
+            hideTaxDisplay();
         }
 
         function memoryStore() {
             memory = parseFloat(currentInput);
+            hideTaxDisplay();
         }
 
         function memoryRecall() {
             currentInput = memory.toString();
             updateDisplay();
+            hideTaxDisplay();
         }
 
         function addToHistory(prev, op, curr, result) {
@@ -526,6 +545,7 @@
         function useHistoryResult(result) {
             currentInput = result.toString();
             updateDisplay();
+            hideTaxDisplay();
         }
 
         function clearHistory() {
@@ -541,8 +561,8 @@
                 return;
             }
             
+            // 小数点以下を考慮せず、税額を整数で計算
             const taxAmount = Math.floor(amount * (1 + taxRate));
-            const tax = taxAmount - amount;
             
             document.getElementById('taxRateDisplay').textContent = (taxRate * 100) + '%';
             document.getElementById('taxAmountDisplay').textContent = taxAmount.toLocaleString('ja-JP');
@@ -553,20 +573,39 @@
             updateDisplay();
         }
 
-        function showSplitBill() {
-            const total = parseFloat(currentInput);
-            if (isNaN(total)) {
+        function calculateTaxExcluding() {
+            const amount = parseFloat(currentInput);
+            if (isNaN(amount)) {
+                alert('有効な金額を入力してください');
+                return;
+            }
+
+            const taxExcludedAmount = Math.round(amount / (1 + taxRate)); // 四捨五入
+            
+            document.getElementById('taxRateDisplay').textContent = (taxRate * 100) + '%';
+            document.getElementById('taxAmountDisplay').textContent = taxExcludedAmount.toLocaleString('ja-JP');
+            document.getElementById('taxDisplay').style.display = 'block';
+
+            addToHistory(amount.toString(), '税抜', '', taxExcludedAmount);
+            currentInput = taxExcludedAmount.toString();
+            updateDisplay();
+        }
+
+        function calculateMarkup() {
+            const amount = parseFloat(currentInput);
+            if (isNaN(amount)) {
                 alert('有効な金額を入力してください');
                 return;
             }
             
-            const people = prompt('何名で割り勘しますか？', '2');
-            if (people && !isNaN(people) && people > 0) {
-                const perPerson = Math.ceil(total / parseInt(people));
-                addToHistory(total.toString(), `÷${people}人`, '', perPerson);
-                currentInput = perPerson.toString();
+            const markupRate = prompt('割増率を入力してください（例：10 で10%割増）', '10');
+            if (markupRate && !isNaN(markupRate) && markupRate >= 0) {
+                const markupAmount = amount * (parseFloat(markupRate) / 100);
+                const finalAmount = amount + markupAmount;
+                addToHistory(amount.toString(), `${markupRate}%割増`, '', finalAmount);
+                currentInput = finalAmount.toString();
                 updateDisplay();
-                alert(`1人あたり: ¥${perPerson.toLocaleString('ja-JP')}`);
+                alert(`割増額: ¥${markupAmount.toLocaleString('ja-JP')}\n最終金額: ¥${finalAmount.toLocaleString('ja-JP')}`);
             }
         }
 
@@ -588,24 +627,6 @@
             }
         }
 
-        function showTip() {
-            const amount = parseFloat(currentInput);
-            if (isNaN(amount)) {
-                alert('有効な金額を入力してください');
-                return;
-            }
-            
-            const tipRate = prompt('チップ率を入力してください（例：15 で15%）', '15');
-            if (tipRate && !isNaN(tipRate) && tipRate >= 0) {
-                const tipAmount = amount * (parseFloat(tipRate) / 100);
-                const totalAmount = amount + tipAmount;
-                addToHistory(amount.toString(), `tip${tipRate}%`, '', totalAmount);
-                currentInput = totalAmount.toString();
-                updateDisplay();
-                alert(`チップ額: ¥${tipAmount.toLocaleString('ja-JP')}\n合計金額: ¥${totalAmount.toLocaleString('ja-JP')}`);
-            }
-        }
-
         function hideTaxDisplay() {
             document.getElementById('taxDisplay').style.display = 'none';
         }
@@ -613,4 +634,29 @@
         // キーボードサポート
         document.addEventListener('keydown', function(e) {
             if (e.key >= '0' && e.key <= '9') {
- 
+                inputNumber(e.key);
+            } else if (e.key === '.') {
+                inputNumber('.');
+            } else if (e.key === '+') {
+                inputOperator('+');
+            } else if (e.key === '-') {
+                inputOperator('-');
+            } else if (e.key === '*') {
+                inputOperator('*');
+            } else if (e.key === '/') {
+                e.preventDefault(); // スラッシュで検索バーが開くのを防ぐ
+                inputOperator('/');
+            } else if (e.key === 'Enter' || e.key === '=') {
+                calculate();
+            } else if (e.key === 'Escape') {
+                clearAll();
+            } else if (e.key === 'Backspace') {
+                backspace();
+            }
+        });
+
+        // 初期化
+        updateDisplay();
+    </script>
+</body>
+</html>
