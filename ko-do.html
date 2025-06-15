@@ -55,17 +55,41 @@
         z-index: 10;
         padding-right: 20px; /* メッセージエリアの右側パディング */
         padding-left: 20px; /* 左側パディング */
-        padding-top: 20px; /* ★豪華化: 上部パディングを増やす */
-        padding-bottom: 20px; /* ★豪華化: 下部パディングを増やす */
+        padding-top: 20px; /* 基本の上部パディング */
+        padding-bottom: 20px; /* 下部パディング */
         min-height: 80px; /* コントロールラッパーの最小高さを確保 */
     }
 
+    /* スマートフォンでのアドレスバー対策 */
+    @media (max-width: 768px) {
+        .controls-wrapper {
+            /* env(safe-area-inset-top)でデバイスのノッチやアドレスバー領域を考慮し、
+               さらにボタン1個分の高さを確保するために追加でパディングを設定 */
+            padding-top: calc(30px + env(safe-area-inset-top, 0px)); /* 30pxはボタン高さ+αの目安 */
+            padding-bottom: 15px; /* 下部パディングも調整 */
+            min-height: auto; /* モバイルでは高さ固定せずコンテンツに合わせる */
+        }
+        .controls {
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* スマホではボタンを小さく */
+            gap: 10px;
+        }
+        .controls button, .controls select {
+            padding: 8px 12px;
+            font-size: 0.85em;
+        }
+        #messageArea {
+            min-width: 120px;
+            padding: 6px 12px;
+            font-size: 0.75em;
+        }
+    }
+
+
     .controls {
       display: grid; /* CSS Grid を使用 */
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* ★変更: 4列表示のベース、最小幅を調整 */
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* 4列表示のベース、最小幅を調整 */
       gap: 15px; /* ボタン間のスペースを広げる */
       align-items: center;
-      /* overflow-x: auto; */ /* Gridを使うので不要になる可能性あり */
       -webkit-overflow-scrolling: touch;
       max-width: 1200px; /* 最大幅を設定して中央寄せ */
       margin: 0 auto; /* 中央寄せ */
@@ -244,29 +268,6 @@
       border-radius: var(--editor-border-radius);
     }
 
-    /* スマートフォンでのアドレスバー対策 */
-    @media (max-width: 768px) {
-        .controls-wrapper {
-            /* ここでsafe-area-inset-topを使って、アドレスバーの領域を考慮 */
-            /* ただし、これはviewport-fit=coverとセットで効果を発揮するため、
-               ここではよりシンプルなpadding-topの調整で対応 */
-            padding-top: calc(15px + env(safe-area-inset-top)); /* env()はフォールバックも考慮 */
-            padding-bottom: 15px; /* 下部パディングも調整 */
-        }
-        .controls {
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* スマホではボタンを小さく */
-            gap: 10px;
-        }
-        .controls button, .controls select {
-            padding: 8px 12px;
-            font-size: 0.85em;
-        }
-        #messageArea {
-            min-width: 120px;
-            padding: 6px 12px;
-            font-size: 0.75em;
-        }
-    }
   </style>
 </head>
 <body>
