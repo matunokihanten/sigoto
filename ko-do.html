@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>シンプルHTMLエディター</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>豪華なHTMLエディター</title>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
@@ -19,17 +20,19 @@
   <style>
     :root {
       /* カラーパレット */
-      --primary-color: #007acc; /* 少し落ち着いた青 */
-      --primary-dark: #005f99;
-      --secondary-color: #6c757d;
-      --border-color: #e0e0e0; /* 明るいグレー */
-      --background-light: #f8f9fa;
-      --text-color: #333;
-      --success-color: #28a745;
-      --error-color: #dc3545;
-      --info-color: #17a2b8;
-      --button-bg: #ffffff;
-      --button-hover-bg: #f0f0f0;
+      --primary-color: #007bff; /* 鮮やかな青 */
+      --primary-dark: #0056b3;
+      --secondary-color: #6c757d; /* グレー */
+      --border-color: #dee2e6; /* 明るいグレー */
+      --background-light: #f8f9fa; /* 非常に明るいグレー */
+      --text-color: #343a40; /* 濃いグレー */
+      --success-color: #28a745; /* 緑 */
+      --error-color: #dc3545; /* 赤 */
+      --info-color: #17a2b8; /* 水色 */
+      --gradient-start: #ffffff;
+      --gradient-end: #e9eef2; /* 少し青みがかったグラデーション */
+      --button-hover-shadow: 0 6px 12px rgba(0,0,0,0.15);
+      --editor-border-radius: 10px; /* エディタとプレビューの角丸 */
     }
 
     body {
@@ -40,74 +43,75 @@
       height: 100vh;
       overflow: hidden;
       color: var(--text-color);
-      background-color: #f5f5f5; /* 全体の背景色 */
+      background-color: #eef2f7; /* 全体の背景色を微調整 */
     }
 
     /* --- コントロールパネルのスタイル --- */
     .controls-wrapper {
         position: relative;
-        background-color: var(--background-light); /* シンプルな背景色 */
+        background: linear-gradient(to right, var(--gradient-start), var(--gradient-end)); /* グラデーション背景 */
         border-bottom: 1px solid var(--border-color);
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* 影を控えめに */
+        box-shadow: 0 4px 10px rgba(0,0,0,0.08); /* 影を強調 */
         z-index: 10;
-        padding-top: 15px; /* ★追加: ボタン1個分の高さを確保 */
-        padding-bottom: 15px; /* 下部パディングを調整 */
         padding-right: 20px; /* メッセージエリアの右側パディング */
         padding-left: 20px; /* 左側パディング */
-        min-height: 70px; /* コントロールラッパーの最小高さを確保 */
+        padding-top: 20px; /* ★豪華化: 上部パディングを増やす */
+        padding-bottom: 20px; /* ★豪華化: 下部パディングを増やす */
+        min-height: 80px; /* コントロールラッパーの最小高さを確保 */
     }
 
     .controls {
-      display: grid; /* ★変更: CSS Grid を使用 */
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* ★変更: 4列表示のベース */
-      gap: 10px; /* ボタン間のスペースを調整 */
+      display: grid; /* CSS Grid を使用 */
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); /* ★変更: 4列表示のベース、最小幅を調整 */
+      gap: 15px; /* ボタン間のスペースを広げる */
       align-items: center;
       /* overflow-x: auto; */ /* Gridを使うので不要になる可能性あり */
       -webkit-overflow-scrolling: touch;
+      max-width: 1200px; /* 最大幅を設定して中央寄せ */
+      margin: 0 auto; /* 中央寄せ */
     }
     /* Webkit系ブラウザのスクロールバーのスタイル */
     .controls::-webkit-scrollbar {
-        height: 6px; /* より薄く */
+        height: 8px;
     }
     .controls::-webkit-scrollbar-track {
         background: var(--background-light);
     }
     .controls::-webkit-scrollbar-thumb {
         background-color: var(--primary-color);
-        border-radius: 3px;
-        border: 1px solid var(--background-light);
+        border-radius: 4px;
+        border: 2px solid var(--background-light);
     }
 
-    /* ★変更: メッセージエリアをcontrols-wrapper内でabsolute配置 */
     #messageArea {
       position: absolute;
       right: 20px;
       top: 50%;
       transform: translateY(-50%);
-      padding: 8px 15px;
-      font-size: 0.85em; /* フォントサイズを微調整 */
+      padding: 10px 20px; /* パディングを増やす */
+      font-size: 0.9em;
       white-space: nowrap;
-      min-width: 160px; /* 最小幅を少し縮小 */
+      min-width: 200px; /* 最小幅を調整 */
       text-align: right;
       opacity: 0;
-      transition: opacity 0.3s ease-out, transform 0.3s ease-out, background-color 0.3s ease; /* アニメーションを短縮 */
-      border-radius: 4px; /* 角を控えめに */
+      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
+      border-radius: 8px; /* 角を強調 */
       display: flex;
       align-items: center;
       justify-content: flex-end;
       pointer-events: none;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* メッセージにも影 */
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1); /* メッセージにも影 */
     }
     #messageArea #messageIcon {
-        margin-right: 8px;
-        font-size: 1.0em;
+        margin-right: 10px; /* アイコンとテキストの間隔 */
+        font-size: 1.2em; /* アイコンサイズを調整 */
     }
     #messageArea.show {
         opacity: 1;
         transform: translateY(-50%) translateX(0);
     }
     #messageArea:not(.show) {
-        transform: translateY(-50%) translateX(20px); /* 非表示時は少し右へ */
+        transform: translateY(-50%) translateX(30px); /* 非表示時は少し右へ */
     }
     #messageArea.success {
         background-color: #e6ffed;
@@ -122,52 +126,53 @@
         color: var(--info-color);
     }
 
-    /* ★変更: ボタンをグループ化するコンテナのスタイルを調整 */
-    /* グリッドレイアウトになったため、button-groupは必ずしも必要ではないが、
-       論理的なグループ分けとして残し、flexの挙動を調整 */
+    /* ボタンをグループ化するコンテナのスタイル */
     .button-group {
-        display: contents; /* グループ自体はレイアウトに影響させない */
+        display: contents; /* グリッドレイアウトに馴染ませる */
     }
 
     .controls button, .controls select {
-      padding: 8px 15px; /* パディングを調整 */
+      padding: 10px 20px; /* パディングを増やす */
       cursor: pointer;
-      border: 1px solid var(--border-color);
-      border-radius: 4px; /* 角を控えめに */
-      background-color: var(--button-bg);
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      border-radius: 8px; /* 角を強調 */
+      background-color: #fff;
       color: var(--text-color);
-      font-size: 0.9em; /* フォントサイズを調整 */
-      transition: all 0.2s ease-out; /* アニメーションを短縮 */
+      font-size: 0.98em;
+      transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); /* なめらかなアニメーション */
       white-space: nowrap;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* 影を控えめに */
+      box-shadow: 0 3px 6px rgba(0,0,0,0.08);
       outline: none;
-      width: 100%; /* ★追加: グリッドに合わせて幅を100%に */
-      box-sizing: border-box; /* パディングとボーダーを幅に含める */
+      width: 100%; /* グリッドに合わせて幅を100%に */
+      box-sizing: border-box;
+      background: linear-gradient(to bottom, #ffffff, #f0f0f0); /* ボタンにグラデーション */
     }
 
     .controls button:hover {
-      background-color: var(--button-hover-bg);
+      background-color: #e9ecef;
       border-color: var(--primary-color);
-      transform: translateY(-1px); /* 動きを控えめに */
-      box-shadow: 0 3px 6px rgba(0,0,0,0.08); /* 影を控えめに */
+      transform: translateY(-3px); /* 動きを強調 */
+      box-shadow: var(--button-hover-shadow); /* 影を強調 */
+      background: linear-gradient(to bottom, #f0f0f0, #e0e0e0); /* ホバー時グラデーション */
     }
     .controls button:active {
       transform: translateY(0);
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
-      background-color: #e9ecef;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); /* 押し込み感を強調 */
+      background-color: #dee2e6;
+      background: linear-gradient(to top, #e0e0e0, #f0f0f0); /* アクティブ時グラデーション */
     }
 
     .controls select {
-      min-width: unset; /* 親のグリッドで幅を制御するため */
+      min-width: unset;
       appearance: none;
       background-image: url('data:image/svg+xml;utf8,<svg fill="%23343a40" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>');
       background-repeat: no-repeat;
-      background-position: right 8px center; /* アイコン位置調整 */
-      background-size: 16px; /* アイコンサイズ調整 */
+      background-position: right 10px center;
+      background-size: 18px;
     }
     .controls select:focus {
       border-color: var(--primary-color);
-      box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); /* フォーカス時の影を控えめに */
+      box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.3);
     }
 
     /* --- エディターとプレビューのコンテナスタイル --- */
@@ -175,8 +180,8 @@
       flex: 1;
       display: flex;
       overflow: hidden;
-      padding: 10px; /* パディングを調整 */
-      gap: 10px; /* ギャップを調整 */
+      padding: 15px; /* パディングを調整 */
+      gap: 15px; /* ギャップを調整 */
     }
 
     .editor-container, .preview-container {
@@ -184,8 +189,8 @@
       height: 100%;
       overflow: hidden;
       border: 1px solid var(--border-color);
-      border-radius: 5px; /* 角を控えめに */
-      box-shadow: 0 3px 8px rgba(0,0,0,0.08); /* 影を控えめに */
+      border-radius: var(--editor-border-radius); /* 角丸を適用 */
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1); /* 影を強調 */
       box-sizing: border-box;
       background-color: #fff;
       position: relative;
@@ -196,15 +201,15 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-color: rgba(0, 123, 255, 0.1); /* 透明度を上げる */
-        border: 2px dashed var(--primary-color);
+        background-color: rgba(0, 123, 255, 0.15); /* 透明度を調整 */
+        border: 3px dashed var(--primary-color); /* ボーダーを強調 */
         display: none;
         align-items: center;
         justify-content: center;
-        font-size: 1.8em; /* フォントサイズを調整 */
+        font-size: 2.5em; /* フォントサイズを調整 */
         color: var(--primary-dark);
         z-index: 5;
-        border-radius: 5px;
+        border-radius: var(--editor-border-radius);
         pointer-events: none;
     }
     .editor-container.drag-over .drag-overlay {
@@ -213,22 +218,22 @@
 
     .CodeMirror {
       height: 100%;
-      font-size: 1em; /* フォントサイズを調整 */
+      font-size: 1.1em;
       border: none;
-      padding: 5px;
-      border-radius: 5px;
+      padding: 10px; /* パディングを増やす */
+      border-radius: var(--editor-border-radius);
     }
     .CodeMirror-gutters {
-        background-color: #f0f0f0 !important; /* より明るいグレー */
-        border-right: 1px solid rgba(0, 0, 0, 0.05) !important;
-        border-top-left-radius: 5px;
-        border-bottom-left-radius: 5px;
+        background-color: var(--background-light) !important;
+        border-right: 1px solid rgba(0, 0, 0, 0.1) !important;
+        border-top-left-radius: var(--editor-border-radius);
+        border-bottom-left-radius: var(--editor-border-radius);
     }
     .CodeMirror-activeline-background {
-        background-color: rgba(0, 123, 255, 0.05) !important; /* 薄く */
+        background-color: rgba(0, 123, 255, 0.08) !important;
     }
     .CodeMirror-selected {
-        background-color: rgba(0, 123, 255, 0.15) !important; /* 薄く */
+        background-color: rgba(0, 123, 255, 0.2) !important;
     }
 
     iframe {
@@ -236,7 +241,31 @@
       height: 100%;
       border: none;
       background-color: #fff;
-      border-radius: 5px;
+      border-radius: var(--editor-border-radius);
+    }
+
+    /* スマートフォンでのアドレスバー対策 */
+    @media (max-width: 768px) {
+        .controls-wrapper {
+            /* ここでsafe-area-inset-topを使って、アドレスバーの領域を考慮 */
+            /* ただし、これはviewport-fit=coverとセットで効果を発揮するため、
+               ここではよりシンプルなpadding-topの調整で対応 */
+            padding-top: calc(15px + env(safe-area-inset-top)); /* env()はフォールバックも考慮 */
+            padding-bottom: 15px; /* 下部パディングも調整 */
+        }
+        .controls {
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* スマホではボタンを小さく */
+            gap: 10px;
+        }
+        .controls button, .controls select {
+            padding: 8px 12px;
+            font-size: 0.85em;
+        }
+        #messageArea {
+            min-width: 120px;
+            padding: 6px 12px;
+            font-size: 0.75em;
+        }
     }
   </style>
 </head>
@@ -247,15 +276,21 @@
       <button id="openFileBtn" title="ファイルを開く">ファイルを開く</button>
       <input type="file" id="fileInput" accept=".html,.txt" style="display:none">
       <button id="saveBtn" title="保存 (Ctrl+S)">保存</button>
-      <button id="undoBtn" title="元に戻す (Ctrl+Z)">元に戻す</button>
-      <button id="redoBtn" title="やり直し (Ctrl+Y)">やり直し</button>
-      <button id="copyBtn" title="選択範囲をコピー">コピー</button>
-      <button id="pasteBtn" title="クリップボードから貼り付け">貼り付け</button>
+      <div class="button-group">
+          <button id="undoBtn" title="元に戻す (Ctrl+Z)">元に戻す</button>
+          <button id="redoBtn" title="やり直し (Ctrl+Y)">やり直し</button>
+      </div>
+      <div class="button-group">
+          <button id="copyBtn" title="選択範囲をコピー">コピー</button>
+          <button id="pasteBtn" title="クリップボードから貼り付け">貼り付け</button>
+      </div>
       <button id="clearAllBtn" title="全て削除">全て削除</button>
       <button id="insertTemplateBtn" title="HTMLテンプレートを挿入">HTMLテンプレート</button>
       <button id="toggleLineNumbersBtn" title="行番号表示/非表示を切り替え">行番号</button>
-      <button id="searchBtn" title="検索 (Ctrl+F)">検索</button>
-      <button id="replaceBtn" title="置換 (Ctrl+H)">置換</button>
+      <div class="button-group">
+          <button id="searchBtn" title="検索 (Ctrl+F)">検索</button>
+          <button id="replaceBtn" title="置換 (Ctrl+H)">置換</button>
+      </div>
       <select id="themeSelect" title="エディターのテーマを選択">
           <option value="default">テーマ: 標準</option>
           <option value="dracula">テーマ: Dracula</option>
@@ -351,7 +386,7 @@
         doc.open();
         doc.write(content);
         doc.close();
-      }, 200); // 200ms の遅延に短縮
+      }, 300); // 300ms の遅延で更新（タイピング中のちらつき防止）
     }
 
     // 初期プレビュー
@@ -363,7 +398,7 @@
       updatePreview();
     });
 
-    // 各ボタン要素の取得 (一部はHTML構造変更で不要になったが、参照元がなくなるまで残しておく)
+    // 各ボタン要素の取得
     const copyBtn = document.getElementById('copyBtn');
     const pasteBtn = document.getElementById('pasteBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
@@ -400,7 +435,7 @@
         messageArea.className = '';
         messageText.textContent = '';
         messageIcon.innerHTML = '';
-      }, 2000); // 2秒に短縮
+      }, 2500); // 2.5秒後に非表示
     }
 
     // コピーボタン
@@ -412,7 +447,7 @@
       var text = cm.getSelection();
       navigator.clipboard.writeText(text)
         .then(() => showMessage("コピーしました", "success"))
-        .catch(err => showMessage("コピーできませんでした", "error")); // エラーメッセージを簡略化
+        .catch(err => showMessage("コピーできませんでした: " + err, "error"));
     });
 
     // 貼付けボタン
@@ -422,7 +457,7 @@
           cm.replaceSelection(text);
           showMessage("貼り付けました", "success");
         })
-        .catch(err => showMessage("貼り付けできませんでした", "error")); // エラーメッセージを簡略化
+        .catch(err => showMessage("貼り付けできませんでした: " + err, "error"));
     });
 
     // 全削除ボタン
@@ -480,7 +515,7 @@
       const selectedTheme = this.value;
       cm.setOption("theme", selectedTheme);
       localStorage.setItem("cmTheme", selectedTheme);
-      const themeName = this.options[this.selectedIndex].text.replace('テーマ: ', '');
+      const themeName = this.options[this.selectedIndex].text.replace('テーマ: ','');
       showMessage(`テーマを「${themeName}」に設定しました`, "info");
     });
 
@@ -506,11 +541,11 @@
     body {
       font-family: 'Noto Sans JP', sans-serif;
       margin: 20px;
-      background-color: #f8f8f8;
+      background-color: #f4f7f6;
       color: #333;
     }
     h1 {
-        color: #007acc;
+        color: #007bff;
     }
     p {
         line-height: 1.6;
@@ -520,6 +555,7 @@
 <body>
   <h1>Hello, World!</h1>
   <p>ここにコンテンツを追加してください。</p>
+  <p>このテンプレートは、基本的なHTML構造とシンプルなスタイルを含んでいます。</p>
 </body>
 </html>`;
         if (cm.getValue().trim() === "" || confirm("現在の内容を上書きしてHTMLテンプレートを挿入しますか？")) {
@@ -555,3 +591,60 @@
     });
 
     editorContainer.addEventListener('dragleave', () => {
+        editorContainer.classList.remove('drag-over');
+    });
+
+    editorContainer.addEventListener('drop', (e) => {
+        e.preventDefault();
+        editorContainer.classList.remove('drag-over');
+
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type === "text/html" || file.type === "text/plain" || file.name.endsWith('.html') || file.name.endsWith('.txt')) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    cm.setValue(evt.target.result);
+                    showMessage(`ファイル「${file.name}」をドラッグ＆ドロップで開きました`, "success");
+                };
+                reader.onerror = function() {
+                    showMessage("ファイルの読み込みに失敗しました。", "error");
+                };
+                reader.readAsText(file);
+            } else {
+                showMessage("HTMLまたはテキストファイルのみ対応しています。", "error");
+            }
+        }
+    });
+
+    // キーボードショートカット
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          saveBtn.click();
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          runBtn.click();
+        } else if (e.key === 'f' || e.key === 'F') {
+            e.preventDefault();
+            searchBtn.click();
+        } else if (e.key === 'h' || e.key === 'H') {
+            e.preventDefault();
+            replaceBtn.click();
+        } else if (e.key === 'z' || e.key === 'Z') {
+            e.preventDefault();
+            undoBtn.click();
+        } else if (e.key === 'y' || e.key === 'Y') {
+            e.preventDefault();
+            redoBtn.click();
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'z' || e.key === 'Z')) {
+          e.preventDefault();
+          redoBtn.click();
+      }
+    });
+  </script>
+</body>
+</html>
