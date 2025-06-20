@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF署名ツール</title>
+    
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+    <style>
+        /* ページの基本スタイル */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* 全体を囲むコンテナ */
+        .container {
+            max-width: 600px;
+            width: 90%;
+            margin: 20px;
+            padding: 30px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            color: #444;
+            margin-bottom: 25px;
+        }
+
+        /* ファイル入力欄のグループ */
+        .input-group {
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+        }
+        
+        input[type="file"]:hover {
+            border-color: #007bff;
+        }
+
+        /* 実行ボタン */
+        button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        /* 無効化されたボタンのスタイル */
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* 処理状況を表示するステータス欄 */
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+            min-height: 24px; /* メッセージの有無でレイアウトが崩れないように */
+        }
+        
+        .status-success {
+            color: #28a745;
+        }
+        
+        .status-error {
+            color: #dc3545;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>PDFに署名画像を追加</h1>
+        
+        <div class="input-group">
+            <label for="pdfFile">1. 契約書などのPDFファイルを選択</label>
+            <input type="file" id="pdfFile" accept=".pdf">
+        </div>
+        
+        <div class="input-group">
+            <label for="imageFile">2. 署名・印鑑の画像ファイル (PNG/JPG) を選択</label>
+            <input type="file" id="imageFile" accept="image/png, image/jpeg">
+        </div>
+        
+        <button id="signButton">署名してダウンロード</button>
+        
+        <p id="status"></p>
+    </div>
+
+    <script>
+        // pdf-libライブラリから必要なオブジェクトを取得
+        const { PDFDocument } = PDFLib;
+
+        // HTML要素を取得
+        const pdfFileInput = document.getElementById('pdfFile');
+        const imageFileInput = document.getElementById('imageFile');
+        const signButton = document.getElementById('signButton');
+        const statusEl = document.getElementById('status');
+
+        // ボタンがクリックされたときの処理
+        signButton.addEventListener('click', async () => {
+            // ファイルが選択されているかチェック
+            if (pdfFileInput.files.length === 0 || imageFileInput.files.length === 0) {
+                displayStatus('PDFファイルと署名画像の両方を選択してください。', 'error');
+                return;
+            }
+            
+            // 処理中はボタンを無効化
+            signButton.disabled = true;
+            displayStatus('処理中... しばらくお待ちください。');
+
+            try {
+                // --- ファイルの読み込み ---
+                const pdfBuffer = await pdfFileInput.files[0].arrayBuffer();
+                const imageBuffer = await imageFileInput.files[0].arrayBuffer();
+                const imageType = imageFileInput.files[0].type;
+
+                // --- PDFの処理 ---
+                // PDFドキュメントを読み込む
+                const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+                // 画像を埋め込む (JPGとPNGで処理を分ける)
+                let image;
+                if (imageType === 'image/jpeg') {
+                    image = await pdfDoc.embedJpg(imageBuffer);
+                } else {
+                    image = await pdfDoc.embedPng(imageBuffer);
+                }
+                
+                // --- 画像の描画 ---
+                // PDFの最初のページを取得
+                const pages = pdfDoc.getPages();
+                const firstPage = pages[0];
+
+                // 署名画像の描画サイズ
+                const imageSize = { width: 120, height: 60 };
+
+                // 署名を描画する座標 (ページの右下に配置)
+                const position = {
+                    x: firstPage.getWidth() - imageSize.width - 50, // 右から50pxの位置
+                    y: 70 // 下から70pxの位置
+                };
+                
+                // ページに画像を描画
+                firstPage.drawImage(image, {
+                    ...position,
+                    ...imageSize,
+                });
+
+                // --- 保存とダウンロード ---
+                // 変更を保存してPDFをバイト配列として生成
+                const signedPdfBytes = await pdfDoc.save();
+
+                // ダウンロード処理を呼び出す
+                download(signedPdfBytes, "signed-document.pdf", "application/pdf");
+                
+                displayStatus('完了しました！ダウンロードが開始されます。', 'success');
+
+            } catch (e) {
+                console.error(e);
+                displayStatus(`エラーが発生しました: ${e.message}`, 'error');
+            } finally {
+                // 処理が終わったらボタンを再度有効化
+                signButton.disabled = false;
+            }
+        });
+        
+        /**
+         * 処理ステータスを表示する関数
+         * @param {string} message 表示するメッセージ
+         * @param {string} type 'success' または 'error'
+         */
+        function displayStatus(message, type = '') {
+            statusEl.textContent = message;
+            statusEl.className = ''; // クラスをリセット
+            if (type === 'success') {
+                statusEl.classList.add('status-success');
+            } else if (type === 'error') {
+                statusEl.classList.add('status-error');
+            }
+        }
+
+        /**
+         * バイト配列からファイルを生成してダウンロードさせる関数
+         * @param {Uint8Array} bytes ファイルのバイト配列
+         * @param {string} filename ダウンロードするファイル名
+         * @param {string} mimeType ファイルのMIMEタイプ
+         */
+        function download(bytes, filename, mimeType) {
+            const blob = new Blob([bytes], { type: mimeType });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            // リンクを非表示で追加してクリックイベントを発火させ、その後削除する
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            // 生成したURLを解放
+            URL.revokeObjectURL(link.href);
+        }
+    </script>
+</body>
+</html>
