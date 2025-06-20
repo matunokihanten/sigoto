@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF結合ツール</title>
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <style>
+    /* ページ全体の基本スタイル */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans CJK JP", "Yu Gothic", sans-serif;
+      background-color: #f4f4f9;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start; /* 上部に寄せる */
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+
+    /* コンテナのスタイル */
+    .container {
+      max-width: 700px; /* 幅を少し広げる */
+      width: 100%;
+      background-color: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      text-align: center;
+      margin-top: 20px; /* 上部にマージン */
+    }
+
+    h1 {
+      color: #444;
+      margin-bottom: 25px;
+    }
+
+    /* 入力欄グループ */
+    .input-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      box-sizing: border-box;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      cursor: pointer; /* カーソルをポインターに */
+    }
+
+    input[type="file"]:hover {
+      border-color: #007bff;
+    }
+
+    /* ファイルリストのスタイル */
+    #fileList {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background-color: #f9f9f9;
+      min-height: 50px; /* ファイルがないときも領域を確保 */
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      cursor: grab; /* ドラッグ可能であることを示すカーソル */
+      background-color: #fff;
+      transition: background-color 0.2s ease;
+    }
+
+    .file-item:last-child {
+      border-bottom: none;
+    }
+
+    .file-item:hover {
+        background-color: #f0f0f0;
+    }
+
+    .file-item.dragging {
+        opacity: 0.5; /* ドラッグ中のアイテムを半透明に */
+    }
+
+    .file-item.drag-over {
+        border-top: 2px dashed #007bff; /* ドロップ位置を示す */
+    }
+     .file-item.drag-over-bottom {
+        border-bottom: 2px dashed #007bff; /* ドロップ位置を示す */
+    }
+
+
+    .file-item span {
+      flex-grow: 1; /* ファイル名が領域を占めるように */
+      text-align: left;
+      padding-left: 10px; /* ドラッグハンドルとの間にスペース */
+      word-break: break-all; /* 長いファイル名を折り返す */
+    }
+
+    .file-item .remove-btn {
+      background-color: #dc3545;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 0.8em;
+      margin-left: 10px;
+      transition: background-color 0.2s ease;
+    }
+
+    .file-item .remove-btn:hover {
+      background-color: #c82333;
+    }
+
+    /* ドラッグハンドル */
+    .drag-handle {
+        cursor: grab;
+        font-size: 1.2em;
+        color: #888;
+        padding: 0 5px;
+    }
+     .drag-handle:active {
+         cursor: grabbing;
+     }
+
+
+    /* ボタンのスタイル */
+    .button-group {
+        margin-top: 20px;
+    }
+    button {
+      width: 48%;
+      padding: 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin: 0 1%; /* ボタン間のスペースを調整 */
+      box-sizing: border-box;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    /* ステータス表示 */
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+      min-height: 24px; /* 領域を確保 */
+    }
+
+    .status-success {
+      color: #28a745;
+    }
+
+    .status-error {
+      color: #dc3545;
+    }
+     .status-info {
+        color: #007bff;
+     }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PDF結合ツール</h1>
+
+    <!-- ファイル選択 -->
+    <div class="input-group">
+      <label for="pdfFiles">1. 結合したいPDFファイルを選択 (複数選択可)</label>
+      <input type="file" id="pdfFiles" accept=".pdf" multiple>
+    </div>
+
+    <!-- ファイルリスト -->
+    <div class="input-group">
+        <label>2. 結合順を確認・並べ替え</label>
+        <ul id="fileList">
+            <!-- 選択されたファイルがここに表示される -->
+             <li style="padding: 10px; color: #666; text-align: center;">ファイルを選択してください。</li>
+        </ul>
+        <p style="font-size: 0.9em; color: #666; margin-top: 5px;">※ ファイルをドラッグして並べ替えられます。</p>
+    </div>
+
+
+    <!-- ボタン類 -->
+    <div class="button-group">
+        <button id="mergeButton" disabled>PDFを結合してダウンロード</button>
+        <button id="clearButton" disabled>リストをクリア</button>
+    </div>
+
+
+    <!-- ステータス表示 -->
+    <p id="status"></p>
+
+  </div>
+
+  <script>
+    const { PDFDocument } = PDFLib;
+
+    // HTML要素の取得
+    const pdfFilesInput = document.getElementById('pdfFiles');
+    const fileListEl = document.getElementById('fileList');
+    const mergeButton = document.getElementById('mergeButton');
+    const clearButton = document.getElementById('clearButton');
+    const statusEl = document.getElementById('status');
+
+    // 選択されたファイルとそのデータを保持する配列
+    // { name: 'file.pdf', file: Fileオブジェクト, arrayBuffer: ArrayBuffer } の形式で保持
+    let selectedFiles = [];
+
+    // ドラッグ＆ドロップ関連の変数
+    let draggedItem = null; // ドラッグ中の要素
+
+    // ステータス表示の関数
+    function displayStatus(message, type = '') {
+      statusEl.textContent = message;
+      statusEl.className = ''; // 既存のクラスをリセット
+      if (type === 'success') {
+        statusEl.classList.add('status-success');
+      } else if (type === 'error') {
+        statusEl.classList.add('status-error');
+      } else if (type === 'info') {
+        statusEl.classList.add('status-info');
+      }
+    }
+
+    // ファイルリストをUIに描画する関数
+    function renderFileList() {
+      fileListEl.innerHTML = ''; // リストをクリア
+      if (selectedFiles.length === 0) {
+        fileListEl.innerHTML = '<li style="padding: 10px; color: #666; text-align: center;">ファイルを選択してください。</li>';
+        mergeButton.disabled = true;
+        clearButton.disabled = true;
+        return;
+      }
+
+      selectedFiles.forEach((fileData, index) => {
+        const li = document.createElement('li');
+        li.classList.add('file-item');
+        li.setAttribute('draggable', true); // ドラッグ可能にする
+        li.dataset.index = index; // データ属性にインデックスを保存
+
+        // ドラッグハンドル
+        const handle = document.createElement('span');
+        handle.classList.add('drag-handle');
+        handle.textContent = '⠿'; // または他のアイコン（例: '☰'）
+        li.appendChild(handle);
+
+        // ファイル名
+        const span = document.createElement('span');
+        span.textContent = fileData.name;
+        li.appendChild(span);
+
+        // 削除ボタン
+        const removeBtn = document.createElement('button');
+        removeBtn.classList.add('remove-btn');
+        removeBtn.textContent = '削除';
+        removeBtn.addEventListener('click', () => {
+          removeFile(index);
+        });
+        li.appendChild(removeBtn);
+
+        fileListEl.appendChild(li);
+      });
+
+      // ドラッグ＆ドロップイベントリスナーを設定
+      addDragDropListeners();
+
+      // ボタンの状態を更新
+      mergeButton.disabled = selectedFiles.length < 2; // 2ファイル以上で有効
+      clearButton.disabled = false;
+    }
+
+    // ファイルをリストから削除する関数
+    function removeFile(index) {
+      selectedFiles.splice(index, 1); // 配列から削除
+      renderFileList(); // リストを再描画
+      displayStatus(''); // ステータスをクリア
+    }
+
+    // ドラッグ＆ドロップイベントリスナーを追加する関数
+    function addDragDropListeners() {
+        const items = fileListEl.querySelectorAll('.file-item');
+
+        items.forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('dragleave', handleDragLeave);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragend', handleDragEnd);
+        });
+    }
+
+    // ドラッグ開始時の処理
+    function handleDragStart(e) {
+        draggedItem = e.target;
+        e.dataTransfer.effectAllowed = 'move';
+        // e.dataTransfer.setData('text/plain', e.target.dataset.index); // 必要ならデータをセット
+        setTimeout(() => { // 少し遅延させてからクラスを追加 (ドラッグ元の要素が見えなくなるように)
+             draggedItem.classList.add('dragging');
+        }, 0);
+    }
+
+    // ドラッグ要素がドロップターゲットの上にある時の処理
+    function handleDragOver(e) {
+        e.preventDefault(); // デフォルトの挙動 (ドロップを許可しない) を無効にする
+        e.dataTransfer.dropEffect = 'move';
+
+        const targetItem = e.target.closest('.file-item');
+        if (targetItem && targetItem !== draggedItem) {
+             // ドロップ位置の視覚的なフィードバック
+             const rect = targetItem.getBoundingClientRect();
+             const middleY = rect.top + rect.height / 2;
+
+             // 一旦全ての drag-over クラスを削除
+             fileListEl.querySelectorAll('.file-item').forEach(item => {
+                 item.classList.remove('drag-over', 'drag-over-bottom');
+             });
+
+             if (e.clientY < middleY) {
+                 // アイテムの上半分にいる場合
+                 targetItem.classList.add('drag-over');
+             } else {
+                 // アイテムの下半分にいる場合
+                 targetItem.classList.add('drag-over-bottom');
+             }
+        }
+    }
+
+    // ドラッグ要素がドロップターゲットから離れた時の処理
+    function handleDragLeave(e) {
+         // targetItem.classList.remove('drag-over'); // 特定のアイテムから削除するなら
+         // ドロップターゲットから完全に離れたら全てのフィードバックを消す
+         if (!fileListEl.contains(e.relatedTarget)) { // relatedTargetで要素の外に出たか判定
+              fileListEl.querySelectorAll('.file-item').forEach(item => {
+                  item.classList.remove('drag-over', 'drag-over-bottom');
+              });
+         }
+    }
+
+    // ドラッグ要素がドロップされた時の処理
+    function handleDrop(e) {
+        e.preventDefault();
+
+        const targetItem = e.target.closest('.file-item');
+        if (targetItem && targetItem !== draggedItem) {
+            const draggedIndex = parseInt(draggedItem.dataset.index);
+            const targetIndex = parseInt(targetItem.dataset.index);
+
+            // 配列の要素を移動
+            const [removed] = selectedFiles.splice(draggedIndex, 1);
+            // ドロップ位置に応じて挿入場所を調整
+            const rect = targetItem.getBoundingClientRect();
+            const middleY = rect.top + rect.height / 2;
+            let insertIndex = targetIndex;
+            if (e.clientY > middleY) {
+                 insertIndex = targetIndex + 1;
+                 // 自身より後ろに移動する場合、spliceで要素が減った分を考慮
+                 if (draggedIndex < targetIndex) {
+                     insertIndex--;
+                 }
+            } else {
+                 // 自身より前に移動する場合、spliceで要素が減った分を考慮
+                 if (draggedIndex > targetIndex) {
+                     // insertIndexはそのままでOK
+                 } else {
+                     // 同じアイテムの上半分に落とした場合（これは本来起こらないはずだが念のため）
+                     // または直前のアイテムの下半分に落とした場合と同じになる
+                 }
+            }
+             // ターゲットがドラッグ元の直前/直後だった場合の調整
+             if (draggedIndex < targetIndex && insertIndex > draggedIndex + 1) {
+                  insertIndex--;
+             } else if (draggedIndex > targetIndex && insertIndex > targetIndex) {
+                  // insertIndexはそのままでOK
+             }
+
+
+            selectedFiles.splice(insertIndex, 0, removed);
+
+            renderFileList(); // リストを再描画してDOMの順序とデータ配列を一致させる
+        }
+
+        // ドラッグ終了時のクリーンアップ
+        handleDragEnd();
+    }
+
+    // ドラッグ終了時の処理
+    function handleDragEnd() {
+        fileListEl.querySelectorAll('.file-item').forEach(item => {
+            item.classList.remove('dragging', 'drag-over', 'drag-over-bottom');
+        });
+        draggedItem = null;
+    }
+
+
+    // PDFファイルを結合する関数
+    async function mergePdfs() {
+      if (selectedFiles.length < 2) {
+        displayStatus('結合するには2つ以上のPDFファイルを選択してください。', 'error');
+        return;
+      }
+
+      displayStatus('PDFの結合を開始します...', 'info');
+      mergeButton.disabled = true;
+      clearButton.disabled = true;
+      pdfFilesInput.disabled = true; // 処理中はファイル選択を無効化
+
+      try {
+        const mergedPdf = await PDFDocument.create();
+
+        for (const fileData of selectedFiles) {
+          displayStatus(`${fileData.name} を読み込んでいます...`, 'info');
+          let originalPdfDoc;
+          try {
+              // selectedFilesには既にarrayBufferが含まれている
+              originalPdfDoc = await PDFDocument.load(fileData.arrayBuffer);
+          } catch (e) {
+              console.error(`PDF読み込みエラー (${fileData.name}):`, e);
+              throw new Error(`${fileData.name} の読み込みに失敗しました。ファイルが破損しているか、対応していない形式かもしれません。`);
+          }
+
+
+          displayStatus(`${fileData.name} のページをコピーしています...`, 'info');
+          try {
+              const copiedPages = await mergedPdf.copyPages(originalPdfDoc, originalPdfDoc.getPageIndices());
+              copiedPages.forEach((page) => {
+                mergedPdf.addPage(page);
+              });
+          } catch (e) {
+               console.error(`ページコピーエラー (${fileData.name}):`, e);
+               throw new Error(`${fileData.name} のページのコピーに失敗しました。`);
+          }
+
+           // メモリ解放のため、元のPDFドキュメントは参照を解除する
+           originalPdfDoc = null;
+        }
+
+        displayStatus('結合されたPDFを保存しています...', 'info');
+        const mergedPdfBytes = await mergedPdf.save();
+
+        displayStatus('ダウンロードファイルを準備中です...', 'info');
+        const filename = "merged_document.pdf";
+        const blob = new Blob([mergedPdfBytes], { type: "application/pdf" });
+        const objectUrl = URL.createObjectURL(blob);
+
+        // ダウンロード処理 (前回の署名ツールと同じロジック)
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+          window.open(objectUrl, '_blank');
+        } else {
+          const link = document.createElement('a');
+          link.href = objectUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+
+        // オブジェクトURLの解放
+        // ダウンロード完了前に解放されると問題があるため、少し遅延させる
+        setTimeout(() => { URL.revokeObjectURL(objectUrl); }, 5000);
+
+
+        displayStatus('完了しました！結合されたPDFのダウンロードが開始されます。', 'success');
+
+      } catch (e) {
+        console.error("結合処理エラー:", e);
+        displayStatus(`エラーが発生しました: ${e.message}`, 'error');
+      } finally {
+        // 処理終了後にボタンとファイル選択を有効化
+        mergeButton.disabled = selectedFiles.length < 2;
+        clearButton.disabled = selectedFiles.length === 0;
+        pdfFilesInput.disabled = false;
+        // ファイル選択 input の値をリセット (同じファイルを再度選択できるようにするため)
+        pdfFilesInput.value = '';
+      }
+    }
+
+    // ファイル選択時のイベントハンドラ
+    pdfFilesInput.addEventListener('change', async (event) => {
+      const files = Array.from(event.target.files); // FileListを配列に変換
+
+      if (files.length === 0) {
+          displayStatus(''); // ファイルが選択されなかった場合はステータスをクリア
+          return;
+      }
+
+      displayStatus('ファイルの内容を読み込んでいます...', 'info');
+      // 新しいファイルを選択したら、既存のリストに追加する
+      // 完全に置き換える場合は selectedFiles = []; とする
+      // selectedFiles = []; // <-- 選択で置き換える場合
+
+      const readPromises = files.map(file => {
+          return new Promise((resolve, reject) => {
+              // PDFファイルのみを処理する
+              if (file.type !== 'application/pdf') {
+                  console.warn(`PDFファイルではありません: ${file.name} (${file.type})`);
+                  resolve(null); // nullを返してスキップ
+                  return;
+              }
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                  // 既存のファイル名と重複しないかチェック (簡易的な重複防止)
+                  const isDuplicate = selectedFiles.some(f => f.name === file.name && f.file.size === file.size);
+                  if (isDuplicate) {
+                      console.warn(`重複ファイルスキップ: ${file.name}`);
+                      resolve(null); // 重複ファイルはスキップ
+                  } else {
+                       resolve({ name: file.name, file: file, arrayBuffer: e.target.result });
+                  }
+              };
+              reader.onerror = (e) => {
+                  console.error(`ファイル読み込みエラー (${file.name}):`, e);
+                  displayStatus(`${file.name} の読み込みに失敗しました。`, 'error');
+                  resolve(null); // エラーでも処理を止めない
+              };
+              reader.readAsArrayBuffer(file);
+          });
+      });
+
+      const results = await Promise.all(readPromises);
+      // nullでない結果（正常に読み込めたPDFファイル）のみをフィルタリングして追加
+      const validFiles = results.filter(result => result !== null);
+
+      if (validFiles.length > 0) {
+           selectedFiles = selectedFiles.concat(validFiles); // 既存リストに追加
+           renderFileList(); // リストを再描画
+           displayStatus(`${validFiles.length}個のPDFファイルを追加しました。`, 'success');
+      } else {
+           displayStatus('有効なPDFファイルが選択されませんでした。', 'error');
+      }
+
+       // ファイル選択 input の値をリセット (同じファイルを再度選択できるようにするため)
+       event.target.value = '';
+    });
+
+    // 結合ボタンのイベントハンドラ
+    mergeButton.addEventListener('click', mergePdfs);
+
+    // クリアボタンのイベントハンドラ
+    clearButton.addEventListener('click', () => {
+        selectedFiles = []; // 配列を空にする
+        renderFileList(); // リストを再描画
+        displayStatus('ファイルリストをクリアしました。', 'info');
+         pdfFilesInput.value = ''; // ファイル選択 input の値もクリア
+    });
+
+    // 初期表示
+    renderFileList();
+
+    // ページを離れるときに作成したオブジェクトURLを解放する (念のため)
+    window.addEventListener('beforeunload', () => {
+      // 現在の結合処理で生成されたオブジェクトURLは、ダウンロード関数内で解放されるが、
+      // もし他の箇所で生成した場合はここで解放が必要になることがある。
+      // 今回のコードではダウンロード関数に任せているため、特にここで解放するものは無いが、
+      // 一般的なオブジェクトURLのリーク対策としてコメントアウトで残しておく。
+      // if (someObjectUrl) { URL.revokeObjectURL(someObjectUrl); }
+    });
+
+  </script>
+</body>
+</html>
