@@ -18,7 +18,7 @@
       margin: 0;
       padding: 20px;
     }
-    
+
     /* コンテナのスタイル */
     .container {
       max-width: 600px;
@@ -29,28 +29,29 @@
       padding: 30px;
       text-align: center;
     }
-    
+
     h1 {
       color: #444;
       margin-bottom: 25px;
     }
-    
+
     /* 入力欄グループ */
     .input-group {
       margin-bottom: 20px;
       text-align: left;
     }
-    
+
     label {
       display: block;
       margin-bottom: 8px;
       font-weight: bold;
       color: #555;
     }
-    
+
     input[type="file"],
     input[type="number"],
-    input[type="text"] {
+    input[type="text"],
+    input[type="color"] { /* color inputを追加 */
       width: 100%;
       padding: 10px;
       box-sizing: border-box;
@@ -58,13 +59,29 @@
       border-radius: 4px;
       background-color: #f9f9f9;
     }
-    
+
     input[type="file"]:hover,
     input[type="number"]:hover,
-    input[type="text"]:hover {
+    input[type="text"]:hover,
+    input[type="color"]:hover {
       border-color: #007bff;
     }
-    
+
+    /* テキスト設定用の横並びグループ */
+    .text-settings {
+        display: flex;
+        gap: 10px; /* 要素間の隙間 */
+    }
+    .text-settings .input-group {
+        flex: 1; /* 利用可能なスペースを均等に分割 */
+        margin-bottom: 0; /* 親の input-group でマージンを管理 */
+    }
+     .text-settings label {
+         font-weight: normal; /* ラベルの太さを調整 */
+         margin-bottom: 4px;
+     }
+
+
     /* ボタンのスタイル */
     button {
       width: 48%;
@@ -77,49 +94,60 @@
       font-weight: bold;
       cursor: pointer;
       transition: background-color 0.3s;
-      margin: 2%;
+      margin: 2% 1%; /* ボタン間のスペースを調整 */
+      box-sizing: border-box;
     }
-    
+
     button:hover {
       background-color: #0056b3;
     }
-    
+
     button:disabled {
       background-color: #cccccc;
       cursor: not-allowed;
     }
-    
+
     /* ステータス表示 */
     #status {
       margin-top: 20px;
       font-weight: bold;
       min-height: 24px;
     }
-    
+
     .status-success {
       color: #28a745;
     }
-    
+
     .status-error {
       color: #dc3545;
     }
-    
+     .status-info {
+        color: #007bff;
+     }
+
     /* プレビュー用iframe */
     #previewContainer {
       display: none;
       margin-top: 20px;
+      text-align: left; /* タイトルを左寄せに */
+    }
+    #previewContainer h2 {
+        margin-bottom: 10px;
+        color: #555;
+        font-size: 1.2em;
     }
     #pdfPreview {
       width: 100%;
       height: 500px;
       border: 1px solid #ddd;
+      background-color: #fff; /* プレビュー領域の背景色 */
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>PDFに署名画像を追加</h1>
-    
+
     <!-- ファイル選択 -->
     <div class="input-group">
       <label for="pdfFile">1. 契約書などのPDFファイルを選択</label>
@@ -129,7 +157,7 @@
       <label for="imageFile">2. 署名・印鑑の画像ファイル (PNG/JPG) を選択</label>
       <input type="file" id="imageFile" accept="image/png, image/jpeg">
     </div>
-    
+
     <!-- 追加設定 -->
     <div class="input-group">
       <label for="pageNum">3. 署名を追加するページ番号 (1ページ目から)</label>
@@ -151,18 +179,32 @@
       <label for="sigHeight">7. 署名画像の高さ (px)</label>
       <input type="number" id="sigHeight" min="1" value="60">
     </div>
+
+    <!-- 署名テキスト設定 -->
     <div class="input-group">
       <label for="signatureText">8. 署名テキスト (任意、画像の下に追加されます)</label>
       <input type="text" id="signatureText" placeholder="例: 秀和">
+      <div class="text-settings">
+          <div class="input-group">
+              <label for="textFontSize">フォントサイズ (px)</label>
+              <input type="number" id="textFontSize" min="1" value="12">
+          </div>
+           <div class="input-group">
+              <label for="textColor">色</label>
+              <input type="color" id="textColor" value="#000000">
+          </div>
+      </div>
+       <p style="font-size: 0.9em; color: #666; margin-top: 5px;">※ 日本語は正しく表示されない場合があります。</p>
     </div>
-    
+
+
     <!-- ボタン類 -->
     <button id="signButton">署名してダウンロード</button>
     <button id="previewButton">署名プレビュー</button>
-    
+
     <!-- ステータス表示 -->
     <p id="status"></p>
-    
+
     <!-- プレビュー表示用領域 -->
     <div id="previewContainer">
       <h2>プレビュー</h2>
@@ -176,6 +218,14 @@
     // HTML要素の取得
     const pdfFileInput = document.getElementById('pdfFile');
     const imageFileInput = document.getElementById('imageFile');
+    const pageNumInput = document.getElementById('pageNum');
+    const posXInput = document.getElementById('posX');
+    const posYInput = document.getElementById('posY');
+    const sigWidthInput = document.getElementById('sigWidth');
+    const sigHeightInput = document.getElementById('sigHeight');
+    const signatureTextInput = document.getElementById('signatureText');
+    const textFontSizeInput = document.getElementById('textFontSize'); // 追加
+    const textColorInput = document.getElementById('textColor');     // 追加
     const signButton = document.getElementById('signButton');
     const previewButton = document.getElementById('previewButton');
     const statusEl = document.getElementById('status');
@@ -193,8 +243,20 @@
         statusEl.classList.add('status-success');
       } else if (type === 'error') {
         statusEl.classList.add('status-error');
+      } else if (type === 'info') { // infoタイプを追加
+        statusEl.classList.add('status-info');
       }
     }
+
+    // 16進数カラーコードをRGBオブジェクトに変換する関数
+    function hexToRgb(hex) {
+        const bigint = parseInt(hex.slice(1), 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return rgb(r / 255, g / 255, b / 255);
+    }
+
 
     // ダウンロード処理（モバイルでは window.open を利用）
     function download(bytes, filename, mimeType) {
@@ -213,51 +275,93 @@
         link.click();
         document.body.removeChild(link);
       }
-      
+
       // ブラウザによっては即時解放がうまく働かないことがあるため、少し遅延させます
-      setTimeout(() => { URL.revokeObjectURL(objectUrl); }, 1000);
+      // また、ダウンロードが完了する前に解放されると問題が起こる可能性があるため、
+      // モバイルでのwindow.openの場合は解放しないか、ユーザー操作を待つなどの考慮が必要ですが、
+      // ここではシンプルに遅延解放としています。
+      setTimeout(() => { URL.revokeObjectURL(objectUrl); }, 5000); // 少し長めに遅延
     }
 
     // PDF を処理して署名画像やテキストを追加する関数
     async function processPDF() {
       // ファイル選択のチェック
-      if (pdfFileInput.files.length === 0 || imageFileInput.files.length === 0) {
-        throw new Error('PDFファイルと署名画像の両方を選択してください。');
+      if (pdfFileInput.files.length === 0) {
+        throw new Error('PDFファイルを選択してください。');
+      }
+      if (imageFileInput.files.length === 0) {
+        throw new Error('署名画像ファイルを選択してください。');
       }
 
+      displayStatus('PDFファイルを読み込んでいます...', 'info');
       // ファイルの読み込み
       const pdfBuffer = await pdfFileInput.files[0].arrayBuffer();
       const imageBuffer = await imageFileInput.files[0].arrayBuffer();
       const imageType = imageFileInput.files[0].type.toLowerCase();
 
+      displayStatus('PDFドキュメントを解析しています...', 'info');
       // PDF ドキュメントの読み込み
-      const pdfDoc = await PDFDocument.load(pdfBuffer);
-
-      // 画像の種類判定（jpeg, jpg, png に対応）
-      let image;
-      if (imageType.includes('jpeg') || imageType.includes('jpg')) {
-        image = await pdfDoc.embedJpg(imageBuffer);
-      } else if (imageType.includes('png')) {
-        image = await pdfDoc.embedPng(imageBuffer);
-      } else {
-        throw new Error(`未対応の画像形式です: ${imageType}`);
+      let pdfDoc;
+      try {
+         pdfDoc = await PDFDocument.load(pdfBuffer);
+      } catch (e) {
+         console.error("PDF読み込みエラー:", e);
+         throw new Error('PDFファイルの読み込みに失敗しました。ファイルが破損しているか、対応していない形式かもしれません。');
       }
 
+
+      displayStatus('署名画像を埋め込んでいます...', 'info');
+      // 画像の種類判定（jpeg, jpg, png に対応）
+      let image;
+      try {
+          if (imageType.includes('jpeg') || imageType.includes('jpg')) {
+            image = await pdfDoc.embedJpg(imageBuffer);
+          } else if (imageType.includes('png')) {
+            image = await pdfDoc.embedPng(imageBuffer);
+          } else {
+            throw new Error(`未対応の画像形式です: ${imageType}`);
+          }
+      } catch (e) {
+          console.error("画像埋め込みエラー:", e);
+          throw new Error('署名画像の埋め込みに失敗しました。画像ファイルが破損しているか、形式が正しくないかもしれません。');
+      }
+
+
       // ユーザー入力から配置情報を取得
-      const pageNum = parseInt(document.getElementById('pageNum').value);
+      const pageNum = parseInt(pageNumInput.value);
+      const posX = parseFloat(posXInput.value);
+      const posY = parseFloat(posYInput.value);
+      const sigWidth = parseFloat(sigWidthInput.value);
+      const sigHeight = parseFloat(sigHeightInput.value);
+      const signatureText = signatureTextInput.value;
+      const textFontSize = parseFloat(textFontSizeInput.value); // 追加
+      const textColorHex = textColorInput.value;               // 追加
+
+      // 入力値のバリデーション
+      if (isNaN(pageNum) || pageNum < 1) {
+           throw new Error('有効なページ番号を入力してください (1以上)。');
+      }
+      if (isNaN(posX) || isNaN(posY)) {
+           throw new Error('有効なX座標、Y座標を入力してください。');
+      }
+      if (isNaN(sigWidth) || sigWidth <= 0 || isNaN(sigHeight) || sigHeight <= 0) {
+           throw new Error('有効な署名画像の幅と高さを入力してください (1以上)。');
+      }
+      if (signatureText.trim() !== '' && (isNaN(textFontSize) || textFontSize <= 0)) {
+           throw new Error('署名テキストの有効なフォントサイズを入力してください (1以上)。');
+      }
+
+
       let pageIndex = pageNum - 1;
       const pages = pdfDoc.getPages();
       if (pageIndex < 0 || pageIndex >= pages.length) {
+        // 指定ページが存在しない場合は最終ページにする
         pageIndex = pages.length - 1;
-        displayStatus('指定されたページが存在しません。最終ページに署名を追加します。');
+        displayStatus(`指定されたページ (${pageNum}ページ目) が存在しません。最終ページ (${pages.length}ページ目) に署名を追加します。`, 'info');
       }
       const targetPage = pages[pageIndex];
 
-      const posX = parseFloat(document.getElementById('posX').value) || 50;
-      const posY = parseFloat(document.getElementById('posY').value) || 70;
-      const sigWidth = parseFloat(document.getElementById('sigWidth').value) || 120;
-      const sigHeight = parseFloat(document.getElementById('sigHeight').value) || 60;
-
+      displayStatus('署名画像を描画しています...', 'info');
       // 署名画像の描画
       targetPage.drawImage(image, {
         x: posX,
@@ -267,18 +371,32 @@
       });
 
       // 署名テキストの追加（入力がある場合）
-      const signatureText = document.getElementById('signatureText').value;
       if (signatureText.trim() !== '') {
-        const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-        targetPage.drawText(signatureText, {
-          x: posX,
-          y: posY - 15, // 画像の下に 15px 空ける
-          size: 12,
-          font: helveticaFont,
-          color: rgb(0, 0, 0),
-        });
+        displayStatus('署名テキストを追加しています...', 'info');
+        try {
+            const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+            const textColorRgb = hexToRgb(textColorHex); // カラーコードをRGBに変換
+
+            targetPage.drawText(signatureText, {
+              x: posX,
+              y: posY - (textFontSize * 1.2), // 画像の下にフォントサイズの1.2倍程度のスペースを空ける
+              size: textFontSize,
+              font: helveticaFont,
+              color: textColorRgb,
+            });
+             displayStatus('署名テキストを追加しました。', 'info');
+        } catch (e) {
+             console.error("テキスト描画エラー:", e);
+             // 日本語フォントエラーの場合は特別なメッセージを出す
+             if (e.message.includes('WinAnsi cannot encode')) {
+                  throw new Error('署名テキストに日本語などの標準フォントで対応していない文字が含まれています。英数字のみを使用してください。');
+             } else {
+                  throw new Error(`署名テキストの追加に失敗しました: ${e.message}`);
+             }
+        }
       }
 
+      displayStatus('PDFを保存しています...', 'info');
       // 変更を反映した PDF をバイト配列として生成
       const pdfBytes = await pdfDoc.save();
       return pdfBytes;
@@ -288,11 +406,11 @@
     signButton.addEventListener('click', async () => {
       signButton.disabled = true;
       previewButton.disabled = true;
-      displayStatus('処理中... しばらくお待ちください。');
-      previewContainer.style.display = 'none';
+      previewContainer.style.display = 'none'; // プレビューを非表示に
 
       try {
         const signedPdfBytes = await processPDF();
+        displayStatus('ダウンロードファイルを準備中です...', 'info');
         download(signedPdfBytes, "signed-document.pdf", "application/pdf");
         displayStatus('完了しました！ダウンロードが開始されます。', 'success');
       } catch (e) {
@@ -308,15 +426,18 @@
     previewButton.addEventListener('click', async () => {
       signButton.disabled = true;
       previewButton.disabled = true;
-      displayStatus('プレビューを生成中です...');
+      displayStatus('プレビューを生成中です...', 'info');
 
       try {
         const signedPdfBytes = await processPDF();
         const blob = new Blob([signedPdfBytes], { type: "application/pdf" });
+
         // 以前のプレビュー用 URL があれば解放する
         if (currentPreviewUrl) {
           URL.revokeObjectURL(currentPreviewUrl);
+          currentPreviewUrl = null; // 解放したらnullにする
         }
+
         currentPreviewUrl = URL.createObjectURL(blob);
         pdfPreview.src = currentPreviewUrl;
         previewContainer.style.display = 'block';
@@ -324,11 +445,21 @@
       } catch (e) {
         console.error(e);
         displayStatus(`エラーが発生しました: ${e.message}`, 'error');
+        previewContainer.style.display = 'none'; // エラー時はプレビューを非表示に
       } finally {
         signButton.disabled = false;
         previewButton.disabled = false;
       }
     });
+
+    // ページを離れるときに作成したオブジェクトURLを解放する
+    window.addEventListener('beforeunload', () => {
+      if (currentPreviewUrl) {
+        URL.revokeObjectURL(currentPreviewUrl);
+        currentPreviewUrl = null;
+      }
+    });
+
   </script>
 </body>
 </html>
