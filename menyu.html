@@ -294,6 +294,35 @@
             border: 2px solid #007bff;
         }
 
+        /* ▼▼▼ 変更点 ▼▼▼ */
+        .settings-group {
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background: #fff;
+        }
+        .settings-group h4 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .radio-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .radio-options label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .radio-options input {
+            margin-right: 8px;
+        }
+        /* ▲▲▲ 変更点 ▲▲▲ */
+
+
         @media (max-width: 768px) {
             .container {
                 flex-direction: column;
@@ -369,6 +398,25 @@
             </div>
 
             <div>
+                <div class="settings-group">
+                    <h4>🎨 背景の選択</h4>
+                    <div class="radio-options">
+                        <label><input type="radio" name="backgroundChoice" value="white" checked> ホワイト</label>
+                        <label><input type="radio" name="backgroundChoice" value="beige"> ベージュ</label>
+                        <label><input type="radio" name="backgroundChoice" value="light-gray"> ライトグレー</label>
+                        <label><input type="radio" name="backgroundChoice" value="dark-slate"> ダークスレート</label>
+                    </div>
+                </div>
+
+                <div class="settings-group">
+                    <h4>📐 レイアウトの選択</h4>
+                    <div class="radio-options">
+                        <label><input type="radio" name="layoutChoice" value="collage" checked> コラージュ風 (ランダム)</label>
+                        <label><input type="radio" name="layoutChoice" value="grid"> グリッド表示</label>
+                        <label><input type="radio" name="layoutChoice" value="list"> リスト表示</label>
+                        <label><input type="radio" name="layoutChoice" value="waterfall"> ウォーターフォール</label>
+                    </div>
+                </div>
                 <button class="btn btn-success" onclick="generateMenuImage()">🎨 コラージュメニューを生成</button>
                 <button class="btn btn-primary" onclick="saveMenuData()">💾 メニューを保存</button>
                 <div class="form-group" style="margin-top: 10px;">
@@ -416,14 +464,12 @@
 
         const ctx = outputCanvas.getContext('2d');
 
-        // Canvasの内部描画サイズ (A4比率)
         const CANVAS_WIDTH = 800;
-        const CANVAS_HEIGHT = 1067; // A4比率 (210/297 * 800)
+        const CANVAS_HEIGHT = 1067;
 
         outputCanvas.width = CANVAS_WIDTH;
         outputCanvas.height = CANVAS_HEIGHT;
 
-        // --- ドラッグ＆ドロップ機能 (ファイルアップロード) ---
         ['dragover', 'dragleave', 'drop'].forEach(eventName => {
             dropArea.addEventListener(eventName, (e) => {
                 e.preventDefault();
@@ -446,7 +492,6 @@
             });
         });
 
-        // --- 画像プレビュー機能 ---
         itemImageInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -477,7 +522,6 @@
             }
         });
 
-        // --- メニュー項目を追加または更新 ---
         function addOrUpdateMenuItem() {
             const name = itemNameInput.value.trim();
             const price = parseInt(itemPriceInput.value);
@@ -493,53 +537,42 @@
             }
 
             const newItem = {
-                id: editingItemId || Date.now(), // 編集中のIDがあればそれを使用、なければ新規
+                id: editingItemId || Date.now(),
                 name: name,
                 price: price,
                 image: currentImageData,
-                // 初期位置とサイズ (Canvasの比率に基づいて)
-                x: 0, // generateMenuImageで自動調整されるため、ここでは仮の値
-                y: 0,
-                width: 0,
-                height: 0,
-                rotation: 0
+                x: 0, y: 0, width: 0, height: 0, rotation: 0
             };
 
             if (editingItemId) {
-                // 既存の項目を更新
                 const index = menuItems.findIndex(item => item.id === editingItemId);
                 if (index !== -1) {
                     menuItems[index] = { ...menuItems[index], name: newItem.name, price: newItem.price, image: newItem.image };
                 }
-                editingItemId = null; // 編集モード終了
-                addOrUpdateBtn.textContent = '➕ リストに追加'; // ボタンのテキストを戻す
-                // 編集中のアイテムのハイライトを解除
+                editingItemId = null;
+                addOrUpdateBtn.textContent = '➕ リストに追加';
                 const prevEditingElement = document.querySelector('.menu-list-item.editing-item');
                 if (prevEditingElement) {
                     prevEditingElement.classList.remove('editing-item');
                 }
             } else {
-                // 新しい項目を追加
                 menuItems.push(newItem);
             }
 
             renderMenuList();
-            clearForm(); // フォームをクリア
+            clearForm();
         }
 
-        // --- リストからの項目削除 ---
         function deleteListItem(id) {
             if (confirm('この商品をリストから削除しますか？')) {
                 menuItems = menuItems.filter(item => item.id !== id);
                 renderMenuList();
-                // 編集中のアイテムが削除されたら編集モードを解除
                 if (editingItemId === id) {
                     clearForm();
                 }
-                // 再描画
-                if (menuItems.length > 0) {
+                if (menuItems.length > 0 && outputCanvas.style.display === 'block') {
                     generateMenuImage();
-                } else {
+                } else if (menuItems.length === 0) {
                     initialEmptyState.style.display = 'flex';
                     outputCanvas.style.display = 'none';
                     canvasButtons.style.display = 'none';
@@ -547,7 +580,6 @@
             }
         }
 
-        // --- リスト項目をクリックして編集 ---
         function editMenuItem(id) {
             const itemToEdit = menuItems.find(item => item.id === id);
             if (itemToEdit) {
@@ -556,13 +588,12 @@
                 imagePreview.src = itemToEdit.image;
                 imagePreview.style.display = 'block';
                 currentImageData = itemToEdit.image;
-                fileInputLabel.textContent = '✅ ' + (itemToEdit.name || '画像が選択されています'); // ファイル名表示
+                fileInputLabel.textContent = '✅ ' + (itemToEdit.name || '画像が選択されています');
                 fileInputLabel.style.background = '#56ab2f';
 
-                editingItemId = id; // 編集中のIDを設定
-                addOrUpdateBtn.textContent = '✏️ 更新'; // ボタンのテキストを変更
+                editingItemId = id;
+                addOrUpdateBtn.textContent = '✏️ 更新';
 
-                // 編集中のアイテムをハイライト
                 const currentEditingElement = document.querySelector('.menu-list-item.editing-item');
                 if (currentEditingElement) {
                     currentEditingElement.classList.remove('editing-item');
@@ -571,7 +602,6 @@
             }
         }
 
-        // --- 左側のメニューリストを表示 ---
         function renderMenuList() {
             if (menuItems.length === 0) {
                 menuList.innerHTML = `
@@ -593,7 +623,6 @@
             menuList.scrollTop = menuList.scrollHeight;
         }
 
-        // --- フォームをクリア ---
         function clearForm() {
             itemNameInput.value = '';
             itemPriceInput.value = '';
@@ -604,14 +633,12 @@
             fileInputLabel.style.background = '#667eea';
             editingItemId = null;
             addOrUpdateBtn.textContent = '➕ リストに追加';
-            // 編集中のアイテムのハイライトを解除
             const currentEditingElement = document.querySelector('.menu-list-item.editing-item');
             if (currentEditingElement) {
                 currentEditingElement.classList.remove('editing-item');
             }
         }
 
-        // --- 全ての項目をクリア ---
         function clearAllItems() {
             if (confirm('すべてのメニュー項目をクリアしますか？')) {
                 menuItems = [];
@@ -622,18 +649,16 @@
             }
         }
 
-        // --- メニューデータをJSONとして保存 ---
         function saveMenuData() {
             if (menuItems.length === 0) {
                 alert('保存するメニュー項目がありません。');
                 return;
             }
-            // 位置情報などは自動生成時に決定されるため、主要なデータのみ保存
             const dataToSave = menuItems.map(item => ({
                 id: item.id,
                 name: item.name,
                 price: item.price,
-                image: item.image // Base64データも保存
+                image: item.image
             }));
 
             const dataStr = JSON.stringify(dataToSave, null, 2);
@@ -647,7 +672,6 @@
             alert('メニューデータが保存されました！');
         }
 
-        // --- JSONファイルからメニューデータを読み込み ---
         loadMenuFile.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
@@ -661,17 +685,15 @@
                     try {
                         const loadedItems = JSON.parse(e.target.result);
                         if (Array.isArray(loadedItems) && loadedItems.every(item => item.name && item.price !== undefined && item.image)) {
-                            // 読み込んだデータに新しいIDを付与し、既存のIDと重複しないようにする
-                            // (古いIDは使わないことで、過去のデータとの衝突を防ぎ、新たに自動配置される)
                             menuItems = loadedItems.map(item => ({
-                                id: Date.now() + Math.random(), // 新しいユニークなIDを付与
+                                id: Date.now() + Math.random(),
                                 name: item.name,
                                 price: item.price,
                                 image: item.image,
-                                x: 0, y: 0, width: 0, height: 0, rotation: 0 // 位置情報は初期化され、再生成時に決定される
+                                x: 0, y: 0, width: 0, height: 0, rotation: 0
                             }));
                             renderMenuList();
-                            generateMenuImage(); // 読み込み後、すぐにメニューを生成して表示
+                            generateMenuImage();
                             alert(`${menuItems.length}個のメニュー項目が読み込まれました！`);
                         } else {
                             alert('有効なメニューデータ形式ではありません。');
@@ -682,11 +704,114 @@
                     }
                 };
                 reader.readAsText(file, 'UTF-8');
-                e.target.value = ''; // ファイル入力をリセット
+                e.target.value = '';
             }
         });
 
-        // --- コラージュメニューを生成 ---
+
+        // --- ▼▼▼ 変更点 (ここから) ▼▼▼ ---
+
+        // レイアウト適用: コラージュ風
+        function applyCollageLayout(items, usableArea) {
+            const placedRects = [];
+            const minPadding = 20;
+            const shuffledItems = [...items].sort(() => Math.random() - 0.5);
+
+            shuffledItems.forEach(item => {
+                const baseItemWidth = CANVAS_WIDTH * 0.3;
+                const baseItemHeight = baseItemWidth * 0.75;
+                let placed = false;
+                for (let i = 0; i < 100; i++) { // 試行回数
+                    const scale = 0.8 + Math.random() * 0.4;
+                    const w = baseItemWidth * scale;
+                    const h = baseItemHeight * scale;
+                    const x = usableArea.x + Math.random() * (usableArea.width - w);
+                    const y = usableArea.y + Math.random() * (usableArea.height - h);
+                    const rotation = (Math.random() - 0.5) * 10 * Math.PI / 180;
+
+                    let overlap = placedRects.some(rect =>
+                        x < rect.x + rect.w + minPadding && x + w > rect.x - minPadding &&
+                        y < rect.y + rect.h + minPadding && y + h > rect.y - minPadding
+                    );
+
+                    if (!overlap) {
+                        item.x = x; item.y = y; item.width = w; item.height = h; item.rotation = rotation;
+                        placedRects.push({ x, y, w, h });
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) { // 配置失敗でもとりあえず配置
+                    item.x = usableArea.x + Math.random() * (usableArea.width - baseItemWidth);
+                    item.y = usableArea.y + Math.random() * (usableArea.height - baseItemHeight);
+                    item.width = baseItemWidth; item.height = baseItemHeight; item.rotation = 0;
+                }
+            });
+        }
+
+        // レイアウト適用: グリッド
+        function applyGridLayout(items, usableArea) {
+            const count = items.length;
+            const cols = Math.ceil(Math.sqrt(count));
+            const rows = Math.ceil(count / cols);
+            const padding = 40;
+            
+            const cellWidth = (usableArea.width - padding * (cols + 1)) / cols;
+            const cellHeight = (usableArea.height - padding * (rows + 1)) / rows;
+            const itemWidth = Math.min(cellWidth, cellHeight * 1.2);
+            const itemHeight = itemWidth / 1.2;
+
+            items.forEach((item, i) => {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
+                item.x = usableArea.x + padding + col * (cellWidth + padding) + (cellWidth - itemWidth) / 2;
+                item.y = usableArea.y + padding + row * (cellHeight + padding) + (cellHeight - itemHeight) / 2;
+                item.width = itemWidth;
+                item.height = itemHeight;
+                item.rotation = 0;
+            });
+        }
+        
+        // レイアウト適用: リスト
+        function applyListLayout(items, usableArea) {
+            const padding = 20;
+            const itemHeight = (usableArea.height - padding * (items.length + 1)) / items.length;
+            const itemWidth = Math.min(itemHeight * 1.5, usableArea.width * 0.7);
+
+            items.forEach((item, i) => {
+                item.width = itemWidth;
+                item.height = itemHeight;
+                item.x = usableArea.x + (usableArea.width - itemWidth) / 2; // 中央揃え
+                item.y = usableArea.y + padding + i * (itemHeight + padding);
+                item.rotation = 0;
+            });
+        }
+        
+        // レイアウト適用: ウォーターフォール
+        function applyWaterfallLayout(items, usableArea) {
+            const cols = items.length > 5 ? 3 : 2;
+            const padding = 20;
+            const colWidth = (usableArea.width - padding * (cols + 1)) / cols;
+            const colHeights = Array(cols).fill(usableArea.y + padding);
+
+            items.forEach(item => {
+                const itemWidth = colWidth;
+                const itemHeight = colWidth * (0.75 + Math.random() * 0.5); // 高さを少しランダムに
+
+                const minHeight = Math.min(...colHeights);
+                const targetCol = colHeights.indexOf(minHeight);
+
+                item.width = itemWidth;
+                item.height = itemHeight;
+                item.x = usableArea.x + padding + targetCol * (colWidth + padding);
+                item.y = minHeight;
+                item.rotation = 0;
+                
+                colHeights[targetCol] += itemHeight + padding;
+            });
+        }
+
+
         async function generateMenuImage() {
             if (menuItems.length === 0) {
                 alert('コラージュを作成するメニュー項目がありません。');
@@ -697,102 +822,60 @@
             outputCanvas.style.display = 'block';
             canvasButtons.style.display = 'flex';
 
-            // Canvasをクリア
-            ctx.fillStyle = '#ffffff';
+            // ユーザーの選択を取得
+            const backgroundChoice = document.querySelector('input[name="backgroundChoice"]:checked').value;
+            const layoutChoice = document.querySelector('input[name="layoutChoice"]:checked').value;
+
+            // 背景と文字色を設定
+            let bgColor, textColor, titleColor;
+            switch (backgroundChoice) {
+                case 'beige':
+                    bgColor = '#f5f5dc'; textColor = '#3a2b0a'; titleColor = '#5c481a';
+                    break;
+                case 'light-gray':
+                    bgColor = '#f5f5f5'; textColor = '#333333'; titleColor = '#000000';
+                    break;
+                case 'dark-slate':
+                    bgColor = '#2f4f4f'; textColor = '#ffffff'; titleColor = '#ffffff';
+                    break;
+                case 'white':
+                default:
+                    bgColor = '#ffffff'; textColor = '#333333'; titleColor = '#000000';
+            }
+            
+            ctx.fillStyle = bgColor;
             ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-            // タイトル部分
-            ctx.fillStyle = '#333';
+            // タイトル
+            ctx.fillStyle = titleColor;
             ctx.font = 'bold 60px "Impact", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
             ctx.fillText('OUR SPECIAL MENU', CANVAS_WIDTH / 2, 50);
 
-            // サブタイトル
-            ctx.font = '24px Arial';
-            ctx.fillStyle = '#666';
-            ctx.fillText('Delightful Dishes & Drinks', CANVAS_WIDTH / 2, 120);
+            const usableArea = { x: 0, y: 150, width: CANVAS_WIDTH, height: CANVAS_HEIGHT - 180 };
 
-            let loadedImagePromises = [];
-
-            // アイテムの配置エリアを定義 (タイトル部分を除く)
-            const usableArea = {
-                x: 0,
-                y: 180, // タイトルとサブタイトルの下から開始
-                width: CANVAS_WIDTH,
-                height: CANVAS_HEIGHT - 180
-            };
-
-            // 重なり防止アルゴリズム
-            const placedRects = []; // 配置済みのアイテムの領域を保存
-            const minPadding = 20; // アイテム間の最小パディング
-            
-            // アイテムをランダムにシャッフルして配置を試みる
-            const shuffledItems = [...menuItems].sort(() => Math.random() - 0.5);
-
-            for (let i = 0; i < shuffledItems.length; i++) {
-                const item = shuffledItems[i];
-                
-                // 初期サイズ (Canvasの比率に基づいて)
-                const baseItemWidth = CANVAS_WIDTH * 0.3;
-                const baseItemHeight = baseItemWidth * 0.75; // 例: 4:3のアスペクト比
-
-                let attempts = 0;
-                let placed = false;
-                while (attempts < 100 && !placed) { // 最大100回試行
-                    const imgSizeScale = 0.8 + Math.random() * 0.4; // 0.8倍から1.2倍
-                    const currentWidth = baseItemWidth * imgSizeScale;
-                    const currentHeight = baseItemHeight * imgSizeScale;
-
-                    const x = usableArea.x + Math.random() * (usableArea.width - currentWidth);
-                    const y = usableArea.y + Math.random() * (usableArea.height - currentHeight);
-                    
-                    const rotation = (Math.random() - 0.5) * 10 * Math.PI / 180; // -5度から5度
-
-                    // 衝突判定用に回転を考慮したバウンディングボックスを計算 (簡易版)
-                    // ここでは簡易的に、回転しない四角形で重なりを判定
-                    let minX = x;
-                    let maxX = x + currentWidth;
-                    let minY = y;
-                    let maxY = y + currentHeight;
-                    
-                    // 重なり判定
-                    let overlap = false;
-                    for (const rect of placedRects) {
-                        if (minX < rect.maxX + minPadding && maxX > rect.minX - minPadding &&
-                            minY < rect.maxY + minPadding && maxY > rect.minY - minPadding) {
-                            overlap = true;
-                            break;
-                        }
-                    }
-
-                    if (!overlap) {
-                        item.x = x;
-                        item.y = y;
-                        item.width = currentWidth;
-                        item.height = currentHeight;
-                        item.rotation = rotation;
-                        placedRects.push({ minX, maxX, minY, maxY }); // 簡易的なAABBを保存
-                        placed = true;
-                    }
-                    attempts++;
-                }
-                if (!placed) {
-                    console.warn(`Could not place item ${item.name} without overlap after ${attempts} attempts. Placing anyway.`);
-                    // 最終的に配置できなかった場合でも、一旦どこかに配置する
-                    item.x = usableArea.x + Math.random() * (usableArea.width - item.width);
-                    item.y = usableArea.y + Math.random() * (usableArea.height - item.height);
-                }
+            // 選択されたレイアウトを適用
+            switch(layoutChoice) {
+                case 'grid':
+                    applyGridLayout(menuItems, usableArea);
+                    break;
+                case 'list':
+                    applyListLayout(menuItems, usableArea);
+                    break;
+                case 'waterfall':
+                    applyWaterfallLayout(menuItems, usableArea);
+                    break;
+                case 'collage':
+                default:
+                    applyCollageLayout(menuItems, usableArea);
             }
 
-
-            // 各アイテムをキャンバスに描画
-            for (let i = 0; i < menuItems.length; i++) {
-                const item = menuItems[i];
-                const img = new Image();
-                img.src = item.image;
-
-                loadedImagePromises.push(new Promise((resolve) => {
+            // 画像の読み込みと描画
+            let loadedImagePromises = menuItems.map(item => {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.src = item.image;
                     img.onload = () => {
                         ctx.save();
                         ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
@@ -802,44 +885,56 @@
                         ctx.shadowBlur = 15;
                         ctx.shadowOffsetX = 5;
                         ctx.shadowOffsetY = 5;
+                        
+                        // 画像を描画
                         ctx.drawImage(img, -item.width / 2, -item.height / 2, item.width, item.height);
+                        ctx.restore(); // 影などの設定を元に戻すために一度restore
+                        
+                        // テキストを描画 (影なし)
+                        ctx.save();
+                        ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
+                        ctx.rotate(item.rotation);
 
-                        ctx.shadowColor = 'transparent'; 
-                        ctx.shadowBlur = 0;
-                        ctx.shadowOffsetX = 0;
-                        ctx.shadowOffsetY = 0;
-
-                        ctx.fillStyle = '#000000';
-                        ctx.font = `bold ${item.width / 10 + 10}px Arial`;
+                        ctx.fillStyle = textColor;
                         ctx.textAlign = 'center';
-                        ctx.textBaseline = 'middle';
-                        ctx.fillText(item.name, 0, item.height / 2 - 20);
+                        ctx.textBaseline = 'bottom';
+                        
+                        const priceFontSize = Math.max(12, item.width / 12);
+                        const nameFontSize = Math.max(14, item.width / 11);
 
-                        ctx.fillStyle = '#000000';
-                        ctx.font = `bold ${item.width / 12 + 8}px Arial`;
-                        ctx.fillText(`¥${item.price.toLocaleString()}`, 0, item.height / 2 + 10);
+                        // テキストの背景を少し暗くして読みやすくする
+                        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                        ctx.fillRect(-item.width/2, item.height/2 - (nameFontSize + priceFontSize + 15), item.width, nameFontSize + priceFontSize + 15);
+
+                        ctx.fillStyle = '#ffffff'; // 文字は白
+                        ctx.font = `bold ${nameFontSize}px Arial`;
+                        ctx.fillText(item.name, 0, item.height / 2 - priceFontSize - 5);
+
+                        ctx.font = `bold ${priceFontSize}px Arial`;
+                        ctx.fillText(`¥${item.price.toLocaleString()}`, 0, item.height / 2 - 5);
+                        
                         ctx.restore();
                         resolve();
                     };
                     img.onerror = () => {
-                        console.warn(`Failed to load image for item: ${item.name}. Skipping this image.`);
-                        resolve();
+                        console.warn(`Failed to load image for item: ${item.name}`);
+                        resolve(); // エラーでも処理を続ける
                     };
-                }));
-            }
+                });
+            });
 
             await Promise.all(loadedImagePromises);
             alert('コラージュメニューが生成されました！');
         }
+        
+        // --- ▲▲▲ 変更点 (ここまで) ▲▲▲ ---
 
-        // --- Canvas画像を最終的にダウンロード ---
         function downloadFinalImage() {
             if (menuItems.length === 0) {
                 alert('ダウンロードするメニューがありません。まずメニューを生成してください。');
                 return;
             }
 
-            // Canvasをダウンロード
             outputCanvas.toBlob(function(blob) {
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(blob);
@@ -850,14 +945,12 @@
             }, 'image/png');
         }
 
-        // --- エンターキーでの追加機能 ---
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && (e.target.id === 'itemName' || e.target.id === 'itemPrice')) {
                 addOrUpdateMenuItem();
             }
         });
 
-        // 初期表示
         renderMenuList();
     </script>
 </body>
