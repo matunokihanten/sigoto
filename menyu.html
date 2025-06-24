@@ -215,7 +215,7 @@
             border-radius: 5px;
             margin-right: 10px;
             text-align: center;
-            line-height: 1.2;
+            line-height: 1.2; /* Adjusted for better text wrapping */
         }
 
         .menu-list-item:last-child {
@@ -258,6 +258,7 @@
             align-items: center;
             justify-content: flex-start;
             position: relative;
+            min-height: 400px; /* Ensure panel has some height */
         }
 
         #outputCanvas {
@@ -282,6 +283,11 @@
         .empty-state {
             text-align: center;
             color: #666;
+            flex-grow: 1; /* Make it take available space */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
         }
 
         .empty-state .icon {
@@ -456,11 +462,20 @@
                 </div>
 
                 <button class="btn btn-success" onclick="generateMenuImage()">🎨 コラージュメニューを生成</button>
-                <button class="btn btn-primary" onclick="saveMenuData()">💾 メニューを保存</button>
+                
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <button class="btn btn-primary" onclick="saveMenuDataAsJson()">💾 JSON保存</button>
+                    <button class="btn btn-primary" onclick="saveMenuDataAsCsv()">💾 CSV保存</button>
+                </div>
+                
                 <div class="form-group" style="margin-top: 10px;">
+                    <div class="file-input-wrapper" style="margin-bottom: 5px;">
+                        <input type="file" id="loadMenuJsonFile" class="file-input" accept=".json">
+                        <div class="file-input-label">📁 JSON読み込み</div>
+                    </div>
                     <div class="file-input-wrapper">
-                        <input type="file" id="loadMenuFile" class="file-input" accept=".json">
-                        <div class="file-input-label">📁 メニューを読み込み</div>
+                        <input type="file" id="loadMenuCsvFile" class="file-input" accept=".csv">
+                        <div class="file-input-label">📁 CSV読み込み</div>
                     </div>
                 </div>
                 <button class="btn btn-danger" onclick="clearAllItems()">🗑️ 全てクリア</button>
@@ -498,9 +513,10 @@
         const initialEmptyState = document.getElementById('initialEmptyState');
         const canvasButtons = document.getElementById('canvasButtons');
         const dropArea = document.getElementById('dropArea');
-        const loadMenuFile = document.getElementById('loadMenuFile');
+        const loadMenuJsonFile = document.getElementById('loadMenuJsonFile'); // JSON用
+        const loadMenuCsvFile = document.getElementById('loadMenuCsvFile'); // CSV用
         const addOrUpdateBtn = document.getElementById('addOrUpdateBtn');
-        const menuTitleInput = document.getElementById('menuTitle'); // 新しく追加したタイトル入力フィールド
+        const menuTitleInput = document.getElementById('menuTitle');
 
         const ctx = outputCanvas.getContext('2d');
 
@@ -558,6 +574,7 @@
                 reader.readAsDataURL(file);
             } else {
                 currentImageData = null;
+                imagePreview.src = ''; // Clear the image src
                 imagePreview.style.display = 'none';
                 fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
                 fileInputLabel.style.background = '#667eea';
@@ -628,6 +645,9 @@
                 itemNameInput.value = itemToEdit.name;
                 itemPriceInput.value = itemToEdit.price;
                 
+                // Clear the file input visually
+                itemImageInput.value = ''; 
+
                 if (itemToEdit.image) {
                     imagePreview.src = itemToEdit.image;
                     imagePreview.style.display = 'block';
@@ -658,8 +678,9 @@
             if (menuItems.length === 0) {
                 menuList.innerHTML = `
                     <li class="empty-state">
-                        <div class="icon">✨</div>
-                        <p>商品を追加してください</p>
+                        <div class="icon">📝</div>
+                        <p>商品がまだありません。</p>
+                        <p>上記フォームから追加してください。</p>
                     </li>
                 `;
                 return;
@@ -683,6 +704,7 @@
             itemNameInput.value = '';
             itemPriceInput.value = '';
             itemImageInput.value = ''; // ファイル選択をリセット
+            imagePreview.src = ''; // Clear the image src
             imagePreview.style.display = 'none';
             currentImageData = null;
             fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
@@ -708,7 +730,7 @@
         }
 
         // メニューデータをJSONファイルとして保存
-        function saveMenuData() {
+        function saveMenuDataAsJson() {
             if (menuItems.length === 0) {
                 alert('保存するメニュー項目がありません。');
                 return;
@@ -729,15 +751,46 @@
             link.download = `menu_data_${new Date().toISOString().split('T')[0]}.json`;
             link.click();
             
-            alert('メニューデータが保存されました！');
+            alert('メニューデータがJSONとして保存されました！');
+        }
+
+        // メニューデータをCSVファイルとして保存
+        function saveMenuDataAsCsv() {
+            if (menuItems.length === 0) {
+                alert('保存するメニュー項目がありません。');
+                return;
+            }
+
+            // CSVヘッダー
+            let csvContent = "商品名,価格,画像データURL\n";
+
+            // 各アイテムをCSV行に変換
+            menuItems.forEach(item => {
+                // 値にカンマが含まれる可能性があるため、ダブルクォートで囲む
+                const escapeCsv = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
+                const name = escapeCsv(item.name);
+                const price = item.price;
+                const image = escapeCsv(item.image); 
+                csvContent += `${name},${price},${image}\n`;
+            });
+
+            const dataBlob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `menu_data_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            
+            alert('メニューデータがCSVとして保存されました！');
         }
 
         // JSONファイルからメニューデータを読み込み
-        loadMenuFile.addEventListener('change', function(e) {
+        loadMenuJsonFile.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
                 if (!file.name.endsWith('.json')) {
                     alert('JSONファイルを選択してください。');
+                    e.target.value = ''; // Reset file input
                     return;
                 }
                 
@@ -770,10 +823,97 @@
             }
         });
 
+        // CSVファイルからメニューデータを読み込み
+        loadMenuCsvFile.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (!file.name.endsWith('.csv')) {
+                    alert('CSVファイルを選択してください。');
+                    e.target.value = ''; // Reset file input
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const lines = e.target.result.split('\n').filter(line => line.trim() !== '');
+                        if (lines.length === 0) {
+                            alert('CSVファイルが空です。');
+                            e.target.value = ''; // Reset file input
+                            return;
+                        }
+
+                        // CSV parsing function that handles quoted fields
+                        const parseCsvLine = (line) => {
+                            const values = [];
+                            let inQuote = false;
+                            let currentVal = '';
+                            for (let i = 0; i < line.length; i++) {
+                                const char = line[i];
+                                if (char === '"') {
+                                    if (i + 1 < line.length && line[i+1] === '"') {
+                                        currentVal += '"'; // Escaped quote
+                                        i++;
+                                    } else {
+                                        inQuote = !inQuote;
+                                    }
+                                } else if (char === ',' && !inQuote) {
+                                    values.push(currentVal);
+                                    currentVal = '';
+                                } else {
+                                    currentVal += char;
+                                }
+                            }
+                            values.push(currentVal); // Add the last value
+                            return values;
+                        };
+
+                        // Skip header and process data lines
+                        const dataLines = lines.slice(1); 
+                        const loadedItems = [];
+
+                        dataLines.forEach(line => {
+                            const values = parseCsvLine(line);
+                            // Ensure enough columns before accessing
+                            if (values.length >= 2) { 
+                                const name = values[0];
+                                const price = parseInt(values[1]);
+                                const image = values[2] || null; // Image data URL is optional
+
+                                if (name && !isNaN(price) && price > 0) {
+                                    loadedItems.push({
+                                        id: Date.now() + Math.random(),
+                                        name: name,
+                                        price: price,
+                                        image: image,
+                                        x: 0, y: 0, width: 0, height: 0, rotation: 0
+                                    });
+                                }
+                            }
+                        });
+
+                        if (loadedItems.length > 0) {
+                            menuItems = loadedItems;
+                            renderMenuList();
+                            generateMenuImage();
+                            alert(`${menuItems.length}個のメニュー項目がCSVから読み込まれました！`);
+                        } else {
+                            alert('CSVファイルから有効なメニュー項目を読み込めませんでした。形式を確認してください。(商品名,価格,画像データURL)');
+                        }
+                    } catch (error) {
+                        console.error('CSV file loading error:', error);
+                        alert('CSVファイルの読み込みに失敗しました。正しいCSVファイルか、形式が「商品名,価格,画像データURL」になっているか確認してください。');
+                    }
+                };
+                reader.readAsText(file, 'UTF-8');
+                e.target.value = ''; // ファイル選択をリセット
+            }
+        });
+
         // レイアウト関数群
         function applyCollageLayout(items, usableArea) {
             const placedRects = [];
-            const minPadding = 20;
+            const minPadding = 30; // Increased padding for better separation
             const shuffledItems = [...items].sort(() => Math.random() - 0.5); // アイテムをシャッフル
 
             shuffledItems.forEach(item => {
@@ -793,9 +933,24 @@
                         y < rect.y + rect.h + minPadding && y + h > rect.y - minPadding
                     );
 
-                    if (!overlap) {
+                    // Ensure item is fully within usableArea after rotation
+                    const corners = [
+                        {cx: x, cy: y}, {cx: x + w, cy: y},
+                        {cx: x, cy: y + h}, {cx: x + w, cy: y + h}
+                    ].map(p => {
+                        const rotatedX = (p.cx - (x + w/2)) * Math.cos(rotation) - (p.cy - (y + h/2)) * Math.sin(rotation) + (x + w/2);
+                        const rotatedY = (p.cx - (x + w/2)) * Math.sin(rotation) + (p.cy - (y + h/2)) * Math.cos(rotation) + (y + h/2);
+                        return {x: rotatedX, y: rotatedY};
+                    });
+
+                    const withinBounds = corners.every(corner =>
+                        corner.x >= usableArea.x && corner.x <= usableArea.x + usableArea.width &&
+                        corner.y >= usableArea.y && corner.y <= usableArea.y + usableArea.height
+                    );
+
+                    if (!overlap && withinBounds) {
                         item.x = x; item.y = y; item.width = w; item.height = h; item.rotation = rotation;
-                        placedRects.push({ x, y, w, h });
+                        placedRects.push({ x, y, w, h }); // Store bounding box for overlap check
                         placed = true;
                         break;
                     }
@@ -810,14 +965,29 @@
 
         function applyGridLayout(items, usableArea) {
             const count = items.length;
-            const cols = Math.ceil(Math.sqrt(count)); // 正方形に近いグリッド
+            const cols = Math.ceil(Math.sqrt(count)); 
             const rows = Math.ceil(count / cols);
             const padding = 40;
             
-            const cellWidth = (usableArea.width - padding * (cols + 1)) / cols;
-            const cellHeight = (usableArea.height - padding * (rows + 1)) / rows;
-            const itemWidth = Math.min(cellWidth - 20, cellHeight * 1.2); // セル内に収まるように調整
-            const itemHeight = itemWidth / 1.2; // 適度なアスペクト比
+            const effectiveWidth = usableArea.width - padding * (cols + 1);
+            const effectiveHeight = usableArea.height - padding * (rows + 1);
+
+            const cellWidth = effectiveWidth / cols;
+            const cellHeight = effectiveHeight / rows;
+            
+            // Adjust item dimensions to fit within cells and maintain aspect ratio
+            const aspectRatio = 1.2; // Example aspect ratio (width / height)
+            let itemWidth, itemHeight;
+
+            if (cellWidth / cellHeight > aspectRatio) {
+                // Cell is wider than desired aspect ratio, constrain by height
+                itemHeight = cellHeight - 20; 
+                itemWidth = itemHeight * aspectRatio;
+            } else {
+                // Cell is taller, constrain by width
+                itemWidth = cellWidth - 20;
+                itemHeight = itemWidth / aspectRatio;
+            }
 
             items.forEach((item, i) => {
                 const row = Math.floor(i / cols);
@@ -832,30 +1002,30 @@
         
         function applyListLayout(items, usableArea) {
             const padding = 20;
-            const totalItemHeight = usableArea.height - padding * (items.length + 1);
-            const itemHeight = totalItemHeight / items.length;
-            const itemWidth = Math.min(itemHeight * 1.5, usableArea.width * 0.7); // 画像とテキストのバランス
+            // Calculate item height considering text and image
+            const estimatedItemHeight = Math.min(120, (usableArea.height - (items.length + 1) * padding) / items.length);
+            const itemWidth = usableArea.width * 0.7; // Wider items for list view
 
             items.forEach((item, i) => {
                 item.width = itemWidth;
-                item.height = itemHeight;
-                item.x = usableArea.x + (usableArea.width - itemWidth) / 2; // 中央揃え
-                item.y = usableArea.y + padding + i * (itemHeight + padding);
+                item.height = estimatedItemHeight;
+                item.x = usableArea.x + (usableArea.width - itemWidth) / 2; // Centralize horizontally
+                item.y = usableArea.y + padding + i * (estimatedItemHeight + padding);
                 item.rotation = 0;
             });
         }
         
         function applyWaterfallLayout(items, usableArea) {
-            const cols = items.length > 5 ? 3 : 2; // アイテム数に応じて列数を調整
+            const cols = Math.max(1, Math.min(items.length, 3)); // 1 to 3 columns
             const padding = 20;
             const colWidth = (usableArea.width - padding * (cols + 1)) / cols;
             const colHeights = Array(cols).fill(usableArea.y + padding); // 各列の現在の高さ
 
             items.forEach(item => {
                 const itemWidth = colWidth;
-                const itemHeight = colWidth * (0.75 + Math.random() * 0.5); // アイテムごとに高さをランダムに
+                const itemHeight = colWidth * (0.8 + Math.random() * 0.4); // Randomize height for waterfall
 
-                const minHeight = Math.min(...colHeights); // 一番低い列を探す
+                const minHeight = Math.min(...colHeights); // Find the shortest column
                 const targetCol = colHeights.indexOf(minHeight);
 
                 item.width = itemWidth;
@@ -864,16 +1034,18 @@
                 item.y = minHeight;
                 item.rotation = 0;
                 
-                colHeights[targetCol] += itemHeight + padding; // 列の高さを更新
+                colHeights[targetCol] += itemHeight + padding; // Update column height
             });
         }
 
-        // --- NEW LAYOUTS ---
         function applyCenteredLayout(items, usableArea) {
             const itemWidth = usableArea.width * 0.5;
             const itemHeight = itemWidth * 0.75;
-            const totalHeight = items.length * (itemHeight + 30);
-            let startY = usableArea.y + (usableArea.height - totalHeight) / 2;
+            const spacing = 40; // Space between items
+            const totalContentHeight = items.length * itemHeight + (items.length - 1) * spacing;
+            let startY = usableArea.y + (usableArea.height - totalContentHeight) / 2;
+
+            if (startY < usableArea.y) startY = usableArea.y + spacing; // Adjust if content too tall
 
             items.forEach(item => {
                 item.x = usableArea.x + (usableArea.width - itemWidth) / 2;
@@ -881,30 +1053,32 @@
                 item.width = itemWidth;
                 item.height = itemHeight;
                 item.rotation = 0;
-                startY += itemHeight + 30;
+                startY += itemHeight + spacing;
             });
         }
 
         function applyDiagonalLayout(items, usableArea) {
-            const itemSize = Math.min(usableArea.width, usableArea.height) * 0.2;
-            const totalItems = items.length;
-            const stepX = (usableArea.width - itemSize) / (totalItems > 1 ? totalItems - 1 : 1);
-            const stepY = (usableArea.height - itemSize) / (totalItems > 1 ? totalItems - 1 : 1);
+            const numItems = items.length;
+            const maxDimension = Math.min(usableArea.width, usableArea.height);
+            const itemSize = maxDimension * 0.25; // Smaller items for diagonal flow
+
+            const stepX = (usableArea.width - itemSize * 1.5) / (numItems > 1 ? numItems - 1 : 1);
+            const stepY = (usableArea.height - itemSize * 1.5) / (numItems > 1 ? numItems - 1 : 1);
 
             items.forEach((item, i) => {
                 item.width = itemSize;
                 item.height = itemSize;
                 item.x = usableArea.x + i * stepX;
                 item.y = usableArea.y + i * stepY;
-                item.rotation = (i % 2 === 0 ? 5 : -5) * Math.PI / 180; // Slight rotation
+                item.rotation = (i % 2 === 0 ? 8 : -8) * Math.PI / 180; // Slightly more pronounced rotation
             });
         }
 
         function applyCircularLayout(items, usableArea) {
             const centerX = usableArea.x + usableArea.width / 2;
             const centerY = usableArea.y + usableArea.height / 2;
-            const radius = Math.min(usableArea.width, usableArea.height) / 2.5;
-            const itemSize = Math.min(usableArea.width, usableArea.height) / 5;
+            const radius = Math.min(usableArea.width, usableArea.height) / 3; // Smaller radius
+            const itemSize = Math.min(usableArea.width, usableArea.height) / 4.5; // Larger item size
 
             items.forEach((item, i) => {
                 const angle = (i / items.length) * Math.PI * 2;
@@ -912,27 +1086,32 @@
                 item.y = centerY + radius * Math.sin(angle) - itemSize / 2;
                 item.width = itemSize;
                 item.height = itemSize;
-                item.rotation = angle + Math.PI / 2; // Orient towards center
+                // Rotate to face outwards from the center
+                item.rotation = angle + Math.PI / 2; 
             });
         }
 
         function applyLayeredLayout(items, usableArea) {
-            const overlapX = 50; // pixels of horizontal overlap
-            const overlapY = 50; // pixels of vertical overlap
+            const overlapX = 30; // pixels of horizontal overlap
+            const overlapY = 30; // pixels of vertical overlap
             const baseWidth = usableArea.width * 0.6;
             const baseHeight = baseWidth * 0.7;
+
+            // Sort items for consistent layering (e.g., by ID or simply keep original order)
+            // items.sort((a,b) => a.id - b.id); // If deterministic order is desired
 
             items.forEach((item, i) => {
                 item.width = baseWidth;
                 item.height = baseHeight;
-                // Offset each item slightly
-                item.x = usableArea.x + (usableArea.width - baseWidth) / 2 + (i * overlapX) % 100; // Small horizontal offset
-                item.y = usableArea.y + (usableArea.height - baseHeight) / 2 + (i * overlapY) % 100; // Small vertical offset
-                item.rotation = (i % 2 === 0 ? 0 : 0) * Math.PI / 180; // No rotation for layered
+                // Offset each item slightly based on its index
+                const offsetX = (i * overlapX) % (usableArea.width - baseWidth - overlapX);
+                const offsetY = (i * overlapY) % (usableArea.height - baseHeight - overlapY);
+
+                item.x = usableArea.x + (usableArea.width - baseWidth) / 2 + offsetX; 
+                item.y = usableArea.y + (usableArea.height - baseHeight) / 2 + offsetY;
+                item.rotation = 0; // No rotation for layered
             });
         }
-        // --- END NEW LAYOUTS ---
-
 
         // メニュー画像を生成
         async function generateMenuImage() {
@@ -950,46 +1129,43 @@
 
             // 背景色、テキスト色の設定
             let bgColor, textColor, titleColor;
-            let drawBackground = true; // Use this flag for complex backgrounds
+            let drawCustomBackground = false; // Use this flag for complex backgrounds
 
             switch (backgroundChoice) {
                 case 'white': bgColor = '#ffffff'; textColor = '#333333'; titleColor = '#000000'; break;
-                case 'beige': bgColor = '#f5f5dc'; textColor = '#3a2b0a'; titleColor = '#5c481a'; break;
+                case 'beige': bgColor = '#f5f5dc'; textColor = '#333333'; titleColor = '#000000'; break;
                 case 'light-gray': bgColor = '#f5f5f5'; textColor = '#333333'; titleColor = '#000000'; break;
-                case 'dark-slate': bgColor = '#2f4f4f'; textColor = '#ffffff'; titleColor = '#ffffff'; break;
+                case 'dark-slate': bgColor = '#2f4f4f'; textColor = '#e0e0e0'; titleColor = '#ffffff'; break; // Lighter text for dark bg
                 case 'golden-hour': 
-                    // Gradient: Warm sunset colors
-                    drawBackground = false; // Custom drawing will handle background
-                    textColor = '#ffffff'; 
-                    titleColor = '#ffffff'; 
+                    drawCustomBackground = true; 
+                    textColor = '#000000'; // Black text for contrast on bright gradient
+                    titleColor = '#000000'; 
                     const goldenGrad = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-                    goldenGrad.addColorStop(0, '#ffbe5d'); // Light orange
-                    goldenGrad.addColorStop(0.5, '#f07e6e'); // Reddish orange
-                    goldenGrad.addColorStop(1, '#8c3a5e'); // Dark purple
+                    goldenGrad.addColorStop(0, '#ffbe5d'); 
+                    goldenGrad.addColorStop(0.5, '#f07e6e'); 
+                    goldenGrad.addColorStop(1, '#8c3a5e'); 
                     ctx.fillStyle = goldenGrad;
                     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                     break;
                 case 'midnight-blue':
-                    // Gradient: Deep blue to purple
-                    drawBackground = false;
-                    textColor = '#e0ffff'; 
+                    drawCustomBackground = true;
+                    textColor = '#e0ffff'; // Light text for dark gradient
                     titleColor = '#e0ffff'; 
                     const midnightGrad = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-                    midnightGrad.addColorStop(0, '#1a2a6c'); // Dark blue
-                    midnightGrad.addColorStop(0.5, '#b21f1f'); // Deep red (subtle hint)
-                    midnightGrad.addColorStop(1, '#fdbb2d'); // Yellow (star-like)
+                    midnightGrad.addColorStop(0, '#1a2a6c'); 
+                    midnightGrad.addColorStop(0.5, '#b21f1f'); 
+                    midnightGrad.addColorStop(1, '#fdbb2d'); 
                     ctx.fillStyle = midnightGrad;
                     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                     break;
                 case 'marble':
-                    drawBackground = false;
-                    textColor = '#444444';
-                    titleColor = '#222222';
-                    // Simple marble pattern (simulated)
-                    ctx.fillStyle = '#f8f8f8'; // Base white-ish
+                    drawCustomBackground = true;
+                    textColor = '#000000'; // Black text for marble
+                    titleColor = '#000000'; 
+                    ctx.fillStyle = '#f8f8f8'; 
                     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                     ctx.save();
-                    ctx.globalAlpha = 0.3; // Subtle lines
+                    ctx.globalAlpha = 0.3; 
                     for (let i = 0; i < 50; i++) {
                         ctx.beginPath();
                         ctx.moveTo(Math.random() * CANVAS_WIDTH, Math.random() * CANVAS_HEIGHT);
@@ -1005,14 +1181,13 @@
                     ctx.restore();
                     break;
                 case 'dark-wood':
-                    drawBackground = false;
-                    textColor = '#e0e0e0';
-                    titleColor = '#ffffff';
-                    // Simple dark wood pattern (simulated)
-                    ctx.fillStyle = '#4a2c2a'; // Base dark brown
+                    drawCustomBackground = true;
+                    textColor = '#e0e0e0'; // Light text for dark wood
+                    titleColor = '#ffffff'; 
+                    ctx.fillStyle = '#4a2c2a'; 
                     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                     ctx.save();
-                    ctx.globalAlpha = 0.2; // Subtle grain lines
+                    ctx.globalAlpha = 0.2; 
                     for (let i = 0; i < 10; i++) {
                         ctx.beginPath();
                         ctx.moveTo(0, Math.random() * CANVAS_HEIGHT);
@@ -1027,9 +1202,12 @@
                     }
                     ctx.restore();
                     break;
+                default: // Fallback to white if any issue
+                    bgColor = '#ffffff'; textColor = '#333333'; titleColor = '#000000';
+                    break;
             }
             
-            if (drawBackground) { // Only draw simple color background if not custom drawn
+            if (!drawCustomBackground) { 
                 ctx.fillStyle = bgColor;
                 ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
             }
@@ -1037,7 +1215,7 @@
             // メニュータイトルの描画（ユーザー入力値を使用）
             const menuTitle = menuTitleInput.value.trim();
             if (menuTitle) {
-                ctx.fillStyle = titleColor;
+                ctx.fillStyle = titleColor; // Apply determined title color
                 ctx.font = 'bold 60px "Impact", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'top';
@@ -1081,16 +1259,28 @@
                             ctx.save();
                             ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
                             ctx.rotate(item.rotation);
-                            // Text background color decision based on overall background
-                            let itemTextBgColor = (backgroundChoice === 'dark-slate' || backgroundChoice === 'midnight-blue' || backgroundChoice === 'dark-wood') ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.4)';
-                            let itemTextColor = (backgroundChoice === 'dark-slate' || backgroundChoice === 'midnight-blue' || backgroundChoice === 'dark-wood') ? '#e0e0e0' : '#ffffff';
+                            
+                            let itemTextBgColor;
+                            let itemTextColor;
+
+                            // Text background and color logic for items with images
+                            if (['dark-slate', 'midnight-blue', 'dark-wood'].includes(backgroundChoice)) {
+                                itemTextBgColor = 'rgba(255,255,255,0.2)'; // Lighter overlay for dark main background
+                                itemTextColor = '#e0e0e0'; // Light text
+                            } else if (['golden-hour', 'marble'].includes(backgroundChoice)) {
+                                itemTextBgColor = 'rgba(0,0,0,0.3)'; // Darker overlay for lighter main background
+                                itemTextColor = '#ffffff'; // White text
+                            } else {
+                                itemTextBgColor = 'rgba(0,0,0,0.4)'; // Default dark overlay
+                                itemTextColor = '#ffffff'; // Default white text
+                            }
 
                             ctx.fillStyle = itemTextBgColor;
                             const priceFontSize = Math.max(12, item.width / 12);
                             const nameFontSize = Math.max(14, item.width / 11);
                             const textBgHeight = nameFontSize + priceFontSize + 15;
                             ctx.fillRect(-item.width/2, item.height/2 - textBgHeight, item.width, textBgHeight);
-                            ctx.fillStyle = itemTextColor;
+                            ctx.fillStyle = itemTextColor; 
                             ctx.textAlign = 'center';
                             ctx.textBaseline = 'bottom';
                             ctx.font = `bold ${nameFontSize}px Arial`;
@@ -1102,7 +1292,7 @@
                         };
                         img.onerror = () => {
                             console.warn(`Failed to load image for item: ${item.name}`);
-                            resolve(); // 画像ロード失敗でも処理は続行
+                            resolve(); // Continue even if image fails
                         };
                     } else {
                         // 画像がない場合：プレースホルダーとテキストを描画
@@ -1124,18 +1314,18 @@
                         // テキスト用の影をリセット
                         ctx.shadowColor = 'transparent';
 
-                        // テキストを描画 (背景に合わせた色で)
-                        ctx.fillStyle = textColor; // 背景色に応じて調整
+                        // Use the main textColor for items without images
+                        ctx.fillStyle = textColor; 
                         ctx.textAlign = 'center';
                         ctx.textBaseline = 'middle';
                         
                         const nameFontSize = Math.max(14, item.width / 10);
                         ctx.font = `bold ${nameFontSize}px Arial`;
-                        ctx.fillText(item.name, 0, -item.height / 8); // 少し上に配置
+                        ctx.fillText(item.name, 0, -item.height / 8); 
 
                         const priceFontSize = Math.max(12, item.width / 12);
                         ctx.font = `bold ${priceFontSize}px Arial`;
-                        ctx.fillText(`¥${item.price.toLocaleString()}`, 0, item.height / 4); // 少し下に配置
+                        ctx.fillText(`¥${item.price.toLocaleString()}`, 0, item.height / 4); 
 
                         ctx.restore();
                         resolve();
@@ -1143,7 +1333,7 @@
                 });
             });
 
-            await Promise.all(loadedItemPromises); // 全ての画像のロードと描画が完了するのを待つ
+            await Promise.all(loadedItemPromises); 
 
             alert('コラージュメニューが生成されました！');
         }
