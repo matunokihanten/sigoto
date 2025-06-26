@@ -502,31 +502,40 @@
                 </div>
                 <div id="canvasButtons" class="canvas-buttons" style="display: none;">
                     <button class="btn btn-primary" onclick="downloadFinalImage()">⬇️ 画像をダウンロード</button>
+                    <button class="btn btn-primary" onclick="downloadPdf()">📄 PDFをダウンロード</button>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <script>
         // DOM要素の取得
+        const D = document;
+        const G = id => D.getElementById(id);
+        const Q = selector => D.querySelector(selector);
+        const Q_ALL = selector => D.querySelectorAll(selector);
+
         let menuItems = [];
         let currentImageData = null;
         let editingItemId = null;
 
-        const itemNameInput = document.getElementById('itemName');
-        const itemPriceInput = document.getElementById('itemPrice');
-        const itemImageInput = document.getElementById('itemImage');
-        const imagePreview = document.getElementById('imagePreview');
-        const fileInputLabel = document.querySelector('.file-input-label');
-        const menuList = document.getElementById('menuList');
-        const outputCanvas = document.getElementById('outputCanvas');
-        const initialEmptyState = document.getElementById('initialEmptyState');
-        const canvasButtons = document.getElementById('canvasButtons');
-        const dropArea = document.getElementById('dropArea');
-        const loadMenuJsonFile = document.getElementById('loadMenuJsonFile'); // JSON用
-        const loadMenuCsvFile = document.getElementById('loadMenuCsvFile'); // CSV用
-        const addOrUpdateBtn = document.getElementById('addOrUpdateBtn');
-        const menuTitleInput = document.getElementById('menuTitle');
+        const itemNameInput = G('itemName');
+        const itemPriceInput = G('itemPrice');
+        const itemImageInput = G('itemImage');
+        const imagePreview = G('imagePreview');
+        const fileInputLabel = Q('.file-input-label');
+        const menuList = G('menuList');
+        const outputCanvas = G('outputCanvas');
+        const initialEmptyState = G('initialEmptyState');
+        const canvasButtons = G('canvasButtons');
+        const dropArea = G('dropArea');
+        const loadMenuJsonFile = G('loadMenuJsonFile');
+        const loadMenuCsvFile = G('loadMenuCsvFile');
+        const addOrUpdateBtn = G('addOrUpdateBtn');
+        const menuTitleInput = G('menuTitle');
 
         const ctx = outputCanvas.getContext('2d');
 
@@ -534,12 +543,12 @@
         let CANVAS_HEIGHT = 1067; // Default to vertical A4 height
 
         // イベントリスナー: 向きのラジオボタンが変更されたらキャンバスサイズを更新
-        document.querySelectorAll('input[name="menuOrientation"]').forEach(radio => {
+        Q_ALL('input[name="menuOrientation"]').forEach(radio => {
             radio.addEventListener('change', updateCanvasDimensions);
         });
 
         function updateCanvasDimensions() {
-            const orientation = document.querySelector('input[name="menuOrientation"]:checked').value;
+            const orientation = Q('input[name="menuOrientation"]:checked').value;
             if (orientation === 'vertical') {
                 CANVAS_WIDTH = 800;
                 CANVAS_HEIGHT = 1067; // A4縦 (約210x297mm @ 96dpi)
@@ -585,11 +594,7 @@
             if (file) {
                 if (!file.type.startsWith('image/')) {
                     alert('画像ファイルを選択してください。');
-                    e.target.value = '';
-                    imagePreview.style.display = 'none';
-                    fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
-                    fileInputLabel.style.background = '#667eea';
-                    currentImageData = null;
+                    clearImageInput();
                     return;
                 }
                 
@@ -603,13 +608,18 @@
                 };
                 reader.readAsDataURL(file);
             } else {
-                currentImageData = null;
-                imagePreview.src = ''; // Clear the image src
-                imagePreview.style.display = 'none';
-                fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
-                fileInputLabel.style.background = '#667eea';
+                clearImageInput();
             }
         });
+
+        function clearImageInput() {
+            currentImageData = null;
+            imagePreview.src = '';
+            imagePreview.style.display = 'none';
+            fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
+            fileInputLabel.style.background = '#667eea';
+            itemImageInput.value = ''; // Reset the file input itself
+        }
 
         // メニュー項目の追加または更新
         function addOrUpdateMenuItem() {
@@ -622,27 +632,22 @@
             }
             
             const newItem = {
-                id: editingItemId || Date.now(), // 新規の場合は新しいID、編集中の場合は既存ID
+                id: editingItemId || Date.now(),
                 name: name,
                 price: price,
-                image: currentImageData, // 画像がなくてもnullとして保存
-                x: 0, y: 0, width: 0, height: 0, rotation: 0 // レイアウト用初期値
+                image: currentImageData,
+                x: 0, y: 0, width: 0, height: 0, rotation: 0
             };
 
             if (editingItemId) {
-                // 既存項目の更新
                 const index = menuItems.findIndex(item => item.id === editingItemId);
                 if (index !== -1) {
                     menuItems[index] = { ...menuItems[index], name: newItem.name, price: newItem.price, image: currentImageData };
                 }
                 editingItemId = null;
                 addOrUpdateBtn.textContent = '➕ リストに追加';
-                const prevEditingElement = document.querySelector('.menu-list-item.editing-item');
-                if (prevEditingElement) {
-                    prevEditingElement.classList.remove('editing-item');
-                }
+                Q('.menu-list-item.editing-item')?.classList.remove('editing-item');
             } else {
-                // 新規項目の追加
                 menuItems.push(newItem);
             }
 
@@ -655,15 +660,13 @@
             if (confirm('この商品をリストから削除しますか？')) {
                 menuItems = menuItems.filter(item => item.id !== id);
                 renderMenuList();
-                if (editingItemId === id) { // 削除した項目が編集中の場合、フォームをクリア
+                if (editingItemId === id) {
                     clearForm();
                 }
                 if (menuItems.length > 0 && outputCanvas.style.display === 'block') {
-                    generateMenuImage(); // 項目が残っている場合は再生成
-                } else if (menuItems.length === 0) { // 項目がなくなった場合は初期表示に戻す
-                    initialEmptyState.style.display = 'flex';
-                    outputCanvas.style.display = 'none';
-                    canvasButtons.style.display = 'none';
+                    generateMenuImage();
+                } else if (menuItems.length === 0) {
+                    resetCanvasState();
                 }
             }
         }
@@ -675,8 +678,7 @@
                 itemNameInput.value = itemToEdit.name;
                 itemPriceInput.value = itemToEdit.price;
                 
-                // Clear the file input visually
-                itemImageInput.value = ''; 
+                clearImageInput(); // Clear image input and preview first
 
                 if (itemToEdit.image) {
                     imagePreview.src = itemToEdit.image;
@@ -684,22 +686,13 @@
                     currentImageData = itemToEdit.image;
                     fileInputLabel.textContent = '✅ ' + (itemToEdit.name || '画像が選択されています');
                     fileInputLabel.style.background = '#56ab2f';
-                } else {
-                    imagePreview.src = '';
-                    imagePreview.style.display = 'none';
-                    currentImageData = null;
-                    fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
-                    fileInputLabel.style.background = '#667eea';
                 }
 
                 editingItemId = id;
                 addOrUpdateBtn.textContent = '✏️ 更新';
 
-                const currentEditingElement = document.querySelector('.menu-list-item.editing-item');
-                if (currentEditingElement) {
-                    currentEditingElement.classList.remove('editing-item');
-                }
-                document.querySelector(`li[data-id="${id}"]`).classList.add('editing-item');
+                Q('.menu-list-item.editing-item')?.classList.remove('editing-item');
+                Q(`li[data-id="${id}"]`).classList.add('editing-item');
             }
         }
 
@@ -720,31 +713,23 @@
                 <li class="menu-list-item" data-id="${item.id}" onclick="editMenuItem(${item.id})">
                     ${item.image 
                         ? `<img src="${item.image}" alt="${item.name}">` 
-                        : `<div class="img-placeholder">NO<br>IMG</div>` // 画像がない場合のプレースホルダー
+                        : `<div class="img-placeholder">NO<br>IMG</div>`
                     }
                     <span>${item.name} - ¥${item.price.toLocaleString()}</span>
                     <button class="delete-list-item-btn" onclick="event.stopPropagation(); deleteListItem(${item.id});">×</button>
                 </li>
             `).join('');
-            menuList.scrollTop = menuList.scrollHeight; // スクロールを最下部に移動
+            menuList.scrollTop = menuList.scrollHeight;
         }
 
         // フォームをクリア
         function clearForm() {
             itemNameInput.value = '';
             itemPriceInput.value = '';
-            itemImageInput.value = ''; // ファイル選択をリセット
-            imagePreview.src = ''; // Clear the image src
-            imagePreview.style.display = 'none';
-            currentImageData = null;
-            fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
-            fileInputLabel.style.background = '#667eea';
+            clearImageInput(); // Unified image input clearing
             editingItemId = null;
             addOrUpdateBtn.textContent = '➕ リストに追加';
-            const currentEditingElement = document.querySelector('.menu-list-item.editing-item');
-            if (currentEditingElement) {
-                currentEditingElement.classList.remove('editing-item');
-            }
+            Q('.menu-list-item.editing-item')?.classList.remove('editing-item');
         }
 
         // すべてのメニュー項目をクリア
@@ -752,11 +737,15 @@
             if (confirm('すべてのメニュー項目をクリアしますか？')) {
                 menuItems = [];
                 renderMenuList();
-                outputCanvas.style.display = 'none';
-                initialEmptyState.style.display = 'flex';
-                canvasButtons.style.display = 'none';
-                clearForm(); // フォームもクリアしておく
+                resetCanvasState();
+                clearForm();
             }
+        }
+
+        function resetCanvasState() {
+            initialEmptyState.style.display = 'flex';
+            outputCanvas.style.display = 'none';
+            canvasButtons.style.display = 'none';
         }
 
         // メニューデータをJSONファイルとして保存
@@ -765,18 +754,11 @@
                 alert('保存するメニュー項目がありません。');
                 return;
             }
-            // 保存するのは必要なデータのみ
-            const dataToSave = menuItems.map(item => ({
-                id: item.id,
-                name: item.name,
-                price: item.price,
-                image: item.image
-            }));
-
+            const dataToSave = menuItems.map(({ id, name, price, image }) => ({ id, name, price, image }));
             const dataStr = JSON.stringify(dataToSave, null, 2);
             const dataBlob = new Blob([dataStr], {type: 'application/json'});
             
-            const link = document.createElement('a');
+            const link = D.createElement('a');
             link.href = URL.createObjectURL(dataBlob);
             link.download = `menu_data_${new Date().toISOString().split('T')[0]}.json`;
             link.click();
@@ -791,22 +773,15 @@
                 return;
             }
 
-            // CSVヘッダー
             let csvContent = "商品名,価格,画像データURL\n";
-
-            // 各アイテムをCSV行に変換
             menuItems.forEach(item => {
-                // 値にカンマが含まれる可能性があるため、ダブルクォートで囲む
                 const escapeCsv = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
-                const name = escapeCsv(item.name);
-                const price = item.price;
-                const image = escapeCsv(item.image); 
-                csvContent += `${name},${price},${image}\n`;
+                csvContent += `${escapeCsv(item.name)},${item.price},${escapeCsv(item.image)}\n`;
             });
 
             const dataBlob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
             
-            const link = document.createElement('a');
+            const link = D.createElement('a');
             link.href = URL.createObjectURL(dataBlob);
             link.download = `menu_data_${new Date().toISOString().split('T')[0]}.csv`;
             link.click();
@@ -814,163 +789,139 @@
             alert('メニューデータがCSVとして保存されました！');
         }
 
+        // CSV/JSONファイルからの読み込みヘルパー
+        const loadFile = (file, parser, successMsg, errorMsg) => {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (e) => { // Use async for defer
+                try {
+                    const loadedData = parser(e.target.result);
+                    if (loadedData.length > 0) {
+                        // Defer image loading to avoid UI freeze
+                        await new Promise(resolve => {
+                            setTimeout(() => { // Small delay to allow UI to update
+                                menuItems = loadedData.map(item => ({
+                                    id: Date.now() + Math.random(),
+                                    name: item.name,
+                                    price: item.price,
+                                    image: item.image || null,
+                                    x: 0, y: 0, width: 0, height: 0, rotation: 0
+                                }));
+                                renderMenuList();
+                                generateMenuImage();
+                                clearImageInput();
+                                alert(`${menuItems.length}個のメニュー項目が${successMsg}から読み込まれました！`);
+                                resolve();
+                            }, 50); // Defer by 50ms
+                        });
+                    } else {
+                        alert(errorMsg);
+                    }
+                } catch (error) {
+                    console.error('File loading error:', error);
+                    alert(`ファイルの読み込みに失敗しました。${errorMsg}を確認してください。`);
+                }
+            };
+            reader.readAsText(file, 'UTF-8');
+            file.value = ''; // Reset file input
+        };
+
         // JSONファイルからメニューデータを読み込み
         loadMenuJsonFile.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file) {
-                if (!file.name.endsWith('.json')) {
-                    alert('JSONファイルを選択してください。');
-                    e.target.value = ''; // Reset file input
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const loadedItems = JSON.parse(e.target.result);
-                        if (Array.isArray(loadedItems) && loadedItems.every(item => item.name && item.price !== undefined)) {
-                            // 読み込んだデータにIDを再付与し、レイアウト初期値も設定
-                            menuItems = loadedItems.map(item => ({
-                                id: Date.now() + Math.random(), // 新しいセッションなのでIDを再生成
-                                name: item.name,
-                                price: item.price,
-                                image: item.image || null,
-                                x: 0, y: 0, width: 0, height: 0, rotation: 0
-                            }));
-                            renderMenuList();
-                            generateMenuImage();
-                            alert(`${menuItems.length}個のメニュー項目が読み込まれました！`);
-                        } else {
-                            alert('有効なメニューデータ形式ではありません。');
-                        }
-                    } catch (error) {
-                        console.error('File loading error:', error);
-                        alert('ファイルの読み込みに失敗しました。正しいJSONファイルか確認してください。');
-                    }
-                };
-                reader.readAsText(file, 'UTF-8');
-                e.target.value = ''; // ファイル選択をリセット
+            if (!file || !file.name.endsWith('.json')) {
+                alert('JSONファイルを選択してください。');
+                e.target.value = '';
+                return;
             }
+            loadFile(file, (text) => {
+                const parsed = JSON.parse(text);
+                if (Array.isArray(parsed) && parsed.every(item => item.name && item.price !== undefined)) {
+                    return parsed;
+                }
+                throw new Error('Invalid JSON format');
+            }, 'JSON', '有効なJSONデータ形式ではありません');
         });
 
         // CSVファイルからメニューデータを読み込み
         loadMenuCsvFile.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file) {
-                if (!file.name.endsWith('.csv')) {
-                    alert('CSVファイルを選択してください。');
-                    e.target.value = ''; // Reset file input
-                    return;
-                }
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const lines = e.target.result.split('\n').filter(line => line.trim() !== '');
-                        if (lines.length === 0) {
-                            alert('CSVファイルが空です。');
-                            e.target.value = ''; // Reset file input
-                            return;
-                        }
-
-                        // CSV parsing function that handles quoted fields
-                        const parseCsvLine = (line) => {
-                            const values = [];
-                            let inQuote = false;
-                            let currentVal = '';
-                            for (let i = 0; i < line.length; i++) {
-                                const char = line[i];
-                                if (char === '"') {
-                                    if (i + 1 < line.length && line[i+1] === '"') {
-                                        currentVal += '"'; // Escaped quote
-                                        i++;
-                                    } else {
-                                        inQuote = !inQuote;
-                                    }
-                                } else if (char === ',' && !inQuote) {
-                                    values.push(currentVal);
-                                    currentVal = '';
-                                } else {
-                                    currentVal += char;
-                                }
-                            }
-                            values.push(currentVal); // Add the last value
-                            return values;
-                        };
-
-                        // Skip header and process data lines
-                        const dataLines = lines.slice(1); 
-                        const loadedItems = [];
-
-                        dataLines.forEach(line => {
-                            const values = parseCsvLine(line);
-                            // Ensure enough columns before accessing
-                            if (values.length >= 2) { 
-                                const name = values[0];
-                                const price = parseInt(values[1]);
-                                const image = values[2] || null; // Image data URL is optional
-
-                                if (name && !isNaN(price) && price > 0) {
-                                    loadedItems.push({
-                                        id: Date.now() + Math.random(),
-                                        name: name,
-                                        price: price,
-                                        image: image,
-                                        x: 0, y: 0, width: 0, height: 0, rotation: 0
-                                    });
-                                }
-                            }
-                        });
-
-                        if (loadedItems.length > 0) {
-                            menuItems = loadedItems;
-                            renderMenuList();
-                            generateMenuImage();
-                            alert(`${loadedItems.length}個のメニュー項目がCSVから読み込まれました！`);
-                        } else {
-                            alert('CSVファイルから有効なメニュー項目を読み込めませんでした。形式を確認してください。(商品名,価格,画像データURL)');
-                        }
-                    } catch (error) {
-                        console.error('CSV file loading error:', error);
-                        alert('CSVファイルの読み込みに失敗しました。正しいCSVファイルか、形式が「商品名,価格,画像データURL」になっているか確認してください。');
-                    }
-                };
-                reader.readAsText(file, 'UTF-8');
-                e.target.value = ''; // ファイル選択をリセット
+            if (!file || !file.name.endsWith('.csv')) {
+                alert('CSVファイルを選択してください。');
+                e.target.value = '';
+                return;
             }
+            loadFile(file, (text) => {
+                const lines = text.split('\n').filter(line => line.trim() !== '');
+                if (lines.length === 0) return [];
+
+                const parseCsvLine = (line) => {
+                    const values = [];
+                    let inQuote = false;
+                    let currentVal = '';
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') {
+                            if (i + 1 < line.length && line[i+1] === '"') {
+                                currentVal += '"';
+                                i++;
+                            } else {
+                                inQuote = !inQuote;
+                            }
+                        } else if (char === ',' && !inQuote) {
+                            values.push(currentVal);
+                            currentVal = '';
+                        } else {
+                            currentVal += char;
+                        }
+                    }
+                    values.push(currentVal);
+                    return values;
+                };
+
+                return lines.slice(1).map(line => {
+                    const values = parseCsvLine(line);
+                    if (values.length >= 2) {
+                        const name = values[0];
+                        const price = parseInt(values[1]);
+                        const image = values[2] || null;
+                        if (name && !isNaN(price) && price > 0) {
+                            return { name, price, image };
+                        }
+                    }
+                    return null;
+                }).filter(item => item !== null);
+            }, 'CSV', 'CSVファイルから有効なメニュー項目を読み込めませんでした。形式が「商品名,価格,画像データURL」になっているか確認してください');
         });
 
         // レイアウト関数群
         function applyCollageLayout(items, usableArea) {
             const placedRects = [];
-            const minPadding = 30; // Increased padding for better separation
-            const shuffledItems = [...items].sort(() => Math.random() - 0.5); // アイテムをシャッフル
+            const minPadding = 30;
+            const shuffledItems = [...items].sort(() => Math.random() - 0.5);
 
             shuffledItems.forEach(item => {
                 const baseItemWidth = CANVAS_WIDTH * 0.3;
-                const baseItemHeight = baseItemWidth * 0.75; // Adjust aspect ratio for general items
+                const baseItemHeight = baseItemWidth * 0.75;
                 let placed = false;
-                for (let i = 0; i < 100; i++) { // 試行回数
-                    const scale = 0.8 + Math.random() * 0.4; // サイズにばらつき
+                for (let i = 0; i < 100; i++) {
+                    const scale = 0.8 + Math.random() * 0.4;
                     const w = baseItemWidth * scale;
                     const h = baseItemHeight * scale;
                     const x = usableArea.x + Math.random() * (usableArea.width - w);
                     const y = usableArea.y + Math.random() * (usableArea.height - h);
-                    const rotation = (Math.random() - 0.5) * 10 * Math.PI / 180; // ランダムな傾き
+                    const rotation = (Math.random() - 0.5) * 10 * Math.PI / 180;
 
-                    let overlap = placedRects.some(rect =>
-                        x < rect.x + rect.w + minPadding && x + w > rect.x - minPadding &&
-                        y < rect.y + rect.h + minPadding && y + h > rect.y - minPadding
-                    );
-
-                    // Ensure item is fully within usableArea after rotation
+                    const centerX = x + w / 2;
+                    const centerY = y + h / 2;
                     const corners = [
-                        {cx: x, cy: y}, {cx: x + w, cy: y},
-                        {cx: x, cy: y + h}, {cx: x + w, cy: y + h}
-                    ].map(p => {
-                        const rotatedX = (p.cx - (x + w/2)) * Math.cos(rotation) - (p.cy - (y + h/2)) * Math.sin(rotation) + (x + w/2);
-                        const rotatedY = (p.cx - (x + w/2)) * Math.sin(rotation) + (p.cy - (y + h/2)) * Math.cos(rotation) + (y + h/2);
-                        return {x: rotatedX, y: rotatedY};
+                        { dx: -w / 2, dy: -h / 2 }, { dx: w / 2, dy: -h / 2 },
+                        { dx: -w / 2, dy: h / 2 }, { dx: w / 2, dy: h / 2 }
+                    ].map(offset => {
+                        const rotatedX = offset.dx * Math.cos(rotation) - offset.dy * Math.sin(rotation) + centerX;
+                        const rotatedY = offset.dx * Math.sin(rotation) + offset.dy * Math.cos(rotation) + centerY;
+                        return { x: rotatedX, y: rotatedY };
                     });
 
                     const withinBounds = corners.every(corner =>
@@ -978,14 +929,19 @@
                         corner.y >= usableArea.y && corner.y <= usableArea.y + usableArea.height
                     );
 
+                    let overlap = placedRects.some(rect =>
+                        x < rect.x + rect.w + minPadding && x + w > rect.x - minPadding &&
+                        y < rect.y + rect.h + minPadding && y + h > rect.y - minPadding
+                    );
+
                     if (!overlap && withinBounds) {
                         item.x = x; item.y = y; item.width = w; item.height = h; item.rotation = rotation;
-                        placedRects.push({ x, y, w, h }); // Store bounding box for overlap check
+                        placedRects.push({ x, y, w, h });
                         placed = true;
                         break;
                     }
                 }
-                if (!placed) { // 配置できなかった場合はとりあえずランダムに配置
+                if (!placed) {
                     item.x = usableArea.x + Math.random() * (usableArea.width - baseItemWidth);
                     item.y = usableArea.y + Math.random() * (usableArea.height - baseItemHeight);
                     item.width = baseItemWidth; item.height = baseItemHeight; item.rotation = 0;
@@ -996,39 +952,36 @@
         function applyGridLayout(items, usableArea) {
             const count = items.length;
             let cols, rows;
-
-            const orientation = document.querySelector('input[name="menuOrientation"]:checked').value;
+            const orientation = Q('input[name="menuOrientation"]:checked').value;
 
             if (orientation === 'vertical') {
                 cols = Math.ceil(Math.sqrt(count * (CANVAS_WIDTH / CANVAS_HEIGHT))); 
+                if (cols === 0) cols = 1;
                 rows = Math.ceil(count / cols);
-            } else { // horizontal
+            } else {
                 cols = Math.ceil(Math.sqrt(count * (CANVAS_WIDTH / CANVAS_HEIGHT))); 
+                if (cols === 0) cols = 1;
                 rows = Math.ceil(count / cols);
-                // For horizontal, might want more columns than rows initially
-                if (cols < rows && count > 4) { // Adjust for better landscape grid
-                    const temp = cols;
-                    cols = rows;
-                    rows = temp;
+                if (cols < rows && count > 4) { 
+                    [cols, rows] = [rows, cols]; // Swap
                 }
             }
 
             const padding = 40;
-            
             const effectiveWidth = usableArea.width - padding * (cols + 1);
             const effectiveHeight = usableArea.height - padding * (rows + 1);
 
             const cellWidth = effectiveWidth / cols;
             const cellHeight = effectiveHeight / rows;
             
-            const aspectRatio = 1.2; // Example aspect ratio (width / height)
+            const aspectRatio = 1.2; 
             let itemWidth, itemHeight;
 
             if (cellWidth / cellHeight > aspectRatio) {
-                itemHeight = cellHeight * 0.8; // 80% of cell height
+                itemHeight = cellHeight * 0.8;
                 itemWidth = itemHeight * aspectRatio;
             } else {
-                itemWidth = cellWidth * 0.8; // 80% of cell width
+                itemWidth = cellWidth * 0.8;
                 itemHeight = itemWidth / aspectRatio;
             }
 
@@ -1044,27 +997,26 @@
         }
         
         function applyWaterfallLayout(items, usableArea) {
-            const orientation = document.querySelector('input[name="menuOrientation"]:checked').value;
+            const orientation = Q('input[name="menuOrientation"]:checked').value;
             let cols;
 
             if (orientation === 'vertical') {
-                cols = Math.max(1, Math.min(items.length, 3)); // 1 to 3 columns for vertical
-            } else { // horizontal
-                cols = Math.max(2, Math.min(items.length, 5)); // 2 to 5 columns for horizontal
+                cols = Math.max(1, Math.min(items.length, 3));
+            } else {
+                cols = Math.max(2, Math.min(items.length, 5));
             }
 
             const padding = 20;
             const colWidth = (usableArea.width - padding * (cols + 1)) / cols;
-            const colHeights = Array(cols).fill(usableArea.y + padding); // 各列の現在の高さ
+            const colHeights = Array(cols).fill(usableArea.y + padding);
 
-            // Shuffle items for better visual distribution
             const shuffledItems = [...items].sort(() => Math.random() - 0.5);
 
             shuffledItems.forEach(item => {
                 const itemWidth = colWidth;
-                const itemHeight = colWidth * (0.8 + Math.random() * 0.4); // Randomize height for waterfall effect
+                const itemHeight = colWidth * (0.8 + Math.random() * 0.4);
 
-                const minHeight = Math.min(...colHeights); // Find the shortest column
+                const minHeight = Math.min(...colHeights);
                 const targetCol = colHeights.indexOf(minHeight);
 
                 item.width = itemWidth;
@@ -1073,46 +1025,20 @@
                 item.y = minHeight;
                 item.rotation = 0;
                 
-                colHeights[targetCol] += itemHeight + padding; // Update column height
+                colHeights[targetCol] += itemHeight + padding;
             });
         }
 
-        // メニュー画像を生成
-        async function generateMenuImage() {
-            if (menuItems.length === 0) {
-                alert('コラージュを作成するメニュー項目がありません。');
-                return;
-            }
-
-            initialEmptyState.style.display = 'none';
-            outputCanvas.style.display = 'block';
-            canvasButtons.style.display = 'flex';
-
-            // キャンバスサイズを最新の向き設定に合わせて更新
-            updateCanvasDimensions();
-
-            const backgroundChoice = document.querySelector('input[name="backgroundChoice"]:checked').value;
-            const layoutChoice = document.querySelector('input[name="layoutChoice"]:checked').value;
-            const menuTextColorChoice = document.querySelector('input[name="menuTextColor"]:checked').value;
-
-            // 背景色、テキスト色の設定
-            let bgColor, textColor, titleColor;
-            let drawCustomBackground = false; 
-
-            // Determine text color based on user choice
-            if (menuTextColorChoice === 'black') {
-                textColor = '#000000';
-                titleColor = '#000000';
-            } else { // 'white'
-                textColor = '#ffffff';
-                titleColor = '#ffffff';
-            }
+        // 背景描画ヘルパー関数
+        function drawBackground(ctx, backgroundChoice) {
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); // Clear canvas first
+            let drawCustomBackground = false;
 
             switch (backgroundChoice) {
-                case 'white': bgColor = '#ffffff'; break;
-                case 'beige': bgColor = '#f5f5dc'; break;
-                case 'light-gray': bgColor = '#f5f5f5'; break;
-                case 'dark-slate': bgColor = '#2f4f4f'; break; 
+                case 'white': ctx.fillStyle = '#ffffff'; break;
+                case 'beige': ctx.fillStyle = '#f5f5dc'; break;
+                case 'light-gray': ctx.fillStyle = '#f5f5f5'; break;
+                case 'dark-slate': ctx.fillStyle = '#2f4f4f'; break; 
                 case 'golden-hour': 
                     drawCustomBackground = true; 
                     const goldenGrad = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -1120,7 +1046,6 @@
                     goldenGrad.addColorStop(0.5, '#f07e6e'); 
                     goldenGrad.addColorStop(1, '#8c3a5e'); 
                     ctx.fillStyle = goldenGrad;
-                    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                     break;
                 case 'midnight-blue':
                     drawCustomBackground = true;
@@ -1129,12 +1054,11 @@
                     midnightGrad.addColorStop(0.5, '#b21f1f'); 
                     midnightGrad.addColorStop(1, '#fdbb2d'); 
                     ctx.fillStyle = midnightGrad;
-                    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
                     break;
                 case 'marble':
                     drawCustomBackground = true;
                     ctx.fillStyle = '#f8f8f8'; 
-                    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); // Base color
                     ctx.save();
                     ctx.globalAlpha = 0.3; 
                     for (let i = 0; i < 50; i++) {
@@ -1154,7 +1078,7 @@
                 case 'dark-wood':
                     drawCustomBackground = true;
                     ctx.fillStyle = '#4a2c2a'; 
-                    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+                    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT); // Base color
                     ctx.save();
                     ctx.globalAlpha = 0.2; 
                     for (let i = 0; i < 10; i++) {
@@ -1172,20 +1096,41 @@
                     ctx.restore();
                     break;
                 default: 
-                    bgColor = '#ffffff'; 
+                    ctx.fillStyle = '#ffffff'; 
                     break;
             }
-            
-            // Clear canvas before drawing new background if not custom
             if (!drawCustomBackground) { 
-                ctx.fillStyle = bgColor;
                 ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
             }
+        }
 
-            // メニュータイトルの描画（ユーザー入力値を使用）
+        // メニュー画像を生成
+        async function generateMenuImage() {
+            if (menuItems.length === 0) {
+                alert('コラージュを作成するメニュー項目がありません。');
+                return;
+            }
+
+            initialEmptyState.style.display = 'none';
+            outputCanvas.style.display = 'block';
+            canvasButtons.style.display = 'flex';
+
+            updateCanvasDimensions(); // Ensure canvas is correctly sized
+
+            const backgroundChoice = Q('input[name="backgroundChoice"]:checked').value;
+            const layoutChoice = Q('input[name="layoutChoice"]:checked').value;
+            const menuTextColorChoice = Q('input[name="menuTextColor"]:checked').value;
+
+            const textColor = menuTextColorChoice === 'black' ? '#000000' : '#ffffff';
+            const titleColor = textColor; // Title color matches menu item text color
+
+            // Draw background
+            drawBackground(ctx, backgroundChoice);
+
+            // メニュータイトルの描画
             const menuTitle = menuTitleInput.value.trim();
-            const titleFontSize = Math.min(CANVAS_WIDTH * 0.075, 60); // Adjust title size based on canvas width
-            const titleYPosition = CANVAS_HEIGHT * 0.05; // 5% from top
+            const titleFontSize = Math.min(CANVAS_WIDTH * 0.075, 60);
+            const titleYPosition = CANVAS_HEIGHT * 0.05;
 
             if (menuTitle) {
                 ctx.fillStyle = titleColor; 
@@ -1197,73 +1142,35 @@
             
             // アイテム配置可能エリアの定義
             const usableArea = { 
-                x: CANVAS_WIDTH * 0.05, // 5% padding from left
-                y: titleYPosition + titleFontSize + 30, // Below title with some padding
-                width: CANVAS_WIDTH * 0.9, // 90% width
-                height: CANVAS_HEIGHT - (titleYPosition + titleFontSize + 30) - (CANVAS_HEIGHT * 0.05) // Bottom 5% padding
+                x: CANVAS_WIDTH * 0.05,
+                y: titleYPosition + titleFontSize + 30,
+                width: CANVAS_WIDTH * 0.9,
+                height: CANVAS_HEIGHT - (titleYPosition + titleFontSize + 30) - (CANVAS_HEIGHT * 0.05)
             };
 
             // レイアウトの適用
             switch(layoutChoice) {
                 case 'grid': applyGridLayout(menuItems, usableArea); break;
                 case 'waterfall': applyWaterfallLayout(menuItems, usableArea); break;
-                default: applyCollageLayout(menuItems, usableArea); // Default to collage
+                default: applyCollageLayout(menuItems, usableArea);
             }
 
-            // 各メニューアイテムの描画
-            let loadedItemPromises = menuItems.map(item => {
-                return new Promise((resolve) => { 
+            // 各メニューアイテムの描画 (Defer loading images)
+            const loadedItemPromises = menuItems.map(item => {
+                return new Promise(resolve => {
                     if (item.image) {
-                        // 画像がある場合：画像をロードして描画
                         const img = new Image();
                         img.src = item.image;
                         img.onload = () => {
-                            ctx.save();
-                            ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
-                            ctx.rotate(item.rotation);
-                            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-                            ctx.shadowBlur = 15;
-                            ctx.shadowOffsetX = 5;
-                            ctx.shadowOffsetY = 5;
-                            ctx.drawImage(img, -item.width / 2, -item.height / 2, item.width, item.height);
-                            ctx.restore();
-                            
-                            // テキスト背景とテキスト
-                            ctx.save();
-                            ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
-                            ctx.rotate(item.rotation);
-                            
-                            let itemTextBgColor;
-                            let currentItemTextColor = textColor;
-
-                            if (menuTextColorChoice === 'black') {
-                                itemTextBgColor = 'rgba(255,255,255,0.5)'; 
-                            } else { 
-                                itemTextBgColor = 'rgba(0,0,0,0.5)'; 
-                            }
-                           
-                            ctx.fillStyle = itemTextBgColor;
-                            const priceFontSize = Math.max(12, item.width / 12);
-                            const nameFontSize = Math.max(14, item.width / 11);
-                            const textBgHeight = nameFontSize + priceFontSize + 15; 
-                            ctx.fillRect(-item.width/2, item.height/2 - textBgHeight, item.width, textBgHeight);
-                            ctx.fillStyle = currentItemTextColor; 
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'bottom';
-                            ctx.font = `bold ${nameFontSize}px Arial`;
-                            ctx.fillText(item.name, 0, item.height / 2 - priceFontSize - 5);
-                            ctx.font = `bold ${priceFontSize}px Arial`;
-                            ctx.fillText(`¥${item.price.toLocaleString()}`, 0, item.height / 2 - 5);
-                            ctx.restore();
+                            drawItem(item, img, textColor);
                             resolve();
                         };
                         img.onerror = () => {
                             console.warn(`Failed to load image for item: ${item.name}`);
-                            drawNoImagePlaceholder(item, textColor); 
-                            resolve(); 
+                            drawNoImagePlaceholder(item, textColor);
+                            resolve();
                         };
                     } else {
-                        // 画像がない場合：プレースホルダーとテキストを描画
                         drawNoImagePlaceholder(item, textColor);
                         resolve();
                     }
@@ -1275,13 +1182,46 @@
             alert('コラージュメニューが生成されました！');
         }
 
-        // Helper function to draw placeholder for items without images
+        // アイテム描画ヘルパー
+        function drawItem(item, img, textColor) {
+            ctx.save();
+            ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
+            ctx.rotate(item.rotation);
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetX = 5;
+            ctx.shadowOffsetY = 5;
+            ctx.drawImage(img, -item.width / 2, -item.height / 2, item.width, item.height);
+            ctx.restore();
+            
+            ctx.save();
+            ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
+            ctx.rotate(item.rotation);
+            
+            const itemTextBgColor = (textColor === '#000000') ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+            
+            ctx.fillStyle = itemTextBgColor;
+            const priceFontSize = Math.max(12, item.width / 12);
+            const nameFontSize = Math.max(14, item.width / 11);
+            const textBgHeight = nameFontSize + priceFontSize + 15; 
+            ctx.fillRect(-item.width/2, item.height/2 - textBgHeight, item.width, textBgHeight);
+            
+            ctx.fillStyle = textColor; 
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.font = `bold ${nameFontSize}px Arial`;
+            ctx.fillText(item.name, 0, item.height / 2 - priceFontSize - 5);
+            ctx.font = `bold ${priceFontSize}px Arial`;
+            ctx.fillText(`¥${item.price.toLocaleString()}`, 0, item.height / 2 - 5);
+            ctx.restore();
+        }
+
+        // 画像がない場合のプレースホルダー描画ヘルパー
         function drawNoImagePlaceholder(item, textColor) {
             ctx.save();
             ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
             ctx.rotate(item.rotation);
             
-            // プレースホルダーの箱を描画
             ctx.fillStyle = '#e9ecef';
             ctx.strokeStyle = '#adb5bd';
             ctx.lineWidth = 2;
@@ -1292,8 +1232,7 @@
             ctx.fillRect(-item.width / 2, -item.height / 2, item.width, item.height);
             ctx.strokeRect(-item.width / 2, -item.height / 2, item.width, item.height);
             
-            // テキスト用の影をリセット
-            ctx.shadowColor = 'transparent';
+            ctx.shadowColor = 'transparent'; // Reset shadow for text
 
             ctx.fillStyle = textColor; 
             ctx.textAlign = 'center';
@@ -1318,7 +1257,7 @@
             }
 
             outputCanvas.toBlob(function(blob) {
-                const link = document.createElement('a');
+                const link = D.createElement('a');
                 link.href = URL.createObjectURL(blob);
                 link.download = `collage_menu_${new Date().toISOString().split('T')[0]}.png`;
                 link.click();
@@ -1327,8 +1266,36 @@
             }, 'image/png');
         }
 
+        // 生成されたPDFをダウンロード
+        async function downloadPdf() {
+            if (menuItems.length === 0 || outputCanvas.style.display === 'none') {
+                alert('ダウンロードするメニューがありません。まずメニューを生成してください。');
+                return;
+            }
+
+            // html2canvasでcanvasを画像化
+            const canvasImg = await html2canvas(outputCanvas, {
+                scale: 2, // 高解像度でキャプチャ
+                useCORS: true // 外部画像を使用する場合
+            });
+
+            // jsPDFインスタンスを作成
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: CANVAS_WIDTH > CANVAS_HEIGHT ? 'landscape' : 'portrait',
+                unit: 'px',
+                format: [CANVAS_WIDTH, CANVAS_HEIGHT] // Canvasサイズに合わせる
+            });
+
+            const imgData = canvasImg.toDataURL('image/png');
+            pdf.addImage(imgData, 'PNG', 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            
+            pdf.save(`collage_menu_${new Date().toISOString().split('T')[0]}.pdf`);
+            alert('コラージュメニューがPDFとして保存されました！');
+        }
+
         // Enterキーでの項目追加（商品名/価格入力時）
-        document.addEventListener('keypress', function(e) {
+        D.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && (e.target.id === 'itemName' || e.target.id === 'itemPrice')) {
                 e.preventDefault(); 
                 addOrUpdateMenuItem();
