@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>コラージュメニュー作成</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS9QtgpiI0bWVEbqohXXgXuP+KJgmiEbSgBlXeT+bgikRYGgYiFyWTwjbXdZEQA4ttOPFfg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
         /* Base styles */
         * {
@@ -502,6 +503,7 @@
                 </div>
                 <div id="canvasButtons" class="canvas-buttons" style="display: none;">
                     <button class="btn btn-primary" onclick="downloadFinalImage()">⬇️ 画像をダウンロード</button>
+                    <button class="btn btn-primary" onclick="downloadFinalPdf()">⬇️ PDFをダウンロード</button>
                 </div>
             </div>
         </div>
@@ -1325,6 +1327,38 @@
                 
                 alert('コラージュメニューが画像として保存されました！');
             }, 'image/png');
+        }
+
+        // PDF出力機能
+        function downloadFinalPdf() {
+            if (menuItems.length === 0 || outputCanvas.style.display === 'none') {
+                alert('PDFを生成するメニューがありません。まずメニューを生成してください。');
+                return;
+            }
+
+            const element = outputCanvas; // PDF化する要素（キャンバス）
+
+            const orientation = document.querySelector('input[name="menuOrientation"]:checked').value;
+            const pdfOrientation = (orientation === 'vertical') ? 'p' : 'l'; // 'p' for portrait, 'l' for landscape
+
+            // A4サイズのピクセル寸法を元に、PDFのページサイズを設定
+            // A4: 210mm x 297mm
+            // Canvasのサイズを基準にして、PDFに最適化する
+            // html2pdf.jsのデフォルトのDPIは96dpiに近いため、その比率で調整
+            const pdfWidthMm = CANVAS_WIDTH / 3.78; // 1mm ≈ 3.78px (at 96dpi)
+            const pdfHeightMm = CANVAS_HEIGHT / 3.78; 
+            
+            const options = {
+                margin: 0, // 余白なし
+                filename: `collage_menu_${new Date().toISOString().split('T')[0]}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 }, // Canvasを高解像度でレンダリング
+                jsPDF: { unit: 'mm', format: [pdfWidthMm, pdfHeightMm], orientation: pdfOrientation } // PDFの単位、フォーマット、向き
+            };
+
+            html2pdf().set(options).from(element).save();
+
+            alert('コラージュメニューがPDFとして保存されました！');
         }
 
         // Enterキーでの項目追加（商品名/価格入力時）
