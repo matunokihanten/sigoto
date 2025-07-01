@@ -148,28 +148,26 @@
   <div class="container">
     <h1>PDFに署名画像を追加</h1>
 
-    <!-- ファイル選択 -->
     <div class="input-group">
       <label for="pdfFile">1. 契約書などのPDFファイルを選択</label>
       <input type="file" id="pdfFile" accept=".pdf">
     </div>
     <div class="input-group">
-      <label for="imageFile">2. 署名・印鑑の画像ファイル (PNG/JPG) を選択</label>
+      <label for="imageFile">2. 署名・印鑑の画像ファイル (PNG/JPG) を選択 (任意)</label>
       <input type="file" id="imageFile" accept="image/png, image/jpeg">
     </div>
 
-    <!-- 追加設定 -->
     <div class="input-group">
       <label for="pageNum">3. 署名を追加するページ番号 (1ページ目から)</label>
       <input type="number" id="pageNum" min="1" value="1">
     </div>
     <div class="input-group">
       <label for="posX">4. 署名画像のX座標 (PDFの左下原点からの位置 px)</label>
-      <input type="number" id="posX" value="50">
+      <input type="number" id="posX" value="25">
     </div>
     <div class="input-group">
       <label for="posY">5. 署名画像のY座標 (PDFの左下原点からの位置 px)</label>
-      <input type="number" id="posY" value="70">
+      <input type="number" id="posY" value="35">
     </div>
     <div class="input-group">
       <label for="sigWidth">6. 署名画像の幅 (px)</label>
@@ -180,7 +178,6 @@
       <input type="number" id="sigHeight" min="1" value="60">
     </div>
 
-    <!-- 署名テキスト設定 -->
     <div class="input-group">
       <label for="signatureText">8. 署名テキスト (任意、画像の下に追加されます)</label>
       <input type="text" id="signatureText" placeholder="例: 秀和">
@@ -198,14 +195,11 @@
     </div>
 
 
-    <!-- ボタン類 -->
     <button id="signButton">署名してダウンロード</button>
     <button id="previewButton">署名プレビュー</button>
 
-    <!-- ステータス表示 -->
     <p id="status"></p>
 
-    <!-- プレビュー表示用領域 -->
     <div id="previewContainer">
       <h2>プレビュー</h2>
       <iframe id="pdfPreview"></iframe>
@@ -224,8 +218,8 @@
     const sigWidthInput = document.getElementById('sigWidth');
     const sigHeightInput = document.getElementById('sigHeight');
     const signatureTextInput = document.getElementById('signatureText');
-    const textFontSizeInput = document.getElementById('textFontSize'); // 追加
-    const textColorInput = document.getElementById('textColor');     // 追加
+    const textFontSizeInput = document.getElementById('textFontSize');
+    const textColorInput = document.getElementById('textColor');
     const signButton = document.getElementById('signButton');
     const previewButton = document.getElementById('previewButton');
     const statusEl = document.getElementById('status');
@@ -276,28 +270,24 @@
         document.body.removeChild(link);
       }
 
-      // ブラウザによっては即時解放がうまく働かないことがあるため、少し遅延させます
-      // また、ダウンロードが完了する前に解放されると問題が起こる可能性があるため、
-      // モバイルでのwindow.openの場合は解放しないか、ユーザー操作を待つなどの考慮が必要ですが、
-      // ここではシンプルに遅延解放としています。
-      setTimeout(() => { URL.revokeObjectURL(objectUrl); }, 5000); // 少し長めに遅延
+      setTimeout(() => { URL.revokeObjectURL(objectUrl); }, 5000);
     }
 
     // PDF を処理して署名画像やテキストを追加する関数
     async function processPDF() {
-      // ファイル選択のチェック
+      // PDFファイルの選択チェックは必須
       if (pdfFileInput.files.length === 0) {
         throw new Error('PDFファイルを選択してください。');
       }
-      if (imageFileInput.files.length === 0) {
-        throw new Error('署名画像ファイルを選択してください。');
+
+      // 署名テキストも画像も指定されていない場合はエラー
+      if (imageFileInput.files.length === 0 && signatureTextInput.value.trim() === '') {
+        throw new Error('署名画像ファイルまたは署名テキストのいずれかを指定してください。');
       }
 
       displayStatus('PDFファイルを読み込んでいます...', 'info');
       // ファイルの読み込み
       const pdfBuffer = await pdfFileInput.files[0].arrayBuffer();
-      const imageBuffer = await imageFileInput.files[0].arrayBuffer();
-      const imageType = imageFileInput.files[0].type.toLowerCase();
 
       displayStatus('PDFドキュメントを解析しています...', 'info');
       // PDF ドキュメントの読み込み
@@ -310,23 +300,6 @@
       }
 
 
-      displayStatus('署名画像を埋め込んでいます...', 'info');
-      // 画像の種類判定（jpeg, jpg, png に対応）
-      let image;
-      try {
-          if (imageType.includes('jpeg') || imageType.includes('jpg')) {
-            image = await pdfDoc.embedJpg(imageBuffer);
-          } else if (imageType.includes('png')) {
-            image = await pdfDoc.embedPng(imageBuffer);
-          } else {
-            throw new Error(`未対応の画像形式です: ${imageType}`);
-          }
-      } catch (e) {
-          console.error("画像埋め込みエラー:", e);
-          throw new Error('署名画像の埋め込みに失敗しました。画像ファイルが破損しているか、形式が正しくないかもしれません。');
-      }
-
-
       // ユーザー入力から配置情報を取得
       const pageNum = parseInt(pageNumInput.value);
       const posX = parseFloat(posXInput.value);
@@ -334,8 +307,8 @@
       const sigWidth = parseFloat(sigWidthInput.value);
       const sigHeight = parseFloat(sigHeightInput.value);
       const signatureText = signatureTextInput.value;
-      const textFontSize = parseFloat(textFontSizeInput.value); // 追加
-      const textColorHex = textColorInput.value;               // 追加
+      const textFontSize = parseFloat(textFontSizeInput.value);
+      const textColorHex = textColorInput.value;
 
       // 入力値のバリデーション
       if (isNaN(pageNum) || pageNum < 1) {
@@ -344,7 +317,8 @@
       if (isNaN(posX) || isNaN(posY)) {
            throw new Error('有効なX座標、Y座標を入力してください。');
       }
-      if (isNaN(sigWidth) || sigWidth <= 0 || isNaN(sigHeight) || sigHeight <= 0) {
+      // 画像が選択されている場合のみ幅と高さのバリデーション
+      if (imageFileInput.files.length > 0 && (isNaN(sigWidth) || sigWidth <= 0 || isNaN(sigHeight) || sigHeight <= 0)) {
            throw new Error('有効な署名画像の幅と高さを入力してください (1以上)。');
       }
       if (signatureText.trim() !== '' && (isNaN(textFontSize) || textFontSize <= 0)) {
@@ -361,14 +335,35 @@
       }
       const targetPage = pages[pageIndex];
 
-      displayStatus('署名画像を描画しています...', 'info');
-      // 署名画像の描画
-      targetPage.drawImage(image, {
-        x: posX,
-        y: posY,
-        width: sigWidth,
-        height: sigHeight
-      });
+      // 署名画像ファイルの処理 (ファイルが選択されている場合のみ)
+      if (imageFileInput.files.length > 0) {
+        displayStatus('署名画像を埋め込んでいます...', 'info');
+        const imageBuffer = await imageFileInput.files[0].arrayBuffer();
+        const imageType = imageFileInput.files[0].type.toLowerCase();
+        let image;
+        try {
+            if (imageType.includes('jpeg') || imageType.includes('jpg')) {
+              image = await pdfDoc.embedJpg(imageBuffer);
+            } else if (imageType.includes('png')) {
+              image = await pdfDoc.embedPng(imageBuffer);
+            } else {
+              throw new Error(`未対応の画像形式です: ${imageType}`);
+            }
+        } catch (e) {
+            console.error("画像埋め込みエラー:", e);
+            throw new Error('署名画像の埋め込みに失敗しました。画像ファイルが破損しているか、形式が正しくないかもしれません。');
+        }
+
+        displayStatus('署名画像を描画しています...', 'info');
+        // 署名画像の描画
+        targetPage.drawImage(image, {
+          x: posX,
+          y: posY,
+          width: sigWidth,
+          height: sigHeight
+        });
+      }
+
 
       // 署名テキストの追加（入力がある場合）
       if (signatureText.trim() !== '') {
@@ -377,9 +372,12 @@
             const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
             const textColorRgb = hexToRgb(textColorHex); // カラーコードをRGBに変換
 
+            // 画像が追加される場合はその下に、そうでない場合は指定座標に描画
+            const textY = (imageFileInput.files.length > 0) ? (posY - (textFontSize * 1.2)) : posY;
+
             targetPage.drawText(signatureText, {
               x: posX,
-              y: posY - (textFontSize * 1.2), // 画像の下にフォントサイズの1.2倍程度のスペースを空ける
+              y: textY,
               size: textFontSize,
               font: helveticaFont,
               color: textColorRgb,
