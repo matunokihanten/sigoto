@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <title>🌟 完全版構造エディタ＋豪華PDF/CSV/FS/ZIP</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; background: #f9f9f9; }
+    #controls {
+      display: grid;
+      grid-template-columns: repeat(4, auto);
+      gap: 8px;
+      margin-bottom: 1rem;
+    }
+    #controls > * { font-size: 0.9rem; padding: 6px 12px; }
+    #tree { list-style: none; padding-left: 0; }
+    li { margin: 4px 0; position: relative; }
+    li::before {
+      content: ""; position: absolute; top: 12px; left: -10px;
+      width: 10px; height: 1px; background: #ccc;
+    }
+    .children {
+      border-left: 1px solid #ccc; margin-left: 10px; padding-left: 10px;
+    }
+    .node, .node-input {
+      display: inline-block; padding: 4px 8px;
+      border: 1px solid #aaa; border-radius: 4px; background: #fff;
+      font-family: monospace;
+    }
+    .node { cursor: move; }
+    .node-input { padding: 2px 4px; width: auto; }
+    .actions button { margin-left: 4px; font-size: 0.8rem; }
+    .over > .node { background: #def; }
+  </style>
+</head>
+<body>
+  <h2>🗂️ 完全版構造エディタ・CSV保存/読込・FS読込・ZIP・豪華PDF</h2>
+  <div id="controls">
+    <select id="templateSelect">
+      <option value="empty">— 空 —</option>
+      <option value="js">JavaScript プロジェクト</option>
+      <option value="html">HTML ファイル構成</option>
+    </select>
+    <button id="addRootFolder">ルートにフォルダ追加</button>
+    <button id="addRootFile">ルートにファイル追加</button>
+    <button id="saveCsv">CSVを保存</button>
+    <button id="loadCsv">CSVを読込</button>
+    <button id="importFs">フォルダから読込</button>
+    <button id="downloadZip">ZIPをダウンロード</button>
+    <button id="downloadPdf">豪華PDFをダウンロード</button>
+  </div>
+  <ul id="tree"></ul>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    //―― テンプレート ――
+    const templates = {
+      empty: ``,
+      js: `
+/my-app
+├── src/
+│   └── index.js
+├── package.json
+└── README.md`.trim(),
+      html: `
+/site
+├── index.html
+├── style.css
+└── script.js`.trim()
+    };
+
+    //―― ユーティリティ ――
+    let idCounter = 1;
+    function genId() { return 'n'+(idCounter++); }
+    function createNode(name,type){ return { id:genId(), name, type, children: [] }; }
+    function getFileTemplate(name){
+      if(name.endsWith('.html')){
+        const t=name.replace(/\.html$/,'');
+        return `<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>${t}</title></head>
+<body>
+
+</body>
+</html>`;
+      }
+      return '';
+    }
+
+    //―― グローバル状態 ――
+    let root = createNode('/', 'folder');
+    let editingId = null;
+
+    //―― テンプレート読み込み ――
+    function loadTemplate(key){
+      root = createNode('/', 'folder');
+      idCounter = 1; editingId = null;
+      if(key!=='empty'){
+        const lines=templates[key].split('\n'), stack=[];
+        lines.forEach(raw=>{
+          const depth=(raw.match(/^(\s*[│├└─]+)?/)?.[0]||'')
+            .replace(/[│├└─]/g,'').length/2;
+          const txt=raw.replace(/^[\s│├└─]+/,'').trim();
+          if(!txt) return;
+          const isDir=txt.endsWith('/');
+          const name=txt.replace(/\/$/,'');
+          const node=createNode(name,isDir?'folder':'file');
+          while(stack.length>depth) stack.pop();
+          const parent=stack[stack.length-1]||root;
+          parent.children.push(node);
+          if(isDir) stack.push(node);
+        });
+      }
+      render();
+    }
+
+    //―― レンダリング ――
+    function render(){
+      const ul=document.getElementById('tree');
+      ul.innerHTML='';
+      function build(node, container){
+        node.children.forEach(ch=>{
+          const li=document.createElement('li');
+          li.draggable=true;
+          li.dataset.id=ch.id;
+
+          if(ch.id===editingId){
+            const inp=document.createElement('input');
+            inp.value=ch.name; inp.className='node-input';
+            inp.onblur=()=>commitEdit(inp.value);
+            inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); };
+            li.appendChild(inp);
+            setTimeout(()=>inp.select(),0);
+          } else {
+            const sp=document.createElement('span');
+            sp.className='node';
+            sp.textContent=ch.name+(ch.type==='folder'?'/':'');
+            sp.ondblclick=()=>{ editingId=ch.id; render(); };
+            li.appendChild(sp);
+          }
+
+          const act=document.createElement('span');
+          act.className='actions';
+          const btns=[
+            {t:'✎',fn:()=>{ editingId=ch.id; render(); }},
+            {t:'+F',fn:()=>{ ch.children.push(createNode('new-folder','folder')); render(); },cond:ch.type==='folder'},
+            {t:'+f',fn:()=>{ ch.children.push(createNode('new-file.html','file')); render(); }},
+            {t:'✕',fn:()=>{ removeNode(root,ch.id); render(); }}
+          ];
+          btns.forEach(b=>{
+            if(b.cond===false) return;
+            const btn=document.createElement('button');
+            btn.textContent=b.t; btn.onclick=b.fn;
+            act.appendChild(btn);
+          });
+          li.appendChild(act);
+
+          li.addEventListener('dragstart',onDragStart);
+          li.addEventListener('dragover',onDragOver);
+          li.addEventListener('dragleave',onDragLeave);
+          li.addEventListener('drop',onDrop);
+
+          container.appendChild(li);
+          if(ch.type==='folder'){
+            const sub=document.createElement('ul');
+            sub.className='children';
+            li.appendChild(sub);
+            build(ch,sub);
+          }
+        });
+      }
+      build(root,ul);
+    }
+    function commitEdit(val){
+      if(val.trim()) findNode(root,editingId).name=val.trim();
+      editingId=null; render();
+    }
+    function removeNode(p,id){
+      p.children=p.children.filter(c=>c.id!==id);
+      p.children.forEach(c=>removeNode(c,id));
+    }
+    function findNode(p,id){
+      if(p.id===id) return p;
+      for(const c of p.children){ const r=findNode(c,id); if(r) return r; }
+    }
+    function findParent(p,id){
+      for(const c of p.children){
+        if(c.id===id) return p;
+        const r=findParent(c,id);
+        if(r) return r;
+      }
+    }
+
+    //―― Drag & Drop ――
+    let draggedId=null;
+    function onDragStart(e){ draggedId=e.currentTarget.dataset.id; }
+    function onDragOver(e){
+      e.preventDefault();
+      const n=findNode(root,e.currentTarget.dataset.id);
+      if(n.type==='folder') e.currentTarget.classList.add('over');
+    }
+    function onDragLeave(e){ e.currentTarget.classList.remove('over'); }
+    function onDrop(e){
+      e.preventDefault();
+      e.currentTarget.classList.remove('over');
+      const tgt=e.currentTarget.dataset.id;
+      if(!draggedId||tgt===draggedId) return;
+      const sp=findParent(root,draggedId);
+      const sn=findNode(root,draggedId);
+      const tn=findNode(root,tgt);
+      if(tn.type==='folder'){
+        sp.children=sp.children.filter(c=>c.id!==draggedId);
+        tn.children.push(sn);
+        render();
+      }
+    }
+
+    //―― CSV 保存/読込 ――
+    function treeToCsv(){
+      const rows=[['path','type']];
+      (function w(n,p){
+        n.children.forEach(c=>{
+          const path=p+'/'+c.name;
+          rows.push([path,c.type]);
+          if(c.type==='folder') w(c,path);
+        });
+      })(root,'');
+      return rows.map(r=>r.join(',')).join('\n');
+    }
+    function saveCsv(){
+      const b=new Blob([treeToCsv()],{type:'text/csv'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(b);
+      a.download='structure.csv';
+      a.click();
+    }
+    async function loadCsv(){
+      const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
+      const txt=await (await f.getFile()).text();
+      const lines=txt.split('\n').slice(1).filter(l=>l.trim());
+      root=createNode('/','folder');
+      lines.forEach(l=>{
+        const [path,type]=l.split(',');
+        const seg=path.split('/').filter(Boolean);
+        let p=root;
+        seg.forEach((n,i)=>{
+          const last=i===seg.length-1;
+          if(last&&type==='file') p.children.push(createNode(n,'file'));
+          else {
+            let d=p.children.find(c=>c.name===n&&c.type==='folder');
+            if(!d){ d=createNode(n,'folder'); p.children.push(d); }
+            p=d;
+          }
+        });
+      });
+      render();
+    }
+
+    //―― フォルダから読込 ――
+    async function importFs(){
+      const dh=await window.showDirectoryPicker();
+      idCounter=1;
+      root=await readFs(dh);
+      render();
+    }
+    async function readFs(dh){
+      const node=createNode(dh.name,'folder');
+      for await(const [name,ent] of dh.entries()){
+        if(ent.kind==='directory') node.children.push(await readFs(ent));
+        else node.children.push(createNode(name,'file'));
+      }
+      return node;
+    }
+
+    //―― ZIP 出力 ――
+    function downloadZip(){
+      const zip=new JSZip();
+      (async function add(n,f){
+        for(const c of n.children){
+          if(c.type==='folder') await add(c,f.folder(c.name));
+          else f.file(c.name,getFileTemplate(c.name));
+        }
+      })(root,zip).then(()=>{
+        zip.generateAsync({type:'blob'}).then(b=>{
+          const a=document.createElement('a');
+          a.href=URL.createObjectURL(b);
+          a.download='structure.zip';
+          a.click();
+        });
+      });
+    }
+
+    //―― 豪華PDF 出力 ――
+    async function downloadPdf(){
+      const { jsPDF } = window.jspdf;
+      const pdf=new jsPDF({unit:'pt',format:'a4'});
+      const w=pdf.internal.pageSize.getWidth();
+      const h=pdf.internal.pageSize.getHeight();
+      const margin=40, nodeH=28, indentX=120, spaceY=12;
+      const palette=['#FF6B6B','#6BCB77','#4D96FF','#FFD93D','#845EC2'];
+      const counts={}, all=[];
+
+      // レイアウト
+      function layout(n,d=0){
+        if(!counts[d]) counts[d]=0;
+        n.depth=d;
+        n.x=margin + d*indentX;
+        n.y=margin + counts[d]*(nodeH+spaceY);
+        counts[d]++;
+        all.push(n);
+        n.children.forEach(c=>layout(c,d+1));
+      }
+      layout(root);
+
+      // Canvas 準備
+      const cv=document.createElement('canvas');
+      cv.width=w; cv.height=h;
+      const ctx=cv.getContext('2d');
+      ctx.font='14px sans-serif';
+      ctx.textBaseline='middle';
+
+      // 背景グラデーション
+      const grad=ctx.createLinearGradient(0,0,0,h);
+      grad.addColorStop(0,'#f0f4f8');
+      grad.addColorStop(1,'#d9e2ec');
+      ctx.fillStyle=grad;
+      ctx.fillRect(0,0,w,h);
+
+      // 線（曲線）
+      ctx.strokeStyle='#555'; ctx.lineWidth=2;
+      all.forEach(n=>{
+        n.children.forEach(c=>{
+          const x1=n.x + 90, y1=n.y + nodeH/2;
+          const x2=c.x, y2=c.y + nodeH/2;
+          const cx=(x1+x2)/2, cy=(y1+y2)/2 - 20;
+          ctx.beginPath();
+          ctx.moveTo(x1,y1);
+          ctx.quadraticCurveTo(cx,cy,x2,y2);
+          ctx.stroke();
+        });
+      });
+
+      // ノード描画（ボタン風）
+      all.forEach(n=>{
+        const col=palette[n.depth % palette.length];
+        const txt=n.name + (n.type==='folder'?'/':'');
+        const tw=ctx.measureText(txt).width;
+        const bw=tw+20, bh=nodeH;
+        const x=n.x, y=n.y;
+        // 陰影
+        ctx.fillStyle='rgba(0,0,0,0.1)';
+        roundRect(ctx,x+2,y+2,bw,bh,6);
+        ctx.fill();
+        // 本体
+        const lg=ctx.createLinearGradient(x,y,x+bw,y+bh);
+        lg.addColorStop(0,hexToRGBA(col,0.8));
+        lg.addColorStop(1,hexToRGBA(col,1));
+        ctx.fillStyle=lg;
+        ctx.strokeStyle=shadeColor(col,-20);
+        roundRect(ctx,x,y,bw,bh,6);
+        ctx.fill();
+        ctx.stroke();
+        // 文字
+        ctx.fillStyle='#fff';
+        ctx.font='bold 14px sans-serif';
+        ctx.textAlign='center';
+        ctx.fillText(txt,x + bw/2, y + bh/2);
+      });
+
+      // Canvas→PDF
+      const img=cv.toDataURL('image/png');
+      pdf.addImage(img,'PNG',0,0,w,h);
+      pdf.save('structure_map.pdf');
+    }
+    function roundRect(ctx,x,y,w,h,r){
+      ctx.beginPath();
+      ctx.moveTo(x+r,y);
+      ctx.lineTo(x+w-r,y);
+      ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+      ctx.lineTo(x+w,y+h-r);
+      ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+      ctx.lineTo(x+r,y+h);
+      ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+      ctx.lineTo(x,y+r);
+      ctx.quadraticCurveTo(x,y,x+r,y);
+      ctx.closePath();
+    }
+    function hexToRGBA(hex,a){
+      const h=hex.replace('#','');
+      const r=parseInt(h.substr(0,2),16),
+            g=parseInt(h.substr(2,2),16),
+            b=parseInt(h.substr(4,2),16);
+      return `rgba(${r},${g},${b},${a})`;
+    }
+    function shadeColor(col,amt){
+      let usePct=false;
+      if(col[0]==='r') return col;
+      if(col[0]==='#'){ col=col.slice(1); }
+      let num=parseInt(col,16);
+      let r=(num>>16)+amt;
+      let b=(num>>8&0x00FF)+amt;
+      let g=(num&0x0000FF)+amt;
+      r=Math.max(Math.min(255,r),0);
+      b=Math.max(Math.min(255,b),0);
+      g=Math.max(Math.min(255,g),0);
+      return '#'+((1<<24)+(r<<16)+(b<<8)+g).toString(16).slice(1);
+    }
+
+    //―― ボタンバインド & 初期レンダー ――
+    document.getElementById('templateSelect').onchange=e=>loadTemplate(e.target.value);
+    document.getElementById('addRootFolder').onclick=()=>{ root.children.push(createNode('new-folder','folder')); render(); };
+    document.getElementById('addRootFile').onclick=()=>{ root.children.push(createNode('new-file.html','file')); render(); };
+    document.getElementById('saveCsv').onclick=saveCsv;
+    document.getElementById('loadCsv').onclick=loadCsv;
+    document.getElementById('importFs').onclick=importFs;
+    document.getElementById('downloadZip').onclick=downloadZip;
+    document.getElementById('downloadPdf').onclick=downloadPdf;
+    render();
+  </script>
+</body>
+</html>
