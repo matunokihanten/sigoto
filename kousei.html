@@ -7,7 +7,7 @@
     body { font-family: sans-serif; padding: 1rem; background: #f9f9f9; }
     #controls {
       display: grid;
-      grid-template-columns: repeat(6, auto);
+      grid-template-columns: repeat(8, auto);
       gap: 8px;
       margin-bottom: 1rem;
     }
@@ -30,6 +30,7 @@
     .node-input { padding: 2px 4px; width: auto; }
     .actions button { margin-left: 4px; font-size: 0.8rem; }
     .over > .node { background: #def; }
+    .ui-node { opacity: 0.4; }
     #modal-bg {
       position: fixed; left:0; top:0; width:100vw; height:100vh;
       background: rgba(0,0,0,0.3); z-index: 1000; display: none;
@@ -40,16 +41,20 @@
       box-shadow: 0 4px 24px #0002;
     }
     #modal textarea {
-      width: 100%; height: 300px; font-family: monospace; font-size: 1rem;
+      width: 100%; height: 500px; font-family: monospace; font-size: 1rem;
       margin-bottom: 1em;
     }
     #modal label { font-weight: bold; }
     #modal .modal-btns { text-align: right; }
     #modal .modal-btns button { margin-left: 10px; }
+    #fav-list { margin: 0 0 1em 0; }
+    #fav-list button { margin-right: 6px; }
+    #filter-ui { margin-left: 1em; }
+    #txt-preview { white-space: pre; background: #fff; border: 1px solid #ccc; padding: 1em; margin: 1em 0; }
   </style>
 </head>
 <body>
-  <h2>🗂️ 完全版構造エディタ・CSV保存/読込・FS読込・ZIP・豪華PDF</h2>
+  <h2>🗂️ 完全版構造エディタ・CSV保存/読込・FS読込・ZIP・豪華PDF・SVG・プリセット</h2>
   <div id="controls">
     <select id="templateSelect">
       <option value="empty">— 空 —</option>
@@ -65,12 +70,20 @@
     <button id="downloadZip">ZIPをダウンロード</button>
     <button id="downloadPdf">構成図PDF</button>
     <button id="downloadFullPdf">全文PDF</button>
+    <button id="downloadSvg">SVG出力</button>
+    <button id="txtPreviewBtn">TXTプレビュー</button>
     <button id="undoBtn">元に戻す</button>
     <button id="redoBtn">やり直し</button>
     <button id="saveAllBtn">全保存</button>
     <button id="loadAllBtn">全読込</button>
+    <button id="copyBtn">コピー</button>
+    <button id="pasteBtn">貼り付け</button>
+    <label id="filter-ui"><input type="checkbox" id="includeUiNode" checked>UIノードも出力</label>
+    <button id="addFavBtn">お気に入り保存</button>
   </div>
+  <div id="fav-list"></div>
   <ul id="tree"></ul>
+  <div id="txt-preview" style="display:none"></div>
 
   <!-- モーダル（ファイル編集用） -->
   <div id="modal-bg">
@@ -106,7 +119,7 @@
     //―― ユーティリティ ――
     let idCounter = 1;
     function genId() { return 'n'+(idCounter++); }
-    function createNode(name,type){ return { id:genId(), name, type, children: [], content: '' }; }
+    function createNode(name,type,ui=false){ return { id:genId(), name, type, children: [], content: '', uiNode: !!ui }; }
     function getFileTemplate(name){
       if(name.endsWith('.html')){
         const t=name.replace(/\.html$/,'');
@@ -164,6 +177,9 @@
     //―― グローバル状態 ――
     let root = createNode('/', 'folder');
     let editingId = null;
+    let clipboard = null;
+    let clipboardType = null; // 'copy' or 'cut'
+    let dragOverIndex = null;
 
     //―― テンプレート読み込み ――
     function loadTemplate(key){
@@ -217,10 +233,13 @@
       const ul=document.getElementById('tree');
       ul.innerHTML='';
       function build(node, container){
-        node.children.forEach(ch=>{
+        node.children.forEach((ch, idx)=>{
           const li=document.createElement('li');
           li.draggable=true;
           li.dataset.id=ch.id;
+          li.dataset.idx=idx;
+
+          if(ch.uiNode) li.classList.add('ui-node');
 
           if(ch.id===editingId){
             const inp=document.createElement('input');
@@ -252,7 +271,9 @@
             {t:'+F',fn:()=>{ ch.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); },cond:ch.type==='folder'},
             {t:'+f',fn:()=>{ ch.children.push(createNode('新しいファイル.html','file')); saveHistory(); render(); }},
             {t:'+t',fn:()=>{ ch.children.push(createNode('新しいファイル.txt','file')); saveHistory(); render(); },cond:ch.type==='folder'},
-            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }}
+            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }},
+            {t:'📋',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='copy'; },cond:true},
+            {t:'📄',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='cut'; },cond:true}
           ];
           btns.forEach(b=>{
             if(b.cond===false) return;
@@ -262,10 +283,21 @@
           });
           li.appendChild(act);
 
+          // 並べ替え用ドロップターゲット
           li.addEventListener('dragstart',onDragStart);
           li.addEventListener('dragover',onDragOver);
           li.addEventListener('dragleave',onDragLeave);
           li.addEventListener('drop',onDrop);
+
+          // 並べ替えインジケータ
+          li.addEventListener('dragenter',e=>{
+            dragOverIndex = idx;
+            li.style.borderTop = '2px solid #4D96FF';
+          });
+          li.addEventListener('dragleave',e=>{
+            dragOverIndex = null;
+            li.style.borderTop = '';
+          });
 
           container.appendChild(li);
           if(ch.type==='folder'){
@@ -278,6 +310,7 @@
       }
       build(root,ul);
       updateUndoRedoBtn();
+      renderFavList();
     }
     function commitEdit(val){
       if(val.trim()) findNode(root,editingId).name=val.trim();
@@ -300,7 +333,7 @@
       }
     }
 
-    //―― Drag & Drop（バグ修正: 画面消え防止）――
+    //―― Drag & Drop（並べ替え・移動バグ修正）――
     let draggedId=null;
     function onDragStart(e){ draggedId=e.currentTarget.dataset.id; }
     function onDragOver(e){
@@ -313,24 +346,84 @@
       e.preventDefault();
       e.currentTarget.classList.remove('over');
       const tgt=e.currentTarget.dataset.id;
+      const tgtIdx=parseInt(e.currentTarget.dataset.idx,10);
       if(!draggedId||tgt===draggedId) return;
       const sp=findParent(root,draggedId);
       const sn=findNode(root,draggedId);
       const tn=findNode(root,tgt);
-      if(!sp || !sn || !tn || tn.type!=='folder') return; // バグ防止
+
+      // 並べ替え（同じ親内で順序変更）
+      if(sp && sp.children.some(c=>c.id===tgt)){
+        const arr=sp.children;
+        const fromIdx=arr.findIndex(c=>c.id===draggedId);
+        let toIdx=tgtIdx;
+        if(fromIdx<toIdx) toIdx--; // ドラッグ元が前なら1つ前に
+        if(fromIdx!==toIdx){
+          arr.splice(toIdx,0,arr.splice(fromIdx,1)[0]);
+          saveHistory();
+          render();
+        }
+        return;
+      }
+
+      // フォルダへの移動（親ごと移動しないように）
+      if(!sp || !sn || !tn || tn.type!=='folder') return;
       // 既に移動先に同じIDがある場合は移動しない
       if(tn.children.some(c=>c.id===draggedId)) return;
+      // 親が自分自身や子孫でないかチェック
+      let check=tn;
+      while(check){
+        if(check.id===sn.id) return;
+        check=findParent(root,check.id);
+      }
       sp.children=sp.children.filter(c=>c.id!==draggedId);
       tn.children.push(sn);
       saveHistory();
       render();
     }
 
-    //―― CSV 保存/読込 ――
+    //―― コピー＆ペースト機能
+    document.getElementById('copyBtn').onclick=()=>{
+      const sel = document.querySelector('.node.selected');
+      if(!sel) return alert('コピーしたいノードを選択してください（ノード名をダブルクリック）');
+      const id = sel.parentElement.dataset.id;
+      clipboard = JSON.parse(JSON.stringify(findNode(root,id)));
+      clipboardType = 'copy';
+    };
+    document.getElementById('pasteBtn').onclick=()=>{
+      if(!clipboard) return alert('コピーまたはカットしたノードがありません');
+      const sel = document.querySelector('.node.selected');
+      let parent = root;
+      if(sel) {
+        const id = sel.parentElement.dataset.id;
+        const node = findNode(root,id);
+        if(node.type==='folder') parent = node;
+        else parent = findParent(root,id);
+      }
+      // 新しいIDを振り直す
+      function reid(n){
+        n.id = genId();
+        n.children.forEach(reid);
+      }
+      const pasted = JSON.parse(JSON.stringify(clipboard));
+      reid(pasted);
+      parent.children.push(pasted);
+      saveHistory();
+      render();
+    };
+
+    // ノード選択（コピー用）
+    document.addEventListener('dblclick',e=>{
+      document.querySelectorAll('.node.selected').forEach(n=>n.classList.remove('selected'));
+      if(e.target.classList.contains('node')) e.target.classList.add('selected');
+    });
+
+    //―― CSV 保存/読込（UIノード除外）――
     function treeToCsv(){
       const rows=[['path','type','content']];
       (function w(n,p){
         n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
           const path=p+'/'+c.name;
           rows.push([path,c.type,c.type==='file'?btoa(unescape(encodeURIComponent(c.content||''))):'']);
           if(c.type==='folder') w(c,path);
@@ -339,7 +432,6 @@
       return rows.map(r=>r.map(x=>`"${x.replace(/"/g,'""')}"`).join(',')).join('\n');
     }
     function saveCsv(){
-      // UTF-8 BOM付きで保存（Excel等で文字化けしない）
       const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
       const csv = treeToCsv();
       const blob = new Blob([bom, csv], {type:'text/csv'});
@@ -348,14 +440,12 @@
       a.download='structure.csv';
       a.click();
     }
-    // カンマ・改行・日本語・内容も含めて完全読込
     async function loadCsv(){
       const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
       const txt=await (await f.getFile()).text();
       const lines=txt.split('\n').filter(l=>l.trim());
       root=createNode('/','folder');
       lines.slice(1).forEach(l=>{
-        // CSVパース
         const m = l.match(/^"((?:[^"]|"")*)","(folder|file)","((?:[^"]|"")*)"$/);
         if(!m) return;
         const path = m[1].replace(/""/g,'"');
@@ -402,17 +492,17 @@
     function downloadZip(){
       const zip=new JSZip();
       (async function add(n,f){
-        for(const c of n.children){
-          if(c.type==='folder') await add(c,f.folder(c.name));
+        n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          if(c.type==='folder') add(c,f.folder(c.name));
           else f.file(c.name, c.content ?? getFileTemplate(c.name));
-        }
-      })(root,zip).then(()=>{
-        zip.generateAsync({type:'blob'}).then(b=>{
-          const a=document.createElement('a');
-          a.href=URL.createObjectURL(b);
-          a.download='structure.zip';
-          a.click();
         });
+      })(root,zip);
+      zip.generateAsync({type:'blob'}).then(b=>{
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(b);
+        a.download='structure.zip';
+        a.click();
       });
     }
 
@@ -423,7 +513,7 @@
       render();
     };
 
-    //―― 構成図PDF（ボタン部分は除外）――
+    //―― 構成図PDF（UIノード除外）――
     async function downloadPdf(){
       const { jsPDF } = window.jspdf;
       const pdf=new jsPDF({unit:'pt',format:'a4'});
@@ -433,15 +523,17 @@
       const palette=['#FF6B6B','#6BCB77','#4D96FF','#FFD93D','#845EC2','#00C9A7','#F9A602'];
       const counts={}, all=[];
 
-      // レイアウト: ルートを中央上部に
       function layout(n,d=0){
-        if(!counts[d]) counts[d]=0;
-        n.depth=d;
-        n.x=margin + d*indentX;
-        n.y=margin + counts[d]*(nodeH+spaceY) + (d===0?0:60);
-        counts[d]++;
-        all.push(n);
-        n.children.forEach(c=>layout(c,d+1));
+        n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          if(!counts[d]) counts[d]=0;
+          c.depth=d;
+          c.x=margin + d*indentX;
+          c.y=margin + counts[d]*(nodeH+spaceY) + (d===0?0:60);
+          counts[d]++;
+          all.push(c);
+          layout(c,d+1);
+        });
       }
       layout(root);
 
@@ -466,6 +558,7 @@
       ctx.strokeStyle='#555'; ctx.lineWidth=3;
       all.forEach(n=>{
         n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
           const x1=n.x + 110, y1=n.y + nodeH/2;
           const x2=c.x, y2=c.y + nodeH/2;
           const cx=(x1+x2)/2, cy=(y1+y2)/2 - 30;
@@ -480,11 +573,10 @@
       // ノード描画（アイコン付きカード風）
       all.forEach(n=>{
         const col=palette[n.depth % palette.length];
-        const txt=n.name; // 「/」は付けない
+        const txt=n.name;
         const tw=ctx.measureText(txt).width;
         const bw=Math.max(tw+60,120), bh=nodeH;
         const x=n.x, y=n.y;
-        // 陰影
         ctx.save();
         ctx.shadowColor = "rgba(0,0,0,0.18)";
         ctx.shadowBlur = 8;
@@ -492,7 +584,6 @@
         ctx.fillStyle='rgba(0,0,0,0.08)';
         ctx.fill();
         ctx.restore();
-        // 本体
         const lg=ctx.createLinearGradient(x,y,x+bw,y+bh);
         lg.addColorStop(0,hexToRGBA(col,0.85));
         lg.addColorStop(1,hexToRGBA(col,1));
@@ -501,7 +592,6 @@
         roundRect(ctx,x,y,bw,bh,10);
         ctx.fill();
         ctx.stroke();
-        // アイコン
         ctx.save();
         ctx.translate(x+24, y+bh/2);
         if(n.type==='folder'){
@@ -510,20 +600,18 @@
           drawFileIcon(ctx, n.name);
         }
         ctx.restore();
-        // 文字
         ctx.fillStyle='#fff';
         ctx.font='bold 16px sans-serif';
         ctx.textAlign='left';
         ctx.fillText(txt,x+48,y+bh/2);
       });
 
-      // Canvas→PDF
       const img=cv.toDataURL('image/png');
       pdf.addImage(img,'PNG',0,0,w,h);
       pdf.save('structure_map.pdf');
     }
 
-    //―― 全内容PDF（構成＋ファイル内容）――
+    //―― 全内容PDF（文字化け修正・UIノード除外・日本語）――
     async function downloadFullPdf(){
       const { jsPDF } = window.jspdf;
       const pdf=new jsPDF({unit:'pt',format:'a4'});
@@ -532,11 +620,13 @@
       function addLine(txt, bold=false){
         if(y>pageH-40) { pdf.addPage(); y=40; }
         pdf.setFont('helvetica', bold?'bold':'normal');
-        pdf.text(txt, margin, y);
+        pdf.setFontSize(bold?13:11);
+        pdf.text(txt, margin, y, {encoding:'Identity-H'});
         y+=lineH;
       }
       function walk(n, prefix=''){
         n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
           addLine(prefix+c.name+(c.type==='folder'?'/':''), true);
           if(c.type==='file' && c.content){
             c.content.split(/\r?\n/).forEach(line=>{
@@ -550,6 +640,68 @@
       walk(root);
       pdf.save('structure_full.pdf');
     }
+
+    //―― SVG出力（UIノード除外）――
+    document.getElementById('downloadSvg').onclick=()=>{
+      const w=1200, h=800, margin=40, nodeH=40, indentX=140, spaceY=24;
+      const palette=['#FF6B6B','#6BCB77','#4D96FF','#FFD93D','#845EC2','#00C9A7','#F9A602'];
+      const counts={}, all=[];
+      function layout(n,d=0){
+        n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          if(!counts[d]) counts[d]=0;
+          c.depth=d;
+          c.x=margin + d*indentX;
+          c.y=margin + counts[d]*(nodeH+spaceY) + (d===0?0:60);
+          counts[d]++;
+          all.push(c);
+          layout(c,d+1);
+        });
+      }
+      layout(root);
+      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="background:#f0f4f8">`;
+      all.forEach(n=>{
+        n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          const x1=n.x + 110, y1=n.y + nodeH/2;
+          const x2=c.x, y2=c.y + nodeH/2;
+          const cx=(x1+x2)/2, cy=(y1+y2)/2 - 30;
+          svg+=`<path d="M${x1},${y1} C${cx},${cy} ${cx},${cy} ${x2},${y2}" stroke="#555" stroke-width="3" fill="none" />`;
+        });
+      });
+      all.forEach(n=>{
+        const col=palette[n.depth % palette.length];
+        const txt=n.name;
+        const bw=120, bh=nodeH;
+        const x=n.x, y=n.y;
+        svg+=`<rect x="${x}" y="${y}" rx="10" ry="10" width="${bw}" height="${bh}" fill="${col}" stroke="#333" stroke-width="2"/>`;
+        svg+=`<text x="${x+48}" y="${y+bh/2+6}" font-size="16" fill="#fff" font-family="monospace" font-weight="bold">${txt}</text>`;
+      });
+      svg+='</svg>';
+      const blob = new Blob([svg], {type:'image/svg+xml'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='structure.svg';
+      a.click();
+    };
+
+    //―― TXTプレビュー（UIノード除外）――
+    document.getElementById('txtPreviewBtn').onclick=()=>{
+      let txt = '';
+      function walk(n, prefix=''){
+        n.children.forEach(c=>{
+          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          txt += prefix + c.name + (c.type==='folder'?'/':'') + '\n';
+          if(c.type==='file' && c.content){
+            txt += c.content.split(/\r?\n/).map(line=>'　'+line).join('\n')+'\n';
+          }
+          if(c.type==='folder') walk(c, prefix+'　');
+        });
+      }
+      walk(root);
+      document.getElementById('txt-preview').textContent = txt;
+      document.getElementById('txt-preview').style.display = 'block';
+    };
 
     // フォルダアイコン
     function drawFolderIcon(ctx){
@@ -625,6 +777,32 @@
       idCounter = getMaxId(root)+1;
       saveHistory();
       render();
+    };
+
+    //―― お気に入りテンプレート保存・呼び出し ――
+    function renderFavList(){
+      const favDiv = document.getElementById('fav-list');
+      favDiv.innerHTML = '';
+      const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+      favs.forEach((f,i)=>{
+        const btn = document.createElement('button');
+        btn.textContent = f.name;
+        btn.onclick = ()=>{
+          root = JSON.parse(f.data);
+          idCounter = getMaxId(root)+1;
+          saveHistory();
+          render();
+        };
+        favDiv.appendChild(btn);
+      });
+    }
+    document.getElementById('addFavBtn').onclick=()=>{
+      const name = prompt('お気に入りテンプレート名を入力してください');
+      if(!name) return;
+      const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+      favs.push({name, data: JSON.stringify(root)});
+      localStorage.setItem('favTemplates', JSON.stringify(favs));
+      renderFavList();
     };
 
     //―― ボタンバインド & 初期レンダー ――
