@@ -7,7 +7,7 @@
     body { font-family: sans-serif; padding: 1rem; background: #f9f9f9; }
     #controls {
       display: grid;
-      grid-template-columns: repeat(4, auto);
+      grid-template-columns: repeat(6, auto);
       gap: 8px;
       margin-bottom: 1rem;
     }
@@ -30,6 +30,22 @@
     .node-input { padding: 2px 4px; width: auto; }
     .actions button { margin-left: 4px; font-size: 0.8rem; }
     .over > .node { background: #def; }
+    #modal-bg {
+      position: fixed; left:0; top:0; width:100vw; height:100vh;
+      background: rgba(0,0,0,0.3); z-index: 1000; display: none;
+      align-items: center; justify-content: center;
+    }
+    #modal {
+      background: #fff; border-radius: 8px; padding: 24px; min-width: 400px;
+      box-shadow: 0 4px 24px #0002;
+    }
+    #modal textarea {
+      width: 100%; height: 300px; font-family: monospace; font-size: 1rem;
+      margin-bottom: 1em;
+    }
+    #modal label { font-weight: bold; }
+    #modal .modal-btns { text-align: right; }
+    #modal .modal-btns button { margin-left: 10px; }
   </style>
 </head>
 <body>
@@ -42,13 +58,31 @@
     </select>
     <button id="addRootFolder">ルートにフォルダ追加</button>
     <button id="addRootFile">ルートにファイル追加</button>
+    <button id="addRootTxt">ルートにTXT追加</button>
     <button id="saveCsv">CSVを保存</button>
     <button id="loadCsv">CSVを読込</button>
     <button id="importFs">フォルダから読込</button>
     <button id="downloadZip">ZIPをダウンロード</button>
-    <button id="downloadPdf">豪華PDFをダウンロード</button>
+    <button id="downloadPdf">構成図PDF</button>
+    <button id="downloadFullPdf">全文PDF</button>
+    <button id="undoBtn">元に戻す</button>
+    <button id="redoBtn">やり直し</button>
+    <button id="saveAllBtn">全保存</button>
+    <button id="loadAllBtn">全読込</button>
   </div>
   <ul id="tree"></ul>
+
+  <!-- モーダル（ファイル編集用） -->
+  <div id="modal-bg">
+    <div id="modal">
+      <label id="modal-label"></label>
+      <textarea id="modal-text"></textarea>
+      <div class="modal-btns">
+        <button id="modal-cancel">キャンセル</button>
+        <button id="modal-ok">保存</button>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -72,7 +106,7 @@
     //―― ユーティリティ ――
     let idCounter = 1;
     function genId() { return 'n'+(idCounter++); }
-    function createNode(name,type){ return { id:genId(), name, type, children: [] }; }
+    function createNode(name,type){ return { id:genId(), name, type, children: [], content: '' }; }
     function getFileTemplate(name){
       if(name.endsWith('.html')){
         const t=name.replace(/\.html$/,'');
@@ -85,6 +119,46 @@
 </html>`;
       }
       return '';
+    }
+
+    //―― Undo/Redo用履歴管理 ――
+    let history = [];
+    let future = [];
+    function saveHistory(){
+      history.push(JSON.stringify(root));
+      if(history.length>100) history.shift();
+      future = [];
+      updateUndoRedoBtn();
+    }
+    function undo(){
+      if(history.length===0) return;
+      future.push(JSON.stringify(root));
+      root = JSON.parse(history.pop());
+      idCounter = getMaxId(root)+1;
+      render();
+      updateUndoRedoBtn();
+    }
+    function redo(){
+      if(future.length===0) return;
+      history.push(JSON.stringify(root));
+      root = JSON.parse(future.pop());
+      idCounter = getMaxId(root)+1;
+      render();
+      updateUndoRedoBtn();
+    }
+    function getMaxId(node){
+      let max = 0;
+      function walk(n){
+        const num = parseInt(n.id.replace('n',''),10);
+        if(num>max) max=num;
+        n.children.forEach(walk);
+      }
+      walk(node);
+      return max;
+    }
+    function updateUndoRedoBtn(){
+      document.getElementById('undoBtn').disabled = history.length===0;
+      document.getElementById('redoBtn').disabled = future.length===0;
     }
 
     //―― グローバル状態 ――
@@ -111,8 +185,32 @@
           if(isDir) stack.push(node);
         });
       }
+      saveHistory();
       render();
     }
+
+    //―― ファイル内容編集用（モーダル）
+    let modalNode = null;
+    function editFileContent(node) {
+      modalNode = node;
+      document.getElementById('modal-label').textContent = `「${node.name}」の内容を編集`;
+      document.getElementById('modal-text').value = node.content || '';
+      document.getElementById('modal-bg').style.display = 'flex';
+      document.getElementById('modal-text').focus();
+    }
+    document.getElementById('modal-cancel').onclick = ()=>{
+      document.getElementById('modal-bg').style.display = 'none';
+      modalNode = null;
+    };
+    document.getElementById('modal-ok').onclick = ()=>{
+      if(modalNode){
+        modalNode.content = document.getElementById('modal-text').value;
+        saveHistory();
+        render();
+      }
+      document.getElementById('modal-bg').style.display = 'none';
+      modalNode = null;
+    };
 
     //―― レンダリング ――
     function render(){
@@ -134,8 +232,16 @@
           } else {
             const sp=document.createElement('span');
             sp.className='node';
-            sp.textContent=ch.name+(ch.type==='folder'?'/':'');
+            sp.textContent=ch.name+(ch.type==='folder'?'':'');
             sp.ondblclick=()=>{ editingId=ch.id; render(); };
+            // ファイル内容編集
+            if(ch.type==='file'){
+              sp.style.cursor = 'pointer';
+              sp.onclick = (e) => {
+                e.stopPropagation();
+                editFileContent(ch);
+              };
+            }
             li.appendChild(sp);
           }
 
@@ -143,9 +249,10 @@
           act.className='actions';
           const btns=[
             {t:'✎',fn:()=>{ editingId=ch.id; render(); }},
-            {t:'+F',fn:()=>{ ch.children.push(createNode('new-folder','folder')); render(); },cond:ch.type==='folder'},
-            {t:'+f',fn:()=>{ ch.children.push(createNode('new-file.html','file')); render(); }},
-            {t:'✕',fn:()=>{ removeNode(root,ch.id); render(); }}
+            {t:'+F',fn:()=>{ ch.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'+f',fn:()=>{ ch.children.push(createNode('新しいファイル.html','file')); saveHistory(); render(); }},
+            {t:'+t',fn:()=>{ ch.children.push(createNode('新しいファイル.txt','file')); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }}
           ];
           btns.forEach(b=>{
             if(b.cond===false) return;
@@ -170,14 +277,16 @@
         });
       }
       build(root,ul);
+      updateUndoRedoBtn();
     }
     function commitEdit(val){
       if(val.trim()) findNode(root,editingId).name=val.trim();
-      editingId=null; render();
+      editingId=null; saveHistory(); render();
     }
+    // 子孫ノードも正しく削除
     function removeNode(p,id){
-      p.children=p.children.filter(c=>c.id!==id);
-      p.children.forEach(c=>removeNode(c,id));
+      p.children = p.children.filter(c => c.id !== id);
+      p.children.forEach(c => removeNode(c, id));
     }
     function findNode(p,id){
       if(p.id===id) return p;
@@ -191,13 +300,13 @@
       }
     }
 
-    //―― Drag & Drop ――
+    //―― Drag & Drop（バグ修正: 画面消え防止）――
     let draggedId=null;
     function onDragStart(e){ draggedId=e.currentTarget.dataset.id; }
     function onDragOver(e){
       e.preventDefault();
       const n=findNode(root,e.currentTarget.dataset.id);
-      if(n.type==='folder') e.currentTarget.classList.add('over');
+      if(n && n.type==='folder') e.currentTarget.classList.add('over');
     }
     function onDragLeave(e){ e.currentTarget.classList.remove('over'); }
     function onDrop(e){
@@ -208,39 +317,50 @@
       const sp=findParent(root,draggedId);
       const sn=findNode(root,draggedId);
       const tn=findNode(root,tgt);
-      if(tn.type==='folder'){
-        sp.children=sp.children.filter(c=>c.id!==draggedId);
-        tn.children.push(sn);
-        render();
-      }
+      if(!sp || !sn || !tn || tn.type!=='folder') return; // バグ防止
+      // 既に移動先に同じIDがある場合は移動しない
+      if(tn.children.some(c=>c.id===draggedId)) return;
+      sp.children=sp.children.filter(c=>c.id!==draggedId);
+      tn.children.push(sn);
+      saveHistory();
+      render();
     }
 
     //―― CSV 保存/読込 ――
     function treeToCsv(){
-      const rows=[['path','type']];
+      const rows=[['path','type','content']];
       (function w(n,p){
         n.children.forEach(c=>{
           const path=p+'/'+c.name;
-          rows.push([path,c.type]);
+          rows.push([path,c.type,c.type==='file'?btoa(unescape(encodeURIComponent(c.content||''))):'']);
           if(c.type==='folder') w(c,path);
         });
       })(root,'');
-      return rows.map(r=>r.join(',')).join('\n');
+      return rows.map(r=>r.map(x=>`"${x.replace(/"/g,'""')}"`).join(',')).join('\n');
     }
     function saveCsv(){
-      const b=new Blob([treeToCsv()],{type:'text/csv'});
+      // UTF-8 BOM付きで保存（Excel等で文字化けしない）
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+      const csv = treeToCsv();
+      const blob = new Blob([bom, csv], {type:'text/csv'});
       const a=document.createElement('a');
-      a.href=URL.createObjectURL(b);
+      a.href=URL.createObjectURL(blob);
       a.download='structure.csv';
       a.click();
     }
+    // カンマ・改行・日本語・内容も含めて完全読込
     async function loadCsv(){
       const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
       const txt=await (await f.getFile()).text();
-      const lines=txt.split('\n').slice(1).filter(l=>l.trim());
+      const lines=txt.split('\n').filter(l=>l.trim());
       root=createNode('/','folder');
-      lines.forEach(l=>{
-        const [path,type]=l.split(',');
+      lines.slice(1).forEach(l=>{
+        // CSVパース
+        const m = l.match(/^"((?:[^"]|"")*)","(folder|file)","((?:[^"]|"")*)"$/);
+        if(!m) return;
+        const path = m[1].replace(/""/g,'"');
+        const type = m[2];
+        const content = m[3] ? decodeURIComponent(escape(atob(m[3].replace(/""/g,'"')))) : '';
         const seg=path.split('/').filter(Boolean);
         let p=root;
         seg.forEach((n,i)=>{
@@ -252,7 +372,12 @@
             p=d;
           }
         });
+        if(type==='file'){
+          let node = p.children[p.children.length-1];
+          node.content = content;
+        }
       });
+      saveHistory();
       render();
     }
 
@@ -261,6 +386,7 @@
       const dh=await window.showDirectoryPicker();
       idCounter=1;
       root=await readFs(dh);
+      saveHistory();
       render();
     }
     async function readFs(dh){
@@ -278,7 +404,7 @@
       (async function add(n,f){
         for(const c of n.children){
           if(c.type==='folder') await add(c,f.folder(c.name));
-          else f.file(c.name,getFileTemplate(c.name));
+          else f.file(c.name, c.content ?? getFileTemplate(c.name));
         }
       })(root,zip).then(()=>{
         zip.generateAsync({type:'blob'}).then(b=>{
@@ -290,22 +416,29 @@
       });
     }
 
-    //―― 豪華PDF 出力 ――
+    //―― TXTファイル追加ボタン
+    document.getElementById('addRootTxt').onclick=()=>{
+      root.children.push(createNode('新しいファイル.txt','file'));
+      saveHistory();
+      render();
+    };
+
+    //―― 構成図PDF（ボタン部分は除外）――
     async function downloadPdf(){
       const { jsPDF } = window.jspdf;
       const pdf=new jsPDF({unit:'pt',format:'a4'});
       const w=pdf.internal.pageSize.getWidth();
       const h=pdf.internal.pageSize.getHeight();
-      const margin=40, nodeH=28, indentX=120, spaceY=12;
-      const palette=['#FF6B6B','#6BCB77','#4D96FF','#FFD93D','#845EC2'];
+      const margin=40, nodeH=40, indentX=140, spaceY=24;
+      const palette=['#FF6B6B','#6BCB77','#4D96FF','#FFD93D','#845EC2','#00C9A7','#F9A602'];
       const counts={}, all=[];
 
-      // レイアウト
+      // レイアウト: ルートを中央上部に
       function layout(n,d=0){
         if(!counts[d]) counts[d]=0;
         n.depth=d;
         n.x=margin + d*indentX;
-        n.y=margin + counts[d]*(nodeH+spaceY);
+        n.y=margin + counts[d]*(nodeH+spaceY) + (d===0?0:60);
         counts[d]++;
         all.push(n);
         n.children.forEach(c=>layout(c,d+1));
@@ -316,55 +449,72 @@
       const cv=document.createElement('canvas');
       cv.width=w; cv.height=h;
       const ctx=cv.getContext('2d');
-      ctx.font='14px sans-serif';
+      ctx.font='16px sans-serif';
       ctx.textBaseline='middle';
 
       // 背景グラデーション
       const grad=ctx.createLinearGradient(0,0,0,h);
       grad.addColorStop(0,'#f0f4f8');
-      grad.addColorStop(1,'#d9e2ec');
+      grad.addColorStop(1,'#e0e7ef');
       ctx.fillStyle=grad;
       ctx.fillRect(0,0,w,h);
 
-      // 線（曲線）
-      ctx.strokeStyle='#555'; ctx.lineWidth=2;
+      // 線（太く・影付き）
+      ctx.save();
+      ctx.shadowColor = "#bbb";
+      ctx.shadowBlur = 6;
+      ctx.strokeStyle='#555'; ctx.lineWidth=3;
       all.forEach(n=>{
         n.children.forEach(c=>{
-          const x1=n.x + 90, y1=n.y + nodeH/2;
+          const x1=n.x + 110, y1=n.y + nodeH/2;
           const x2=c.x, y2=c.y + nodeH/2;
-          const cx=(x1+x2)/2, cy=(y1+y2)/2 - 20;
+          const cx=(x1+x2)/2, cy=(y1+y2)/2 - 30;
           ctx.beginPath();
           ctx.moveTo(x1,y1);
-          ctx.quadraticCurveTo(cx,cy,x2,y2);
+          ctx.bezierCurveTo(cx,cy,cx,cy,x2,y2);
           ctx.stroke();
         });
       });
+      ctx.restore();
 
-      // ノード描画（ボタン風）
+      // ノード描画（アイコン付きカード風）
       all.forEach(n=>{
         const col=palette[n.depth % palette.length];
-        const txt=n.name + (n.type==='folder'?'/':'');
+        const txt=n.name; // 「/」は付けない
         const tw=ctx.measureText(txt).width;
-        const bw=tw+20, bh=nodeH;
+        const bw=Math.max(tw+60,120), bh=nodeH;
         const x=n.x, y=n.y;
         // 陰影
-        ctx.fillStyle='rgba(0,0,0,0.1)';
-        roundRect(ctx,x+2,y+2,bw,bh,6);
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.18)";
+        ctx.shadowBlur = 8;
+        roundRect(ctx,x+3,y+3,bw,bh,10);
+        ctx.fillStyle='rgba(0,0,0,0.08)';
         ctx.fill();
+        ctx.restore();
         // 本体
         const lg=ctx.createLinearGradient(x,y,x+bw,y+bh);
-        lg.addColorStop(0,hexToRGBA(col,0.8));
+        lg.addColorStop(0,hexToRGBA(col,0.85));
         lg.addColorStop(1,hexToRGBA(col,1));
         ctx.fillStyle=lg;
-        ctx.strokeStyle=shadeColor(col,-20);
-        roundRect(ctx,x,y,bw,bh,6);
+        ctx.strokeStyle=shadeColor(col,-30);
+        roundRect(ctx,x,y,bw,bh,10);
         ctx.fill();
         ctx.stroke();
+        // アイコン
+        ctx.save();
+        ctx.translate(x+24, y+bh/2);
+        if(n.type==='folder'){
+          drawFolderIcon(ctx);
+        }else{
+          drawFileIcon(ctx, n.name);
+        }
+        ctx.restore();
         // 文字
         ctx.fillStyle='#fff';
-        ctx.font='bold 14px sans-serif';
-        ctx.textAlign='center';
-        ctx.fillText(txt,x + bw/2, y + bh/2);
+        ctx.font='bold 16px sans-serif';
+        ctx.textAlign='left';
+        ctx.fillText(txt,x+48,y+bh/2);
       });
 
       // Canvas→PDF
@@ -372,6 +522,60 @@
       pdf.addImage(img,'PNG',0,0,w,h);
       pdf.save('structure_map.pdf');
     }
+
+    //―― 全内容PDF（構成＋ファイル内容）――
+    async function downloadFullPdf(){
+      const { jsPDF } = window.jspdf;
+      const pdf=new jsPDF({unit:'pt',format:'a4'});
+      let y=40, margin=40, lineH=18, pageH=pdf.internal.pageSize.getHeight();
+
+      function addLine(txt, bold=false){
+        if(y>pageH-40) { pdf.addPage(); y=40; }
+        pdf.setFont('helvetica', bold?'bold':'normal');
+        pdf.text(txt, margin, y);
+        y+=lineH;
+      }
+      function walk(n, prefix=''){
+        n.children.forEach(c=>{
+          addLine(prefix+c.name+(c.type==='folder'?'/':''), true);
+          if(c.type==='file' && c.content){
+            c.content.split(/\r?\n/).forEach(line=>{
+              addLine('　'+line);
+            });
+          }
+          if(c.type==='folder') walk(c, prefix+'　');
+        });
+      }
+      addLine('【構成と内容】', true);
+      walk(root);
+      pdf.save('structure_full.pdf');
+    }
+
+    // フォルダアイコン
+    function drawFolderIcon(ctx){
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(-14,6); ctx.lineTo(-10,-8); ctx.lineTo(18,-8); ctx.lineTo(14,6); ctx.closePath();
+      ctx.fillStyle='#fff8e1'; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-16,8); ctx.lineTo(16,8); ctx.lineTo(14,16); ctx.lineTo(-14,16); ctx.closePath();
+      ctx.fillStyle='#ffe082'; ctx.fill();
+      ctx.restore();
+    }
+    // ファイルアイコン
+    function drawFileIcon(ctx, name){
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(-12,-12); ctx.lineTo(12,-12); ctx.lineTo(12,12); ctx.lineTo(-12,12); ctx.closePath();
+      ctx.fillStyle='#fff'; ctx.fill();
+      ctx.strokeStyle='#bbb'; ctx.stroke();
+      ctx.font='10px monospace';
+      ctx.fillStyle='#888';
+      ctx.textAlign='center';
+      ctx.fillText(name.split('.').pop().toUpperCase(),0,2);
+      ctx.restore();
+    }
+
     function roundRect(ctx,x,y,w,h,r){
       ctx.beginPath();
       ctx.moveTo(x+r,y);
@@ -393,7 +597,6 @@
       return `rgba(${r},${g},${b},${a})`;
     }
     function shadeColor(col,amt){
-      let usePct=false;
       if(col[0]==='r') return col;
       if(col[0]==='#'){ col=col.slice(1); }
       let num=parseInt(col,16);
@@ -406,16 +609,38 @@
       return '#'+((1<<24)+(r<<16)+(b<<8)+g).toString(16).slice(1);
     }
 
+    //―― 完全保存・読込（JSON）――
+    document.getElementById('saveAllBtn').onclick=()=>{
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+      const blob = new Blob([bom, JSON.stringify(root)], {type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='structure.json';
+      a.click();
+    };
+    document.getElementById('loadAllBtn').onclick=async()=>{
+      const [f]=await window.showOpenFilePicker({types:[{accept:{'application/json':['.json']}}]});
+      const txt=await (await f.getFile()).text();
+      root=JSON.parse(txt);
+      idCounter = getMaxId(root)+1;
+      saveHistory();
+      render();
+    };
+
     //―― ボタンバインド & 初期レンダー ――
     document.getElementById('templateSelect').onchange=e=>loadTemplate(e.target.value);
-    document.getElementById('addRootFolder').onclick=()=>{ root.children.push(createNode('new-folder','folder')); render(); };
-    document.getElementById('addRootFile').onclick=()=>{ root.children.push(createNode('new-file.html','file')); render(); };
+    document.getElementById('addRootFolder').onclick=()=>{ root.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); };
+    document.getElementById('addRootFile').onclick=()=>{ root.children.push(createNode('新しいファイル.html','file')); saveHistory(); render(); };
     document.getElementById('saveCsv').onclick=saveCsv;
     document.getElementById('loadCsv').onclick=loadCsv;
     document.getElementById('importFs').onclick=importFs;
     document.getElementById('downloadZip').onclick=downloadZip;
     document.getElementById('downloadPdf').onclick=downloadPdf;
+    document.getElementById('downloadFullPdf').onclick=downloadFullPdf;
+    document.getElementById('undoBtn').onclick=undo;
+    document.getElementById('redoBtn').onclick=redo;
     render();
+    saveHistory();
   </script>
 </body>
 </html>
