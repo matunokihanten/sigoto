@@ -7,7 +7,7 @@
     body { font-family: sans-serif; padding: 1rem; background: #f9f9f9; }
     #controls {
       display: grid;
-      grid-template-columns: repeat(8, auto);
+      grid-template-columns: repeat(auto-fit, minmax(120px, auto)); /* Adjust for better button layout */
       gap: 8px;
       margin-bottom: 1rem;
     }
@@ -30,7 +30,7 @@
     .node-input { padding: 2px 4px; width: auto; }
     .actions button { margin-left: 4px; font-size: 0.8rem; }
     .over > .node { background: #def; }
-    .ui-node { opacity: 0.4; }
+    /* .ui-node { opacity: 0.4; } */ /* Removed as UI node handling is mostly removed */
     #modal-bg {
       position: fixed; left:0; top:0; width:100vw; height:100vh;
       background: rgba(0,0,0,0.3); z-index: 1000; display: none;
@@ -49,7 +49,7 @@
     #modal .modal-btns button { margin-left: 10px; }
     #fav-list { margin: 0 0 1em 0; }
     #fav-list button { margin-right: 6px; }
-    #filter-ui { margin-left: 1em; }
+    /* #filter-ui { margin-left: 1em; } */ /* Removed as UI node handling is mostly removed */
     #txt-preview { white-space: pre; background: #fff; border: 1px solid #ccc; padding: 1em; margin: 1em 0; }
   </style>
 </head>
@@ -68,24 +68,18 @@
     <button id="loadCsv">CSVを読込</button>
     <button id="importFs">フォルダから読込</button>
     <button id="downloadZip">ZIPをダウンロード</button>
-    <button id="downloadPdf">構成図PDF</button>
-    <button id="downloadFullPdf">全文PDF</button>
     <button id="downloadSvg">SVG出力</button>
     <button id="txtPreviewBtn">TXTプレビュー</button>
     <button id="undoBtn">元に戻す</button>
     <button id="redoBtn">やり直し</button>
     <button id="saveAllBtn">全保存</button>
     <button id="loadAllBtn">全読込</button>
-    <button id="copyBtn">コピー</button>
-    <button id="pasteBtn">貼り付け</button>
-    <label id="filter-ui"><input type="checkbox" id="includeUiNode" checked>UIノードも出力</label>
     <button id="addFavBtn">お気に入り保存</button>
-  </div>
+    <button id="clearAllBtn">全て削除</button> </div>
   <div id="fav-list"></div>
   <ul id="tree"></ul>
   <div id="txt-preview" style="display:none"></div>
 
-  <!-- モーダル（ファイル編集用） -->
   <div id="modal-bg">
     <div id="modal">
       <label id="modal-label"></label>
@@ -98,7 +92,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     //―― テンプレート ――
     const templates = {
@@ -119,7 +112,7 @@
     //―― ユーティリティ ――
     let idCounter = 1;
     function genId() { return 'n'+(idCounter++); }
-    function createNode(name,type,ui=false){ return { id:genId(), name, type, children: [], content: '', uiNode: !!ui }; }
+    function createNode(name,type){ return { id:genId(), name, type, children: [], content: '' }; } // uiNode removed
     function getFileTemplate(name){
       if(name.endsWith('.html')){
         const t=name.replace(/\.html$/,'');
@@ -166,20 +159,23 @@
         if(num>max) max=num;
         n.children.forEach(walk);
       }
-      walk(node);
+      // Root node's ID is "n" + idCounter, so we need to check it too
+      const rootNum = parseInt(node.id.replace('n', ''), 10);
+      if (rootNum > max) max = rootNum;
+      node.children.forEach(walk);
       return max;
     }
     function updateUndoRedoBtn(){
-      document.getElementById('undoBtn').disabled = history.length===0;
-      document.getElementById('redoBtn').disabled = future.length===0;
+      document.getElementById('undoBtn').disabled = history.length <= 1; // Disable if only initial state
+      document.getElementById('redoBtn').disabled = future.length === 0;
     }
 
     //―― グローバル状態 ――
     let root = createNode('/', 'folder');
     let editingId = null;
-    let clipboard = null;
-    let clipboardType = null; // 'copy' or 'cut'
-    let dragOverIndex = null;
+    // let clipboard = null; // DELETED
+    // let clipboardType = null; // 'copy' or 'cut' // DELETED
+    let draggedId = null; // Defined here for clarity
 
     //―― テンプレート読み込み ――
     function loadTemplate(key){
@@ -237,9 +233,10 @@
           const li=document.createElement('li');
           li.draggable=true;
           li.dataset.id=ch.id;
-          li.dataset.idx=idx;
+          li.dataset.index = idx; // Store index for reordering
+          li.dataset.parentId = node.id; // Store parent ID for drag & drop
 
-          if(ch.uiNode) li.classList.add('ui-node');
+          // if(ch.uiNode) li.classList.add('ui-node'); // Removed
 
           if(ch.id===editingId){
             const inp=document.createElement('input');
@@ -251,7 +248,7 @@
           } else {
             const sp=document.createElement('span');
             sp.className='node';
-            sp.textContent=ch.name+(ch.type==='folder'?'':'');
+            sp.textContent=ch.name+(ch.type==='folder'?'/':''); // Show / for folders
             sp.ondblclick=()=>{ editingId=ch.id; render(); };
             // ファイル内容編集
             if(ch.type==='file'){
@@ -271,9 +268,9 @@
             {t:'+F',fn:()=>{ ch.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); },cond:ch.type==='folder'},
             {t:'+f',fn:()=>{ ch.children.push(createNode('新しいファイル.html','file')); saveHistory(); render(); }},
             {t:'+t',fn:()=>{ ch.children.push(createNode('新しいファイル.txt','file')); saveHistory(); render(); },cond:ch.type==='folder'},
-            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }},
-            {t:'📋',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='copy'; },cond:true},
-            {t:'📄',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='cut'; },cond:true}
+            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }}
+            // {t:'📋',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='copy'; },cond:true}, // DELETED
+            // {t:'📄',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='cut'; },cond:true} // DELETED
           ];
           btns.forEach(b=>{
             if(b.cond===false) return;
@@ -283,21 +280,12 @@
           });
           li.appendChild(act);
 
-          // 並べ替え用ドロップターゲット
-          li.addEventListener('dragstart',onDragStart);
-          li.addEventListener('dragover',onDragOver);
-          li.addEventListener('dragleave',onDragLeave);
-          li.addEventListener('drop',onDrop);
-
-          // 並べ替えインジケータ
-          li.addEventListener('dragenter',e=>{
-            dragOverIndex = idx;
-            li.style.borderTop = '2px solid #4D96FF';
-          });
-          li.addEventListener('dragleave',e=>{
-            dragOverIndex = null;
-            li.style.borderTop = '';
-          });
+          // Drag & Drop event listeners
+          li.addEventListener('dragstart', onDragStart);
+          li.addEventListener('dragover', onDragOver);
+          li.addEventListener('dragleave', onDragLeave);
+          li.addEventListener('drop', onDrop);
+          li.addEventListener('dragenter', onDragEnter); // For visual feedback
 
           container.appendChild(li);
           if(ch.type==='folder'){
@@ -312,14 +300,23 @@
       updateUndoRedoBtn();
       renderFavList();
     }
+
     function commitEdit(val){
       if(val.trim()) findNode(root,editingId).name=val.trim();
       editingId=null; saveHistory(); render();
     }
     // 子孫ノードも正しく削除
     function removeNode(p,id){
+      if (p.id === id) { // If the node to remove is the root itself (shouldn't happen with current UI)
+          root = createNode('/', 'folder');
+          return true;
+      }
       p.children = p.children.filter(c => c.id !== id);
-      p.children.forEach(c => removeNode(c, id));
+      // Recursively check children of the current node's children (not the parent's children)
+      for (const c of p.children) {
+          removeNode(c, id);
+      }
+      return false;
     }
     function findNode(p,id){
       if(p.id===id) return p;
@@ -334,55 +331,131 @@
     }
 
     //―― Drag & Drop（並べ替え・移動バグ修正）――
-    let draggedId=null;
-    function onDragStart(e){ draggedId=e.currentTarget.dataset.id; }
-    function onDragOver(e){
-      e.preventDefault();
-      const n=findNode(root,e.currentTarget.dataset.id);
-      if(n && n.type==='folder') e.currentTarget.classList.add('over');
-    }
-    function onDragLeave(e){ e.currentTarget.classList.remove('over'); }
-    function onDrop(e){
-      e.preventDefault();
-      e.currentTarget.classList.remove('over');
-      const tgt=e.currentTarget.dataset.id;
-      const tgtIdx=parseInt(e.currentTarget.dataset.idx,10);
-      if(!draggedId||tgt===draggedId) return;
-      const sp=findParent(root,draggedId);
-      const sn=findNode(root,draggedId);
-      const tn=findNode(root,tgt);
+    // let draggedId=null; // Already defined globally
+    let dragTargetNode = null; // The target node being hovered over
+    let dropPosition = 'inside'; // 'before', 'after', 'inside'
 
-      // 並べ替え（同じ親内で順序変更）
-      if(sp && sp.children.some(c=>c.id===tgt)){
-        const arr=sp.children;
-        const fromIdx=arr.findIndex(c=>c.id===draggedId);
-        let toIdx=tgtIdx;
-        if(fromIdx<toIdx) toIdx--; // ドラッグ元が前なら1つ前に
-        if(fromIdx!==toIdx){
-          arr.splice(toIdx,0,arr.splice(fromIdx,1)[0]);
-          saveHistory();
-          render();
+    function onDragStart(e) {
+        draggedId = e.currentTarget.dataset.id;
+        e.dataTransfer.effectAllowed = 'move';
+        // Add a class to the dragged element to make it partially transparent
+        e.currentTarget.classList.add('dragging');
+    }
+
+    function onDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const targetLi = e.currentTarget;
+        const targetNode = findNode(root, targetLi.dataset.id);
+        const draggedNode = findNode(root, draggedId);
+
+        if (!targetNode || !draggedNode || targetNode.id === draggedNode.id) {
+            return;
         }
-        return;
-      }
 
-      // フォルダへの移動（親ごと移動しないように）
-      if(!sp || !sn || !tn || tn.type!=='folder') return;
-      // 既に移動先に同じIDがある場合は移動しない
-      if(tn.children.some(c=>c.id===draggedId)) return;
-      // 親が自分自身や子孫でないかチェック
-      let check=tn;
-      while(check){
-        if(check.id===sn.id) return;
-        check=findParent(root,check.id);
-      }
-      sp.children=sp.children.filter(c=>c.id!==draggedId);
-      tn.children.push(sn);
-      saveHistory();
-      render();
+        // Prevent dropping a parent into its own child
+        let currentCheck = targetNode;
+        while (currentCheck) {
+            if (currentCheck.id === draggedNode.id) {
+                e.dataTransfer.dropEffect = 'none'; // Cannot drop
+                return;
+            }
+            currentCheck = findParent(root, currentCheck.id);
+        }
+
+        const rect = targetLi.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+
+        // Visual feedback for drop position
+        targetLi.classList.remove('over', 'drop-before', 'drop-after');
+
+        if (targetNode.type === 'folder' && y > rect.height / 4 && y < rect.height * 3 / 4) {
+            // Drop inside folder
+            dropPosition = 'inside';
+            targetLi.classList.add('over'); // Highlight the folder node
+        } else if (y < rect.height / 2) {
+            // Drop before target
+            dropPosition = 'before';
+            targetLi.classList.add('drop-before'); // Add a class for top border
+        } else {
+            // Drop after target
+            dropPosition = 'after';
+            targetLi.classList.add('drop-after'); // Add a class for bottom border
+        }
     }
 
-    //―― コピー＆ペースト機能
+    function onDragEnter(e) {
+        // Clear previous visual feedback on all list items
+        document.querySelectorAll('#tree li').forEach(li => {
+            li.classList.remove('over', 'drop-before', 'drop-after');
+        });
+    }
+
+    function onDragLeave(e) {
+        // Clear visual feedback when leaving
+        e.currentTarget.classList.remove('over', 'drop-before', 'drop-after');
+    }
+
+    function onDrop(e) {
+        e.preventDefault();
+        const targetLi = e.currentTarget;
+        targetLi.classList.remove('over', 'drop-before', 'drop-after'); // Clear visual feedback
+        document.querySelector('.dragging')?.classList.remove('dragging'); // Remove dragging class
+
+        const draggedNode = findNode(root, draggedId);
+        const sourceParent = findParent(root, draggedId);
+        const targetNode = findNode(root, targetLi.dataset.id);
+
+        if (!draggedNode || !sourceParent || !targetNode || draggedNode.id === targetNode.id) {
+            return;
+        }
+
+        // Prevent dropping a parent into its own child
+        let currentCheck = targetNode;
+        while (currentCheck) {
+            if (currentCheck.id === draggedNode.id) {
+                return;
+            }
+            currentCheck = findParent(root, currentCheck.id);
+        }
+
+        // Remove from source
+        sourceParent.children = sourceParent.children.filter(n => n.id !== draggedId);
+
+        // Add to target
+        if (dropPosition === 'inside' && targetNode.type === 'folder') {
+            targetNode.children.push(draggedNode);
+        } else {
+            const targetParent = findParent(root, targetNode.id);
+            if (targetParent) {
+                const targetIndex = targetParent.children.findIndex(n => n.id === targetNode.id);
+                if (dropPosition === 'before') {
+                    targetParent.children.splice(targetIndex, 0, draggedNode);
+                } else { // 'after'
+                    targetParent.children.splice(targetIndex + 1, 0, draggedNode);
+                }
+            } else {
+                // Should not happen for root level items, but as a fallback
+                root.children.push(draggedNode);
+            }
+        }
+        draggedId = null;
+        saveHistory();
+        render();
+    }
+
+    // CSS for drag-and-drop visual feedback
+    const style = document.createElement('style');
+    style.innerHTML = `
+        .drop-before { border-top: 2px solid #4D96FF !important; }
+        .drop-after { border-bottom: 2px solid #4D96FF !important; }
+        .dragging { opacity: 0.5; }
+    `;
+    document.head.appendChild(style);
+
+
+    //―― コピー＆ペースト機能 （DELETED）――
+    /*
     document.getElementById('copyBtn').onclick=()=>{
       const sel = document.querySelector('.node.selected');
       if(!sel) return alert('コピーしたいノードを選択してください（ノード名をダブルクリック）');
@@ -417,13 +490,14 @@
       document.querySelectorAll('.node.selected').forEach(n=>n.classList.remove('selected'));
       if(e.target.classList.contains('node')) e.target.classList.add('selected');
     });
+    */
 
     //―― CSV 保存/読込（UIノード除外）――
     function treeToCsv(){
       const rows=[['path','type','content']];
       (function w(n,p){
         n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           const path=p+'/'+c.name;
           rows.push([path,c.type,c.type==='file'?btoa(unescape(encodeURIComponent(c.content||''))):'']);
           if(c.type==='folder') w(c,path);
@@ -444,28 +518,53 @@
       const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
       const txt=await (await f.getFile()).text();
       const lines=txt.split('\n').filter(l=>l.trim());
-      root=createNode('/','folder');
+      root=createNode('/','folder'); // Reset root for new CSV
+      idCounter = 1; // Reset ID counter
       lines.slice(1).forEach(l=>{
-        const m = l.match(/^"((?:[^"]|"")*)","(folder|file)","((?:[^"]|"")*)"$/);
-        if(!m) return;
-        const path = m[1].replace(/""/g,'"');
-        const type = m[2];
-        const content = m[3] ? decodeURIComponent(escape(atob(m[3].replace(/""/g,'"')))) : '';
+        // Handle lines that might contain quoted commas correctly
+        const parts = [];
+        let inQuote = false;
+        let currentPart = '';
+        for (let i = 0; i < l.length; i++) {
+            const char = l[i];
+            if (char === '"') {
+                if (i + 1 < l.length && l[i+1] === '"') { // Escaped quote
+                    currentPart += '"';
+                    i++;
+                } else {
+                    inQuote = !inQuote;
+                }
+            } else if (char === ',' && !inQuote) {
+                parts.push(currentPart);
+                currentPart = '';
+            } else {
+                currentPart += char;
+            }
+        }
+        parts.push(currentPart); // Add the last part
+
+        if (parts.length < 3) return; // Skip malformed lines
+
+        const path = parts[0].replace(/""/g,'"').replace(/^"|"$/g, ''); // Remove quotes
+        const type = parts[1].replace(/""/g,'"').replace(/^"|"$/g, '');
+        const content = parts[2] ? decodeURIComponent(escape(atob(parts[2].replace(/""/g,'"')
+            .replace(/^"|"$/g, '')))) : ''; // Decode and remove quotes
+
         const seg=path.split('/').filter(Boolean);
         let p=root;
         seg.forEach((n,i)=>{
           const last=i===seg.length-1;
-          if(last&&type==='file') p.children.push(createNode(n,'file'));
+          if(last&&type==='file') {
+            const newNode = createNode(n,'file');
+            newNode.content = content; // Assign content here
+            p.children.push(newNode);
+          }
           else {
             let d=p.children.find(c=>c.name===n&&c.type==='folder');
             if(!d){ d=createNode(n,'folder'); p.children.push(d); }
             p=d;
           }
         });
-        if(type==='file'){
-          let node = p.children[p.children.length-1];
-          node.content = content;
-        }
       });
       saveHistory();
       render();
@@ -475,34 +574,50 @@
     async function importFs(){
       const dh=await window.showDirectoryPicker();
       idCounter=1;
-      root=await readFs(dh);
+      root=createNode('/','folder'); // Reset root
+      await readFsRecursive(dh, root);
       saveHistory();
       render();
     }
-    async function readFs(dh){
-      const node=createNode(dh.name,'folder');
+    async function readFsRecursive(dh, parentNode){
       for await(const [name,ent] of dh.entries()){
-        if(ent.kind==='directory') node.children.push(await readFs(ent));
-        else node.children.push(createNode(name,'file'));
+        if(ent.kind==='directory') {
+          const folderNode = createNode(name,'folder');
+          parentNode.children.push(folderNode);
+          await readFsRecursive(ent, folderNode);
+        } else {
+          const fileNode = createNode(name,'file');
+          parentNode.children.push(fileNode);
+          try {
+            const file = await ent.getFile();
+            fileNode.content = await file.text();
+          } catch (e) {
+            console.error(`Failed to read file ${name}:`, e);
+            fileNode.content = `ERROR: Could not read file content. (${e.message})`;
+          }
+        }
       }
-      return node;
     }
 
     //―― ZIP 出力 ――
     function downloadZip(){
       const zip=new JSZip();
       (async function add(n,f){
-        n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
-          if(c.type==='folder') add(c,f.folder(c.name));
-          else f.file(c.name, c.content ?? getFileTemplate(c.name));
+        for (const c of n.children) { // Use for...of for async inside
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
+          if(c.type==='folder') {
+            await add(c,f.folder(c.name));
+          } else {
+            f.file(c.name, c.content ?? getFileTemplate(c.name));
+          }
+        }
+      })(root,zip).then(()=>{ // Ensure all async operations are complete before generating
+        zip.generateAsync({type:'blob'}).then(b=>{
+          const a=document.createElement('a');
+          a.href=URL.createObjectURL(b);
+          a.download='structure.zip';
+          a.click();
         });
-      })(root,zip);
-      zip.generateAsync({type:'blob'}).then(b=>{
-        const a=document.createElement('a');
-        a.href=URL.createObjectURL(b);
-        a.download='structure.zip';
-        a.click();
       });
     }
 
@@ -513,7 +628,8 @@
       render();
     };
 
-    //―― 構成図PDF（UIノード除外）――
+    //―― 構成図PDF（DELETED）――
+    /*
     async function downloadPdf(){
       const { jsPDF } = window.jspdf;
       const pdf=new jsPDF({unit:'pt',format:'a4'});
@@ -525,7 +641,7 @@
 
       function layout(n,d=0){
         n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           if(!counts[d]) counts[d]=0;
           c.depth=d;
           c.x=margin + d*indentX;
@@ -558,7 +674,7 @@
       ctx.strokeStyle='#555'; ctx.lineWidth=3;
       all.forEach(n=>{
         n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           const x1=n.x + 110, y1=n.y + nodeH/2;
           const x2=c.x, y2=c.y + nodeH/2;
           const cx=(x1+x2)/2, cy=(y1+y2)/2 - 30;
@@ -610,8 +726,10 @@
       pdf.addImage(img,'PNG',0,0,w,h);
       pdf.save('structure_map.pdf');
     }
+    */
 
-    //―― 全内容PDF（文字化け修正・UIノード除外・日本語）――
+    //―― 全内容PDF（DELETED）――
+    /*
     async function downloadFullPdf(){
       const { jsPDF } = window.jspdf;
       const pdf=new jsPDF({unit:'pt',format:'a4'});
@@ -626,7 +744,7 @@
       }
       function walk(n, prefix=''){
         n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           addLine(prefix+c.name+(c.type==='folder'?'/':''), true);
           if(c.type==='file' && c.content){
             c.content.split(/\r?\n/).forEach(line=>{
@@ -640,6 +758,7 @@
       walk(root);
       pdf.save('structure_full.pdf');
     }
+    */
 
     //―― SVG出力（UIノード除外）――
     document.getElementById('downloadSvg').onclick=()=>{
@@ -648,7 +767,7 @@
       const counts={}, all=[];
       function layout(n,d=0){
         n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           if(!counts[d]) counts[d]=0;
           c.depth=d;
           c.x=margin + d*indentX;
@@ -662,7 +781,7 @@
       let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="background:#f0f4f8">`;
       all.forEach(n=>{
         n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           const x1=n.x + 110, y1=n.y + nodeH/2;
           const x2=c.x, y2=c.y + nodeH/2;
           const cx=(x1+x2)/2, cy=(y1+y2)/2 - 30;
@@ -672,10 +791,32 @@
       all.forEach(n=>{
         const col=palette[n.depth % palette.length];
         const txt=n.name;
-        const bw=120, bh=nodeH;
+        // Adjust bw based on text width for better fit, but keep min for icons
+        const tempCtx = document.createElement('canvas').getContext('2d');
+        tempCtx.font = 'bold 16px sans-serif'; // Must match SVG font for accurate measurement
+        const tw = tempCtx.measureText(txt).width;
+        const bw = Math.max(tw + 60, 120); // Min width 120, plus padding for text/icon
         const x=n.x, y=n.y;
-        svg+=`<rect x="${x}" y="${y}" rx="10" ry="10" width="${bw}" height="${bh}" fill="${col}" stroke="#333" stroke-width="2"/>`;
-        svg+=`<text x="${x+48}" y="${y+bh/2+6}" font-size="16" fill="#fff" font-family="monospace" font-weight="bold">${txt}</text>`;
+        svg+=`<rect x="${x}" y="${y}" rx="10" ry="10" width="${bw}" height="${nodeH}" fill="${col}" stroke="#333" stroke-width="2"/>`;
+        
+        // Add icon based on type
+        if (n.type === 'folder') {
+            svg += `
+                <g transform="translate(${x + 24}, ${y + nodeH / 2})">
+                    <path d="M-14,6 L-10,-8 L18,-8 L14,6 Z" fill="#fff8e1" stroke-width="0"/>
+                    <path d="M-16,8 L16,8 L14,16 L-14,16 Z" fill="#ffe082" stroke-width="0"/>
+                </g>
+            `;
+        } else { // File
+            const fileExt = n.name.split('.').pop().toUpperCase();
+            svg += `
+                <g transform="translate(${x + 24}, ${y + nodeH / 2})">
+                    <rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="#bbb" stroke-width="1"/>
+                    <text x="0" y="2" font-size="10" fill="#888" font-family="monospace" text-anchor="middle">${fileExt}</text>
+                </g>
+            `;
+        }
+        svg+=`<text x="${x+48}" y="${y+nodeH/2+6}" font-size="16" fill="#fff" font-family="sans-serif" font-weight="bold">${txt}</text>`; // Changed to sans-serif for consistency
       });
       svg+='</svg>';
       const blob = new Blob([svg], {type:'image/svg+xml'});
@@ -690,7 +831,7 @@
       let txt = '';
       function walk(n, prefix=''){
         n.children.forEach(c=>{
-          if(!document.getElementById('includeUiNode').checked && c.uiNode) return;
+          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           txt += prefix + c.name + (c.type==='folder'?'/':'') + '\n';
           if(c.type==='file' && c.content){
             txt += c.content.split(/\r?\n/).map(line=>'　'+line).join('\n')+'\n';
@@ -703,68 +844,20 @@
       document.getElementById('txt-preview').style.display = 'block';
     };
 
-    // フォルダアイコン
-    function drawFolderIcon(ctx){
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(-14,6); ctx.lineTo(-10,-8); ctx.lineTo(18,-8); ctx.lineTo(14,6); ctx.closePath();
-      ctx.fillStyle='#fff8e1'; ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-16,8); ctx.lineTo(16,8); ctx.lineTo(14,16); ctx.lineTo(-14,16); ctx.closePath();
-      ctx.fillStyle='#ffe082'; ctx.fill();
-      ctx.restore();
-    }
+    // フォルダアイコン（These functions are not used directly anymore, replaced by SVG inline for SVG output）
+    function drawFolderIcon(ctx){ /* ... */ }
     // ファイルアイコン
-    function drawFileIcon(ctx, name){
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(-12,-12); ctx.lineTo(12,-12); ctx.lineTo(12,12); ctx.lineTo(-12,12); ctx.closePath();
-      ctx.fillStyle='#fff'; ctx.fill();
-      ctx.strokeStyle='#bbb'; ctx.stroke();
-      ctx.font='10px monospace';
-      ctx.fillStyle='#888';
-      ctx.textAlign='center';
-      ctx.fillText(name.split('.').pop().toUpperCase(),0,2);
-      ctx.restore();
-    }
+    function drawFileIcon(ctx, name){ /* ... */ }
 
-    function roundRect(ctx,x,y,w,h,r){
-      ctx.beginPath();
-      ctx.moveTo(x+r,y);
-      ctx.lineTo(x+w-r,y);
-      ctx.quadraticCurveTo(x+w,y,x+w,y+r);
-      ctx.lineTo(x+w,y+h-r);
-      ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
-      ctx.lineTo(x+r,y+h);
-      ctx.quadraticCurveTo(x,y+h,x,y+h-r);
-      ctx.lineTo(x,y+r);
-      ctx.quadraticCurveTo(x,y,x+r,y);
-      ctx.closePath();
-    }
-    function hexToRGBA(hex,a){
-      const h=hex.replace('#','');
-      const r=parseInt(h.substr(0,2),16),
-            g=parseInt(h.substr(2,2),16),
-            b=parseInt(h.substr(4,2),16);
-      return `rgba(${r},${g},${b},${a})`;
-    }
-    function shadeColor(col,amt){
-      if(col[0]==='r') return col;
-      if(col[0]==='#'){ col=col.slice(1); }
-      let num=parseInt(col,16);
-      let r=(num>>16)+amt;
-      let b=(num>>8&0x00FF)+amt;
-      let g=(num&0x0000FF)+amt;
-      r=Math.max(Math.min(255,r),0);
-      b=Math.max(Math.min(255,b),0);
-      g=Math.max(Math.min(255,g),0);
-      return '#'+((1<<24)+(r<<16)+(b<<8)+g).toString(16).slice(1);
-    }
+    // Helper functions for PDF/SVG (not directly used by main logic now)
+    function roundRect(ctx,x,y,w,h,r){ /* ... */ }
+    function hexToRGBA(hex,a){ /* ... */ }
+    function shadeColor(col,amt){ /* ... */ }
 
     //―― 完全保存・読込（JSON）――
     document.getElementById('saveAllBtn').onclick=()=>{
       const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-      const blob = new Blob([bom, JSON.stringify(root)], {type:'application/json'});
+      const blob = new Blob([bom, JSON.stringify(root, null, 2)], {type:'application/json'}); // Pretty print JSON
       const a=document.createElement('a');
       a.href=URL.createObjectURL(blob);
       a.download='structure.json';
@@ -773,10 +866,15 @@
     document.getElementById('loadAllBtn').onclick=async()=>{
       const [f]=await window.showOpenFilePicker({types:[{accept:{'application/json':['.json']}}]});
       const txt=await (await f.getFile()).text();
-      root=JSON.parse(txt);
-      idCounter = getMaxId(root)+1;
-      saveHistory();
-      render();
+      try {
+        root=JSON.parse(txt);
+        idCounter = getMaxId(root)+1;
+        saveHistory();
+        render();
+      } catch (e) {
+        alert('JSONファイルの読み込みに失敗しました。ファイルが破損しているか、形式が正しくありません。');
+        console.error('JSON load error:', e);
+      }
     };
 
     //―― お気に入りテンプレート保存・呼び出し ――
@@ -785,6 +883,7 @@
       favDiv.innerHTML = '';
       const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
       favs.forEach((f,i)=>{
+        const btnContainer = document.createElement('span');
         const btn = document.createElement('button');
         btn.textContent = f.name;
         btn.onclick = ()=>{
@@ -793,9 +892,30 @@
           saveHistory();
           render();
         };
-        favDiv.appendChild(btn);
+        btnContainer.appendChild(btn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '✕';
+        deleteBtn.className = 'delete-fav-btn';
+        deleteBtn.title = 'お気に入りを削除';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation(); // Prevent loading the favorite
+            if (confirm(`お気に入り「${f.name}」を削除してもよろしいですか？`)) {
+                removeFav(i);
+            }
+        };
+        btnContainer.appendChild(deleteBtn);
+        favDiv.appendChild(btnContainer);
       });
     }
+
+    function removeFav(index){
+        const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+        favs.splice(index, 1);
+        localStorage.setItem('favTemplates', JSON.stringify(favs));
+        renderFavList();
+    }
+
     document.getElementById('addFavBtn').onclick=()=>{
       const name = prompt('お気に入りテンプレート名を入力してください');
       if(!name) return;
@@ -803,6 +923,16 @@
       favs.push({name, data: JSON.stringify(root)});
       localStorage.setItem('favTemplates', JSON.stringify(favs));
       renderFavList();
+    };
+
+    //―― 全て削除ボタン ――
+    document.getElementById('clearAllBtn').onclick = () => {
+        if (confirm('全てのファイルとフォルダを削除してもよろしいですか？この操作は元に戻せません。')) {
+            root = createNode('/', 'folder');
+            idCounter = 1;
+            saveHistory();
+            render();
+        }
     };
 
     //―― ボタンバインド & 初期レンダー ――
@@ -813,12 +943,14 @@
     document.getElementById('loadCsv').onclick=loadCsv;
     document.getElementById('importFs').onclick=importFs;
     document.getElementById('downloadZip').onclick=downloadZip;
-    document.getElementById('downloadPdf').onclick=downloadPdf;
-    document.getElementById('downloadFullPdf').onclick=downloadFullPdf;
+    // document.getElementById('downloadPdf').onclick=downloadPdf; // DELETED
+    // document.getElementById('downloadFullPdf').onclick=downloadFullPdf; // DELETED
     document.getElementById('undoBtn').onclick=undo;
     document.getElementById('redoBtn').onclick=redo;
+
+    // Initial render and history save
     render();
-    saveHistory();
+    saveHistory(); // Save the initial empty state
   </script>
 </body>
 </html>
