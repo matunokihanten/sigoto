@@ -7,11 +7,22 @@
     body { font-family: sans-serif; padding: 1rem; background: #f9f9f9; }
     #controls {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, auto)); /* Adjust for better button layout */
+      grid-template-columns: repeat(auto-fit, minmax(120px, auto));
       gap: 8px;
       margin-bottom: 1rem;
     }
-    #controls > * { font-size: 0.9rem; padding: 6px 12px; }
+    #controls > *, #color-picker > * { font-size: 0.9rem; padding: 6px 12px; }
+    #color-picker {
+        grid-column: 1 / -1; /* Take full width */
+        border: 1px solid #ccc;
+        padding: 8px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    #color-picker label { font-weight: bold; }
+    #color-picker input[type="radio"] { margin-left: 2px; }
     #tree { list-style: none; padding-left: 0; }
     li { margin: 4px 0; position: relative; }
     li::before {
@@ -25,12 +36,16 @@
       display: inline-block; padding: 4px 8px;
       border: 1px solid #aaa; border-radius: 4px; background: #fff;
       font-family: monospace;
+      transition: background-color 0.3s;
     }
-    .node { cursor: move; }
+    .node { cursor: pointer; }
+    .node.selected {
+        outline: 2px solid #007bff;
+        outline-offset: 1px;
+    }
     .node-input { padding: 2px 4px; width: auto; }
     .actions button { margin-left: 4px; font-size: 0.8rem; }
     .over > .node { background: #def; }
-    /* .ui-node { opacity: 0.4; } */ /* Removed as UI node handling is mostly removed */
     #modal-bg {
       position: fixed; left:0; top:0; width:100vw; height:100vh;
       background: rgba(0,0,0,0.3); z-index: 1000; display: none;
@@ -49,7 +64,6 @@
     #modal .modal-btns button { margin-left: 10px; }
     #fav-list { margin: 0 0 1em 0; }
     #fav-list button { margin-right: 6px; }
-    /* #filter-ui { margin-left: 1em; } */ /* Removed as UI node handling is mostly removed */
     #txt-preview { white-space: pre; background: #fff; border: 1px solid #ccc; padding: 1em; margin: 1em 0; }
   </style>
 </head>
@@ -75,7 +89,19 @@
     <button id="saveAllBtn">全保存</button>
     <button id="loadAllBtn">全読込</button>
     <button id="addFavBtn">お気に入り保存</button>
-    <button id="clearAllBtn">全て削除</button> </div>
+    <button id="clearAllBtn">全て削除</button>
+    <div id="color-picker">
+        <label>🎨 色:</label>
+        <input type="radio" name="color" value="#FFFFFF" checked> 白
+        <input type="radio" name="color" value="#ffdddd"> 赤
+        <input type="radio" name="color" value="#ddffdd"> 緑
+        <input type="radio" name="color" value="#ddddff"> 青
+        <input type="radio" name="color" value="#ffffdd"> 黄
+        <input type="radio" name="color" value="#ffddff"> 紫
+        <input type="radio" name="color" value="#ddffff"> 水色
+        <input type="radio" name="color" value="#f0f0f0"> 灰
+    </div>
+  </div>
   <div id="fav-list"></div>
   <ul id="tree"></ul>
   <div id="txt-preview" style="display:none"></div>
@@ -112,7 +138,9 @@
     //―― ユーティリティ ――
     let idCounter = 1;
     function genId() { return 'n'+(idCounter++); }
-    function createNode(name,type){ return { id:genId(), name, type, children: [], content: '' }; } // uiNode removed
+    function createNode(name, type, color = '#FFFFFF') {
+        return { id: genId(), name, type, children: [], content: '', color: color };
+    }
     function getFileTemplate(name){
       if(name.endsWith('.html')){
         const t=name.replace(/\.html$/,'');
@@ -126,6 +154,15 @@
       }
       return '';
     }
+    function getContrastYIQ(hexcolor){
+        hexcolor = hexcolor.replace("#", "");
+        var r = parseInt(hexcolor.substr(0,2),16);
+        var g = parseInt(hexcolor.substr(2,2),16);
+        var b = parseInt(hexcolor.substr(4,2),16);
+        var yiq = ((r*299)+(g*587)+(b*114))/1000;
+        return (yiq >= 128) ? 'black' : 'white';
+    }
+
 
     //―― Undo/Redo用履歴管理 ――
     let history = [];
@@ -137,62 +174,61 @@
       updateUndoRedoBtn();
     }
     function undo(){
-      if(history.length===0) return;
+      if(history.length<=1) return; // Keep the initial state
       future.push(JSON.stringify(root));
-      root = JSON.parse(history.pop());
+      history.pop(); // Pop current state
+      root = JSON.parse(history[history.length-1]); // Peek at new current state
       idCounter = getMaxId(root)+1;
+      selectedId = null; // Deselect on undo
       render();
       updateUndoRedoBtn();
     }
     function redo(){
       if(future.length===0) return;
-      history.push(JSON.stringify(root));
-      root = JSON.parse(future.pop());
+      const nextState = future.pop();
+      history.push(nextState);
+      root = JSON.parse(nextState);
       idCounter = getMaxId(root)+1;
+      selectedId = null; // Deselect on redo
       render();
       updateUndoRedoBtn();
     }
     function getMaxId(node){
-      let max = 0;
-      function walk(n){
-        const num = parseInt(n.id.replace('n',''),10);
-        if(num>max) max=num;
-        n.children.forEach(walk);
-      }
-      // Root node's ID is "n" + idCounter, so we need to check it too
-      const rootNum = parseInt(node.id.replace('n', ''), 10);
-      if (rootNum > max) max = rootNum;
-      node.children.forEach(walk);
-      return max;
+        let max = 0;
+        function walk(n){
+            const num = parseInt(n.id.replace('n',''), 10);
+            if(num > max) max = num;
+            if(n.children) n.children.forEach(walk);
+        }
+        if(node.children) node.children.forEach(walk);
+        return max;
     }
     function updateUndoRedoBtn(){
-      document.getElementById('undoBtn').disabled = history.length <= 1; // Disable if only initial state
+      document.getElementById('undoBtn').disabled = history.length <= 1;
       document.getElementById('redoBtn').disabled = future.length === 0;
     }
 
     //―― グローバル状態 ――
     let root = createNode('/', 'folder');
     let editingId = null;
-    // let clipboard = null; // DELETED
-    // let clipboardType = null; // 'copy' or 'cut' // DELETED
-    let draggedId = null; // Defined here for clarity
+    let selectedId = null;
+    let draggedId = null;
 
     //―― テンプレート読み込み ――
     function loadTemplate(key){
       root = createNode('/', 'folder');
-      idCounter = 1; editingId = null;
+      idCounter = 1; editingId = null; selectedId = null;
       if(key!=='empty'){
         const lines=templates[key].split('\n'), stack=[];
         lines.forEach(raw=>{
-          const depth=(raw.match(/^(\s*[│├└─]+)?/)?.[0]||'')
-            .replace(/[│├└─]/g,'').length/2;
+          const depth=(raw.match(/^(\s*[│├└─]+)?/)?.[0]||'').replace(/[│├└─]/g,'').length/2;
           const txt=raw.replace(/^[\s│├└─]+/,'').trim();
           if(!txt) return;
           const isDir=txt.endsWith('/');
           const name=txt.replace(/\/$/,'');
-          const node=createNode(name,isDir?'folder':'file');
-          while(stack.length>depth) stack.pop();
-          const parent=stack[stack.length-1]||root;
+          const node=createNode(name, isDir ? 'folder' : 'file');
+          while(stack.length > depth) stack.pop();
+          const parent = stack[stack.length-1] || root;
           parent.children.push(node);
           if(isDir) stack.push(node);
         });
@@ -233,10 +269,7 @@
           const li=document.createElement('li');
           li.draggable=true;
           li.dataset.id=ch.id;
-          li.dataset.index = idx; // Store index for reordering
-          li.dataset.parentId = node.id; // Store parent ID for drag & drop
-
-          // if(ch.uiNode) li.classList.add('ui-node'); // Removed
+          li.dataset.parentId = node.id;
 
           if(ch.id===editingId){
             const inp=document.createElement('input');
@@ -248,29 +281,35 @@
           } else {
             const sp=document.createElement('span');
             sp.className='node';
-            sp.textContent=ch.name+(ch.type==='folder'?'/':''); // Show / for folders
-            sp.ondblclick=()=>{ editingId=ch.id; render(); };
-            // ファイル内容編集
-            if(ch.type==='file'){
-              sp.style.cursor = 'pointer';
-              sp.onclick = (e) => {
-                e.stopPropagation();
-                editFileContent(ch);
-              };
+            if (ch.id === selectedId) {
+                sp.classList.add('selected');
             }
+            sp.style.backgroundColor = ch.color || '#FFFFFF';
+            sp.style.color = getContrastYIQ(ch.color || '#FFFFFF');
+            sp.textContent=ch.name+(ch.type==='folder'?'/':'');
+            sp.ondblclick=()=>{ editingId=ch.id; render(); };
+            sp.onclick = (e) => {
+                e.stopPropagation();
+                selectedId = ch.id;
+                const selectedNode = findNode(root, selectedId);
+                const colorRadios = document.querySelectorAll('#color-picker input[name="color"]');
+                colorRadios.forEach(radio => {
+                    radio.checked = radio.value === (selectedNode.color || '#FFFFFF');
+                });
+                render();
+            };
             li.appendChild(sp);
           }
 
           const act=document.createElement('span');
           act.className='actions';
           const btns=[
-            {t:'✎',fn:()=>{ editingId=ch.id; render(); }},
-            {t:'+F',fn:()=>{ ch.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); },cond:ch.type==='folder'},
-            {t:'+f',fn:()=>{ ch.children.push(createNode('新しいファイル.html','file')); saveHistory(); render(); }},
-            {t:'+t',fn:()=>{ ch.children.push(createNode('新しいファイル.txt','file')); saveHistory(); render(); },cond:ch.type==='folder'},
-            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }}
-            // {t:'📋',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='copy'; },cond:true}, // DELETED
-            // {t:'📄',fn:()=>{ clipboard=JSON.parse(JSON.stringify(ch)); clipboardType='cut'; },cond:true} // DELETED
+            {t:'✎',fn:()=>{ editingId=ch.id; selectedId=null; render(); }},
+            {t:'+F',fn:()=>{ const newNode=createNode('新しいフォルダ','folder', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'+f',fn:()=>{ const newNode=createNode('新しいファイル.html','file', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'+t',fn:()=>{ const newNode=createNode('新しいファイル.txt','file', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }},
+            {t:'📝',fn:() => editFileContent(ch), cond:ch.type==='file'}
           ];
           btns.forEach(b=>{
             if(b.cond===false) return;
@@ -280,12 +319,10 @@
           });
           li.appendChild(act);
 
-          // Drag & Drop event listeners
           li.addEventListener('dragstart', onDragStart);
           li.addEventListener('dragover', onDragOver);
           li.addEventListener('dragleave', onDragLeave);
           li.addEventListener('drop', onDrop);
-          li.addEventListener('dragenter', onDragEnter); // For visual feedback
 
           container.appendChild(li);
           if(ch.type==='folder'){
@@ -305,16 +342,13 @@
       if(val.trim()) findNode(root,editingId).name=val.trim();
       editingId=null; saveHistory(); render();
     }
-    // 子孫ノードも正しく削除
     function removeNode(p,id){
-      if (p.id === id) { // If the node to remove is the root itself (shouldn't happen with current UI)
-          root = createNode('/', 'folder');
-          return true;
-      }
+      const originalChildren = p.children;
       p.children = p.children.filter(c => c.id !== id);
-      // Recursively check children of the current node's children (not the parent's children)
+      if (p.children.length < originalChildren.length) return true;
+
       for (const c of p.children) {
-          removeNode(c, id);
+          if (removeNode(c, id)) return true;
       }
       return false;
     }
@@ -330,121 +364,104 @@
       }
     }
 
-    //―― Drag & Drop（並べ替え・移動バグ修正）――
-    // let draggedId=null; // Already defined globally
-    let dragTargetNode = null; // The target node being hovered over
-    let dropPosition = 'inside'; // 'before', 'after', 'inside'
+    //―― Drag & Drop ――
+    let dropPosition = 'inside';
 
     function onDragStart(e) {
         draggedId = e.currentTarget.dataset.id;
         e.dataTransfer.effectAllowed = 'move';
-        // Add a class to the dragged element to make it partially transparent
         e.currentTarget.classList.add('dragging');
     }
 
     function onDragOver(e) {
         e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
         const targetLi = e.currentTarget;
         const targetNode = findNode(root, targetLi.dataset.id);
-        const draggedNode = findNode(root, draggedId);
 
-        if (!targetNode || !draggedNode || targetNode.id === draggedNode.id) {
-            return;
-        }
+        // Clear previous visual feedback
+        document.querySelectorAll('#tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
+            li.classList.remove('over', 'drop-before', 'drop-after');
+        });
+
+        if (!targetNode || targetNode.id === draggedId) return;
 
         // Prevent dropping a parent into its own child
-        let currentCheck = targetNode;
-        while (currentCheck) {
-            if (currentCheck.id === draggedNode.id) {
-                e.dataTransfer.dropEffect = 'none'; // Cannot drop
+        let current = targetNode;
+        while(current = findParent(root, current.id)) {
+            if (current.id === draggedId) {
+                e.dataTransfer.dropEffect = 'none';
                 return;
             }
-            currentCheck = findParent(root, currentCheck.id);
         }
+        e.dataTransfer.dropEffect = 'move';
 
         const rect = targetLi.getBoundingClientRect();
         const y = e.clientY - rect.top;
 
-        // Visual feedback for drop position
-        targetLi.classList.remove('over', 'drop-before', 'drop-after');
-
-        if (targetNode.type === 'folder' && y > rect.height / 4 && y < rect.height * 3 / 4) {
-            // Drop inside folder
-            dropPosition = 'inside';
-            targetLi.classList.add('over'); // Highlight the folder node
-        } else if (y < rect.height / 2) {
-            // Drop before target
-            dropPosition = 'before';
-            targetLi.classList.add('drop-before'); // Add a class for top border
+        if (targetNode.type === 'folder') {
+            const third = rect.height / 3;
+            if (y < third) {
+                dropPosition = 'before';
+                targetLi.classList.add('drop-before');
+            } else if (y > third * 2) {
+                dropPosition = 'after';
+                targetLi.classList.add('drop-after');
+            } else {
+                dropPosition = 'inside';
+                targetLi.classList.add('over');
+            }
         } else {
-            // Drop after target
-            dropPosition = 'after';
-            targetLi.classList.add('drop-after'); // Add a class for bottom border
+            if (y < rect.height / 2) {
+                dropPosition = 'before';
+                targetLi.classList.add('drop-before');
+            } else {
+                dropPosition = 'after';
+                targetLi.classList.add('drop-after');
+            }
         }
     }
 
-    function onDragEnter(e) {
-        // Clear previous visual feedback on all list items
-        document.querySelectorAll('#tree li').forEach(li => {
-            li.classList.remove('over', 'drop-before', 'drop-after');
-        });
-    }
-
     function onDragLeave(e) {
-        // Clear visual feedback when leaving
         e.currentTarget.classList.remove('over', 'drop-before', 'drop-after');
     }
 
     function onDrop(e) {
         e.preventDefault();
-        const targetLi = e.currentTarget;
-        targetLi.classList.remove('over', 'drop-before', 'drop-after'); // Clear visual feedback
-        document.querySelector('.dragging')?.classList.remove('dragging'); // Remove dragging class
+        e.stopPropagation();
+        document.querySelectorAll('#tree li.dragging, #tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
+            li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
+        });
 
-        const draggedNode = findNode(root, draggedId);
+        const targetId = e.currentTarget.dataset.id;
+        if (draggedId === targetId) return;
+
         const sourceParent = findParent(root, draggedId);
-        const targetNode = findNode(root, targetLi.dataset.id);
-
-        if (!draggedNode || !sourceParent || !targetNode || draggedNode.id === targetNode.id) {
-            return;
+        let draggedNode = null;
+        const sourceIndex = sourceParent.children.findIndex(c => c.id === draggedId);
+        if(sourceIndex > -1) {
+            draggedNode = sourceParent.children.splice(sourceIndex, 1)[0];
         }
 
-        // Prevent dropping a parent into its own child
-        let currentCheck = targetNode;
-        while (currentCheck) {
-            if (currentCheck.id === draggedNode.id) {
-                return;
-            }
-            currentCheck = findParent(root, currentCheck.id);
-        }
+        if (!draggedNode) return;
 
-        // Remove from source
-        sourceParent.children = sourceParent.children.filter(n => n.id !== draggedId);
-
-        // Add to target
+        const targetNode = findNode(root, targetId);
         if (dropPosition === 'inside' && targetNode.type === 'folder') {
             targetNode.children.push(draggedNode);
         } else {
-            const targetParent = findParent(root, targetNode.id);
-            if (targetParent) {
-                const targetIndex = targetParent.children.findIndex(n => n.id === targetNode.id);
-                if (dropPosition === 'before') {
-                    targetParent.children.splice(targetIndex, 0, draggedNode);
-                } else { // 'after'
-                    targetParent.children.splice(targetIndex + 1, 0, draggedNode);
-                }
-            } else {
-                // Should not happen for root level items, but as a fallback
-                root.children.push(draggedNode);
+            const targetParent = findParent(root, targetId);
+            const targetIndex = targetParent.children.findIndex(c => c.id === targetId);
+            if (dropPosition === 'before') {
+                targetParent.children.splice(targetIndex, 0, draggedNode);
+            } else { // after
+                targetParent.children.splice(targetIndex + 1, 0, draggedNode);
             }
         }
+
         draggedId = null;
         saveHistory();
         render();
     }
 
-    // CSS for drag-and-drop visual feedback
     const style = document.createElement('style');
     style.innerHTML = `
         .drop-before { border-top: 2px solid #4D96FF !important; }
@@ -453,59 +470,19 @@
     `;
     document.head.appendChild(style);
 
-
-    //―― コピー＆ペースト機能 （DELETED）――
-    /*
-    document.getElementById('copyBtn').onclick=()=>{
-      const sel = document.querySelector('.node.selected');
-      if(!sel) return alert('コピーしたいノードを選択してください（ノード名をダブルクリック）');
-      const id = sel.parentElement.dataset.id;
-      clipboard = JSON.parse(JSON.stringify(findNode(root,id)));
-      clipboardType = 'copy';
-    };
-    document.getElementById('pasteBtn').onclick=()=>{
-      if(!clipboard) return alert('コピーまたはカットしたノードがありません');
-      const sel = document.querySelector('.node.selected');
-      let parent = root;
-      if(sel) {
-        const id = sel.parentElement.dataset.id;
-        const node = findNode(root,id);
-        if(node.type==='folder') parent = node;
-        else parent = findParent(root,id);
-      }
-      // 新しいIDを振り直す
-      function reid(n){
-        n.id = genId();
-        n.children.forEach(reid);
-      }
-      const pasted = JSON.parse(JSON.stringify(clipboard));
-      reid(pasted);
-      parent.children.push(pasted);
-      saveHistory();
-      render();
-    };
-
-    // ノード選択（コピー用）
-    document.addEventListener('dblclick',e=>{
-      document.querySelectorAll('.node.selected').forEach(n=>n.classList.remove('selected'));
-      if(e.target.classList.contains('node')) e.target.classList.add('selected');
-    });
-    */
-
-    //―― CSV 保存/読込（UIノード除外）――
+    //―― CSV 保存/読込 ――
     function treeToCsv(){
-      const rows=[['path','type','content']];
+      const rows=[['path','type','content','color']];
       (function w(n,p){
         n.children.forEach(c=>{
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           const path=p+'/'+c.name;
-          rows.push([path,c.type,c.type==='file'?btoa(unescape(encodeURIComponent(c.content||''))):'']);
+          rows.push([path,c.type,c.type==='file'?btoa(unescape(encodeURIComponent(c.content||''))):'', c.color || '#FFFFFF']);
           if(c.type==='folder') w(c,path);
         });
       })(root,'');
-      return rows.map(r=>r.map(x=>`"${x.replace(/"/g,'""')}"`).join(',')).join('\n');
+      return rows.map(r=>r.map(x=>`"${(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
     }
-    function saveCsv(){
+    document.getElementById('saveCsv').onclick = () => {
       const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
       const csv = treeToCsv();
       const blob = new Blob([bom, csv], {type:'text/csv'});
@@ -513,72 +490,43 @@
       a.href=URL.createObjectURL(blob);
       a.download='structure.csv';
       a.click();
-    }
-    async function loadCsv(){
+    };
+    document.getElementById('loadCsv').onclick = async () => {
       const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
       const txt=await (await f.getFile()).text();
       const lines=txt.split('\n').filter(l=>l.trim());
-      root=createNode('/','folder'); // Reset root for new CSV
-      idCounter = 1; // Reset ID counter
+      root=createNode('/','folder'); idCounter = 1;
       lines.slice(1).forEach(l=>{
-        // Handle lines that might contain quoted commas correctly
-        const parts = [];
-        let inQuote = false;
-        let currentPart = '';
-        for (let i = 0; i < l.length; i++) {
-            const char = l[i];
-            if (char === '"') {
-                if (i + 1 < l.length && l[i+1] === '"') { // Escaped quote
-                    currentPart += '"';
-                    i++;
-                } else {
-                    inQuote = !inQuote;
-                }
-            } else if (char === ',' && !inQuote) {
-                parts.push(currentPart);
-                currentPart = '';
-            } else {
-                currentPart += char;
-            }
-        }
-        parts.push(currentPart); // Add the last part
-
-        if (parts.length < 3) return; // Skip malformed lines
-
-        const path = parts[0].replace(/""/g,'"').replace(/^"|"$/g, ''); // Remove quotes
-        const type = parts[1].replace(/""/g,'"').replace(/^"|"$/g, '');
-        const content = parts[2] ? decodeURIComponent(escape(atob(parts[2].replace(/""/g,'"')
-            .replace(/^"|"$/g, '')))) : ''; // Decode and remove quotes
-
+        const parts = l.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g).map(p => p.replace(/^"|"$/g, '').replace(/""/g, '"'));
+        if (parts.length < 2) return;
+        const [path, type, contentStr, color] = parts;
+        const content = (contentStr && type === 'file') ? decodeURIComponent(escape(atob(contentStr))) : '';
         const seg=path.split('/').filter(Boolean);
         let p=root;
         seg.forEach((n,i)=>{
           const last=i===seg.length-1;
-          if(last&&type==='file') {
-            const newNode = createNode(n,'file');
-            newNode.content = content; // Assign content here
-            p.children.push(newNode);
+          const nodeType = last ? type : 'folder';
+          let d=p.children.find(c=>c.name===n&&c.type===nodeType);
+          if(!d){
+             d=createNode(n, nodeType, color);
+             if(last && type === 'file') d.content = content;
+             p.children.push(d);
           }
-          else {
-            let d=p.children.find(c=>c.name===n&&c.type==='folder');
-            if(!d){ d=createNode(n,'folder'); p.children.push(d); }
-            p=d;
-          }
+          p=d;
         });
       });
       saveHistory();
       render();
-    }
+    };
 
     //―― フォルダから読込 ――
-    async function importFs(){
+    document.getElementById('importFs').onclick = async () => {
       const dh=await window.showDirectoryPicker();
-      idCounter=1;
-      root=createNode('/','folder'); // Reset root
+      idCounter=1; root=createNode('/','folder');
       await readFsRecursive(dh, root);
       saveHistory();
       render();
-    }
+    };
     async function readFsRecursive(dh, parentNode){
       for await(const [name,ent] of dh.entries()){
         if(ent.kind==='directory') {
@@ -591,233 +539,105 @@
           try {
             const file = await ent.getFile();
             fileNode.content = await file.text();
-          } catch (e) {
-            console.error(`Failed to read file ${name}:`, e);
-            fileNode.content = `ERROR: Could not read file content. (${e.message})`;
-          }
+          } catch (e) { fileNode.content = `ERROR: ${e.message}`; }
         }
       }
     }
 
     //―― ZIP 出力 ――
-    function downloadZip(){
+    document.getElementById('downloadZip').onclick = () => {
       const zip=new JSZip();
-      (async function add(n,f){
-        for (const c of n.children) { // Use for...of for async inside
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
+      (function add(n, f){
+        n.children.forEach(c => {
           if(c.type==='folder') {
-            await add(c,f.folder(c.name));
+            add(c, f.folder(c.name));
           } else {
             f.file(c.name, c.content ?? getFileTemplate(c.name));
           }
-        }
-      })(root,zip).then(()=>{ // Ensure all async operations are complete before generating
-        zip.generateAsync({type:'blob'}).then(b=>{
-          const a=document.createElement('a');
-          a.href=URL.createObjectURL(b);
-          a.download='structure.zip';
-          a.click();
         });
+      })(root, zip);
+      zip.generateAsync({type:'blob'}).then(b=>{
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(b); a.download='structure.zip'; a.click();
       });
-    }
-
-    //―― TXTファイル追加ボタン
-    document.getElementById('addRootTxt').onclick=()=>{
-      root.children.push(createNode('新しいファイル.txt','file'));
-      saveHistory();
-      render();
     };
 
-    //―― 構成図PDF（DELETED）――
-    /*
-    async function downloadPdf(){
-      const { jsPDF } = window.jspdf;
-      const pdf=new jsPDF({unit:'pt',format:'a4'});
-      const w=pdf.internal.pageSize.getWidth();
-      const h=pdf.internal.pageSize.getHeight();
-      const margin=40, nodeH=40, indentX=140, spaceY=24;
-      const palette=['#FF6B6B','#6BCB77','#4D96FF','#FFD93D','#845EC2','#00C9A7','#F9A602'];
-      const counts={}, all=[];
-
-      function layout(n,d=0){
-        n.children.forEach(c=>{
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
-          if(!counts[d]) counts[d]=0;
-          c.depth=d;
-          c.x=margin + d*indentX;
-          c.y=margin + counts[d]*(nodeH+spaceY) + (d===0?0:60);
-          counts[d]++;
-          all.push(c);
-          layout(c,d+1);
-        });
-      }
-      layout(root);
-
-      // Canvas 準備
-      const cv=document.createElement('canvas');
-      cv.width=w; cv.height=h;
-      const ctx=cv.getContext('2d');
-      ctx.font='16px sans-serif';
-      ctx.textBaseline='middle';
-
-      // 背景グラデーション
-      const grad=ctx.createLinearGradient(0,0,0,h);
-      grad.addColorStop(0,'#f0f4f8');
-      grad.addColorStop(1,'#e0e7ef');
-      ctx.fillStyle=grad;
-      ctx.fillRect(0,0,w,h);
-
-      // 線（太く・影付き）
-      ctx.save();
-      ctx.shadowColor = "#bbb";
-      ctx.shadowBlur = 6;
-      ctx.strokeStyle='#555'; ctx.lineWidth=3;
-      all.forEach(n=>{
-        n.children.forEach(c=>{
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
-          const x1=n.x + 110, y1=n.y + nodeH/2;
-          const x2=c.x, y2=c.y + nodeH/2;
-          const cx=(x1+x2)/2, cy=(y1+y2)/2 - 30;
-          ctx.beginPath();
-          ctx.moveTo(x1,y1);
-          ctx.bezierCurveTo(cx,cy,cx,cy,x2,y2);
-          ctx.stroke();
-        });
-      });
-      ctx.restore();
-
-      // ノード描画（アイコン付きカード風）
-      all.forEach(n=>{
-        const col=palette[n.depth % palette.length];
-        const txt=n.name;
-        const tw=ctx.measureText(txt).width;
-        const bw=Math.max(tw+60,120), bh=nodeH;
-        const x=n.x, y=n.y;
-        ctx.save();
-        ctx.shadowColor = "rgba(0,0,0,0.18)";
-        ctx.shadowBlur = 8;
-        roundRect(ctx,x+3,y+3,bw,bh,10);
-        ctx.fillStyle='rgba(0,0,0,0.08)';
-        ctx.fill();
-        ctx.restore();
-        const lg=ctx.createLinearGradient(x,y,x+bw,y+bh);
-        lg.addColorStop(0,hexToRGBA(col,0.85));
-        lg.addColorStop(1,hexToRGBA(col,1));
-        ctx.fillStyle=lg;
-        ctx.strokeStyle=shadeColor(col,-30);
-        roundRect(ctx,x,y,bw,bh,10);
-        ctx.fill();
-        ctx.stroke();
-        ctx.save();
-        ctx.translate(x+24, y+bh/2);
-        if(n.type==='folder'){
-          drawFolderIcon(ctx);
-        }else{
-          drawFileIcon(ctx, n.name);
-        }
-        ctx.restore();
-        ctx.fillStyle='#fff';
-        ctx.font='bold 16px sans-serif';
-        ctx.textAlign='left';
-        ctx.fillText(txt,x+48,y+bh/2);
-      });
-
-      const img=cv.toDataURL('image/png');
-      pdf.addImage(img,'PNG',0,0,w,h);
-      pdf.save('structure_map.pdf');
-    }
-    */
-
-    //―― 全内容PDF（DELETED）――
-    /*
-    async function downloadFullPdf(){
-      const { jsPDF } = window.jspdf;
-      const pdf=new jsPDF({unit:'pt',format:'a4'});
-      let y=40, margin=40, lineH=18, pageH=pdf.internal.pageSize.getHeight();
-
-      function addLine(txt, bold=false){
-        if(y>pageH-40) { pdf.addPage(); y=40; }
-        pdf.setFont('helvetica', bold?'bold':'normal');
-        pdf.setFontSize(bold?13:11);
-        pdf.text(txt, margin, y, {encoding:'Identity-H'});
-        y+=lineH;
-      }
-      function walk(n, prefix=''){
-        n.children.forEach(c=>{
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
-          addLine(prefix+c.name+(c.type==='folder'?'/':''), true);
-          if(c.type==='file' && c.content){
-            c.content.split(/\r?\n/).forEach(line=>{
-              addLine('　'+line);
-            });
-          }
-          if(c.type==='folder') walk(c, prefix+'　');
-        });
-      }
-      addLine('【構成と内容】', true);
-      walk(root);
-      pdf.save('structure_full.pdf');
-    }
-    */
-
-    //―― SVG出力（UIノード除外）――
+    //―― SVG出力（改善版）――
     document.getElementById('downloadSvg').onclick=()=>{
-      const w=1200, h=800, margin=40, nodeH=40, indentX=140, spaceY=24;
-      const palette=['#FF6B6B','#6BCB77','#4D96FF','#FFD93D','#845EC2','#00C9A7','#F9A602'];
+      const w=1200, h=1600, margin=40, nodeH=40, indentX=160, spaceY=24;
+      const palette=['#ffdddd','#ddffdd','#ddddff','#ffffdd','#ffddff','#ddffff','#f0f0f0'];
       const counts={}, all=[];
+
       function layout(n,d=0){
+        // Do not layout root itself
         n.children.forEach(c=>{
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
-          if(!counts[d]) counts[d]=0;
+          if(!counts[d]) counts[d] = {y: margin + (d>0?60:0), count:0};
           c.depth=d;
           c.x=margin + d*indentX;
-          c.y=margin + counts[d]*(nodeH+spaceY) + (d===0?0:60);
-          counts[d]++;
+          c.y = counts[d].y;
+          counts[d].y += nodeH + spaceY;
+          counts[d].count++;
           all.push(c);
-          layout(c,d+1);
+          if(c.children.length > 0) layout(c,d+1);
         });
       }
       layout(root);
-      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="background:#f0f4f8">`;
+
+      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="background:#f8f9fa; font-family: sans-serif;">`;
+      const tempCtx = document.createElement('canvas').getContext('2d');
+
+      // Draw lines first
       all.forEach(n=>{
-        n.children.forEach(c=>{
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
-          const x1=n.x + 110, y1=n.y + nodeH/2;
-          const x2=c.x, y2=c.y + nodeH/2;
-          const cx=(x1+x2)/2, cy=(y1+y2)/2 - 30;
-          svg+=`<path d="M${x1},${y1} C${cx},${cy} ${cx},${cy} ${x2},${y2}" stroke="#555" stroke-width="3" fill="none" />`;
-        });
+        const p = findParent(root, n.id);
+        if(!p || p === root) return; // Don't draw lines from root background
+        const x1=p.x + 110, y1=p.y + nodeH/2; // A bit arbitrary adjustment
+        const x2=n.x, y2=n.y + nodeH/2;
+        const cx=(x1+x2)/2;
+        svg+=`<path d="M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}" stroke="#adb5bd" stroke-width="2" fill="none" />`;
       });
+
+      // Draw nodes
       all.forEach(n=>{
-        const col=palette[n.depth % palette.length];
-        const txt=n.name;
-        // Adjust bw based on text width for better fit, but keep min for icons
-        const tempCtx = document.createElement('canvas').getContext('2d');
-        tempCtx.font = 'bold 16px sans-serif'; // Must match SVG font for accurate measurement
-        const tw = tempCtx.measureText(txt).width;
-        const bw = Math.max(tw + 60, 120); // Min width 120, plus padding for text/icon
-        const x=n.x, y=n.y;
-        svg+=`<rect x="${x}" y="${y}" rx="10" ry="10" width="${bw}" height="${nodeH}" fill="${col}" stroke="#333" stroke-width="2"/>`;
-        
-        // Add icon based on type
-        if (n.type === 'folder') {
-            svg += `
-                <g transform="translate(${x + 24}, ${y + nodeH / 2})">
-                    <path d="M-14,6 L-10,-8 L18,-8 L14,6 Z" fill="#fff8e1" stroke-width="0"/>
-                    <path d="M-16,8 L16,8 L14,16 L-14,16 Z" fill="#ffe082" stroke-width="0"/>
-                </g>
-            `;
-        } else { // File
-            const fileExt = n.name.split('.').pop().toUpperCase();
-            svg += `
-                <g transform="translate(${x + 24}, ${y + nodeH / 2})">
-                    <rect x="-12" y="-12" width="24" height="24" fill="#fff" stroke="#bbb" stroke-width="1"/>
-                    <text x="0" y="2" font-size="10" fill="#888" font-family="monospace" text-anchor="middle">${fileExt}</text>
-                </g>
-            `;
+        let txt = n.name;
+        let fontSize = 16;
+        tempCtx.font = `bold ${fontSize}px sans-serif`;
+        let tw = tempCtx.measureText(txt).width;
+        let bw = tw + 60;
+
+        // Shrink font and text if too long
+        if (bw > indentX - 20) {
+            fontSize = 12;
+            tempCtx.font = `bold ${fontSize}px sans-serif`;
+            tw = tempCtx.measureText(txt).width;
+            bw = tw + 50;
+            // Truncate text if still too long
+            if (bw > indentX - 20) {
+                while(bw > indentX - 20 && txt.length > 5){
+                    txt = txt.slice(0, -2) + '…';
+                    tw = tempCtx.measureText(txt).width;
+                    bw = tw + 50;
+                }
+            }
         }
-        svg+=`<text x="${x+48}" y="${y+nodeH/2+6}" font-size="16" fill="#fff" font-family="sans-serif" font-weight="bold">${txt}</text>`; // Changed to sans-serif for consistency
+        bw = Math.max(bw, 100);
+
+        const x=n.x, y=n.y;
+        const nodeColor = (n.color && n.color !== '#FFFFFF') ? n.color : palette[n.depth % palette.length];
+        const textColor = getContrastYIQ(nodeColor);
+
+        svg+=`<g transform="translate(${x}, ${y})">`;
+        svg+=`<rect rx="8" ry="8" width="${bw}" height="${nodeH}" fill="${nodeColor}" stroke="${textColor}" stroke-width="0.5" stroke-opacity="0.5"/>`;
+
+        const iconColor = textColor === 'white' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
+        if (n.type === 'folder') {
+            svg += `<path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" fill="${iconColor}" transform="translate(8, 8) scale(0.8)"/>`;
+        } else {
+            svg += `<path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" fill="${iconColor}" transform="translate(8, 5) scale(0.8)"/>`;
+        }
+        svg+=`<text x="36" y="${nodeH/2}" dy=".3em" font-size="${fontSize}" font-weight="bold" fill="${textColor}">${txt}</text>`;
+        svg+='</g>';
       });
+
       svg+='</svg>';
       const blob = new Blob([svg], {type:'image/svg+xml'});
       const a=document.createElement('a');
@@ -826,15 +646,15 @@
       a.click();
     };
 
-    //―― TXTプレビュー（UIノード除外）――
+
+    //―― TXTプレビュー ――
     document.getElementById('txtPreviewBtn').onclick=()=>{
       let txt = '';
       function walk(n, prefix=''){
         n.children.forEach(c=>{
-          // if(!document.getElementById('includeUiNode').checked && c.uiNode) return; // Removed
           txt += prefix + c.name + (c.type==='folder'?'/':'') + '\n';
           if(c.type==='file' && c.content){
-            txt += c.content.split(/\r?\n/).map(line=>'　'+line).join('\n')+'\n';
+            txt += c.content.split(/\r?\n/).map(line=>'　'+line).join('\n')+'\n\n';
           }
           if(c.type==='folder') walk(c, prefix+'　');
         });
@@ -844,65 +664,43 @@
       document.getElementById('txt-preview').style.display = 'block';
     };
 
-    // フォルダアイコン（These functions are not used directly anymore, replaced by SVG inline for SVG output）
-    function drawFolderIcon(ctx){ /* ... */ }
-    // ファイルアイコン
-    function drawFileIcon(ctx, name){ /* ... */ }
-
-    // Helper functions for PDF/SVG (not directly used by main logic now)
-    function roundRect(ctx,x,y,w,h,r){ /* ... */ }
-    function hexToRGBA(hex,a){ /* ... */ }
-    function shadeColor(col,amt){ /* ... */ }
 
     //―― 完全保存・読込（JSON）――
     document.getElementById('saveAllBtn').onclick=()=>{
-      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-      const blob = new Blob([bom, JSON.stringify(root, null, 2)], {type:'application/json'}); // Pretty print JSON
+      const blob = new Blob([JSON.stringify(root, null, 2)], {type:'application/json'});
       const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download='structure.json';
-      a.click();
+      a.href=URL.createObjectURL(blob); a.download='structure.json'; a.click();
     };
     document.getElementById('loadAllBtn').onclick=async()=>{
-      const [f]=await window.showOpenFilePicker({types:[{accept:{'application/json':['.json']}}]});
-      const txt=await (await f.getFile()).text();
       try {
+        const [f]=await window.showOpenFilePicker({types:[{accept:{'application/json':['.json']}}]});
+        const txt=await (await f.getFile()).text();
         root=JSON.parse(txt);
         idCounter = getMaxId(root)+1;
         saveHistory();
         render();
       } catch (e) {
-        alert('JSONファイルの読み込みに失敗しました。ファイルが破損しているか、形式が正しくありません。');
-        console.error('JSON load error:', e);
+        if(e.name !== 'AbortError') alert('JSONファイルの読み込みに失敗しました。');
       }
     };
 
     //―― お気に入りテンプレート保存・呼び出し ――
     function renderFavList(){
       const favDiv = document.getElementById('fav-list');
-      favDiv.innerHTML = '';
+      favDiv.innerHTML = '<b>お気に入り: </b>';
       const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
       favs.forEach((f,i)=>{
         const btnContainer = document.createElement('span');
         const btn = document.createElement('button');
         btn.textContent = f.name;
-        btn.onclick = ()=>{
-          root = JSON.parse(f.data);
-          idCounter = getMaxId(root)+1;
-          saveHistory();
-          render();
-        };
+        btn.onclick = ()=>{ root = JSON.parse(f.data); idCounter = getMaxId(root)+1; saveHistory(); render(); };
         btnContainer.appendChild(btn);
 
         const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = '✕';
-        deleteBtn.className = 'delete-fav-btn';
-        deleteBtn.title = 'お気に入りを削除';
+        deleteBtn.textContent = '✕'; deleteBtn.title = 'お気に入りを削除';
         deleteBtn.onclick = (e) => {
-            e.stopPropagation(); // Prevent loading the favorite
-            if (confirm(`お気に入り「${f.name}」を削除してもよろしいですか？`)) {
-                removeFav(i);
-            }
+            e.stopPropagation();
+            if (confirm(`「${f.name}」を削除しますか？`)) { removeFav(i); }
         };
         btnContainer.appendChild(deleteBtn);
         favDiv.appendChild(btnContainer);
@@ -917,7 +715,7 @@
     }
 
     document.getElementById('addFavBtn').onclick=()=>{
-      const name = prompt('お気に入りテンプレート名を入力してください');
+      const name = prompt('お気に入り名を入力してください:');
       if(!name) return;
       const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
       favs.push({name, data: JSON.stringify(root)});
@@ -927,30 +725,36 @@
 
     //―― 全て削除ボタン ――
     document.getElementById('clearAllBtn').onclick = () => {
-        if (confirm('全てのファイルとフォルダを削除してもよろしいですか？この操作は元に戻せません。')) {
-            root = createNode('/', 'folder');
-            idCounter = 1;
-            saveHistory();
-            render();
+        if (confirm('本当にすべて削除しますか？')) {
+            root = createNode('/', 'folder'); idCounter = 1;
+            saveHistory(); render();
         }
     };
 
-    //―― ボタンバインド & 初期レンダー ――
+    //―― イベントバインド & 初期化 ――
     document.getElementById('templateSelect').onchange=e=>loadTemplate(e.target.value);
     document.getElementById('addRootFolder').onclick=()=>{ root.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); };
     document.getElementById('addRootFile').onclick=()=>{ root.children.push(createNode('新しいファイル.html','file')); saveHistory(); render(); };
-    document.getElementById('saveCsv').onclick=saveCsv;
-    document.getElementById('loadCsv').onclick=loadCsv;
-    document.getElementById('importFs').onclick=importFs;
-    document.getElementById('downloadZip').onclick=downloadZip;
-    // document.getElementById('downloadPdf').onclick=downloadPdf; // DELETED
-    // document.getElementById('downloadFullPdf').onclick=downloadFullPdf; // DELETED
+    document.getElementById('addRootTxt').onclick=()=>{ root.children.push(createNode('新しいファイル.txt','file')); saveHistory(); render(); };
     document.getElementById('undoBtn').onclick=undo;
     document.getElementById('redoBtn').onclick=redo;
 
-    // Initial render and history save
+    document.querySelectorAll('#color-picker input[name="color"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (selectedId) {
+                const node = findNode(root, selectedId);
+                if (node) {
+                    node.color = e.target.value;
+                    saveHistory();
+                    render();
+                }
+            }
+        });
+    });
+
+    // Initial Load
+    saveHistory();
     render();
-    saveHistory(); // Save the initial empty state
   </script>
 </body>
 </html>
