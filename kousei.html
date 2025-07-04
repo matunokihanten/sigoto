@@ -71,10 +71,15 @@
     .drop-after { border-bottom: 2px solid #4D96FF !important; }
     .over > .node { background: #e0f2f7 !important; outline: 2px solid #4D96FF; outline-offset: 1px;}
     .dragging { opacity: 0.5; }
+
+    /* PNG生成時にボタンを非表示にするためのスタイル */
+    body.hide-for-capture .actions {
+        display: none !important;
+    }
   </style>
 </head>
 <body>
-  <h2>🗂️ 完全版構造エディタ・CSV保存/読込・FS読込・ZIP・豪華PDF・SVG・プリセット</h2>
+  <h2>🗂️ 完全版構造エディタ・CSV保存/読込・FS読込・ZIP・豪華PDF・画像・プリセット</h2>
   <div id="controls">
     <select id="templateSelect">
       <option value="empty">— 空 —</option>
@@ -88,7 +93,7 @@
     <button id="loadCsv">CSVを読込</button>
     <button id="importFs">フォルダから読込</button>
     <button id="downloadZip">ZIPをダウンロード</button>
-    <button id="downloadSvg">SVG出力</button>
+    <button id="downloadPng">PNG画像でダウンロード</button>
     <button id="txtPreviewBtn">TXTプレビュー</button>
     <button id="undoBtn">元に戻す</button>
     <button id="redoBtn">やり直し</button>
@@ -124,6 +129,7 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <script>
     //―― テンプレート ――
     const templates = {
@@ -398,7 +404,7 @@
             li.classList.remove('over', 'drop-before', 'drop-after');
         });
 
-        if (!targetNode || !draggedNode || draggedId === targetId) {
+        if (!targetNode || !draggedNode || draggedId === targetLi.dataset.id) { // Corrected targetId
             e.dataTransfer.dropEffect = 'none';
             return;
         }
@@ -466,8 +472,7 @@
         if (sourceParent) {
             removeNode(sourceParent, draggedId);
         } else {
-            // This case should ideally not happen if draggedNode is found but its parent isn't (e.g., if it's the root, which is not draggable)
-            console.error("Dragged node's parent not found.");
+            console.error("Dragged node's parent not found. This should not happen for draggable nodes.");
             draggedId = null;
             return;
         }
@@ -479,26 +484,19 @@
             targetNode.children.push(draggedNode);
         } else {
             const targetParent = findParent(root, targetId);
-            if (!targetParent) {
-                // If target is a root-level item and its parent is the conceptual root.
-                // This scenario means the target is directly under 'root'
-                const targetIndex = root.children.findIndex(c => c.id === targetId);
-                if (targetIndex > -1) {
-                    if (dropPosition === 'before') {
-                        root.children.splice(targetIndex, 0, draggedNode);
-                    } else { // after
-                        root.children.splice(targetIndex + 1, 0, draggedNode);
-                    }
+            // If targetParent is null, it means targetNode is a direct child of the conceptual root
+            const parentToInsertInto = targetParent || root;
+            const targetIndex = parentToInsertInto.children.findIndex(c => c.id === targetId);
+
+            if (targetIndex > -1) {
+                if (dropPosition === 'before') {
+                    parentToInsertInto.children.splice(targetIndex, 0, draggedNode);
+                } else { // after
+                    parentToInsertInto.children.splice(targetIndex + 1, 0, draggedNode);
                 }
             } else {
-                const targetIndex = targetParent.children.findIndex(c => c.id === targetId);
-                if (targetIndex > -1) {
-                    if (dropPosition === 'before') {
-                        targetParent.children.splice(targetIndex, 0, draggedNode);
-                    } else { // after
-                        targetParent.children.splice(targetIndex + 1, 0, draggedNode);
-                    }
-                }
+                // Fallback for unexpected cases, or if target is root itself (not draggable)
+                parentToInsertInto.children.push(draggedNode);
             }
         }
 
@@ -633,95 +631,35 @@
       })(root, zip);
       zip.generateAsync({type:'blob'}).then(b=>{
         const a=document.createElement('a');
-        a.href=URL.createObjectURL(b); a.download='structure.zip'; a.click();
+        a.href=URL.createObjectURL(b); a.download='structure.zip';
+        a.click();
       });
     };
 
-    //―― SVG出力（改善版）――
-    document.getElementById('downloadSvg').onclick=()=>{
-      const w=1200, h=1600, margin=40, nodeH=40, indentX=160, spaceY=24;
-      const palette=['#ffdddd','#ddffdd','#ddddff','#ffffdd','#ffddff','#ddffff','#f0f0f0'];
-      const counts={}, all=[];
+    //―― PNG画像でダウンロード ――
+    document.getElementById('downloadPng').onclick = () => {
+      const originalBodyPadding = document.body.style.padding;
+      document.body.style.padding = '0';
 
-      function layout(n,d=0){
-        // Do not layout root itself
-        n.children.forEach(c=>{
-          if(!counts[d]) counts[d] = {y: margin + (d>0?60:0), count:0};
-          c.depth=d;
-          c.x=margin + d*indentX;
-          c.y = counts[d].y;
-          counts[d].y += nodeH + spaceY;
-          counts[d].count++;
-          all.push(c);
-          if(c.children.length > 0) layout(c,d+1);
-        });
-      }
-      layout(root);
+      // PNG生成時のみ、ボタンを一時的に非表示にする
+      document.body.classList.add('hide-for-capture');
 
-      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" style="background:#f8f9fa; font-family: sans-serif;">`;
-      const tempCtx = document.createElement('canvas').getContext('2d');
-
-      // Draw lines first
-      all.forEach(n=>{
-        const p = findParent(root, n.id);
-        if(!p || p === root) return; // Don't draw lines from root background
-        const x1=p.x + 110, y1=p.y + nodeH/2; // A bit arbitrary adjustment
-        const x2=n.x, y2=n.y + nodeH/2;
-        const cx=(x1+x2)/2;
-        svg+=`<path d="M${x1},${y1} C${cx},${y1} ${cx},${y2} ${x2},${y2}" stroke="#adb5bd" stroke-width="2" fill="none" />`;
+      html2canvas(document.getElementById('tree'), {
+          scale: 2, // 高解像度でレンダリング
+          logging: false, // コンソールログを無効化
+          useCORS: true, // クロスオリジンの画像がある場合
+          backgroundColor: '#f8f9fa', // 明示的な背景色
+      }).then(canvas => {
+          const a = document.createElement('a');
+          a.href = canvas.toDataURL('image/png');
+          a.download = 'structure.png';
+          a.click();
+      }).finally(() => {
+          // 処理完了後、ボタンの表示を元に戻す
+          document.body.classList.remove('hide-for-capture');
+          document.body.style.padding = originalBodyPadding;
       });
-
-      // Draw nodes
-      all.forEach(n=>{
-        let txt = n.name;
-        let fontSize = 16;
-        tempCtx.font = `bold ${fontSize}px sans-serif`;
-        let tw = tempCtx.measureText(txt).width;
-        let bw = tw + 60;
-
-        // Shrink font and text if too long
-        if (bw > indentX - 20) {
-            fontSize = 12;
-            tempCtx.font = `bold ${fontSize}px sans-serif`;
-            tw = tempCtx.measureText(txt).width;
-            bw = tw + 50;
-            // Truncate text if still too long
-            if (bw > indentX - 20) {
-                while(bw > indentX - 20 && txt.length > 5){
-                    txt = txt.slice(0, -2) + '…';
-                    tw = tempCtx.measureText(txt).width;
-                    bw = tw + 50;
-                }
-            }
-        }
-        bw = Math.max(bw, 100);
-
-        const x=n.x, y=n.y;
-        // SVG output uses actual node color, not a palette based on depth
-        const nodeColor = n.color || '#FFFFFF';
-        const textColor = getContrastYIQ(nodeColor);
-
-        svg+=`<g transform="translate(${x}, ${y})">`;
-        svg+=`<rect rx="8" ry="8" width="${bw}" height="${nodeH}" fill="${nodeColor}" stroke="${textColor}" stroke-width="0.5" stroke-opacity="0.5"/>`;
-
-        const iconColor = textColor === 'white' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)';
-        if (n.type === 'folder') {
-            svg += `<path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" fill="${iconColor}" transform="translate(8, 8) scale(0.8)"/>`;
-        } else {
-            svg += `<path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6z" fill="${iconColor}" transform="translate(8, 5) scale(0.8)"/>`;
-        }
-        svg+=`<text x="36" y="${nodeH/2}" dy=".3em" font-size="${fontSize}" font-weight="bold" fill="${textColor}">${txt}</text>`;
-        svg+='</g>';
-      });
-
-      svg+='</svg>';
-      const blob = new Blob([svg], {type:'image/svg+xml'});
-      const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download='structure.svg';
-      a.click();
     };
-
 
     //―― TXTプレビュー ――
     document.getElementById('txtPreviewBtn').onclick=()=>{
@@ -745,7 +683,8 @@
     document.getElementById('saveAllBtn').onclick=()=>{
       const blob = new Blob([JSON.stringify(root, null, 2)], {type:'application/json'});
       const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob); a.download='structure.json'; a.click();
+      a.href=URL.createObjectURL(blob); a.download='structure.json';
+      a.click();
     };
     document.getElementById('loadAllBtn').onclick=async()=>{
       try {
