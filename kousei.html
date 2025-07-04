@@ -65,6 +65,12 @@
     #fav-list { margin: 0 0 1em 0; }
     #fav-list button { margin-right: 6px; }
     #txt-preview { white-space: pre; background: #fff; border: 1px solid #ccc; padding: 1em; margin: 1em 0; }
+
+    /* Drag & Drop Visual Feedback */
+    .drop-before { border-top: 2px solid #4D96FF !important; }
+    .drop-after { border-bottom: 2px solid #4D96FF !important; }
+    .over > .node { background: #e0f2f7 !important; outline: 2px solid #4D96FF; outline-offset: 1px;}
+    .dragging { opacity: 0.5; }
   </style>
 </head>
 <body>
@@ -269,7 +275,7 @@
           const li=document.createElement('li');
           li.draggable=true;
           li.dataset.id=ch.id;
-          li.dataset.parentId = node.id;
+          li.dataset.parentId = node.id; // Store parent ID for easier lookup
 
           if(ch.id===editingId){
             const inp=document.createElement('input');
@@ -323,6 +329,7 @@
           li.addEventListener('dragover', onDragOver);
           li.addEventListener('dragleave', onDragLeave);
           li.addEventListener('drop', onDrop);
+          li.addEventListener('dragend', onDragEnd); // Clean up on drag end
 
           container.appendChild(li);
           if(ch.type==='folder'){
@@ -342,19 +349,25 @@
       if(val.trim()) findNode(root,editingId).name=val.trim();
       editingId=null; saveHistory(); render();
     }
-    function removeNode(p,id){
-      const originalChildren = p.children;
-      p.children = p.children.filter(c => c.id !== id);
-      if (p.children.length < originalChildren.length) return true;
 
-      for (const c of p.children) {
-          if (removeNode(c, id)) return true;
-      }
-      return false;
+    // This function now correctly removes the node and returns true if found and removed
+    function removeNode(p,id){
+        for (let i = 0; i < p.children.length; i++) {
+            if (p.children[i].id === id) {
+                p.children.splice(i, 1);
+                return true;
+            }
+            if (removeNode(p.children[i], id)) {
+                return true;
+            }
+        }
+        return false;
     }
+
     function findNode(p,id){
       if(p.id===id) return p;
       for(const c of p.children){ const r=findNode(c,id); if(r) return r; }
+      return null; // Ensure null is returned if not found
     }
     function findParent(p,id){
       for(const c of p.children){
@@ -362,10 +375,11 @@
         const r=findParent(c,id);
         if(r) return r;
       }
+      return null; // Ensure null is returned if not found
     }
 
     //―― Drag & Drop ――
-    let dropPosition = 'inside';
+    let dropPosition = 'inside'; // 'before', 'after', 'inside'
 
     function onDragStart(e) {
         draggedId = e.currentTarget.dataset.id;
@@ -377,40 +391,47 @@
         e.preventDefault();
         const targetLi = e.currentTarget;
         const targetNode = findNode(root, targetLi.dataset.id);
+        const draggedNode = findNode(root, draggedId);
 
-        // Clear previous visual feedback
+        // Clear previous visual feedback from all list items
         document.querySelectorAll('#tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
             li.classList.remove('over', 'drop-before', 'drop-after');
         });
 
-        if (!targetNode || targetNode.id === draggedId) return;
+        if (!targetNode || !draggedNode || draggedId === targetId) {
+            e.dataTransfer.dropEffect = 'none';
+            return;
+        }
 
         // Prevent dropping a parent into its own child
         let current = targetNode;
-        while(current = findParent(root, current.id)) {
+        while(current) {
             if (current.id === draggedId) {
                 e.dataTransfer.dropEffect = 'none';
                 return;
             }
+            current = findParent(root, current.id);
         }
         e.dataTransfer.dropEffect = 'move';
 
         const rect = targetLi.getBoundingClientRect();
         const y = e.clientY - rect.top;
 
+        const third = rect.height / 3;
+
+        // Visual feedback based on Y position for precise dropping
         if (targetNode.type === 'folder') {
-            const third = rect.height / 3;
-            if (y < third) {
+            if (y < third) { // Top third: drop before target
                 dropPosition = 'before';
                 targetLi.classList.add('drop-before');
-            } else if (y > third * 2) {
+            } else if (y > third * 2) { // Bottom third: drop after target
                 dropPosition = 'after';
                 targetLi.classList.add('drop-after');
-            } else {
+            } else { // Middle third: drop inside folder
                 dropPosition = 'inside';
-                targetLi.classList.add('over');
+                targetLi.classList.add('over'); // Highlight folder for "inside" drop
             }
-        } else {
+        } else { // If target is a file, can only drop before or after
             if (y < rect.height / 2) {
                 dropPosition = 'before';
                 targetLi.classList.add('drop-before');
@@ -428,6 +449,8 @@
     function onDrop(e) {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Clear all visual feedbacks
         document.querySelectorAll('#tree li.dragging, #tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
             li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
         });
@@ -435,25 +458,47 @@
         const targetId = e.currentTarget.dataset.id;
         if (draggedId === targetId) return;
 
-        const sourceParent = findParent(root, draggedId);
-        let draggedNode = null;
-        const sourceIndex = sourceParent.children.findIndex(c => c.id === draggedId);
-        if(sourceIndex > -1) {
-            draggedNode = sourceParent.children.splice(sourceIndex, 1)[0];
-        }
-
+        const draggedNode = findNode(root, draggedId);
         if (!draggedNode) return;
 
+        // Remove from original position
+        const sourceParent = findParent(root, draggedId);
+        if (sourceParent) {
+            removeNode(sourceParent, draggedId);
+        } else {
+            // This case should ideally not happen if draggedNode is found but its parent isn't (e.g., if it's the root, which is not draggable)
+            console.error("Dragged node's parent not found.");
+            draggedId = null;
+            return;
+        }
+
         const targetNode = findNode(root, targetId);
+        if (!targetNode) return;
+
         if (dropPosition === 'inside' && targetNode.type === 'folder') {
             targetNode.children.push(draggedNode);
         } else {
             const targetParent = findParent(root, targetId);
-            const targetIndex = targetParent.children.findIndex(c => c.id === targetId);
-            if (dropPosition === 'before') {
-                targetParent.children.splice(targetIndex, 0, draggedNode);
-            } else { // after
-                targetParent.children.splice(targetIndex + 1, 0, draggedNode);
+            if (!targetParent) {
+                // If target is a root-level item and its parent is the conceptual root.
+                // This scenario means the target is directly under 'root'
+                const targetIndex = root.children.findIndex(c => c.id === targetId);
+                if (targetIndex > -1) {
+                    if (dropPosition === 'before') {
+                        root.children.splice(targetIndex, 0, draggedNode);
+                    } else { // after
+                        root.children.splice(targetIndex + 1, 0, draggedNode);
+                    }
+                }
+            } else {
+                const targetIndex = targetParent.children.findIndex(c => c.id === targetId);
+                if (targetIndex > -1) {
+                    if (dropPosition === 'before') {
+                        targetParent.children.splice(targetIndex, 0, draggedNode);
+                    } else { // after
+                        targetParent.children.splice(targetIndex + 1, 0, draggedNode);
+                    }
+                }
             }
         }
 
@@ -462,13 +507,14 @@
         render();
     }
 
-    const style = document.createElement('style');
-    style.innerHTML = `
-        .drop-before { border-top: 2px solid #4D96FF !important; }
-        .drop-after { border-bottom: 2px solid #4D96FF !important; }
-        .dragging { opacity: 0.5; }
-    `;
-    document.head.appendChild(style);
+    function onDragEnd(e) {
+        // Clean up classes after the drag operation finishes (success or cancel)
+        document.querySelectorAll('#tree li.dragging, #tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
+            li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
+        });
+        draggedId = null;
+    }
+
 
     //―― CSV 保存/読込 ――
     function treeToCsv(){
@@ -492,40 +538,69 @@
       a.click();
     };
     document.getElementById('loadCsv').onclick = async () => {
-      const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
-      const txt=await (await f.getFile()).text();
-      const lines=txt.split('\n').filter(l=>l.trim());
-      root=createNode('/','folder'); idCounter = 1;
-      lines.slice(1).forEach(l=>{
-        const parts = l.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g).map(p => p.replace(/^"|"$/g, '').replace(/""/g, '"'));
-        if (parts.length < 2) return;
-        const [path, type, contentStr, color] = parts;
-        const content = (contentStr && type === 'file') ? decodeURIComponent(escape(atob(contentStr))) : '';
-        const seg=path.split('/').filter(Boolean);
-        let p=root;
-        seg.forEach((n,i)=>{
-          const last=i===seg.length-1;
-          const nodeType = last ? type : 'folder';
-          let d=p.children.find(c=>c.name===n&&c.type===nodeType);
-          if(!d){
-             d=createNode(n, nodeType, color);
-             if(last && type === 'file') d.content = content;
-             p.children.push(d);
+      try {
+        const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
+        const txt=await (await f.getFile()).text();
+        const lines=txt.split('\n').filter(l=>l.trim());
+        root=createNode('/','folder'); idCounter = 1;
+        lines.slice(1).forEach(l=>{
+          // Handle quoted fields correctly
+          const parts = [];
+          let inQuote = false;
+          let currentPart = '';
+          for (let i = 0; i < l.length; i++) {
+              const char = l[i];
+              if (char === '"') {
+                  if (i + 1 < l.length && l[i+1] === '"') { // Escaped quote
+                      currentPart += '"';
+                      i++;
+                  } else {
+                      inQuote = !inQuote;
+                  }
+              } else if (char === ',' && !inQuote) {
+                  parts.push(currentPart);
+                  currentPart = '';
+              } else {
+                  currentPart += char;
+              }
           }
-          p=d;
+          parts.push(currentPart); // Add the last part
+
+          if (parts.length < 2) return;
+          const [path, type, contentStr, color] = parts;
+          const content = (contentStr && type === 'file') ? decodeURIComponent(escape(atob(contentStr))) : '';
+          const seg=path.split('/').filter(Boolean);
+          let p=root;
+          seg.forEach((n,i)=>{
+            const last=i===seg.length-1;
+            const nodeType = last ? type : 'folder';
+            let d=p.children.find(c=>c.name===n&&c.type===nodeType);
+            if(!d){
+               d=createNode(n, nodeType, color);
+               if(last && type === 'file') d.content = content;
+               p.children.push(d);
+            }
+            p=d;
+          });
         });
-      });
-      saveHistory();
-      render();
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('CSVファイルの読み込みに失敗しました。');
+      }
     };
 
     //―― フォルダから読込 ――
     document.getElementById('importFs').onclick = async () => {
-      const dh=await window.showDirectoryPicker();
-      idCounter=1; root=createNode('/','folder');
-      await readFsRecursive(dh, root);
-      saveHistory();
-      render();
+      try {
+        const dh=await window.showDirectoryPicker();
+        idCounter=1; root=createNode('/','folder');
+        await readFsRecursive(dh, root);
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('フォルダの読み込みに失敗しました。');
+      }
     };
     async function readFsRecursive(dh, parentNode){
       for await(const [name,ent] of dh.entries()){
@@ -622,7 +697,8 @@
         bw = Math.max(bw, 100);
 
         const x=n.x, y=n.y;
-        const nodeColor = (n.color && n.color !== '#FFFFFF') ? n.color : palette[n.depth % palette.length];
+        // SVG output uses actual node color, not a palette based on depth
+        const nodeColor = n.color || '#FFFFFF';
         const textColor = getContrastYIQ(nodeColor);
 
         svg+=`<g transform="translate(${x}, ${y})">`;
@@ -731,6 +807,16 @@
         }
     };
 
+    // 再帰的に子ノードの色を更新する関数
+    function updateChildrenColor(node, newColor) {
+        node.children.forEach(child => {
+            child.color = newColor;
+            if (child.type === 'folder') {
+                updateChildrenColor(child, newColor);
+            }
+        });
+    }
+
     //―― イベントバインド & 初期化 ――
     document.getElementById('templateSelect').onchange=e=>loadTemplate(e.target.value);
     document.getElementById('addRootFolder').onclick=()=>{ root.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); };
@@ -745,6 +831,10 @@
                 const node = findNode(root, selectedId);
                 if (node) {
                     node.color = e.target.value;
+                    // If it's a folder, update all children's colors as well
+                    if (node.type === 'folder') {
+                        updateChildrenColor(node, e.target.value);
+                    }
                     saveHistory();
                     render();
                 }
