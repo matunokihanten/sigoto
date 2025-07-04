@@ -272,6 +272,19 @@
       modalNode = null;
     };
 
+    //―― HTMLファイル実行用 ――
+    function executeHtmlFile(node) {
+        if (node.type === 'file' && node.name.endsWith('.html')) {
+            const blob = new Blob([node.content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            // 一時的なURLなので、不要になったら解放する
+            // setTimeout(() => URL.revokeObjectURL(url), 60000); // 1分後に解放
+        } else {
+            alert('これはHTMLファイルではありません。');
+        }
+    }
+
     //―― レンダリング ――
     function render(){
       const ul=document.getElementById('tree');
@@ -321,7 +334,8 @@
             {t:'+html',fn:()=>{ const newNode=createNode('新しいファイル.html','file', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
             {t:'+txt',fn:()=>{ const newNode=createNode('新しいファイル.txt','file', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
             {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }},
-            {t:'📝',fn:() => editFileContent(ch), cond:ch.type==='file'}
+            {t:'📝',fn:() => editFileContent(ch), cond:ch.type==='file'},
+            {t:'▶',fn:() => executeHtmlFile(ch), cond:ch.type==='file' && ch.name.endsWith('.html')} // HTML実行ボタンを追加
           ];
           btns.forEach(b=>{
             if(b.cond===false) return;
