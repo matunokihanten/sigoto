@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">脳トレ部屋 - リンク抽出</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f4f7f6;
+            color: #333;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px 40px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+            font-weight: 700;
+        }
+
+        /* ツール側のグループボタンコンテナは不要なので削除するか、display:noneのまま */
+        #groupButtonsContainer {
+            display: none; /* この要素はツール側なので、常に非表示にするか削除しても良い */
+        }
+
+        /* メッセージ表示エリアのスタイル */
+        #messageDisplayArea {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+            visibility: hidden;
+            min-height: 20px; /* メッセージがないときも高さを確保 */
+        }
+        #messageDisplayArea.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        #messageDisplayArea.error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+
+        #htmlSourceInput {
+            width: calc(100% - 20px);
+            padding: 12px;
+            margin-top: 20px; /* マージン調整 */
+            border: 1px solid #c0c0c0;
+            border-radius: 8px;
+            min-height: 180px;
+            resize: vertical;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.95em;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 15px; /* ボタンとの間にスペース */
+        }
+
+        .input-actions {
+            display: flex;
+            justify-content: flex-end; /* 右寄せ */
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .input-actions .action-button {
+            padding: 8px 15px;
+            font-size: 0.9em;
+            border-radius: 8px;
+            background: #6c757d; /* 共通のグレー系 */
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .input-actions .action-button:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 25px;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .action-button {
+            background: linear-gradient(145deg, #007bff, #0056b3);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.05rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            display: block;
+            width: 100%;
+        }
+
+        .action-button:hover {
+            background: linear-gradient(145deg, #0056b3, #003d80);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+        }
+
+        #generateHtmlFileButton {
+            background: linear-gradient(145deg, #28a745, #1e7e34);
+        }
+
+        #generateHtmlFileButton:hover {
+            background: linear-gradient(145deg, #1e7e34, #155d28);
+        }
+
+        /* リンク選択エリアのスタイル */
+        #linkSelectionArea {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background-color: #fcfcfc;
+            max-height: 450px; /* 最大高さを設定 */
+            overflow-y: auto; /* 内容が多すぎる場合にスクロール */
+            box-shadow: inset 0 1px 5px rgba(0,0,0,0.05);
+        }
+        #linkSelectionArea h2 {
+            color: #0056b3;
+            margin-top: 0;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .link-item-container {
+            display: grid;
+            grid-template-columns: 1fr; /* デフォルトは1列 */
+            gap: 10px;
+        }
+        .link-item {
+            display: flex;
+            align-items: center;
+            background-color: #e9f2ff;
+            border: 1px solid #cce0ff;
+            border-radius: 5px;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            word-break: break-all;
+            position: relative;
+            cursor: pointer; /* チェックボックスのクリックしやすさのため */
+        }
+        .link-item input[type="checkbox"] {
+            margin-right: 10px;
+            min-width: 18px; /* チェックボックスの最小幅 */
+            min-height: 18px; /* チェックボックスの最小高さ */
+            cursor: pointer;
+        }
+        .link-item label {
+            flex-grow: 1; /* ラベルが残りのスペースを占める */
+            cursor: pointer;
+            font-weight: normal; /* 通常の太さに */
+            margin-top: 0; /* デフォルトのラベルマージンをリセット */
+            margin-bottom: 0;
+            line-height: 1.4; /* 行の高さ */
+        }
+        .link-item span.link-url {
+            display: block;
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 2px;
+        }
+        .link-item span.link-tag { /* タグ表示用のスタイル */
+            display: block;
+            font-size: 0.75em;
+            color: #007bff;
+            margin-top: 2px;
+            font-weight: bold;
+        }
+        /* 全選択/全解除ボタン */
+        #selectAllButton, #deselectAllButton {
+            background-color: #6c757d;
+            margin-top: 10px;
+            margin-right: 10px;
+            padding: 8px 15px;
+            font-size: 0.9em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        #selectAllButton:hover, #deselectAllButton:hover {
+            background-color: #5a6268;
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 768px) {
+            .button-group {
+                grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+                gap: 10px;
+            }
+            .container {
+                padding: 25px;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            /* リンク選択エリアを2列表示に */
+            .link-item-container {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            }
+        }
+
+        @media (max-width: 480px) {
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+            .action-button {
+                padding: 12px 20px;
+                font-size: 0.95rem;
+            }
+            .link-item-container {
+                grid-template-columns: 1fr; /* 非常に狭い画面では1列に */
+            }
+            .input-actions {
+                flex-direction: column; /* 縦並びにする */
+                align-items: flex-end; /* 右寄せ維持 */
+            }
+            .input-actions .action-button {
+                width: 100%; /* 幅をいっぱいに */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="roomName"></h1>
+
+        <div id="messageDisplayArea"></div>
+
+        <div id="groupButtonsContainer" style="display: none;">
+        </div>
+
+        <p>下のテキストエリアに、抽出したいリンクを含むHTMLコードを貼り付けてください。</p>
+
+        <textarea id="htmlSourceInput" placeholder="ここにHTML断片を貼り付けてください..."></textarea>
+
+        <div class="input-actions">
+            <button id="pasteButton" class="action-button">貼り付け</button>
+            <button id="clearInputButton" class="action-button">クリア</button>
+        </div>
+
+        <div class="button-group">
+            <button id="generateHtmlFileButton" class="action-button">HTMLファイルを生成</button>
+            <button id="processHtmlButton" class="action-button">リンクを抽出して選択</button>
+        </div>
+
+        <p style="margin-top: 25px; text-align: center; font-size: 0.9em; color: #555;">
+            「リンクを抽出して選択」ボタンでリンクの一覧が表示されます。<br>
+            不要なリンクのチェックを外してから「HTMLファイルを生成」ボタンを押してください。<br>
+            生成されたHTMLファイルは、**リンク名のみ**が表示され、長いリンク名は9文字目から折り返されます。<br>
+            リンク名の最初の3文字が同じ場合は、同じ色のボタンになります。<br>
+            リンクの親要素のIDまたはクラス名が**タグ**として利用されます。
+        </p>
+
+        <div id="linkSelectionArea" style="display:none;">
+            <h2>生成するリンクの選択</h2>
+            <button id="selectAllButton" class="action-button" style="background-color: #6c757d;">全選択</button>
+            <button id="deselectAllButton" class="action-button" style="background-color: #6c757d;">全解除</button>
+            <div id="linkItemContainer" class="link-item-container">
+                </div>
+        </div>
+    </div>
+
+    <script>
+    (function() { // IIFE で全体をラップ
+
+        // 1. グローバル変数の削減 - 設定オブジェクトにまとめる
+        const config = {
+            roomName: "脳トレ部屋",
+            defaultCssSelector: "ul.list0 li a",
+            defaultBaseUrl: "https://ldbyq.crayonsite.com/p/61/",
+            buttonColors: [
+                ['#6a11cb', '#2575fc'], // 紫-青
+                ['#fc6076', '#ff9a44'], // 赤-オレンジ
+                ['#34e89e', '#0f3443'], // 緑-濃緑
+                ['#ee9ca7', '#ffdde1'], // パステルピンク
+                ['#a18cd1', '#fbc2eb'], // ラベンダー-ピンク
+                ['#00c6fb', '#005bea'], // 水色-濃青
+                ['#fccb90', '#d57eeb'], // 黄土-マゼンタ
+                ['#84fab0', '#8fd3f4'], // エメラルド-水色
+                ['#c79081', '#dfa579'], // 茶色系
+                ['#a3a3a3', '#6a6a6a'], // グレースケール
+                ['#ff4b1f', '#ff9068']  // オレンジ-赤オレンジ
+            ]
+        };
+
+        // IIFE内でスコープを限定した変数
+        const colorMap = new Map();
+        let colorIndex = 0;
+        let extractedLinksData = []; // 抽出されたリンクデータを保持
+
+        // DOM要素の取得
+        const pageTitleElement = document.getElementById('pageTitle');
+        const roomNameElement = document.getElementById('roomName');
+        const htmlSourceInput = document.getElementById('htmlSourceInput');
+        const processHtmlButton = document.getElementById('processHtmlButton');
+        const generateHtmlFileButton = document.getElementById('generateHtmlFileButton');
+        const linkSelectionArea = document.getElementById('linkSelectionArea');
+        const linkItemContainer = document.getElementById('linkItemContainer');
+        const selectAllButton = document.getElementById('selectAllButton');
+        const deselectAllButton = document.getElementById('deselectAllButton');
+        const clearInputButton = document.getElementById('clearInputButton');
+        const pasteButton = document.getElementById('pasteButton');
+        const messageDisplayArea = document.getElementById('messageDisplayArea'); // 2. エラーハンドリング強化
+
+        pageTitleElement.textContent = config.roomName + " - リンク抽出";
+        roomNameElement.textContent = config.roomName;
+
+        // 2. エラーハンドリング強化 - メッセージ表示関数
+        function showMessage(message, isError = false) {
+            messageDisplayArea.textContent = message;
+            messageDisplayArea.classList.remove('error', 'show'); // クラスをリセット
+            messageDisplayArea.classList.add('show');
+            if (isError) {
+                messageDisplayArea.classList.add('error');
+            }
+
+            // 3秒後にメッセージを非表示
+            setTimeout(() => {
+                messageDisplayArea.classList.remove('show');
+                messageDisplayArea.textContent = ''; // 内容もクリア
+                messageDisplayArea.classList.remove('error'); // エラークラスも削除
+            }, 3000);
+        }
+
+        // 5. コードの重複排除 - 色を割り当てる関数
+        function getButtonColors(prefix) {
+            if (!colorMap.has(prefix)) {
+                colorMap.set(prefix, config.buttonColors[colorIndex % config.buttonColors.length]);
+                colorIndex++;
+            }
+            return colorMap.get(prefix);
+        }
+
+        // 5. コードの重複排除 - リンク名を整形する関数
+        function formatLinkName(displayName) {
+            let formattedName = '';
+            if (displayName.length > 8) {
+                formattedName = `${displayName.substring(0, 8)}<span class="wrapped-text">${displayName.substring(8)}</span>`;
+            } else {
+                formattedName = displayName;
+            }
+            return formattedName;
+        }
+
+        // リンクを抽出する関数
+        function extractLinksFromHtml(htmlString) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlString, 'text/html');
+            const extracted = [];
+
+            const anchorElements = doc.querySelectorAll(config.defaultCssSelector);
+
+            if (anchorElements.length === 0) {
+                console.warn(`指定されたセレクタ "${config.defaultCssSelector}" で抽出できるリンクが見つかりませんでした。`);
+                return extracted;
+            }
+
+            anchorElements.forEach(aTag => {
+                const url = aTag.href;
+                const nameElement = aTag.querySelector('div.txt');
+                let name = nameElement ? nameElement.textContent.trim() : '';
+
+                // タグ情報の取得: リンクの親要素のIDまたはクラス名（最初に見つかったもの）
+                let tag = 'タグ不明'; // デフォルトタグ
+                let currentParent = aTag.parentElement;
+                while (currentParent && currentParent !== doc.body) {
+                    if (currentParent.id) {
+                        tag = currentParent.id;
+                        break;
+                    }
+                    if (currentParent.className) {
+                        // 最初のクラス名を使用
+                        tag = currentParent.className.split(' ')[0];
+                        break;
+                    }
+                    currentParent = currentParent.parentElement;
+                }
+                
+                if (name === '' || url.includes('a8.net')) {
+                    console.log(`スキップされたリンク: ${name || '名前なし'} - ${url}`);
+                    return;
+                }
+
+                let absoluteUrl;
+                try {
+                    absoluteUrl = new URL(url, config.defaultBaseUrl).href; 
+                } catch (e) {
+                    console.warn(`無効なURLをスキップしました: ${url} (エラー: ${e.message})`);
+                    return;
+                }
+
+                const linkId = `link-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                extracted.push({ id: linkId, name: name, url: absoluteUrl, tag: tag });
+            });
+
+            return extracted;
+        }
+
+        // 抽出されたリンクをHTMLファイル生成前に選択できるように表示する関数
+        function displayLinksForSelection(links) {
+            linkItemContainer.innerHTML = ''; // 既存の内容をクリア
+            linkSelectionArea.style.display = 'block'; // 選択エリアを表示
+
+            if (links.length === 0) {
+                linkItemContainer.innerHTML = '<p style="text-align: center; color: #888;">有効なリンクは見つかりませんでした。</p>';
+                return;
+            }
+
+            // 3. パフォーマンス最適化 - DocumentFragmentを使用
+            const fragment = document.createDocumentFragment();
+
+            // リンクをタグでソートし、次にリンク名の最初の3文字でソート
+            links.sort((a, b) => {
+                const tagCompare = a.tag.localeCompare(b.tag);
+                if (tagCompare !== 0) {
+                    return tagCompare;
+                }
+                const prefixA = a.name.substring(0, 3);
+                const prefixB = b.name.substring(0, 3);
+                return prefixA.localeCompare(prefixB);
+            });
+
+            links.forEach(link => {
+                const linkItem = document.createElement('div');
+                linkItem.classList.add('link-item');
+                linkItem.innerHTML = `
+                    <input type="checkbox" id="${link.id}" value="${link.id}" checked>
+                    <label for="${link.id}">
+                        ${link.name}
+                        <span class="link-url">${link.url}</span>
+                        <span class="link-tag">タグ: ${link.tag}</span>
+                    </label>
+                `;
+                fragment.appendChild(linkItem);
+
+                // ラベルクリックでチェックボックスのトグル
+                linkItem.querySelector('label').addEventListener('click', (e) => {
+                    const checkbox = document.getElementById(link.id);
+                    checkbox.checked = !checkbox.checked;
+                    e.preventDefault();
+                });
+            });
+            linkItemContainer.appendChild(fragment); // 一括追加
+        }
+
+        // 抽出されたリンクからHTMLファイルを生成しダウンロードする関数
+        function generateAndDownloadHtmlFile(linksToInclude) {
+            if (linksToInclude.length === 0) {
+                showMessage('ダウンロードするリンクが選択されていません。', true);
+                return;
+            }
+
+            // リンクをタグでソートし、次にリンク名の最初の3文字でソート
+            linksToInclude.sort((a, b) => {
+                const tagCompare = a.tag.localeCompare(b.tag);
+                if (tagCompare !== 0) {
+                    return tagCompare;
+                }
+                const prefixA = a.name.substring(0, 3);
+                const prefixB = b.name.substring(0, 3);
+                return prefixA.localeCompare(prefixB);
+            });
+
+            // 色のマッピングをクリアして再構築
+            colorMap.clear();
+            colorIndex = 0;
+
+            // --- ここからダウンロードされるHTMLのコンテンツ生成 ---
+            let htmlContent = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${config.roomName} - リンク一覧</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f8f8f8; color: #333; }
+        h1 { color: #0056b3; text-align: center; margin-bottom: 30px; }
+
+        /* ダウンロードされるHTMLファイルでのグループボタンコンテナのスタイル */
+        #generatedGroupButtonsContainer {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); /* 8列表示 */
+            gap: 10px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #e6f0fa;
+            border-radius: 10px;
+            box-shadow: inset 0 1px 5px rgba(0,0,0,0.08);
+            max-width: 800px; /* 必要に応じて調整 */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .generated-group-scroll-button {
+            background: linear-gradient(145deg, #4CAF50, #2E8B57); /* 緑系のグラデーション */
+            color: white;
+            border: none;
+            padding: 10px 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            display: block;
+            width: 100%;
+        }
+
+        .generated-group-scroll-button:hover {
+            background: linear-gradient(145deg, #2E8B57, #1E6C3B);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .tag-container { /* 新しいタグ用のコンテナ */
+            margin-bottom: 35px; /* グループ間の間隔 */
+            padding-bottom: 20px;
+            border-bottom: 2px solid #b0d8f0; /* タググループ間の区切り線 */
+            scroll-margin-top: 80px; /* タグスクロールボタンの高さに合わせて調整 */
+        }
+        .tag-container:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .tag-title {
+            font-size: 1.6em;
+            color: #004085;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 700;
+            background-color: #e0f2ff;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .group-container { /* 新しいグループ用のコンテナ */
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            /* border-bottom: 1px dashed #e0e0e0; */ /* タグ内でのグループの区切りは緩やかに */
+            scroll-margin-top: 80px; /* グループボタンの高さに合わせて調整 */
+        }
+        .group-container:last-of-type {
+            /* border-bottom: none; */
+            margin-bottom: 0;
+        }
+        .group-title {
+            font-size: 1.3em;
+            color: #0056b3;
+            margin-top: 30px; /* グループタイトル上部の余白を調整 */
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .button-grid {
+            display: grid;
+            /* 画面幅に応じて最大4列に調整 */
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 15px;
+            padding: 0 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        @media (min-width: 900px) { /* 特定のブレークポイント以上で4列を強制 */
+            .button-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        .link-button {
+            display: block;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            display: inline-block;
+            max-width: 100%;
+        }
+
+        /* リンク名の9文字目から強制的に折り返すためのCSS */
+        .link-button span.wrapped-text {
+            word-break: break-all;
+            display: block;
+        }
+        .link-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+        }
+        @media (max-width: 768px) {
+            #generatedGroupButtonsContainer {
+                grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); /* 小画面では列数を調整 */
+            }
+        }
+        @media (max-width: 480px) {
+            #generatedGroupButtonsContainer {
+                grid-template-columns: repeat(4, 1fr); /* さらに狭い画面では4列に */
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>${config.roomName} - リンク一覧</h1>
+
+    <div id="generatedGroupButtonsContainer">
+`;
+            // タグ名を抽出し、ソートしてボタンを生成
+            const tags = new Set();
+            linksToInclude.forEach(link => {
+                tags.add(link.tag);
+            });
+            Array.from(tags).sort().forEach(tag => {
+                htmlContent += `        <button class="generated-group-scroll-button" onclick="document.getElementById('tag-${tag}').scrollIntoView({ behavior: 'smooth', block: 'start' });">${tag}</button>\n`;
+            });
+
+            htmlContent += `    </div>\n`; // generatedGroupButtonsContainer の閉じタグ
+
+            let currentTag = '';
+            let currentPrefix = '';
+            let isFirstTag = true;
+            let isFirstGroupInTag = true;
+
+            linksToInclude.forEach(link => {
+                const tag = link.tag;
+                const prefix = link.name.substring(0, 3);
+
+                // タグが変わったら新しいタググループを開始
+                if (tag !== currentTag) {
+                    if (!isFirstTag) {
+                        // 前のグループとタグを閉じる
+                        htmlContent += `        </div></div>\n`; // 最後のグループを閉じる
+                        htmlContent += `    </div>\n`; // 最後のタグコンテナを閉じる
+                    }
+                    htmlContent += `    <div class="tag-container" id="tag-${tag}">\n`; // IDを追加
+                    htmlContent += `        <h2 class="tag-title">${tag}</h2>\n`; // タグタイトル
+                    currentTag = tag;
+                    isFirstTag = false;
+                    isFirstGroupInTag = true; // 新しいタググループでは最初のグループ
+                    currentPrefix = ''; // プレフィックスもリセット
+                }
+
+                // プレフィックスが変わったら新しいグループを開始
+                if (prefix !== currentPrefix) {
+                    if (!isFirstGroupInTag) {
+                        htmlContent += `        </div></div>\n`; // 前のグループを閉じる
+                    }
+                    htmlContent += `    <div class="group-container" id="group-${tag}-${prefix}">\n`; // IDを追加
+                    htmlContent += `        <h3 class="group-title">${prefix}で始まるリンク</h3>\n`; // グループタイトル
+                    htmlContent += `        <div class="button-grid">\n`;
+                    currentPrefix = prefix;
+                    isFirstGroupInTag = false;
+
+                    // 5. コードの重複排除 - 関数呼び出し
+                    // 新しいプレフィックスなので色を割り当てる
+                    getButtonColors(prefix); // 関数を呼び出すだけで色をセット
+                }
+
+                const colors = colorMap.get(prefix); // colorMapから色を取得
+
+                // 5. コードの重複排除 - 関数呼び出し
+                const formattedName = formatLinkName(link.name);
+
+                htmlContent += `        <a href="${link.url}" class="link-button" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(145deg, ${colors[0]}, ${colors[1]});">${formattedName}</a>\n`;
+            });
+
+            // 最後のグループとタグを閉じる
+            if (linksToInclude.length > 0) {
+                htmlContent += `        </div></div>\n`; // 最後のグループを閉じる
+                htmlContent += `    </div>\n`; // 最後のタグコンテナを閉じる
+            }
+
+            htmlContent += `
+</body>
+</html>
+`;
+            // --- ダウンロードされるHTMLのコンテンツ生成ここまで ---
+
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `extracted_links_${config.roomName.replace(/\s/g, '_')}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showMessage('抽出されたリンクを含むHTMLファイルがダウンロードされました。');
+        }
+
+        // イベントリスナーの設定
+        processHtmlButton.addEventListener('click', function() {
+            const htmlCode = htmlSourceInput.value.trim();
+            if (!htmlCode) {
+                showMessage('解析するHTMLコードをテキストエリアに貼り付けてください。', true);
+                return;
+            }
+            try {
+                // 新しい抽出のたびに色割り当てをリセット
+                colorMap.clear();
+                colorIndex = 0;
+
+                extractedLinksData = extractLinksFromHtml(htmlCode); // 抽出データを保存
+                if (extractedLinksData.length > 0) {
+                    displayLinksForSelection(extractedLinksData);
+                    showMessage('リンクの抽出が完了しました。下の「生成するリンクの選択」エリアで確認してください。');
+                } else {
+                    linkSelectionArea.style.display = 'none';
+                    showMessage('有効なリンクは見つかりませんでした。', true);
+                }
+            } catch (e) {
+                showMessage(`HTML解析にエラーがあります: ${e.message}`, true);
+                console.error("解析エラー:", e);
+            }
+        });
+
+        generateHtmlFileButton.addEventListener('click', function() {
+            if (!extractedLinksData || extractedLinksData.length === 0) {
+                showMessage('まず「リンクを抽出して選択」ボタンでリンクを抽出してください。', true);
+                return;
+            }
+
+            const selectedLinks = extractedLinksData.filter(link => {
+                const checkbox = document.getElementById(link.id);
+                return checkbox && checkbox.checked;
+            });
+
+            generateAndDownloadHtmlFile(selectedLinks);
+        });
+
+        selectAllButton.addEventListener('click', () => {
+            const checkboxes = linkItemContainer.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            showMessage('全てのリンクを選択しました。');
+        });
+
+        deselectAllButton.addEventListener('click', () => {
+            const checkboxes = linkItemContainer.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            showMessage('全てのリンクの選択を解除しました。');
+        });
+
+        clearInputButton.addEventListener('click', () => {
+            htmlSourceInput.value = '';
+            linkSelectionArea.style.display = 'none'; // リンク選択エリアも非表示にする
+            extractedLinksData = []; // 抽出データもクリア
+            showMessage('入力内容がクリアされました。');
+        });
+
+        pasteButton.addEventListener('click', async () => {
+            try {
+                const text = await navigator.clipboard.readText();
+                htmlSourceInput.value = text;
+                showMessage('クリップボードの内容が貼り付けられました。');
+            } catch (err) {
+                console.error('クリップボードからの貼り付けに失敗しました: ', err);
+                showMessage('クリップボードからの貼り付けに失敗しました。ブラウザのセキュリティ設定により、手動で貼り付けを行う必要がある場合があります（Ctrl+V または Command+V）。', true);
+            }
+        });
+
+        // ページロード時に、提供されたデフォルトのHTML断片をテキストエリアにセット
+        window.addEventListener('load', () => {
+            const providedHtmlFragment = `
+                <div id="games">
+                    <ul class="list0">
+                        <li><a href="/memory-test.html"><div class="txt">記憶力テスト</div></a></li>
+                        <li><a href="/find-differences.html"><div class="txt">間違い探しゲーム</div></a></li>
+                        <li><a href="https://ldbyq.crayonsite.com/p/61/puzzle-game"><div class="txt">パズルゲームに挑戦</div></a></li>
+                    </ul>
+                </div>
+                <div class="study">
+                    <ul class="list0">
+                        <li><a href="https://www.google.com/search?q=math+drill"><div class="txt">計算ドリル</div></a></li>
+                        <li><a href="/logic-puzzle.html"><div class="txt">ロジックパズル</div></a></li>
+                        <li><a href="/word-game.html"><div class="txt">単語ゲームで語彙力アップ</div></a></li>
+                    </ul>
+                </div>
+                <div id="others">
+                    <ul class="list0">
+                        <li><a href="http://www.a8.net/affiliate-link-example?id=123"><div class="txt">これはアフィリエイトリンクです（スキップされます）</div></a></li>
+                        <li><a href="/empty-name-link"><div class="txt"></div></a></li>
+                        <li><a href="invalid-url-example"><div class="txt">無効なURLの例</div></a></li>
+                        <li><a href="/focus-game.html"><div class="txt">集中力アップゲーム</div></a></li>
+                        <li><a href="/reaction-test.html"><div class="txt">反応速度テスト</div></a></li>
+                    </ul>
+                </div>
+                <div class="speed-challenge">
+                    <ul class="list0">
+                        <li><a href="/quick-math.html"><div class="txt">速算チャレンジ</div></a></li>
+                        <li><a href="/spatial-reasoning.html"><div class="txt">空間認識ゲーム</div></a></li>
+                        <li><a href="/memory-game-pro.html"><div class="txt">記憶力プロテスト</div></a></li>
+                        <li><a href="/math-speed-up.html"><div class="txt">計算ドリルスピードアップ</div></a></li>
+                    </ul>
+                </div>
+                <div id="miscellaneous-links">
+                    <a href="/not-extracted-div-link"><div class="txt">抽出されないdiv内のリンク</div></a>
+                    <p><a href="/another-random-link"><div class="txt">どこかのランダムリンク</div></a></p>
+                </div>
+                <p>この段落には関係のないテキストが含まれています。</p>
+            `;
+            htmlSourceInput.value = providedHtmlFragment.trim();
+        });
+
+    })(); // IIFE の終わり
+    </script>
+</body>
+</html>
