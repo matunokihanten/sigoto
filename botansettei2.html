@@ -523,7 +523,8 @@
             不要なリンクのチェックを外してから「HTMLファイルを生成」ボタンを押してください。<br>
             生成されたHTMLファイルは、**リンク名のみ**が表示され、長いリンク名は9文字目から折り返されます。<br>
             リンク名の最初の3文字が同じ場合は、同じ色のボタンになります。<br>
-            リンクの親要素のIDまたはクラス名が**自動タグ**として利用されます。手動でタグを追加・編集することも可能です。
+            リンクの親要素のIDまたはクラス名が**自動タグ**として利用されます。手動でタグを追加・編集することも可能です。<br>
+            **複数のタグが設定されたリンクは、それぞれのタグのセクションに表示されます。**
         </p>
 
         <div id="tagManagementArea">
@@ -665,9 +666,6 @@
                 return extracted;
             }
 
-            // 新しい抽出の前にavailableTagsをクリア（ユーザーが手動で追加したタグは保持したいので、これはコメントアウト）
-            // availableTags.clear(); 
-            
             anchorElements.forEach(aTag => {
                 const url = aTag.href;
                 const nameElement = aTag.querySelector('div.txt');
@@ -703,11 +701,11 @@
 
                 const linkId = `link-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
                 // 初期タグがない場合は'タグ不明'をセット
-                extracted.push({ id: linkId, name: name, url: absoluteUrl, tags: initialTags.length > 0 ? initialTags : ['タグ不明'] });
+                const linkData = { id: linkId, name: name, url: absoluteUrl, tags: initialTags.length > 0 ? initialTags : ['タグ不明'] };
+                extracted.push(linkData);
 
                 // 抽出されたタグを利用可能なタグリストに追加
-                // `availableTags` に手動で追加されたタグがある場合も考慮し、Setに追加
-                extracted[extracted.length - 1].tags.forEach(tag => availableTags.add(tag));
+                linkData.tags.forEach(tag => availableTags.add(tag));
             });
             renderAvailableTags(); // 利用可能タグリストを更新
             return extracted;
@@ -790,34 +788,7 @@
                             const linkElement = document.getElementById(link.id).closest('.link-item');
                             if (linkElement) {
                                 const tagsDiv = linkElement.querySelector('.link-tags');
-                                tagsDiv.innerHTML = `
-                                    ${dataLink.tags.map(tag => `<span class="link-tag-item">${tag} <span class="link-tag-remove" data-tag="${tag}">&times;</span></span>`).join('')}
-                                    <span class="link-tag-add">+ タグ追加</span>
-                                `;
-                                // 新しい削除ボタンにイベントリスナーを再割り当て
-                                tagsDiv.querySelectorAll('.link-tag-remove').forEach(newRemoveBtn => {
-                                    newRemoveBtn.addEventListener('click', (newEvent) => {
-                                        newEvent.stopPropagation();
-                                        const newTagToRemove = newEvent.target.dataset.tag;
-                                        dataLink.tags = dataLink.tags.filter(t => t !== newTagToRemove);
-                                        if (dataLink.tags.length === 0) dataLink.tags.push('タグ不明');
-                                        // displayLinksForSelection(extractedLinksData); // 全体再描画
-                                        // より効率的な更新
-                                        const updatedTagsDiv = newEvent.target.closest('.link-tags');
-                                        updatedTagsDiv.innerHTML = `
-                                            ${dataLink.tags.map(tag => `<span class="link-tag-item">${tag} <span class="link-tag-remove" data-tag="${tag}">&times;</span></span>`).join('')}
-                                            <span class="link-tag-add">+ タグ追加</span>
-                                        `;
-                                        addTagRemoveListeners(dataLink, updatedTagsDiv); // 新しい削除ボタンにイベントを再設定
-                                        addTagAddListener(dataLink, updatedTagsDiv.querySelector('.link-tag-add')); // タグ追加ボタンの再設定
-                                    });
-                                });
-                                // タグ追加ボタンも再設定
-                                tagsDiv.querySelector('.link-tag-add').addEventListener('click', (newEvent) => {
-                                    newEvent.stopPropagation();
-                                    currentLinkForTagging = dataLink;
-                                    openTagModal(dataLink.tags);
-                                });
+                                updateLinkTagsDisplay(dataLink, tagsDiv);
                             }
                         }
                     });
@@ -949,22 +920,16 @@
                 return;
             }
 
-            // リンクをタグでソートし、次にリンク名の最初の3文字でソート
-            linksToInclude.sort((a, b) => {
-                const tagA = a.tags.length > 0 ? a.tags[0] : 'タグ不明'; // 最初のタグでソート
-                const tagB = b.tags.length > 0 ? b.tags[0] : 'タグ不明';
-                const tagCompare = tagA.localeCompare(tagB);
-                if (tagCompare !== 0) {
-                    return tagCompare;
-                }
-                const prefixA = a.name.substring(0, 3);
-                const prefixB = b.name.substring(0, 3);
-                return prefixA.localeCompare(prefixB);
-            });
-
             // 色のマッピングをクリアして再構築
             colorMap.clear();
             colorIndex = 0;
+
+            // 1. すべてのユニークなタグを収集
+            const allUniqueTags = new Set();
+            linksToInclude.forEach(link => {
+                link.tags.forEach(tag => allUniqueTags.add(tag));
+            });
+            const sortedUniqueTags = Array.from(allUniqueTags).sort(); // タグ名をソート
 
             let htmlContent = `
 <!DOCTYPE html>
@@ -1018,7 +983,7 @@
             margin-bottom: 35px;
             padding-bottom: 20px;
             border-bottom: 2px solid #b0d8f0;
-            scroll-margin-top: 80px;
+            scroll-margin-top: 80px; /* スクロール位置の調整 */
         }
         .tag-container:last-of-type {
             border-bottom: none;
@@ -1040,7 +1005,7 @@
         .group-container {
             margin-bottom: 25px;
             padding-bottom: 15px;
-            scroll-margin-top: 80px;
+            /* group-container自体は直接スクロールターゲットにならないのでscroll-margin-topは不要 */
         }
         .group-container:last-of-type {
             margin-bottom: 0;
@@ -1110,62 +1075,57 @@
     <div id="generatedGroupButtonsContainer">
 `;
             // タグ名を抽出し、ソートしてボタンを生成
-            const tagsInUse = new Set();
-            linksToInclude.forEach(link => {
-                link.tags.forEach(tag => tagsInUse.add(tag));
-            });
-            Array.from(tagsInUse).sort().forEach(tag => {
+            sortedUniqueTags.forEach(tag => {
                 htmlContent += `        <button class="generated-group-scroll-button" onclick="document.getElementById('tag-${tag}').scrollIntoView({ behavior: 'smooth', block: 'start' });">${tag}</button>\n`;
             });
 
             htmlContent += `    </div>\n`;
 
-            let currentTag = '';
-            let currentPrefix = '';
-            let isFirstTag = true;
-            let isFirstGroupInTag = true;
+            // 各タグごとにセクションを生成
+            sortedUniqueTags.forEach(currentTag => {
+                htmlContent += `    <div class="tag-container" id="tag-${currentTag}">\n`;
+                htmlContent += `        <h2 class="tag-title">${currentTag}</h2>\n`;
 
-            linksToInclude.forEach(link => {
-                // リンクにタグが割り当てられていない場合は 'タグ不明' を使用
-                const tag = link.tags.length > 0 ? link.tags[0] : 'タグ不明'; // 生成HTMLでは便宜上最初のタグを使用
-                const prefix = link.name.substring(0, 3);
+                // 現在のタグに属するリンクをフィルタリング
+                const linksForCurrentTag = linksToInclude.filter(link => link.tags.includes(currentTag));
 
-                if (tag !== currentTag) {
-                    if (!isFirstTag) {
-                        htmlContent += `        </div></div>\n`; // 最後のグループを閉じる
-                        htmlContent += `    </div>\n`; // 最後のタグコンテナを閉じる
+                // リンクを3文字のプレフィックスでソート
+                linksForCurrentTag.sort((a, b) => {
+                    const prefixA = a.name.substring(0, 3);
+                    const prefixB = b.name.substring(0, 3);
+                    return prefixA.localeCompare(prefixB);
+                });
+
+                let currentPrefix = '';
+                let isFirstGroupInTag = true;
+
+                linksForCurrentTag.forEach(link => {
+                    const prefix = link.name.substring(0, 3);
+
+                    if (prefix !== currentPrefix) {
+                        if (!isFirstGroupInTag) {
+                            htmlContent += `        </div></div>\n`; // 前のプレフィックスグループを閉じる
+                        }
+                        htmlContent += `    <div class="group-container">\n`; // group-container にはIDは不要
+                        htmlContent += `        <h3 class="group-title">${prefix}で始まるリンク</h3>\n`;
+                        htmlContent += `        <div class="button-grid">\n`;
+                        currentPrefix = prefix;
+                        isFirstGroupInTag = false;
+
+                        getButtonColors(prefix); // プレフィックスごとに色を割り当てる
                     }
-                    htmlContent += `    <div class="tag-container" id="tag-${tag}">\n`;
-                    htmlContent += `        <h2 class="tag-title">${tag}</h2>\n`;
-                    currentTag = tag;
-                    isFirstTag = false;
-                    isFirstGroupInTag = true;
-                    currentPrefix = '';
+
+                    const colors = colorMap.get(prefix);
+                    const formattedName = formatLinkName(link.name);
+
+                    htmlContent += `        <a href="${link.url}" class="link-button" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(145deg, ${colors[0]}, ${colors[1]});">${formattedName}</a>\n`;
+                });
+
+                if (linksForCurrentTag.length > 0) {
+                    htmlContent += `        </div></div>\n`; // 最後のプレフィックスグループを閉じる
                 }
-
-                if (prefix !== currentPrefix) {
-                    if (!isFirstGroupInTag) {
-                        htmlContent += `        </div></div>\n`;
-                    }
-                    htmlContent += `    <div class="group-container" id="group-${tag}-${prefix}">\n`;
-                    htmlContent += `        <h3 class="group-title">${prefix}で始まるリンク</h3>\n`;
-                    htmlContent += `        <div class="button-grid">\n`;
-                    currentPrefix = prefix;
-                    isFirstGroupInTag = false;
-
-                    getButtonColors(prefix);
-                }
-
-                const colors = colorMap.get(prefix);
-                const formattedName = formatLinkName(link.name);
-
-                htmlContent += `        <a href="${link.url}" class="link-button" target="_blank" rel="noopener noreferrer" style="background: linear-gradient(145deg, ${colors[0]}, ${colors[1]});">${formattedName}</a>\n`;
+                htmlContent += `    </div>\n`; // 現在のタグコンテナを閉じる
             });
-
-            if (linksToInclude.length > 0) {
-                htmlContent += `        </div></div>\n`;
-                htmlContent += `    </div>\n`;
-            }
 
             htmlContent += `
 </body>
@@ -1310,12 +1270,14 @@
         });
 
         clearInputButton.addEventListener('click', () => {
-            htmlSourceInput.value = '';
-            linkSelectionArea.style.display = 'none';
-            extractedLinksData = [];
-            availableTags.clear(); // タグリストもクリア
-            renderAvailableTags(); // タグリスト表示も更新
-            showMessage('入力内容がクリアされました。');
+            if (confirm('入力内容と抽出されたリンクを全てクリアしてもよろしいですか？')) {
+                htmlSourceInput.value = '';
+                linkSelectionArea.style.display = 'none';
+                extractedLinksData = [];
+                availableTags.clear(); // タグリストもクリア
+                renderAvailableTags(); // タグリスト表示も更新
+                showMessage('入力内容がクリアされました。');
+            }
         });
 
         pasteButton.addEventListener('click', async () => {
@@ -1373,7 +1335,16 @@
             // リンク表示を更新して変更を反映
             // `extractedLinksData` の中の `currentLinkForTagging` (参照渡し) が既に更新されているので、
             // `displayLinksForSelection` を呼んでUIを更新する
-            displayLinksForSelection(extractedLinksData); 
+            const linkElement = document.getElementById(currentLinkForTagging.id)?.closest('.link-item');
+            if (linkElement) {
+                const tagsDiv = linkElement.querySelector('.link-tags');
+                updateLinkTagsDisplay(currentLinkForTagging, tagsDiv);
+            }
+
+            // 新しく追加されたタグがavailableTagsにない場合は追加する
+            currentLinkForTagging.tags.forEach(tag => availableTags.add(tag));
+            renderAvailableTags(); // 利用可能タグリストも更新
+
             showMessage('リンクのタグが更新されました。');
             tagModal.style.display = 'none';
             currentLinkForTagging = null;
@@ -1433,10 +1404,6 @@
                 <p>この段落には関係のないテキストが含まれています。</p>
             `;
             htmlSourceInput.value = providedHtmlFragment.trim();
-
-            // 初期ロード時にavailableTagsを空にするか、何らかのデフォルトを設定するか検討
-            // 今回は、手動追加されたタグを保持する方針のため、初期状態ではクリアしない
-            // renderAvailableTags(); // もし`availableTags`が初期状態で空でない場合はここで描画する
         });
 
     })(); // IIFE の終わり
