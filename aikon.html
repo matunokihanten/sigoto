@@ -1,116 +1,219 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
 <script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
 
   <meta charset="UTF-8">
-  <title>高機能文字アイコン作成アプリ</title>
+  <title>クールな立体文字アイコン作成アプリ</title>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&family=Kosugi+Maru&family=Varela+Round&display=swap" rel="stylesheet">
   <style>
     /* ベースリセット＆日本語フォント設定 */
     body {
       margin: 0;
       background-color: #f2f2f2;
       font-family: "Noto Sans JP", "メイリオ", "游ゴシック", "ＭＳ ゴシック", sans-serif;
+      line-height: 1.6;
+      color: #333;
     }
     .container {
       max-width: 1000px;
       margin: 40px auto;
       background-color: #fff;
-      padding: 25px;
+      padding: 30px;
       border-radius: 12px;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     }
     h1 {
       text-align: center;
-      margin-bottom: 30px;
-      color: #333;
+      margin-bottom: 35px;
+      color: #2c3e50;
+      font-size: 2em;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 15px;
+    }
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
     .control-row {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      margin-bottom: 15px;
-    }
-    .control {
-      margin-right: 20px;
+      gap: 25px; /* Adjust spacing between controls */
       margin-bottom: 10px;
     }
+    .control {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap; /* Allow wrapping within a control if items are too wide */
+      gap: 8px;
+    }
     label {
-      margin-right: 8px;
-      font-weight: 500;
-      color: #333;
+      font-weight: 600;
+      color: #555;
+      white-space: nowrap; /* Prevent label from wrapping */
     }
     select,
     input[type="range"],
     input[type="color"],
     textarea,
     output {
-      padding: 6px 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
+      padding: 8px 12px;
+      border: 1px solid #dcdcdc;
+      border-radius: 8px;
+      font-size: 15px;
       outline: none;
-      transition: border 0.2s;
+      transition: border 0.3s, box-shadow 0.3s;
     }
     select:focus,
     input[type="range"]:focus,
     input[type="color"]:focus,
     textarea:focus {
       border-color: #4a90e2;
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
     }
     textarea {
       resize: vertical;
+      min-height: 50px;
+      flex-grow: 1; /* Allow textarea to expand */
     }
     .comment {
-      font-size: 0.85em;
-      color: #555;
-      margin-left: 8px;
+      font-size: 0.8em;
+      color: #777;
+      margin-left: 10px;
     }
-    /* ボタンスタイル */
+    /* Radio button styling */
+    input[type="radio"] {
+        margin-left: 10px;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #ccc;
+        border-radius: 50%;
+        position: relative;
+        cursor: pointer;
+        outline: none;
+        transition: border 0.2s;
+    }
+    input[type="radio"]:checked {
+        border-color: #4a90e2;
+    }
+    input[type="radio"]:checked::before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        background-color: #4a90e2;
+        border-radius: 50%;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    input[type="radio"] + label {
+        margin-left: 5px;
+        cursor: pointer;
+    }
+
+    /* Checkbox styling */
+    input[type="checkbox"] {
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border: 2px solid #ccc;
+        border-radius: 4px;
+        position: relative;
+        cursor: pointer;
+        outline: none;
+        transition: border 0.2s;
+    }
+    input[type="checkbox"]:checked {
+        border-color: #4a90e2;
+        background-color: #4a90e2;
+    }
+    input[type="checkbox"]:checked::before {
+        content: '\2713'; /* Checkmark unicode character */
+        font-size: 14px;
+        color: #fff;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+    input[type="checkbox"] + label {
+        margin-left: 5px;
+        cursor: pointer;
+    }
+
+    /* Button styling */
     button {
       cursor: pointer;
       background: linear-gradient(135deg, #4a90e2, #50e3c2);
       border: none;
       color: #fff;
-      padding: 10px 22px;
+      padding: 12px 25px;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: 17px;
+      font-weight: 600;
       transition: all 0.2s;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      margin-top: 15px; /* Space from controls above */
     }
     button:hover {
       background: linear-gradient(135deg, #50e3c2, #4a90e2);
+      box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+      transform: translateY(-2px);
     }
     button:active {
-      transform: scale(0.97);
+      transform: scale(0.97) translateY(0);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
     /* プレビュー領域 */
     .preview {
       text-align: center;
-      margin-top: 25px;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
     }
     canvas, #svgPreview {
-      border: 2px solid #ddd;
-      border-radius: 8px;
+      border: 3px solid #ddd;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+      background-color: #fff; /* Ensure white background for canvas */
+    }
+    /* カラーコード表示と色見本 */
+    .color-display {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-left: 10px;
+    }
+    .color-box {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .color-hex {
+      font-family: monospace;
+      font-size: 0.9em;
+      color: #666;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>高機能文字アイコン作成アプリ</h1>
-    
+    <h1>クールな立体文字アイコン作成アプリ</h1>
+
     <div class="controls">
-      <!-- テキスト入力 -->
       <div class="control-row">
-        <div class="control">
+        <div class="control" style="flex-basis: 100%;">
           <label for="iconText">アイコンに表示するテキスト:</label>
-          <!-- 初期サンプルは「松」 -->
-          <textarea id="iconText" rows="2" cols="20">松</textarea>
+          <textarea id="iconText" rows="2" cols="25">松</textarea>
+          <span class="comment">複数行はEnterで改行</span>
         </div>
       </div>
-      
-      <!-- サイズ・フォント設定 -->
+
       <div class="control-row">
         <div class="control">
           <label for="iconSize">アイコンサイズ (正方形 px):</label>
@@ -121,69 +224,98 @@
             <option value="256" selected>256×256</option>
             <option value="518">518×518</option>
           </select>
-          <span class="comment">※ 小さいサイズは favicon やボタン用、大きいサイズはSNS投稿用</span>
+          <span class="comment">faviconやSNS投稿用</span>
         </div>
         <div class="control">
           <label for="fontSize">フォントサイズ (px):</label>
-          <!-- ズーム式（スライダー） -->
-          <input type="range" id="fontSize" min="16" max="518" value="150" oninput="this.nextElementSibling.value = this.value">
-          <output>150</output>
+          <input type="range" id="fontSize" min="16" max="518" value="150" oninput="this.nextElementSibling.value = this.value" disabled> <output>150</output>
+          <span class="comment">自動調整されます</span>
         </div>
         <div class="control">
           <label for="fontFamily">フォントファミリー:</label>
           <select id="fontFamily">
             <option value="'Noto Sans JP', sans-serif" selected>Noto Sans JP</option>
+            <option value="'M PLUS Rounded 1c', sans-serif">M PLUS Rounded 1c (丸)</option>
+            <option value="'Kosugi Maru', sans-serif">Kosugi Maru (丸)</option>
+            <option value="'Varela Round', sans-serif">Varela Round (丸英数字)</option>
             <option value="'メイリオ', sans-serif">メイリオ</option>
             <option value="'游ゴシック', sans-serif">游ゴシック</option>
             <option value="'ＭＳ ゴシック', monospace">ＭＳ ゴシック</option>
           </select>
         </div>
       </div>
-      
-      <!-- 色設定（文字色／背景色／グラデーション） -->
+
+      <div class="control-row">
+          <div class="control">
+              <label for="letterSpacing">文字間隔 (px):</label>
+              <input type="range" id="letterSpacing" min="-10" max="50" value="0" oninput="this.nextElementSibling.value = this.value">
+              <output>0</output>
+              <span class="comment">文字と文字の間隔を調整</span>
+          </div>
+          <div class="control">
+              <label for="lineHeight">行間隔 (倍):</label>
+              <input type="range" id="lineHeight" min="0.8" max="2.0" step="0.1" value="1.2" oninput="this.nextElementSibling.value = this.value">
+              <output>1.2</output>
+              <span class="comment">行間のスペースを調整</span>
+          </div>
+          <div class="control">
+              <label for="fontWeight">文字の太さ:</label>
+              <select id="fontWeight">
+                  <option value="normal" selected>標準</option>
+                  <option value="bold">太字</option>
+                  <option value="bolder">さらに太く</option>
+                  <option value="lighter">細く</option>
+                  <option value="100">100 (最も細い)</option>
+                  <option value="200">200</option>
+                  <option value="300">300</option>
+                  <option value="400">400 (通常)</option>
+                  <option value="500">500 (ミディアム)</option>
+                  <option value="600">600 (セミボールド)</option>
+                  <option value="700">700 (ボールド)</option>
+                  <option value="800">800 (エクストラボールド)</option>
+                  <option value="900">900 (最も太い)</option>
+              </select>
+              <span class="comment">フォントにより反映が異なります</span>
+          </div>
+      </div>
+
       <div class="control-row">
         <div class="control">
           <label for="textColor">文字色:</label>
-          <input type="color" id="textColor" value="#000000">
+          <input type="color" id="textColor" value="#FFFFFF"> <div class="color-display">
+            <span class="color-box" id="textColorBox" style="background-color: #FFFFFF;"></span>
+            <span class="color-hex" id="textColorHex">#FFFFFF</span>
+          </div>
         </div>
-        <div class="control">
-          <label for="bgStyle">背景スタイル:</label>
-          <!-- 背景はデフォルトでグラデーション -->
-          <select id="bgStyle">
-            <option value="solid">単色</option>
-            <option value="gradient" selected>グラデーション</option>
-          </select>
-        </div>
-        <!-- 単色用 -->
-        <div class="control" id="bgColorSolid">
-          <label for="bgColor">背景色:</label>
-          <input type="color" id="bgColor" value="#FFFFFF">
-        </div>
-        <!-- グラデーション用（2色指定） -->
         <div class="control" id="bgGradient" style="display: flex;">
-          <label for="gradColor1">グラデーション色1:</label>
-          <input type="color" id="gradColor1" value="#FF4500">
+          <label for="gradColor1">背景グラデーション色1:</label>
+          <input type="color" id="gradColor1" value="#4A90E2"> <div class="color-display">
+            <span class="color-box" id="gradColor1Box" style="background-color: #4A90E2;"></span>
+            <span class="color-hex" id="gradColor1Hex">#4A90E2</span>
+          </div>
           <label for="gradColor2">グラデーション色2:</label>
-          <input type="color" id="gradColor2" value="#FFD700">
+          <input type="color" id="gradColor2" value="#50E3C2"> <div class="color-display">
+            <span class="color-box" id="gradColor2Box" style="background-color: #50E3C2;"></span>
+            <span class="color-hex" id="gradColor2Hex">#50E3C2</span>
+          </div>
         </div>
       </div>
-      
-      <!-- シャドウ・アウトライン・アニメーション -->
+
       <div class="control-row">
         <div class="control">
           <span>ドロップシャドウ オフセット (px):</span>
-          <input type="radio" name="dropShadowOffset" value="0" id="ds0" checked>
+          <input type="radio" name="dropShadowOffset" value="0" id="ds0">
           <label for="ds0">0</label>
-          <input type="radio" name="dropShadowOffset" value="5" id="ds5">
+          <input type="radio" name="dropShadowOffset" value="5" id="ds5" checked>
           <label for="ds5">5</label>
           <input type="radio" name="dropShadowOffset" value="10" id="ds10">
           <label for="ds10">10</label>
         </div>
         <div class="control">
           <span>シャドウブラー (px):</span>
-          <input type="radio" name="shadowBlur" value="0" id="blur0" checked>
+          <input type="radio" name="shadowBlur" value="0" id="blur0">
           <label for="blur0">0</label>
-          <input type="radio" name="shadowBlur" value="5" id="blur5">
+          <input type="radio" name="shadowBlur" value="5" id="blur5" checked>
           <label for="blur5">5</label>
           <input type="radio" name="shadowBlur" value="10" id="blur10">
           <label for="blur10">10</label>
@@ -196,36 +328,21 @@
         </div>
         <div class="control" id="outlineOptions" style="display: none;">
           <label for="outlineColor">アウトライン色:</label>
-          <input type="color" id="outlineColor" value="#000000">
+          <input type="color" id="outlineColor" value="#333333">
+          <div class="color-display">
+            <span class="color-box" id="outlineColorBox" style="background-color: #333333;"></span>
+            <span class="color-hex" id="outlineColorHex">#333333</span>
+          </div>
           <span>幅 (px):</span>
-          <input type="radio" name="outlineWidth" value="1" id="outlineWidth1" checked>
+          <input type="radio" name="outlineWidth" value="1" id="outlineWidth1">
           <label for="outlineWidth1">1</label>
-          <input type="radio" name="outlineWidth" value="3" id="outlineWidth3">
+          <input type="radio" name="outlineWidth" value="3" id="outlineWidth3" checked>
           <label for="outlineWidth3">3</label>
           <input type="radio" name="outlineWidth" value="5" id="outlineWidth5">
           <label for="outlineWidth5">5</label>
         </div>
       </div>
-      <div class="control-row">
-        <div class="control">
-          <input type="checkbox" id="addAnimation" checked>
-          <label for="addAnimation">アニメーション追加</label>
-        </div>
-        <div class="control" id="animationOptions" style="display: flex;">
-          <label for="animationPattern">アニメーションパターン:</label>
-          <select id="animationPattern">
-            <!-- 初期状態は回転 -->
-            <option value="rotate" selected>回転</option>
-            <option value="pulse">パルス</option>
-            <option value="bounce">バウンス</option>
-            <option value="flip">フリップ</option>
-            <option value="shake">シェイク</option>
-            <option value="wave">ウェーブ</option>
-          </select>
-        </div>
-      </div>
-      
-      <!-- 出力形式（フィールドの右側に用途記載） -->
+
       <div class="control-row">
         <div class="control">
           <label for="outputFormat">出力形式:</label>
@@ -233,62 +350,70 @@
             <option value="png" selected>PNG</option>
             <option value="jpeg">JPEG</option>
             <option value="svg">SVG</option>
-            <option value="gif">GIF</option>
             <option value="ico">ICO</option>
           </select>
           <span class="comment">
-            ※ PNG: Web用・透過対応, JPEG: 写真・圧縮用, SVG: 無劣化拡大, GIF: アニメーション, ICO: Windows用
+            PNG: Web用・透過対応, JPEG: 写真・圧縮用, SVG: 無劣化拡大, ICO: Windows用
           </span>
         </div>
       </div>
-      
-      <!-- アクションボタン -->
-      <div class="control-row">
-        <button id="createIcon">アイコン作成</button>
-        <button id="downloadIcon">アイコンダウンロード</button>
+
+      <div class="control-row" style="justify-content: center; gap: 30px;">
+        <button id="createIconManual">アイコン作成</button> <button id="createIconAuto">自動アイコン作成</button> <button id="downloadIcon">アイコンダウンロード</button>
       </div>
     </div>
-    
-    <!-- プレビュー領域 -->
+
     <div class="preview">
       <canvas id="iconCanvas" width="256" height="256"></canvas>
       <div id="svgPreview" style="display: none;"></div>
     </div>
   </div>
-  
-  <!-- GIF用ライブラリ -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js"></script>
+
   <script>
     // 各種表示切り替え
     document.getElementById("addOutline").addEventListener("change", function() {
       document.getElementById("outlineOptions").style.display = this.checked ? "flex" : "none";
     });
-    document.getElementById("addAnimation").addEventListener("change", function() {
-      document.getElementById("animationOptions").style.display = this.checked ? "flex" : "none";
+
+    // ページロード時に一度アイコンを作成
+    document.addEventListener("DOMContentLoaded", function() {
+        createIconManual(); // 初期アイコン生成 (手動設定で)
+        
+        // カラーピッカーの値が変更されたらHEX値と色見本を更新
+        const colorInputs = [
+            { id: "textColor", hexId: "textColorHex", boxId: "textColorBox" },
+            { id: "gradColor1", hexId: "gradColor1Hex", boxId: "gradColor1Box" },
+            { id: "gradColor2", hexId: "gradColor2Hex", boxId: "gradColor2Box" },
+            { id: "outlineColor", hexId: "outlineColorHex", boxId: "outlineColorBox" }
+        ];
+
+        colorInputs.forEach(item => {
+            const inputElement = document.getElementById(item.id);
+            const hexElement = document.getElementById(item.hexId);
+            const boxElement = document.getElementById(item.boxId);
+
+            function updateColorDisplay() {
+                hexElement.textContent = inputElement.value.toUpperCase();
+                boxElement.style.backgroundColor = inputElement.value;
+            }
+
+            inputElement.addEventListener("input", updateColorDisplay);
+            // 初期表示でも更新
+            updateColorDisplay();
+        });
     });
-    document.getElementById("bgStyle").addEventListener("change", function() {
-      if(this.value === "gradient") {
-        document.getElementById("bgColorSolid").style.display = "none";
-        document.getElementById("bgGradient").style.display = "flex";
-      } else {
-        document.getElementById("bgColorSolid").style.display = "flex";
-        document.getElementById("bgGradient").style.display = "none";
-      }
-    });
-    
-    let animationRequestId, frameCount = 0, animating = false;
-    
+
     // 各入力値をパラメータオブジェクトにまとめる
     function getParams() {
       const iconSize = parseInt(document.getElementById("iconSize").value);
       return {
         text: document.getElementById("iconText").value,
         iconSize: iconSize,
-        fontSize: parseInt(document.getElementById("fontSize").value),
         fontFamily: document.getElementById("fontFamily").value,
+        letterSpacing: parseInt(document.getElementById("letterSpacing").value),
+        lineHeight: parseFloat(document.getElementById("lineHeight").value), // 行間隔を追加
+        fontWeight: document.getElementById("fontWeight").value,
         textColor: document.getElementById("textColor").value,
-        bgStyle: document.getElementById("bgStyle").value,
-        bgColor: document.getElementById("bgColor").value,
         gradColor1: document.getElementById("gradColor1").value,
         gradColor2: document.getElementById("gradColor2").value,
         dropShadowOffset: parseInt(document.querySelector('input[name="dropShadowOffset"]:checked').value),
@@ -296,123 +421,157 @@
         addOutline: document.getElementById("addOutline").checked,
         outlineColor: document.getElementById("outlineColor").value,
         outlineWidth: parseInt(document.querySelector('input[name="outlineWidth"]:checked').value),
-        animationEnabled: document.getElementById("addAnimation").checked,
-        animationPattern: document.getElementById("animationPattern") ? document.getElementById("animationPattern").value : "rotate",
         outputFormat: document.getElementById("outputFormat").value
       };
     }
-    
-    // 基本のアイコン（背景・テキスト・アウトライン）を描画
-    function drawBaseIcon(ctx, params) {
+
+    // アイコン（背景・テキスト・アウトライン）を描画
+    function drawIcon(ctx, params) {
       ctx.clearRect(0, 0, params.iconSize, params.iconSize);
-      if (params.bgStyle === "solid") {
-        ctx.fillStyle = params.bgColor;
-        ctx.fillRect(0, 0, params.iconSize, params.iconSize);
-      } else if (params.bgStyle === "gradient") {
-        let gradient = ctx.createLinearGradient(0, 0, params.iconSize, params.iconSize);
-        gradient.addColorStop(0, params.gradColor1);
-        gradient.addColorStop(1, params.gradColor2);
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, params.iconSize, params.iconSize);
-      }
+
+      // 立体的なボタン背景の描画
+      const cornerRadius = params.iconSize * 0.1; // 角丸の半径をサイズに応じて調整
+
+      // 上部ハイライト
+      let lightGradient = ctx.createLinearGradient(0, 0, params.iconSize, params.iconSize);
+      lightGradient.addColorStop(0, `rgba(255, 255, 255, 0.4)`);
+      lightGradient.addColorStop(1, `rgba(255, 255, 255, 0)`);
+      ctx.fillStyle = lightGradient;
+      roundRect(ctx, 0, 0, params.iconSize, params.iconSize, cornerRadius);
+      ctx.fill();
+
+      // 基本のグラデーション背景
+      let mainGradient = ctx.createLinearGradient(0, 0, params.iconSize, params.iconSize);
+      mainGradient.addColorStop(0, params.gradColor1);
+      mainGradient.addColorStop(1, params.gradColor2);
+      ctx.fillStyle = mainGradient;
+      roundRect(ctx, 0, 0, params.iconSize, params.iconSize, cornerRadius);
+      ctx.fill();
+
+      // 下部・右側のシャドウで立体感を出す
+      let darkGradient = ctx.createLinearGradient(params.iconSize, params.iconSize, 0, 0);
+      darkGradient.addColorStop(0, `rgba(0, 0, 0, 0.3)`);
+      darkGradient.addColorStop(1, `rgba(0, 0, 0, 0)`);
+      ctx.fillStyle = darkGradient;
+      roundRect(ctx, 0, 0, params.iconSize, params.iconSize, cornerRadius);
+      ctx.fill();
+
+      // テキストのシャドウ設定
       ctx.shadowOffsetX = params.dropShadowOffset;
       ctx.shadowOffsetY = params.dropShadowOffset;
       ctx.shadowBlur = params.shadowBlur;
       ctx.shadowColor = "rgba(0,0,0,0.5)";
-      
-      ctx.font = params.fontSize + "px " + params.fontFamily;
+
+      // 文字サイズ自動調整ロジック
+      const lines = params.text.split("\n");
+      let currentFontSize = params.iconSize; // 初期フォントサイズをアイコンサイズから開始
+      const padding = params.iconSize * 0.1; // 枠からの余白
+
+      // 最適なフォントサイズを見つけるループ
+      let measuredCtx = document.createElement('canvas').getContext('2d');
+      measuredCtx.font = `${params.fontWeight} ${currentFontSize}px ${params.fontFamily}`;
+      measuredCtx.letterSpacing = `${params.letterSpacing}px`; // letterSpacing も考慮
+
+      while (currentFontSize > 10) { // 最小フォントサイズを10pxとする
+          let maxTextWidth = 0;
+          let maxTextHeight = lines.length * currentFontSize * params.lineHeight; // 行間隔を考慮
+
+          for (let i = 0; i < lines.length; i++) {
+              let line = lines[i];
+              let totalLineWidth = 0;
+              for (let j = 0; j < line.length; j++) {
+                  totalLineWidth += measuredCtx.measureText(line[j]).width;
+                  if (j < line.length - 1) {
+                      totalLineWidth += params.letterSpacing;
+                  }
+              }
+              if (totalLineWidth > maxTextWidth) {
+                  maxTextWidth = totalLineWidth;
+              }
+          }
+
+          // 枠に収まるかチェック（幅と高さの両方）
+          if (maxTextWidth <= (params.iconSize - padding * 2) && maxTextHeight <= (params.iconSize - padding * 2)) {
+              break; // 収まればループを抜ける
+          }
+          currentFontSize -= 2; // 2pxずつ小さくしていく
+          measuredCtx.font = `${params.fontWeight} ${currentFontSize}px ${params.fontFamily}`;
+      }
+      document.getElementById("fontSize").value = currentFontSize; // UIのフォントサイズ表示を更新
+      document.querySelector("#fontSize + output").value = currentFontSize;
+
+      // 最終的なフォント設定
+      ctx.font = `${params.fontWeight} ${currentFontSize}px ${params.fontFamily}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      const lines = params.text.split("\n");
-      const totalTextHeight = lines.length * params.fontSize;
-      
-      if (params.addOutline) {
-        ctx.lineWidth = params.outlineWidth;
-        ctx.strokeStyle = params.outlineColor;
-        lines.forEach((line, index) => {
-          let y = (params.iconSize/2 - totalTextHeight/2 + params.fontSize/2) + index * params.fontSize;
-          ctx.strokeText(line, params.iconSize/2, y);
-        });
-      }
-      ctx.fillStyle = params.textColor;
-      lines.forEach((line, index) => {
-        let y = (params.iconSize/2 - totalTextHeight/2 + params.fontSize/2) + index * params.fontSize;
-        ctx.fillText(line, params.iconSize/2, y);
+
+      // 各行のテキストを中央に配置するためのY座標計算
+      const finalTotalTextHeight = lines.length * currentFontSize * params.lineHeight; // 行間隔を考慮
+      let startY = (params.iconSize / 2) - (finalTotalTextHeight / 2) + (currentFontSize / 2);
+
+      // 文字間隔の調整は、一文字ずつ描画することで実現
+      lines.forEach((line, lineIndex) => {
+          let totalLineWidth = 0;
+          for (let i = 0; i < line.length; i++) {
+              totalLineWidth += ctx.measureText(line[i]).width;
+              if (i < line.length - 1) {
+                  totalLineWidth += params.letterSpacing;
+              }
+          }
+
+          let charX = (params.iconSize / 2) - (totalLineWidth / 2);
+
+          for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              const charWidth = ctx.measureText(char).width;
+              const y = startY + lineIndex * currentFontSize * params.lineHeight; // 行間隔を考慮
+
+              // アウトライン描画
+              if (params.addOutline) {
+                  ctx.lineWidth = params.outlineWidth;
+                  ctx.strokeStyle = params.outlineColor;
+                  ctx.strokeText(char, charX + charWidth / 2, y); // charXは文字の左端なので、中央に描画
+              }
+              // テキスト描画
+              ctx.fillStyle = params.textColor;
+              ctx.fillText(char, charX + charWidth / 2, y); // charXは文字の左端なので、中央に描画
+
+              charX += charWidth + params.letterSpacing;
+          }
       });
+
+      // シャドウ設定をリセット
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = "transparent";
     }
-    
-    // アニメーション変形の適用
-    function applyAnimationTransform(ctx, pattern, frame, totalFrames, centerX, centerY) {
-      ctx.translate(centerX, centerY);
-      let progress = frame / totalFrames;
-      switch (pattern) {
-        case "pulse":
-          let scaleVal = 1 + 0.1 * Math.sin(progress * 2 * Math.PI);
-          ctx.scale(scaleVal, scaleVal);
-          break;
-        case "rotate":
-          ctx.rotate(progress * 2 * Math.PI);
-          break;
-        case "bounce":
-          ctx.translate(0, 10 * Math.sin(progress * 2 * Math.PI));
-          break;
-        case "flip":
-          ctx.scale(Math.cos(progress * Math.PI), 1);
-          break;
-        case "shake":
-          ctx.translate(5 * Math.sin(progress * 10 * Math.PI), 0);
-          break;
-        case "wave":
-          ctx.rotate(0.1 * Math.sin(progress * 2 * Math.PI));
-          ctx.translate(0, 5 * Math.sin(progress * 2 * Math.PI));
-          break;
-      }
-      ctx.translate(-centerX, -centerY);
+
+    // 角丸長方形を描画するヘルパー関数
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
     }
-    
-    // 1フレーム分の描画（変形含む）
-    function drawIconFrame(ctx, params, frame, totalFrames) {
-      ctx.save();
-      if (params.animationEnabled) {
-        applyAnimationTransform(ctx, params.animationPattern, frame, totalFrames, params.iconSize/2, params.iconSize/2);
-      }
-      drawBaseIcon(ctx, params);
-      ctx.restore();
-    }
-    
-    // アニメーションループ
-    function animateIcon() {
-      let params = getParams();
-      const canvas = document.getElementById("iconCanvas");
-      let ctx = canvas.getContext("2d");
-      const totalFrames = 60;
-      drawIconFrame(ctx, params, frameCount, totalFrames);
-      frameCount = (frameCount + 1) % totalFrames;
-      animationRequestId = requestAnimationFrame(animateIcon);
-    }
-    
-    // 「アイコン作成」ボタン押下時の処理
-    document.getElementById("createIcon").addEventListener("click", function() {
+
+
+    // 「アイコン作成」(手動設定)ボタン押下時の処理
+    function createIconManual() {
       let params = getParams();
       const canvas = document.getElementById("iconCanvas");
       canvas.width = params.iconSize;
       canvas.height = params.iconSize;
-      
-      // 既存のアニメーション停止
-      if (animating) {
-        cancelAnimationFrame(animationRequestId);
-        animating = false;
-      }
-      
-      if (params.animationEnabled && params.outputFormat !== "gif") {
-        animating = true;
-        frameCount = 0;
-        animateIcon();
-      } else {
-        let ctx = canvas.getContext("2d");
-        drawIconFrame(ctx, params, 0, 1);
-      }
-      
+      let ctx = canvas.getContext("2d");
+      drawIcon(ctx, params);
+
       // SVG出力の場合はプレビューを切り替え
       if (params.outputFormat === "svg") {
         document.getElementById("svgPreview").style.display = "block";
@@ -422,29 +581,54 @@
         document.getElementById("svgPreview").style.display = "none";
         document.getElementById("iconCanvas").style.display = "block";
       }
-    });
-    
-    // SVGアイコン生成（SMILアニメーション付き ※簡易例）
+    }
+    document.getElementById("createIconManual").addEventListener("click", createIconManual);
+
+
+    // SVGアイコン生成
     function generateSVGIcon(params) {
       const svgNS = "http://www.w3.org/2000/svg";
+      const cornerRadius = params.iconSize * 0.1;
+      const padding = params.iconSize * 0.1; // 枠からの余白
+
       let svg = `<svg xmlns="${svgNS}" width="${params.iconSize}" height="${params.iconSize}">`;
+
       svg += `<defs>
                 <filter id="dropShadow">
-                  <feDropShadow dx="${params.dropShadowOffset}" dy="${params.shadowBlur}" stdDeviation="${params.shadowBlur}" flood-color="black" flood-opacity="0.5"/>
-                </filter>`;
-      if (params.bgStyle === "gradient") {
-        svg += `<linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <feDropShadow dx="${params.dropShadowOffset}" dy="${params.dropShadowOffset}" stdDeviation="${params.shadowBlur}" flood-color="black" flood-opacity="0.5"/>
+                </filter>
+                <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" style="stop-color:${params.gradColor1};stop-opacity:1" />
                   <stop offset="100%" style="stop-color:${params.gradColor2};stop-opacity:1" />
-                </linearGradient>`;
-      }
-      svg += `</defs>`;
-      let fillValue = (params.bgStyle === "solid") ? params.bgColor : "url(#grad1)";
-      svg += `<rect x="0" y="0" width="${params.iconSize}" height="${params.iconSize}" fill="${fillValue}" filter="url(#dropShadow)"/>`;
-      svg += `<g id="iconGroup">`;
+                </linearGradient>
+                <linearGradient id="lightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:rgba(255, 255, 255, 0.4);stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:rgba(255, 255, 255, 0);stop-opacity:1" />
+                </linearGradient>
+                 <linearGradient id="darkGrad" x1="100%" y1="100%" x2="0%" y2="0%">
+                  <stop offset="0%" style="stop-color:rgba(0, 0, 0, 0.3);stop-opacity:1" />
+                  <stop offset="100%" style="stop-color:rgba(0, 0, 0, 0);stop-opacity:1" />
+                </linearGradient>
+              </defs>`;
+
+      // Base rectangle for the button effect (order matters for layering)
+      svg += `<rect x="0" y="0" width="${params.iconSize}" height="${params.iconSize}" rx="${cornerRadius}" ry="${cornerRadius}" fill="url(#mainGrad)"/>`;
+      svg += `<rect x="0" y="0" width="${params.iconSize}" height="${params.iconSize}" rx="${cornerRadius}" ry="${cornerRadius}" fill="url(#lightGrad)"/>`;
+      svg += `<rect x="0" y="0" width="${params.iconSize}" height="${params.iconSize}" rx="${cornerRadius}" ry="${cornerRadius}" fill="url(#darkGrad)"/>`;
+
       let lines = params.text.split("\n");
-      let textY = params.iconSize/2 - ((lines.length - 1) * params.fontSize) / 2;
-      svg += `<text x="50%" y="${textY}" dominant-baseline="middle" text-anchor="middle" fill="${params.textColor}" font-family="${params.fontFamily}" font-size="${params.fontSize}"`;
+      const tempCanvasForMeasurement = document.createElement('canvas');
+      const tempCtxForMeasurement = tempCanvasForMeasurement.getContext('2d');
+      const measuredFontSize = calculateOptimalFontSize(tempCtxForMeasurement, params); // Canvasのロジックを再利用
+      
+      const finalFontSize = measuredFontSize;
+
+      const totalTextHeight = lines.length * finalFontSize * params.lineHeight; // 行間隔を考慮
+      let startY = (params.iconSize / 2) - (totalTextHeight / 2) + (finalFontSize / 2);
+
+      svg += `<text x="50%" y="${startY}" text-anchor="middle" dominant-baseline="middle" `;
+      svg += `fill="${params.textColor}" font-family="${params.fontFamily}" font-size="${finalFontSize}" font-weight="${params.fontWeight}" `;
+      svg += `letter-spacing="${params.letterSpacing}" filter="url(#dropShadow)"`; // letter-spacing追加
       if (params.addOutline) {
          svg += ` stroke="${params.outlineColor}" stroke-width="${params.outlineWidth}"`;
       }
@@ -452,40 +636,55 @@
       if (lines.length > 0) {
          svg += lines[0];
          for (let i = 1; i < lines.length; i++) {
-           svg += `<tspan x="50%" dy="${params.fontSize}">${lines[i]}</tspan>`;
+           // SVGのtspanはdyで相対的なYオフセットを指定できるため、行間隔を適用
+           svg += `<tspan x="50%" dy="${finalFontSize * params.lineHeight}">${lines[i]}</tspan>`;
          }
       }
       svg += `</text>`;
-      
-      if (params.animationEnabled) {
-        let animateTag = "";
-        switch (params.animationPattern) {
-          case "pulse":
-            animateTag = `<animateTransform attributeName="transform" type="scale" values="1;1.1;1" dur="1s" repeatCount="indefinite" />`;
-            break;
-          case "rotate":
-            animateTag = `<animateTransform attributeName="transform" type="rotate" from="0 ${params.iconSize/2} ${params.iconSize/2}" to="360 ${params.iconSize/2} ${params.iconSize/2}" dur="2s" repeatCount="indefinite" />`;
-            break;
-          case "bounce":
-            animateTag = `<animateTransform attributeName="transform" type="translate" values="0,0;0,10;0,0" dur="1s" repeatCount="indefinite" />`;
-            break;
-          case "flip":
-            animateTag = `<animateTransform attributeName="transform" type="scale" values="1,1;-1,1;1,1" dur="1s" repeatCount="indefinite" />`;
-            break;
-          case "shake":
-            animateTag = `<animateTransform attributeName="transform" type="translate" values="0,0;5,0;-5,0;0,0" dur="0.5s" repeatCount="indefinite" />`;
-            break;
-          case "wave":
-            animateTag = `<animateTransform attributeName="transform" type="rotate" from="0 ${params.iconSize/2} ${params.iconSize/2}" to="10 ${params.iconSize/2} ${params.iconSize/2}" dur="0.5s" repeatCount="indefinite" />`;
-            break;
-        }
-        svg = svg.replace('</g>', animateTag + '</g>');
-      }
-      
+
       svg += `</svg>`;
       return svg;
     }
-    
+
+    // 文字サイズ自動調整ロジックを独立した関数に
+    function calculateOptimalFontSize(ctx, params) {
+        const lines = params.text.split("\n");
+        let currentFontSize = params.iconSize; // 初期フォントサイズをアイコンサイズから開始
+        const padding = params.iconSize * 0.1; // 枠からの余白
+
+        ctx.font = `${params.fontWeight} ${currentFontSize}px ${params.fontFamily}`;
+        ctx.letterSpacing = `${params.letterSpacing}px`; // letterSpacing も考慮
+
+        while (currentFontSize > 10) { // 最小フォントサイズを10pxとする
+            let maxTextWidth = 0;
+            let maxTextHeight = lines.length * currentFontSize * params.lineHeight; // 行間隔を考慮
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                let totalLineWidth = 0;
+                // measureText.width は文字間隔を考慮しないため、手動で加算
+                for (let j = 0; j < line.length; j++) {
+                    totalLineWidth += ctx.measureText(line[j]).width;
+                    if (j < line.length - 1) { // 最後の文字の後ろには間隔を入れない
+                        totalLineWidth += params.letterSpacing;
+                    }
+                }
+                if (totalLineWidth > maxTextWidth) {
+                    maxTextWidth = totalLineWidth;
+                }
+            }
+
+            // 枠に収まるかチェック（幅と高さの両方）
+            if (maxTextWidth <= (params.iconSize - padding * 2) && maxTextHeight <= (params.iconSize - padding * 2)) {
+                break; // 収まればループを抜ける
+            }
+            currentFontSize -= 2; // 2pxずつ小さくしていく
+            ctx.font = `${params.fontWeight} ${currentFontSize}px ${params.fontFamily}`;
+        }
+        return currentFontSize;
+    }
+
+
     // ICO生成処理：canvasからPNGデータを取得しICO用ヘッダを付加
     function canvasToICO(canvas) {
       // 1. PNGデータを取得
@@ -493,7 +692,7 @@
       const pngBase64 = pngDataUrl.split(",")[1];
       const pngStr = atob(pngBase64);
       const pngLength = pngStr.length;
-      
+
       // 2. ICOヘッダ（6バイト）＋ディレクトリエントリ（16バイト）の合計サイズ
       const headerSize = 6;
       const entrySize = 16;
@@ -501,12 +700,12 @@
       const buffer = new ArrayBuffer(totalSize);
       const view = new DataView(buffer);
       let offset = 0;
-      
+
       // ICONDIR: 6バイト
       view.setUint16(offset, 0, true); offset += 2;    // reserved
       view.setUint16(offset, 1, true); offset += 2;    // type = 1 (icon)
       view.setUint16(offset, 1, true); offset += 2;    // count = 1
-      
+
       // ICONDIRENTRY: 16バイト
       // bWidth, bHeight: 256以上なら0を設定（0の場合は256とみなされる）
       const width = canvas.width;
@@ -519,26 +718,26 @@
       view.setUint16(offset, 32, true); offset += 2;   // bpp（32bitと仮定）
       view.setUint32(offset, pngLength, true); offset += 4; // PNGデータサイズ
       view.setUint32(offset, headerSize + entrySize, true); offset += 4; // PNGデータ開始オフセット
-      
+
       // PNGデータをそのまま貼り付け（各文字コードを1バイトずつ書き込み）
       for (let i = 0; i < pngLength; i++) {
         view.setUint8(offset + i, pngStr.charCodeAt(i));
       }
-      
+
       return new Blob([buffer], { type: "image/x-icon" });
     }
-    
+
     // アイコンダウンロード処理
     document.getElementById("downloadIcon").addEventListener("click", function() {
       let params = getParams();
-      
+      const canvas = document.getElementById("iconCanvas");
+
       if (params.outputFormat === "png" || params.outputFormat === "jpeg") {
-         const canvas = document.getElementById("iconCanvas");
          const mimeType = (params.outputFormat === "jpeg") ? "image/jpeg" : "image/png";
          const dataURL = canvas.toDataURL(mimeType);
          let link = document.createElement("a");
          link.href = dataURL;
-         link.download = "icon." + params.outputFormat;
+         link.download = "cool_icon." + params.outputFormat;
          link.click();
       } else if (params.outputFormat === "svg") {
          const svgData = generateSVGIcon(params);
@@ -546,64 +745,70 @@
          const url = URL.createObjectURL(blob);
          let link = document.createElement("a");
          link.href = url;
-         link.download = "icon.svg";
+         link.download = "cool_icon.svg";
          link.click();
-      } else if (params.outputFormat === "gif") {
-         if (params.animationEnabled) {
-            generateGIFIcon(params);
-         } else {
-            const canvas = document.getElementById("iconCanvas");
-            const dataURL = canvas.toDataURL("image/gif");
-            let link = document.createElement("a");
-            link.href = dataURL;
-            link.download = "icon.gif";
-            link.click();
-         }
       } else if (params.outputFormat === "ico") {
-         // ICO は常に静止画として出力（アニメーション停止）
-         const canvas = document.getElementById("iconCanvas");
-         if(animating) {
-            cancelAnimationFrame(animationRequestId);
-            animating = false;
-         }
-         // 静止画として再描画
-         let ctx = canvas.getContext("2d");
-         drawIconFrame(ctx, params, 0, 1);
          const blob = canvasToICO(canvas);
          const url = URL.createObjectURL(blob);
          let link = document.createElement("a");
          link.href = url;
-         link.download = "icon.ico";
+         link.download = "cool_icon.ico";
          link.click();
       }
     });
-    
-    // GIFアニメーション生成 (gif.js 使用)
-    function generateGIFIcon(params) {
-      let gif = new GIF({
-         workers: 2,
-         quality: 10,
-         workerScript: "https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js"
-      });
-      const totalFrames = 20;
-      let tempCanvas = document.createElement("canvas");
-      tempCanvas.width = params.iconSize;
-      tempCanvas.height = params.iconSize;
-      let tempCtx = tempCanvas.getContext("2d");
-      for (let frame = 0; frame < totalFrames; frame++) {
-         tempCtx.clearRect(0, 0, params.iconSize, params.iconSize);
-         drawIconFrame(tempCtx, params, frame, totalFrames);
-         gif.addFrame(tempCtx, { copy: true, delay: 100 });
-      }
-      gif.on('finished', function(blob) {
-         const url = URL.createObjectURL(blob);
-         let link = document.createElement("a");
-         link.href = url;
-         link.download = "icon.gif";
-         link.click();
-      });
-      gif.render();
+
+    // ランダムな色を生成するヘルパー関数
+    function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
     }
+
+    // 「自動アイコン作成」ボタンの豪華なデザイン変更機能
+    document.getElementById("createIconAuto").addEventListener("click", function() {
+        // ランダムなシャドウ設定を選択
+        const shadowOffsets = [0, 5, 10];
+        const shadowBlurs = [0, 5, 10];
+
+        // 各UI要素にランダム値を設定
+        const randomGradColor1 = getRandomColor();
+        const randomGradColor2 = getRandomColor();
+        const randomTextColor = getRandomColor();
+        const randomShadowOffset = shadowOffsets[Math.floor(Math.random() * shadowOffsets.length)];
+        const randomShadowBlur = shadowBlurs[Math.floor(Math.random() * shadowBlurs.length)];
+        const randomOutlineColor = getRandomColor();
+
+        // UI要素の更新
+        document.getElementById("gradColor1").value = randomGradColor1;
+        document.getElementById("gradColor1Hex").textContent = randomGradColor1.toUpperCase();
+        document.getElementById("gradColor1Box").style.backgroundColor = randomGradColor1;
+
+        document.getElementById("gradColor2").value = randomGradColor2;
+        document.getElementById("gradColor2Hex").textContent = randomGradColor2.toUpperCase();
+        document.getElementById("gradColor2Box").style.backgroundColor = randomGradColor2;
+
+        document.getElementById("textColor").value = randomTextColor;
+        document.getElementById("textColorHex").textContent = randomTextColor.toUpperCase();
+        document.getElementById("textColorBox").style.backgroundColor = randomTextColor;
+        
+        // ラジオボタンの選択を更新
+        document.getElementById(`ds${randomShadowOffset}`).checked = true;
+        document.getElementById(`blur${randomShadowBlur}`).checked = true;
+
+        // アウトラインの色もランダムにするか、選択されている場合のみ
+        if (document.getElementById("addOutline").checked) {
+            document.getElementById("outlineColor").value = randomOutlineColor;
+            document.getElementById("outlineColorHex").textContent = randomOutlineColor.toUpperCase();
+            document.getElementById("outlineColorBox").style.backgroundColor = randomOutlineColor;
+        }
+
+        // アイコンを再作成して新しいデザインを適用
+        createIconManual(); // 自動生成した設定でアイコンを手動作成する関数を呼び出す
+    });
+
   </script>
 </body>
 </html>
