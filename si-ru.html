@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>名前入りシール印刷</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&family=DotGothic16&family=M+PLUS+Rounded+1c&family=Noto+Sans+JP&family=Roboto&display=swap" rel="stylesheet">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            background-color: #f4f7f6;
+            margin: 20px;
+            color: #333;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .input-group input[type="text"],
+        .input-group input[type="number"],
+        .input-group select {
+            width: calc(100% - 20px);
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            background-color: #fff;
+        }
+        
+        /* テキストエリアのスタイルも調整 */
+        .input-group textarea {
+            width: calc(100% - 20px);
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            box-sizing: border-box;
+            resize: vertical; /* 垂直方向のみリサイズ可能 */
+        }
+
+        /* フォントサイズ調整用のレンジスライダー */
+        .input-group input[type="range"] {
+            width: calc(100% - 20px);
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+
+        .button-group button {
+            flex: 1;
+            padding: 15px;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            min-width: 120px;
+        }
+
+        #previewButton {
+            background-color: #007bff;
+        }
+        #previewButton:hover {
+            background-color: #0056b3;
+        }
+
+        #printButton {
+            background-color: #28a745;
+        }
+        #printButton:hover {
+            background-color: #218838;
+        }
+
+        #savePdfButton {
+            background-color: #dc3545;
+        }
+        #savePdfButton:hover {
+            background-color: #c82333;
+        }
+
+        .preview-area {
+            display: none; /* 普段は非表示 */
+            margin-top: 30px;
+            border: 1px solid #eee;
+            padding: 10px;
+            background-color: #fafafa;
+            border-radius: 8px;
+            overflow-x: auto; /* プレビューがはみ出す可能性があるのでスクロール可能に */
+        }
+
+        .preview-content {
+            width: 210mm; /* A4幅 */
+            min-height: 297mm; /* A4高 */
+            margin: 0 auto; /* 中央寄せ */
+            padding: 10mm; /* 余白10mm */
+            box-sizing: border-box;
+            background-color: white;
+            border: 1px solid #ccc; /* プレビュー用紙の境界 */
+            position: relative; /* シール配置のために必要 */
+            overflow: hidden;
+        }
+
+        /* 印刷時のみ表示されるエリアのスタイル */
+        .print-only {
+            display: none; /* デフォルトでは非表示 */
+            width: 210mm; /* A4幅 */
+            min-height: 297mm; /* A4高 */
+            margin: 0;
+            padding: 10mm; /* 余白10mm */
+            box-sizing: border-box;
+            position: relative;
+            overflow: hidden;
+            page-break-after: always; /* 複数ページになる場合のため */
+        }
+
+        /* 印刷時のスタイル */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: none;
+            }
+            .container, .preview-area {
+                display: none; /* アプリのUIとプレビューエリアは印刷しない */
+            }
+            .print-only {
+                display: block !important; /* 印刷時にのみ表示 */
+            }
+            .sticker {
+                page-break-inside: avoid; /* シールがページをまたがないように */
+            }
+        }
+
+        .sticker {
+            display: flex;
+            flex-direction: column; /* 複数行のために縦方向に並べる */
+            justify-content: center; /* 縦方向中央揃え */
+            align-items: center; /* 横方向中央揃え */
+            background-color: #fff;
+            border: 1px solid black; /* 細い黒い線 */
+            box-sizing: border-box;
+            overflow: hidden; /* 内容がはみ出さないように */
+            position: absolute; /* 配置のために絶対位置指定 */
+            text-align: center; /* テキスト中央寄せ */
+            line-height: 1.2; /* 行の高さを設定 */
+        }
+
+        .sticker .text-line {
+            font-weight: 900; /* 太字 */
+            word-break: break-all; /* 長い名前でも改行 */
+            padding: 0 2mm; /* 左右の余白 */
+            white-space: pre-wrap; /* 改行コードを尊重 */
+            display: block;
+            width: 100%; /* 親要素の幅いっぱいに広げる */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
+            overflow: hidden; /* はみ出しを隠す */
+            text-overflow: ellipsis; /* はみ出した場合に...表示 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>名前入りシール印刷アプリ</h1>
+
+        <div class="input-group">
+            <label for="nameInput">名前 (2行にしたい場合は改行してください):</label>
+            <textarea id="nameInput" rows="2">あなたの名前</textarea>
+        </div>
+
+        <div class="input-group">
+            <label for="fontSelect">フォント:</label>
+            <select id="fontSelect">
+                <option value="Noto Sans JP">Noto Sans JP (標準)</option>
+                <option value="BIZ UDPGothic">BIZ UDPGothic</option>
+                <option value="DotGothic16">DotGothic16</option>
+                <option value="M PLUS Rounded 1c">M PLUS Rounded 1c</option>
+                <option value="Roboto">Roboto (英数字向け)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="fontSizeRange">文字の大きさ: <span id="fontSizeValue">20</span>px</label>
+            <input type="range" id="fontSizeRange" min="5" max="100" value="20">
+        </div>
+
+        <div class="input-group">
+            <label for="stickerWidth">シールの横幅 (mm):</label>
+            <input type="number" id="stickerWidth" value="95" min="10">
+        </div>
+
+        <div class="input-group">
+            <label for="stickerHeight">シールの縦幅 (mm):</label>
+            <input type="number" id="stickerHeight" value="65" min="10">
+        </div>
+
+        <div class="button-group">
+            <button id="previewButton">プレビューを表示</button>
+            <button id="printButton">印刷する</button>
+            <button id="savePdfButton">PDFで保存</button>
+        </div>
+
+        <div id="previewArea" class="preview-area">
+            <h2>印刷プレビュー</h2>
+            <div id="previewContent" class="preview-content">
+                </div>
+        </div>
+    </div>
+
+    <div id="printOnlyArea" class="print-only"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const nameInput = document.getElementById('nameInput');
+            const fontSelect = document.getElementById('fontSelect');
+            const fontSizeRange = document.getElementById('fontSizeRange');
+            const fontSizeValue = document.getElementById('fontSizeValue');
+            const stickerWidthInput = document.getElementById('stickerWidth');
+            const stickerHeightInput = document.getElementById('stickerHeight');
+            const previewButton = document.getElementById('previewButton');
+            const printButton = document.getElementById('printButton');
+            const savePdfButton = document.getElementById('savePdfButton');
+            const previewArea = document.getElementById('previewArea');
+            const previewContent = document.getElementById('previewContent');
+            const printOnlyArea = document.getElementById('printOnlyArea');
+
+            // A4用紙のサイズ (mm)
+            const A4_WIDTH_MM = 210;
+            const A4_HEIGHT_MM = 297;
+            // 余白 (mm)
+            const MARGIN_MM = 10;
+
+            // フォントサイズスライダーの値と表示を同期
+            fontSizeRange.addEventListener('input', () => {
+                fontSizeValue.textContent = fontSizeRange.value;
+            });
+
+            // シールを生成してDOMに追加する関数
+            async function generateStickers(targetElement) {
+                targetElement.innerHTML = ''; // 既存のシールをクリア
+                targetElement.style.position = 'relative'; // シール配置のために必要
+
+                const nameText = nameInput.value.trim();
+                const selectedFont = fontSelect.value;
+                const fontSizePx = parseFloat(fontSizeRange.value); // ピクセル単位
+                const stickerWidth = parseFloat(stickerWidthInput.value);
+                const stickerHeight = parseFloat(stickerHeightInput.value);
+
+                // 入力チェック
+                if (!nameText) {
+                    alert('名前を入力してください。');
+                    return 0;
+                }
+                if (isNaN(stickerWidth) || stickerWidth <= 0 || isNaN(stickerHeight) || stickerHeight <= 0) {
+                    alert('有効なシールのサイズを入力してください。');
+                    return 0;
+                }
+
+                // 印刷可能領域の計算 (余白を考慮)
+                const printableWidth = A4_WIDTH_MM - (2 * MARGIN_MM);
+                const printableHeight = A4_HEIGHT_MM - (2 * MARGIN_MM);
+
+                // シールをできるだけ多く配置するための計算
+                const maxStickersPerRow = Math.floor(printableWidth / stickerWidth);
+                const maxStickerRows = Math.floor(printableHeight / stickerHeight);
+
+                if (maxStickersPerRow === 0 || maxStickerRows === 0) {
+                    alert('指定されたシールのサイズでは、余白を考慮するとA4用紙にシールを配置できません。シールのサイズを小さくしてください。');
+                    return 0; // 配置できない場合は0を返す
+                }
+
+                let stickerCount = 0;
+                const startX = MARGIN_MM;
+                const startY = MARGIN_MM;
+
+                // 2行印刷のために改行コードで分割
+                const nameLines = nameText.split('\n');
+
+                for (let row = 0; row < maxStickerRows; row++) {
+                    for (let col = 0; col < maxStickersPerRow; col++) {
+                        const sticker = document.createElement('div');
+                        sticker.classList.add('sticker');
+                        sticker.style.width = `${stickerWidth}mm`;
+                        sticker.style.height = `${stickerHeight}mm`;
+                        sticker.style.fontFamily = `'${selectedFont}', sans-serif`; // フォントをシール全体に適用
+
+                        const posX = startX + (col * stickerWidth);
+                        const posY = startY + (row * stickerHeight);
+
+                        sticker.style.left = `${posX}mm`;
+                        sticker.style.top = `${posY}mm`;
+                        
+                        // 各行を個別に追加
+                        nameLines.forEach(line => {
+                            const textLine = document.createElement('span');
+                            textLine.classList.add('text-line');
+                            textLine.textContent = line;
+                            textLine.style.fontSize = `${fontSizePx}px`; // ピクセル単位でフォントサイズを設定
+                            sticker.appendChild(textLine);
+                        });
+
+                        targetElement.appendChild(sticker);
+                        stickerCount++;
+                    }
+                }
+                return stickerCount;
+            }
+
+            // プレビューボタンクリック時の処理
+            previewButton.addEventListener('click', async () => {
+                const count = await generateStickers(previewContent);
+                if (count === 0) {
+                    previewArea.style.display = 'none';
+                } else {
+                    previewArea.style.display = 'block';
+                }
+            });
+
+            // 印刷ボタンクリック時の処理
+            printButton.addEventListener('click', async () => {
+                const count = await generateStickers(printOnlyArea);
+
+                if (count === 0) {
+                    return; // generateStickersがアラートを表示済み
+                }
+
+                printOnlyArea.style.display = 'block';
+                window.print();
+
+                printOnlyArea.style.display = 'none';
+                printOnlyArea.innerHTML = '';
+            });
+
+            // PDFで保存ボタンクリック時の処理
+            savePdfButton.addEventListener('click', async () => {
+                // まずプレビューを生成
+                const count = await generateStickers(previewContent);
+                if (count === 0) {
+                    previewArea.style.display = 'none';
+                    return; // シールが生成されなければPDFも作成しない
+                } else {
+                    previewArea.style.display = 'block'; // プレビューが表示されていない場合は表示
+                }
+                
+                // フォントの読み込みが完了するのを待つ (重要)
+                try {
+                    await document.fonts.ready;
+                } catch (error) {
+                    console.error("フォントの読み込み中にエラーが発生しました:", error);
+                    alert("フォントの読み込みに失敗しました。PDFの見た目が正しくない可能性があります。");
+                }
+
+                // プレビューコンテンツを直接画像化
+                // #previewContent は既に A4幅 + 余白のサイズを持つ
+                const canvas = await html2canvas(previewContent, {
+                    scale: 3, // 解像度を上げる (300dpi相当)
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new window.jspdf.jsPDF({
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait'
+                });
+
+                // canvasのサイズをA4サイズに合わせてPDFに追加
+                // canvasの幅と高さを、PDFの幅と高さ（A4サイズ）に合わせる
+                // html2canvasはpreviewContentの実際のピクセルサイズで画像を生成するため、
+                // それをA4のmm単位に変換して配置
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+
+                // 画像のアスペクト比を維持しつつ、PDFページにフィットさせる
+                const aspectRatio = canvas.width / canvas.height;
+                let imgWidth = pdfWidth;
+                let imgHeight = pdfWidth / aspectRatio;
+
+                if (imgHeight > pdfHeight) {
+                    imgHeight = pdfHeight;
+                    imgWidth = pdfHeight * aspectRatio;
+                }
+
+                // 中央配置
+                const xOffset = (pdfWidth - imgWidth) / 2;
+                const yOffset = (pdfHeight - imgHeight) / 2;
+
+                pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
+                pdf.save('シール.pdf');
+            });
+        });
+    </script>
+</body>
+</html>
