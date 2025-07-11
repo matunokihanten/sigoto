@@ -119,9 +119,8 @@
       <video id="videoPreview" autoplay playsinline style="width:100px;"></video>
       <button id="captureBtn">キャプチャ</button>
     </div>
-    <button id="voiceInputButton">音声入力</button>
     <button id="importMemoButton">インポート</button>
-    <input type="file" id="importFileInput" accept=".html,.txt" hidden>
+    <input type="file" id="importFileInput" accept=".json" hidden>
     <button id="exportMemoButton">エクスポート</button>
     <button id="printMemoButton">印刷/PDF</button>
     <button id="darkModeToggleButton">ダークモード切替</button>
@@ -162,8 +161,9 @@
     /* メモ管理 */
     function saveMemo() {
       let memoText = document.getElementById("memoInput").value.trim();
-      if (memoText === "") {
-        memoText = "テスト";
+      if (memoText === "" && !currentImage) { // メモ内容も画像もない場合は保存しない
+        alert("メモ内容または画像を添付してください。");
+        return;
       }
       const memos = JSON.parse(localStorage.getItem("memos")) || [];
       const newMemo = {
@@ -317,33 +317,13 @@
       document.getElementById("cameraArea").style.display = "none";
     });
 
-    /* 音声入力（Web Speech API） */
-    document.getElementById("voiceInputButton").addEventListener("click", () => {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("このブラウザは音声入力に対応していません。");
-        return;
-      }
-      const recognizer = new SpeechRecognition();
-      recognizer.lang = "ja-JP";
-      recognizer.onresult = function(event) {
-        const result = event.results[0][0].transcript;
-        document.getElementById("memoInput").value += result;
-      };
-      recognizer.onerror = function(event) {
-        alert("音声認識エラー: " + event.error);
-      };
-      recognizer.start();
-    });
-
-    /* インポート／エクスポート */
+    /* インポート／エクスポート (JSON形式) */
     document.getElementById("exportMemoButton").addEventListener("click", () => {
       const memosData = localStorage.getItem("memos") || "[]";
-      const exportData = `<!--MEMO_DATA_START-->${memosData}<!--MEMO_DATA_END-->`;
-      const blob = new Blob([exportData], { type: "text/html" });
+      const blob = new Blob([memosData], { type: "application/json" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = "高速メモ.html";
+      link.download = "高速メモ.json";
       link.click();
     });
     document.getElementById("importMemoButton").addEventListener("click", () => {
@@ -355,13 +335,17 @@
         const reader = new FileReader();
         reader.onload = function(event) {
           const content = event.target.result;
-          const regex = /<!--MEMO_DATA_START-->([\s\S]*?)<!--MEMO_DATA_END-->/;
-          const match = regex.exec(content);
-          if (match && match[1]) {
-            localStorage.setItem("memos", match[1].trim());
-            displayMemos();
-          } else {
-            alert("適切なデータが見つかりませんでした。");
+          try {
+            const parsedMemos = JSON.parse(content);
+            if (Array.isArray(parsedMemos)) {
+              localStorage.setItem("memos", JSON.stringify(parsedMemos));
+              displayMemos();
+              alert("メモが正常にインポートされました。");
+            } else {
+              alert("インポートされたファイルの内容が不正です。JSON配列ではありません。");
+            }
+          } catch (error) {
+            alert("ファイルの読み込みまたは解析中にエラーが発生しました: " + error.message);
           }
         };
         reader.readAsText(file);
