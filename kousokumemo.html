@@ -81,6 +81,11 @@
       font-size: 12px;
       cursor: pointer;
     }
+    .memo-content {
+      cursor: pointer; /* 編集可能であることを示すカーソル */
+      min-height: 20px; /* タップしやすくするため */
+      padding: 2px; /* タップしやすくするため */
+    }
     .highlight {
       background-color: yellow;
     }
@@ -193,6 +198,11 @@
       if (!memoCard) return;
 
       const contentDiv = memoCard.querySelector('.memo-content');
+      // 既に編集モードの場合は何もしない
+      if (contentDiv.querySelector('textarea')) {
+        return;
+      }
+
       const currentContent = contentDiv.innerText;
 
       // テキストエリアに変換
@@ -208,13 +218,15 @@
       // 画像編集ボタン (既存の画像があれば表示)
       let imageEditButton = null;
       let currentImageElement = memoCard.querySelector('.memo-image');
+      const existingButtonsContainer = document.createElement('div'); // ボタンをまとめるコンテナ
+      existingButtonsContainer.style.marginTop = '5px';
+
       if (currentImageElement) {
         imageEditButton = document.createElement('button');
-        imageEditButton.innerText = '画像を更新/削除';
+        imageEditButton.innerText = '画像を更新';
         imageEditButton.style.fontSize = '12px';
         imageEditButton.style.marginRight = '5px';
         imageEditButton.onclick = () => {
-          // 画像選択ダイアログを表示
           const imageInput = document.createElement('input');
           imageInput.type = 'file';
           imageInput.accept = 'image/*';
@@ -225,12 +237,9 @@
               reader.onload = function(event) {
                 const img = new Image();
                 img.onload = function() {
-                  // グレースケール変換
                   const updatedImage = convertImageToGrayscale(img);
-                  currentImageElement.src = updatedImage; // プレビューを更新
-                  // ここではまだlocalStorageには保存しない
-                  // 保存は「保存」ボタンが押されたときに行う
-                  memoCard.dataset.newImage = updatedImage; // 新しい画像を一時的に保持
+                  currentImageElement.src = updatedImage;
+                  memoCard.dataset.newImage = updatedImage;
                 };
                 img.src = event.target.result;
               };
@@ -246,14 +255,22 @@
         removeImageButton.onclick = () => {
           if (confirm('この画像を削除しますか？')) {
             currentImageElement.remove();
-            currentImageElement = null; // 画像要素をnullに設定
-            memoCard.dataset.newImage = 'REMOVE'; // 削除フラグ
-            imageEditButton.remove(); // ボタンも削除
+            currentImageElement = null;
+            memoCard.dataset.newImage = 'REMOVE';
+            imageEditButton.remove();
             removeImageButton.remove();
+            // 画像追加ボタンを再表示するロジックが必要であればここに追加
+            const addImageBtn = document.createElement('button');
+            addImageBtn.innerText = '画像を追加';
+            addImageBtn.style.fontSize = '12px';
+            addImageBtn.style.marginRight = '5px';
+            addImageBtn.onclick = imageEditButton.onclick; // 画像更新と同じロジックを再利用
+            existingButtonsContainer.insertBefore(addImageBtn, existingButtonsContainer.firstChild);
           }
         };
-        memoCard.insertBefore(imageEditButton, textarea.nextSibling);
-        memoCard.insertBefore(removeImageButton, imageEditButton.nextSibling);
+        existingButtonsContainer.appendChild(imageEditButton);
+        existingButtonsContainer.appendChild(removeImageButton);
+
       } else {
         // 画像がない場合でも画像追加ボタンを表示
         imageEditButton = document.createElement('button');
@@ -272,9 +289,9 @@
                 const img = new Image();
                 img.onload = function() {
                   const newImageSrc = convertImageToGrayscale(img);
-                  if (currentImageElement) {
+                  if (currentImageElement) { // 既に画像要素がある場合（追加後に再度追加を試みた場合など）
                     currentImageElement.src = newImageSrc;
-                  } else {
+                  } else { // 新しく画像要素を作成する場合
                     currentImageElement = document.createElement('img');
                     currentImageElement.className = 'memo-image';
                     currentImageElement.style.maxWidth = '100%';
@@ -283,6 +300,28 @@
                     textarea.after(currentImageElement); // テキストエリアの後に画像を追加
                   }
                   memoCard.dataset.newImage = newImageSrc;
+                  // 画像を追加したら、ボタンを「更新/削除」に切り替える
+                  imageEditButton.innerText = '画像を更新';
+                  const removeBtn = document.createElement('button');
+                  removeBtn.innerText = '画像を削除';
+                  removeBtn.style.fontSize = '12px';
+                  removeBtn.onclick = () => {
+                    if (confirm('この画像を削除しますか？')) {
+                      currentImageElement.remove();
+                      currentImageElement = null;
+                      memoCard.dataset.newImage = 'REMOVE';
+                      imageEditButton.remove();
+                      removeBtn.remove();
+                      // 再度「画像を追加」ボタンを表示
+                      const addImageBtn = document.createElement('button');
+                      addImageBtn.innerText = '画像を追加';
+                      addImageBtn.style.fontSize = '12px';
+                      addImageBtn.style.marginRight = '5px';
+                      addImageBtn.onclick = imageEditButton.onclick;
+                      existingButtonsContainer.insertBefore(addImageBtn, existingButtonsContainer.firstChild);
+                    }
+                  };
+                  existingButtonsContainer.appendChild(removeBtn);
                 };
                 img.src = event.target.result;
               };
@@ -291,8 +330,9 @@
           };
           imageInput.click();
         };
-        memoCard.insertBefore(imageEditButton, textarea.nextSibling);
+        existingButtonsContainer.appendChild(imageEditButton);
       }
+      textarea.after(existingButtonsContainer); // テキストエリアの後にボタンコンテナを追加
 
 
       // 保存・キャンセルボタン
@@ -314,8 +354,9 @@
               memos[index].image = memoCard.dataset.newImage;
             }
             delete memoCard.dataset.newImage; // 一時データを削除
-          } else if (!currentImageElement) {
-             memos[index].image = null; // 画像が削除された場合
+          } else if (!currentImageElement && memos[index].image) {
+             // 編集中に画像が削除されたが、dataset.newImageが設定されていない場合
+             memos[index].image = null;
           }
 
 
@@ -337,8 +378,8 @@
       if (oldEditButton) oldEditButton.style.display = 'none';
       if (oldDeleteButton) oldDeleteButton.style.display = 'none';
 
-      memoCard.appendChild(saveButton);
-      memoCard.appendChild(cancelButton);
+      existingButtonsContainer.appendChild(saveButton);
+      existingButtonsContainer.appendChild(cancelButton);
     }
 
 
@@ -351,17 +392,44 @@
         e.dataTransfer.setData("text/plain", memo.id);
         e.dataTransfer.effectAllowed = "move";
       });
+
       let contentHtml = escapeHtml(memo.content);
       if (query) {
         contentHtml = highlightText(contentHtml, query);
       }
-      card.innerHTML = `
-        <div class="memo-content" style="white-space: pre-wrap;">${contentHtml}</div>
-        ${ memo.image ? `<img class="memo-image" src="${memo.image}" alt="添付画像" style="max-width:100%; margin-top:5px;">` : "" }
-        <small>${new Date(memo.timestamp).toLocaleString()}</small>
-        <button onclick="editMemo('${memo.id}')">編集</button>
-        <button onclick="deleteMemo('${memo.id}')">削除</button>
-      `;
+
+      const contentDiv = document.createElement('div');
+      contentDiv.className = 'memo-content';
+      contentDiv.style.whiteSpace = 'pre-wrap';
+      contentDiv.innerHTML = contentHtml;
+      contentDiv.addEventListener('click', () => editMemo(memo.id)); // ここでクリックイベントを追加
+
+      card.appendChild(contentDiv);
+
+      if (memo.image) {
+        const img = document.createElement('img');
+        img.className = 'memo-image';
+        img.src = memo.image;
+        img.alt = '添付画像';
+        img.style.maxWidth = '100%';
+        img.style.marginTop = '5px';
+        card.appendChild(img);
+      }
+
+      const small = document.createElement('small');
+      small.innerText = new Date(memo.timestamp).toLocaleString();
+      card.appendChild(small);
+
+      const editBtn = document.createElement('button');
+      editBtn.innerText = '編集';
+      editBtn.onclick = () => editMemo(memo.id); // ボタンからも編集を呼び出す
+      card.appendChild(editBtn);
+
+      const deleteBtn = document.createElement('button');
+      deleteBtn.innerText = '削除';
+      deleteBtn.onclick = () => deleteMemo(memo.id);
+      card.appendChild(deleteBtn);
+
       return card;
     }
 
@@ -521,7 +589,8 @@
           e.target.closest("textarea") ||
           e.target.closest("input") ||
           e.target.closest("button") ||
-          e.target.closest("video")) {
+          e.target.closest("video") ||
+          e.target.closest('.memoCard')) { // メモカード内でのダブルクリックは保存しない
         return;
       }
       saveMemo();
