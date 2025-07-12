@@ -108,7 +108,6 @@
   </style>
 </head>
 <body>
-  <!-- 操作パネル（上部） -->
   <div id="controlPanel">
     <label for="columnSelector">表示列数:</label>
     <input type="number" id="columnSelector" min="1" max="100" value="5">
@@ -131,7 +130,6 @@
     <input type="text" id="searchInput" placeholder="検索...">
     <button id="deleteAllButton">全削除</button>
   </div>
-  <!-- メインエリア -->
   <div id="mainArea">
     <textarea id="memoInput" placeholder="メモを入力してください(保存は背景のダブルクリック)"></textarea>
     <img id="currentImagePreview" alt="添付画像">
@@ -189,23 +187,166 @@
       displayMemos();
     }
 
+    // 編集機能の強化 (インライン編集)
     function editMemo(id) {
-      let memos = JSON.parse(localStorage.getItem("memos")) || [];
-      const index = memos.findIndex(memo => memo.id === id);
-      if (index !== -1) {
-        const newContent = prompt("内容を編集してください:", memos[index].content);
-        if (newContent !== null) {
-          memos[index].content = newContent;
-          localStorage.setItem("memos", JSON.stringify(memos));
-          displayMemos();
-        }
+      const memoCard = document.querySelector(`.memoCard[data-id="${id}"]`);
+      if (!memoCard) return;
+
+      const contentDiv = memoCard.querySelector('.memo-content');
+      const currentContent = contentDiv.innerText;
+
+      // テキストエリアに変換
+      const textarea = document.createElement('textarea');
+      textarea.value = currentContent;
+      textarea.style.width = '100%';
+      textarea.style.height = 'auto';
+      textarea.style.minHeight = '50px';
+      textarea.style.boxSizing = 'border-box';
+      textarea.style.marginBottom = '5px';
+      contentDiv.replaceWith(textarea);
+
+      // 画像編集ボタン (既存の画像があれば表示)
+      let imageEditButton = null;
+      let currentImageElement = memoCard.querySelector('.memo-image');
+      if (currentImageElement) {
+        imageEditButton = document.createElement('button');
+        imageEditButton.innerText = '画像を更新/削除';
+        imageEditButton.style.fontSize = '12px';
+        imageEditButton.style.marginRight = '5px';
+        imageEditButton.onclick = () => {
+          // 画像選択ダイアログを表示
+          const imageInput = document.createElement('input');
+          imageInput.type = 'file';
+          imageInput.accept = 'image/*';
+          imageInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                  // グレースケール変換
+                  const updatedImage = convertImageToGrayscale(img);
+                  currentImageElement.src = updatedImage; // プレビューを更新
+                  // ここではまだlocalStorageには保存しない
+                  // 保存は「保存」ボタンが押されたときに行う
+                  memoCard.dataset.newImage = updatedImage; // 新しい画像を一時的に保持
+                };
+                img.src = event.target.result;
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+          imageInput.click();
+        };
+
+        const removeImageButton = document.createElement('button');
+        removeImageButton.innerText = '画像を削除';
+        removeImageButton.style.fontSize = '12px';
+        removeImageButton.onclick = () => {
+          if (confirm('この画像を削除しますか？')) {
+            currentImageElement.remove();
+            currentImageElement = null; // 画像要素をnullに設定
+            memoCard.dataset.newImage = 'REMOVE'; // 削除フラグ
+            imageEditButton.remove(); // ボタンも削除
+            removeImageButton.remove();
+          }
+        };
+        memoCard.insertBefore(imageEditButton, textarea.nextSibling);
+        memoCard.insertBefore(removeImageButton, imageEditButton.nextSibling);
+      } else {
+        // 画像がない場合でも画像追加ボタンを表示
+        imageEditButton = document.createElement('button');
+        imageEditButton.innerText = '画像を追加';
+        imageEditButton.style.fontSize = '12px';
+        imageEditButton.style.marginRight = '5px';
+        imageEditButton.onclick = () => {
+          const imageInput = document.createElement('input');
+          imageInput.type = 'file';
+          imageInput.accept = 'image/*';
+          imageInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                  const newImageSrc = convertImageToGrayscale(img);
+                  if (currentImageElement) {
+                    currentImageElement.src = newImageSrc;
+                  } else {
+                    currentImageElement = document.createElement('img');
+                    currentImageElement.className = 'memo-image';
+                    currentImageElement.style.maxWidth = '100%';
+                    currentImageElement.style.marginTop = '5px';
+                    currentImageElement.src = newImageSrc;
+                    textarea.after(currentImageElement); // テキストエリアの後に画像を追加
+                  }
+                  memoCard.dataset.newImage = newImageSrc;
+                };
+                img.src = event.target.result;
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+          imageInput.click();
+        };
+        memoCard.insertBefore(imageEditButton, textarea.nextSibling);
       }
+
+
+      // 保存・キャンセルボタン
+      const saveButton = document.createElement('button');
+      saveButton.innerText = '保存';
+      saveButton.style.fontSize = '12px';
+      saveButton.style.marginRight = '5px';
+      saveButton.onclick = () => {
+        let memos = JSON.parse(localStorage.getItem("memos")) || [];
+        const index = memos.findIndex(memo => memo.id === id);
+        if (index !== -1) {
+          memos[index].content = textarea.value;
+
+          // 画像の更新処理
+          if (memoCard.dataset.newImage) {
+            if (memoCard.dataset.newImage === 'REMOVE') {
+              memos[index].image = null;
+            } else {
+              memos[index].image = memoCard.dataset.newImage;
+            }
+            delete memoCard.dataset.newImage; // 一時データを削除
+          } else if (!currentImageElement) {
+             memos[index].image = null; // 画像が削除された場合
+          }
+
+
+          localStorage.setItem("memos", JSON.stringify(memos));
+          displayMemos(); // メモを再表示して更新を反映
+        }
+      };
+
+      const cancelButton = document.createElement('button');
+      cancelButton.innerText = 'キャンセル';
+      cancelButton.style.fontSize = '12px';
+      cancelButton.onclick = () => {
+        displayMemos(); // 変更を破棄してメモを再表示
+      };
+
+      // 既存の編集・削除ボタンを非表示にし、新しいボタンを追加
+      const oldEditButton = memoCard.querySelector('button[onclick^="editMemo"]');
+      const oldDeleteButton = memoCard.querySelector('button[onclick^="deleteMemo"]');
+      if (oldEditButton) oldEditButton.style.display = 'none';
+      if (oldDeleteButton) oldDeleteButton.style.display = 'none';
+
+      memoCard.appendChild(saveButton);
+      memoCard.appendChild(cancelButton);
     }
+
 
     function createMemoCard(memo, query) {
       const card = document.createElement("div");
       card.className = "memoCard";
       card.setAttribute("draggable", "true");
+      card.setAttribute("data-id", memo.id); // IDをデータ属性として追加
       card.addEventListener("dragstart", function(e) {
         e.dataTransfer.setData("text/plain", memo.id);
         e.dataTransfer.effectAllowed = "move";
@@ -215,8 +356,8 @@
         contentHtml = highlightText(contentHtml, query);
       }
       card.innerHTML = `
-        <div style="white-space: pre-wrap;">${contentHtml}</div>
-        ${ memo.image ? `<img src="${memo.image}" alt="添付画像" style="max-width:100%; margin-top:5px;">` : "" }
+        <div class="memo-content" style="white-space: pre-wrap;">${contentHtml}</div>
+        ${ memo.image ? `<img class="memo-image" src="${memo.image}" alt="添付画像" style="max-width:100%; margin-top:5px;">` : "" }
         <small>${new Date(memo.timestamp).toLocaleString()}</small>
         <button onclick="editMemo('${memo.id}')">編集</button>
         <button onclick="deleteMemo('${memo.id}')">削除</button>
