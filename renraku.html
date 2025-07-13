@@ -376,7 +376,7 @@
             color: #4a5568;
         }
 
-        .form-input, .form-textarea {
+        .form-input, .form-textarea, .form-select { /* Added .form-select */
             width: 100%;
             padding: 12px;
             border: 2px solid #e2e8f0;
@@ -385,7 +385,7 @@
             transition: all 0.3s ease;
         }
 
-        .form-input:focus, .form-textarea:focus {
+        .form-input:focus, .form-textarea:focus, .form-select:focus { /* Added .form-select */
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
@@ -461,6 +461,32 @@
         #duplicateList input[type="checkbox"] {
             flex-shrink: 0;
             margin-top: 4px;
+        }
+
+        /* Group Management Modal Styles */
+        .group-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+        .group-list-item:last-child {
+            border-bottom: none;
+        }
+        .group-list-item span {
+            font-weight: bold;
+            color: #4a5568;
+        }
+        .group-list-item button {
+            background: none;
+            border: none;
+            color: #f56565;
+            cursor: pointer;
+            font-size: 1.2em;
+        }
+        .group-list-item button:hover {
+            color: #c53030;
         }
 
         /* Media Queries for Responsiveness */
@@ -556,6 +582,7 @@
                     <button class="btn btn-danger" onclick="clearContacts()">🗑️ すべて削除</button>
                     <button class="btn btn-secondary" onclick="confirmDeleteNoContactInfo()">🧹 情報不足削除 (<span id="noInfoCount">0</span>)</button>
                     <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
+                    <button class="btn btn-secondary" onclick="openGroupManagementModal()">👥 グループ管理</button>
                 </div>
 
                 <div class="stats">
@@ -592,48 +619,66 @@
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
             <form id="contactForm">
-                <div class="form-group">
-                    <label class="form-label">名前<span style="color: red;">*</span></label>
-                    <input type="text" id="contactName" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">電話番号</label>
-                    <input type="tel" id="contactPhone" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">メールアドレス</label>
-                    <input type="email" id="contactEmail" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">組織</label>
-                    <input type="text" id="contactOrg" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">住所</label>
-                    <input type="text" id="contactAddress" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">グループ</label>
-                    <input type="text" id="contactGroup" class="form-input">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">メモ</label>
-                    <textarea id="contactNote" class="form-textarea" rows="3"></textarea>
-                </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </div>
-            </form>
+                </form>
         </div>
     </div>
+
+    <div id="groupManagementModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">グループ管理</h3>
+                <span class="close" onclick="closeGroupManagementModal()">&times;</span>
+            </div>
+            <div id="groupList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; background: #f7fafc;">
+                </div>
+            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeGroupManagementModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
 
     <script>
         let contacts = [];
         let currentEditingId = null;
         let currentFilter = 'all'; // 'all', 'favorites', or group name
         let currentSort = 'name-asc'; // 'name-asc', 'name-desc', 'date-asc', 'date-desc'
-        let originalContactFormHTML = ''; // 重複モーダルから元のフォームに戻すためのHTMLを保存
+        let originalContactFormHTML = `
+            <div class="form-group">
+                <label class="form-label">名前<span style="color: red;">*</span></label>
+                <input type="text" id="contactName" class="form-input" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">電話番号</label>
+                <input type="tel" id="contactPhone" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">メールアドレス</label>
+                <input type="email" id="contactEmail" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">組織</label>
+                <input type="text" id="contactOrg" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">住所</label>
+                <input type="text" id="contactAddress" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">グループ</label>
+                <input type="text" id="contactGroup" class="form-input" list="groupOptions">
+                <datalist id="groupOptions"></datalist>
+            </div>
+            <div class="form-group">
+                <label class="form-label">メモ</label>
+                <textarea id="contactNote" class="form-textarea" rows="3"></textarea>
+            </div>
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+                <button type="submit" class="btn btn-primary">保存</button>
+            </div>
+        `; // Keep track of the default form HTML
+
 
         // Initial setup
         document.addEventListener('DOMContentLoaded', function() {
@@ -642,9 +687,8 @@
             updateStats();
             renderGroupFilters();
             applyFiltersAndSort(); 
-            updateNoInfoCount(); // 初期ロード時にカウントを更新
-            // フォームのHTMLを保存
-            originalContactFormHTML = document.getElementById('contactForm').innerHTML; 
+            updateNoInfoCount();
+            populateGroupDatalist(); // Populate datalist on load
         });
 
         function setupEventListeners() {
@@ -655,15 +699,21 @@
                 currentSort = e.target.value;
                 applyFiltersAndSort();
             });
-            // モーダルのフォームが元のフォームであることを確認してからイベントリスナーを追加
+            // Attach form submit listener to the modal form
             document.getElementById('contactForm').addEventListener('submit', handleFormSubmit);
             
-            // Close modal on outside click
+            // Close modals on outside click
             document.getElementById('contactModal').addEventListener('click', function(e) {
                 if (e.target === this) {
                     closeModal();
                 }
             });
+            document.getElementById('groupManagementModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeGroupManagementModal();
+                }
+            });
+
 
             // Sidebar filter clicks
             document.querySelectorAll('.sidebar ul li a').forEach(link => {
@@ -689,72 +739,84 @@
             document.getElementById('contactsContainer').style.display = 'block';
         }
 
-        function handleVcfFileSelect(event) {
+        async function handleVcfFileSelect(event) {
             const files = event.target.files;
             if (files.length === 0) return;
 
             showLoading();
 
-            let processedFiles = 0;
-            const totalFiles = files.length;
             const newContacts = [];
-
-            for (let i = 0; i < totalFiles; i++) {
-                const file = files[i];
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    const vcfContent = e.target.result;
+            for (const file of files) {
+                try {
+                    const vcfContent = await readFileAsText(file);
                     const parsedContacts = parseVCF(vcfContent);
                     newContacts.push(...parsedContacts);
-                    
-                    processedFiles++;
-                    if (processedFiles === totalFiles) {
-                        addNewContacts(newContacts);
-                        hideLoading();
-                        event.target.value = ''; // Clear file input
-                    }
-                };
-                
-                reader.readAsText(file);
+                } catch (error) {
+                    console.error(`VCFファイルの読み込みエラー (${file.name}):`, error);
+                    alert(`VCFファイル '${file.name}' の読み込みに失敗しました。ファイルが破損しているか、形式が正しくない可能性があります。`);
+                }
             }
+            addNewContacts(newContacts);
+            hideLoading();
+            event.target.value = ''; // Clear file input
         }
 
-        function handleExcelFileSelect(event) {
+        async function handleExcelFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             showLoading();
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const sheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[sheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet);
+            try {
+                const data = await readFileAsArrayBuffer(file);
+                const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
 
-                    const newContacts = parseExcel(json);
-                    addNewContacts(newContacts);
-                } catch (error) {
-                    console.error('Excelファイルの読み込みエラー:', error);
-                    alert('Excelファイルの読み込みに失敗しました。正しい形式のファイルか確認してください。');
-                } finally {
-                    hideLoading();
-                    event.target.value = ''; // Clear file input
-                }
-            };
-            reader.readAsArrayBuffer(file);
+                const newContacts = parseExcel(json);
+                addNewContacts(newContacts);
+            } catch (error) {
+                console.error('Excelファイルの読み込みエラー:', error);
+                alert('Excelファイルの読み込みに失敗しました。正しい形式のファイルか確認してください。');
+            } finally {
+                hideLoading();
+                event.target.value = ''; // Clear file input
+            }
         }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsText(file);
+            });
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(e);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
 
         function parseVCF(vcfContent) {
             const parsedContacts = [];
-            const vcardBlocks = vcfContent.split('BEGIN:VCARD');
+            // Use a more robust split, handling potential newline variations and empty lines
+            const vcardBlocks = vcfContent.split(/BEGIN:VCARD[\r\n]+/i).filter(block => block.trim() !== '');
             
-            for (let i = 1; i < vcardBlocks.length; i++) {
-                const block = vcardBlocks[i];
-                const lines = block.split('\n').filter(line => line.trim());
+            for (const block of vcardBlocks) {
+                // Ensure the block ends with END:VCARD for proper parsing
+                if (!block.trim().endsWith('END:VCARD')) {
+                    console.warn("Skipping malformed VCard block (missing END:VCARD):", block.substring(0, 100) + '...');
+                    continue;
+                }
+
+                const lines = block.split(/[\r\n]+/).map(line => line.trim()).filter(line => line !== '' && !line.startsWith('END:VCARD'));
                 
                 const contact = {
                     name: '',
@@ -767,32 +829,57 @@
                 };
                 
                 lines.forEach(line => {
-                    const [key, ...valueParts] = line.split(':');
-                    const value = valueParts.join(':').trim();
+                    // Handle folded lines (lines starting with whitespace)
+                    if (line.startsWith(' ') || line.startsWith('\t')) {
+                        // Append to the previous line's value if it exists
+                        const lastKey = Object.keys(contact).find(k => contact[k] && typeof contact[k] === 'string' && contact[k].endsWith('='));
+                        if (lastKey) {
+                            contact[lastKey] = contact[lastKey].slice(0, -1) + line.trim(); // Remove = and append
+                            return;
+                        }
+                    }
+
+                    const parts = line.split(':');
+                    let key = parts[0];
+                    let value = parts.slice(1).join(':').trim();
+
+                    // Handle parameters like TYPE=WORK, CHARSET=UTF-8 etc.
+                    const keyParts = key.split(';');
+                    key = keyParts[0]; // The actual field name (e.g., FN, TEL)
                     
-                    if (key.startsWith('FN')) {
+                    if (key.toUpperCase() === 'FN' && !contact.name) {
                         contact.name = value;
-                    } else if (key.startsWith('TEL')) {
+                    } else if (key.toUpperCase() === 'N' && !contact.name) { // Fallback to N if FN is not present
+                        // N field usually comes as "Family;Given;Middle;Prefix;Suffix"
+                        const nameParts = value.split(';');
+                        contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim(); // Given Family
+                        if (!contact.name) contact.name = value; // Fallback if name parts are empty
+                    } else if (key.toUpperCase().startsWith('TEL') && !contact.phone) {
                         contact.phone = value;
-                    } else if (key.startsWith('EMAIL')) {
+                    } else if (key.toUpperCase().startsWith('EMAIL') && !contact.email) {
                         contact.email = value;
-                    } else if (key.startsWith('ORG')) {
+                    } else if (key.toUpperCase().startsWith('ORG') && !contact.org) {
                         contact.org = value;
-                    } else if (key.startsWith('ADR')) {
-                        contact.address = value.replace(/;/g, ', ');
-                    } else if (key.startsWith('NOTE')) {
+                    } else if (key.toUpperCase().startsWith('ADR') && !contact.address) {
+                        // ADR field usually comes as "POBox;ExtAdd;Street;City;State;PostalCode;Country"
+                        const addressParts = value.split(';');
+                        contact.address = addressParts.filter(Boolean).join(', ');
+                    } else if (key.toUpperCase().startsWith('NOTE') && !contact.note) {
                         contact.note = value;
-                    } else if (key.startsWith('CATEGORIES') || key.startsWith('X-GROUP')) {
+                    } else if ((key.toUpperCase().startsWith('CATEGORIES') || key.toUpperCase().startsWith('X-GROUP')) && !contact.group) {
                         contact.group = value;
                     }
                 });
                 
-                if (contact.name) {
+                if (contact.name) { // Ensure a name exists for a valid contact
                     parsedContacts.push(contact);
+                } else {
+                    console.warn("Skipping VCard block (no name found):", block.substring(0, 100) + '...');
                 }
             }
             return parsedContacts;
         }
+
 
         function parseExcel(jsonData) {
             const parsedContacts = [];
@@ -819,19 +906,23 @@
                     favorite: false
                 };
 
+                let hasName = false;
                 for (const key in row) {
                     const mappedKey = headerMap[key.trim()];
                     if (mappedKey) {
                         if (mappedKey === 'favorite') {
                             const val = String(row[key]).toLowerCase();
-                            contact.favorite = (val === 'true' || val === '1');
+                            contact.favorite = (val === 'true' || val === '1' || val === 'yes' || val === 'はい');
                         } else {
                             contact[mappedKey] = String(row[key]);
+                        }
+                        if (mappedKey === 'name' && contact.name.trim() !== '') {
+                            hasName = true;
                         }
                     }
                 }
                 
-                if (contact.name) { // '名前' is mandatory
+                if (hasName) { // '名前' is mandatory
                     parsedContacts.push(contact);
                 } else {
                     console.warn('スキップされた行 (名前がありません):', row);
@@ -841,11 +932,13 @@
         }
 
         function addNewContacts(newContacts) {
+            let addedCount = 0;
             newContacts.forEach(newContact => {
                 // Check if contact with same name and phone already exists to avoid duplicates
                 const exists = contacts.some(c => 
                     c.name === newContact.name && 
-                    c.phone === newContact.phone
+                    c.phone === newContact.phone &&
+                    c.email === newContact.email
                 );
                 if (!exists) {
                     contacts.push({
@@ -854,6 +947,7 @@
                         favorite: newContact.favorite || false, // Preserve favorite status from Excel if present
                         ...newContact
                     });
+                    addedCount++;
                 }
             });
             saveContactsToStorage();
@@ -861,6 +955,12 @@
             updateStats();
             renderGroupFilters();
             updateNoInfoCount(); // 新しい連絡先が追加されたらカウントを更新
+            populateGroupDatalist(); // 新しいグループが追加された可能性があるので更新
+            if (addedCount > 0) {
+                alert(`${addedCount}件の連絡先を追加しました。`);
+            } else {
+                alert('新しい連絡先は追加されませんでした (重複の可能性があります)。');
+            }
         }
 
         function exportContacts() {
@@ -880,7 +980,7 @@ FN:${contact.name}
 ${contact.phone ? `TEL:${contact.phone}` : ''}
 ${contact.email ? `EMAIL:${contact.email}` : ''}
 ${contact.org ? `ORG:${contact.org}` : ''}
-${contact.address ? `ADR:${contact.address.replace(/, /g, ';')}` : ''}
+${contact.address ? `ADR;TYPE=WORK,POSTAL:${contact.address.replace(/, /g, ';')}` : ''}
 ${contact.group ? `CATEGORIES:${contact.group}` : ''}
 ${contact.note ? `NOTE:${contact.note}` : ''}
 END:VCARD`;
@@ -1020,8 +1120,9 @@ END:VCARD`;
         function addContact() {
             currentEditingId = null;
             document.getElementById('modalTitle').textContent = '新規連絡先';
-            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // 元のフォームに戻す
+            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // Restore default form
             document.getElementById('contactForm').reset();
+            populateGroupDatalist(); // Populate datalist for new contact
             document.getElementById('contactModal').style.display = 'block';
         }
 
@@ -1031,7 +1132,7 @@ END:VCARD`;
             
             currentEditingId = id;
             document.getElementById('modalTitle').textContent = '連絡先の編集';
-            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // 元のフォームに戻す
+            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // Restore default form
             document.getElementById('contactName').value = contact.name;
             document.getElementById('contactPhone').value = contact.phone;
             document.getElementById('contactEmail').value = contact.email;
@@ -1039,6 +1140,7 @@ END:VCARD`;
             document.getElementById('contactAddress').value = contact.address;
             document.getElementById('contactGroup').value = contact.group;
             document.getElementById('contactNote').value = contact.note;
+            populateGroupDatalist(); // Populate datalist for editing existing contact
             document.getElementById('contactModal').style.display = 'block';
         }
 
@@ -1049,7 +1151,8 @@ END:VCARD`;
                 applyFiltersAndSort();
                 updateStats();
                 renderGroupFilters();
-                updateNoInfoCount(); // 連絡先が削除されたらカウントを更新
+                updateNoInfoCount();
+                populateGroupDatalist(); // グループが変更された可能性があるので更新
             }
         }
 
@@ -1099,15 +1202,15 @@ END:VCARD`;
             applyFiltersAndSort();
             updateStats();
             renderGroupFilters();
-            updateNoInfoCount(); // 連絡先が追加/編集されたらカウントを更新
+            updateNoInfoCount();
+            populateGroupDatalist(); // グループが変更された可能性があるので更新
             closeModal();
         }
 
         function closeModal() {
             document.getElementById('contactModal').style.display = 'none';
-            // モーダルを閉じる際に、必ず元のフォーム内容に戻す
             document.getElementById('contactForm').innerHTML = originalContactFormHTML;
-            document.getElementById('contactForm').reset(); // フォームをリセット
+            document.getElementById('contactForm').reset();
             currentEditingId = null;
         }
 
@@ -1118,7 +1221,8 @@ END:VCARD`;
                 applyFiltersAndSort();
                 updateStats();
                 renderGroupFilters();
-                updateNoInfoCount(); // 全削除したらカウントもリセット
+                updateNoInfoCount();
+                populateGroupDatalist(); // グループリストもリセット
                 document.getElementById('searchInput').value = '';
                 currentFilter = 'all';
                 document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
@@ -1211,6 +1315,7 @@ END:VCARD`;
                 updateStats();
                 renderGroupFilters();
                 updateNoInfoCount();
+                populateGroupDatalist(); // グループリストも更新
                 alert(`${count}件の連絡先を削除しました。`);
             }
         }
@@ -1223,7 +1328,7 @@ END:VCARD`;
             contacts.forEach(contact => {
                 if (contact.phone) {
                     const cleanPhone = contact.phone.replace(/[^\d]/g, '');
-                    if (cleanPhone) { // クリーンアップ後も電話番号が残っている場合のみ対象
+                    if (cleanPhone) {
                         if (phoneMap.has(cleanPhone)) {
                             phoneMap.get(cleanPhone).push(contact);
                         } else {
@@ -1248,7 +1353,7 @@ END:VCARD`;
         }
 
         function displayDuplicateSelectionModal(duplicates) {
-            const modal = document.getElementById('contactModal');
+            const modal = document.getElementById('contactModal'); // Reuse contactModal
             const modalTitle = document.getElementById('modalTitle');
             const form = document.getElementById('contactForm');
 
@@ -1301,8 +1406,70 @@ END:VCARD`;
                 updateStats();
                 renderGroupFilters();
                 updateNoInfoCount();
+                populateGroupDatalist(); // グループリストも更新
                 closeModal(); // モーダルを閉じる
                 alert(`${idsToDelete.length}件の連絡先を削除しました。`);
+            }
+        }
+
+        // 3. グループ選択用datalistの生成
+        function populateGroupDatalist() {
+            const datalist = document.getElementById('groupOptions');
+            if (!datalist) return; // モーダルが閉じている場合は存在しない
+
+            datalist.innerHTML = '';
+            const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
+            
+            uniqueGroups.forEach(group => {
+                const option = document.createElement('option');
+                option.value = group;
+                datalist.appendChild(option);
+            });
+        }
+
+        // 4. グループ管理モーダル
+        function openGroupManagementModal() {
+            const groupManagementModal = document.getElementById('groupManagementModal');
+            const groupListDiv = document.getElementById('groupList');
+            groupListDiv.innerHTML = '';
+
+            const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
+
+            if (uniqueGroups.length === 0) {
+                groupListDiv.innerHTML = '<p style="text-align: center; color: #718096;">グループはまだありません。</p>';
+            } else {
+                uniqueGroups.forEach(group => {
+                    const div = document.createElement('div');
+                    div.classList.add('group-list-item');
+                    div.innerHTML = `
+                        <span>${escapeHtml(group)}</span>
+                        <button onclick="deleteGroup('${escapeHtml(group)}')"><i class="fas fa-trash-alt"></i></button>
+                    `;
+                    groupListDiv.appendChild(div);
+                });
+            }
+
+            groupManagementModal.style.display = 'block';
+        }
+
+        function closeGroupManagementModal() {
+            document.getElementById('groupManagementModal').style.display = 'none';
+        }
+
+        function deleteGroup(groupName) {
+            if (confirm(`グループ「${groupName}」を削除しますか？このグループに属する連絡先のグループ情報は削除されます。`)) {
+                contacts.forEach(contact => {
+                    if (contact.group === groupName) {
+                        contact.group = ''; // グループ情報を削除
+                    }
+                });
+                saveContactsToStorage();
+                applyFiltersAndSort();
+                updateStats();
+                renderGroupFilters();
+                populateGroupDatalist();
+                openGroupManagementModal(); // モーダルを再表示してリストを更新
+                alert(`グループ「${groupName}」を削除しました。`);
             }
         }
     </script>
