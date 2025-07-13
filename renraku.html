@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VCF/Excel連絡先管理アプリ</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>連絡帳アプリケーション</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* Base Styles */
         * {
             margin: 0;
             padding: 0;
@@ -19,153 +17,131 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
-            display: flex;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
-            display: flex;
-            flex-grow: 1;
-        }
-
-        /* Sidebar Styles */
-        .sidebar {
-            width: 250px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 15px;
-            padding: 20px;
-            margin-right: 20px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            flex-shrink: 0;
-        }
-
-        .sidebar h2 {
-            font-size: 1.5em;
-            color: #4a5568;
-            margin-bottom: 20px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            text-align: center;
-        }
-
-        .sidebar ul {
-            list-style: none;
-        }
-
-        .sidebar ul li {
-            margin-bottom: 10px;
-        }
-
-        .sidebar ul li a {
-            display: block;
-            padding: 10px 15px;
-            border-radius: 10px;
-            text-decoration: none;
-            color: #4a5568;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-
-        .sidebar ul li a:hover,
-        .sidebar ul li a.active {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .sidebar ul li a i {
-            margin-right: 10px;
-        }
-
-        /* Main Content Styles */
-        .main-content {
-            flex-grow: 1;
         }
 
         .header {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
+            border-radius: 20px;
             padding: 30px;
             margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .header h1 {
-            font-size: 2.5em;
             color: #4a5568;
-            text-align: center;
+            font-size: 2.5em;
             margin-bottom: 20px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .upload-section {
             text-align: center;
-            margin-bottom: 30px;
-            display: flex;
-            justify-content: center;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
-
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-        }
-
-        .file-input {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-
-        .file-input-label {
-            display: inline-block;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            padding: 15px 30px;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: bold;
-            transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .file-input-label:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
         }
 
         .controls {
             display: flex;
-            gap: 20px;
             flex-wrap: wrap;
-            justify-content: center;
+            gap: 15px;
             align-items: center;
+            justify-content: center;
             margin-bottom: 20px;
         }
 
-        .search-box {
-            flex: 1;
-            min-width: 250px;
-            max-width: 400px;
-            padding: 12px 20px;
-            border: 2px solid #e2e8f0;
-            border-radius: 25px;
-            font-size: 16px;
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
             transition: all 0.3s ease;
-            background: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-secondary {
+            background: #f7fafc;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #edf2f7;
+            border-color: #cbd5e0;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+            transform: translateY(-2px);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #718096;
+            margin-top: 5px;
+        }
+
+        .main-content {
+            display: flex;
+            gap: 30px;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            transition: border-color 0.3s ease;
         }
 
         .search-box:focus {
@@ -175,70 +151,72 @@
         }
 
         .sort-select {
-            padding: 12px 20px;
+            width: 100%;
+            padding: 12px;
             border: 2px solid #e2e8f0;
-            border-radius: 25px;
-            font-size: 16px;
-            background: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .sort-select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 20px;
+            border-radius: 12px;
             font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
+            margin-bottom: 20px;
+            background: white;
         }
 
-        .btn-primary {
+        .filter-section {
+            margin-bottom: 25px;
+        }
+
+        .filter-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: #f7fafc;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-item:hover {
+            background: #edf2f7;
+            transform: translateX(5px);
+        }
+
+        .filter-item.active {
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
         }
 
-        .btn-secondary {
-            background: #f7fafc;
-            color: #4a5568;
-            border: 2px solid #e2e8f0;
-        }
-
-        .btn-danger {
-            background: linear-gradient(45deg, #fc8181, #f56565);
-            color: white;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        .filter-count {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: 600;
         }
 
         .contacts-grid {
+            flex: 1;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
-            margin-top: 30px;
+            max-height: 800px;
+            overflow-y: auto;
         }
 
         .contact-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
+            border-radius: 20px;
             padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
-            border: 1px solid rgba(255, 255, 255, 0.2);
             position: relative;
         }
 
@@ -247,122 +225,124 @@
             box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
         }
 
-        .favorite-icon {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            font-size: 1.5em;
-            color: #cbd5e0;
-            cursor: pointer;
-            transition: color 0.2s ease;
-        }
-
-        .favorite-icon.favorited {
-            color: #ffc107;
+        .contact-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
         }
 
         .contact-name {
             font-size: 1.3em;
-            font-weight: bold;
+            font-weight: 700;
             color: #2d3748;
-            margin-bottom: 15px;
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin-bottom: 5px;
+        }
+
+        .contact-organization {
+            font-size: 0.9em;
+            color: #718096;
+            margin-bottom: 10px;
+        }
+
+        .favorite-star {
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #cbd5e0;
+            transition: color 0.3s ease;
+        }
+
+        .favorite-star.active {
+            color: #ffd700;
         }
 
         .contact-info {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .contact-info-item {
             display: flex;
             align-items: center;
             gap: 10px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: #f7fafc;
+            border-radius: 10px;
         }
 
-        .contact-info i {
-            color: #718096;
+        .contact-info-item:hover {
+            background: #edf2f7;
         }
 
-        .contact-info .action-button {
-            background: none;
-            border: none;
+        .contact-info-item a {
             color: #667eea;
-            cursor: pointer;
-            font-size: 1.1em;
-            margin-left: 5px;
-            padding: 0;
-            transition: color 0.2s ease;
+            text-decoration: none;
+            flex: 1;
         }
 
-        .contact-info .action-button:hover {
-            color: #4a5568;
+        .contact-info-item a:hover {
+            text-decoration: underline;
         }
 
         .contact-actions {
             display: flex;
             gap: 10px;
-            margin-top: 20px;
+            margin-top: 15px;
         }
 
-        /* Modal Styles */
+        .contact-actions .btn {
+            flex: 1;
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
         .modal {
             display: none;
             position: fixed;
-            z-index: 1000;
-            left: 0;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
             backdrop-filter: blur(5px);
-            overflow-y: auto;
         }
 
         .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: white;
-            margin: 5% auto;
             padding: 30px;
             border-radius: 20px;
             width: 90%;
             max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            animation: modalSlideIn 0.3s ease;
-        }
-
-        @keyframes modalSlideIn {
-            from {
-                transform: translateY(-50px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .modal-title {
             font-size: 1.5em;
-            font-weight: bold;
+            font-weight: 700;
             color: #2d3748;
         }
 
-        .close {
-            font-size: 28px;
-            font-weight: bold;
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5em;
             cursor: pointer;
-            color: #a0aec0;
-            transition: color 0.3s ease;
-        }
-
-        .close:hover {
-            color: #2d3748;
+            color: #718096;
+            padding: 5px;
         }
 
         .form-group {
@@ -372,108 +352,89 @@
         .form-label {
             display: block;
             margin-bottom: 8px;
-            font-weight: bold;
+            font-weight: 600;
             color: #4a5568;
         }
 
-        .form-input, .form-textarea, .form-select { /* Added .form-select */
+        .form-input {
             width: 100%;
             padding: 12px;
             border: 2px solid #e2e8f0;
             border-radius: 10px;
             font-size: 16px;
-            transition: all 0.3s ease;
+            transition: border-color 0.3s ease;
         }
 
-        .form-input:focus, .form-textarea:focus, .form-select:focus { /* Added .form-select */
+        .form-input:focus {
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
-        
+
         .form-textarea {
             resize: vertical;
+            min-height: 80px;
         }
 
-        /* Styles for multiple inputs */
-        .input-group {
+        .multi-input-group {
             display: flex;
             gap: 10px;
-            align-items: center;
             margin-bottom: 10px;
         }
-        .input-group .form-input {
-            flex-grow: 1;
-            margin-bottom: 0;
+
+        .multi-input-group .form-input {
+            flex: 1;
         }
-        .input-group button {
-            background: none;
-            border: 1px solid #e2e8f0;
+
+        .add-btn, .remove-btn {
+            width: 40px;
+            height: 40px;
+            border: none;
             border-radius: 8px;
-            color: #f56565;
-            padding: 8px 12px;
             cursor: pointer;
-            transition: all 0.2s ease;
+            font-size: 1.2em;
+            font-weight: bold;
+            transition: all 0.3s ease;
         }
-        .input-group button:hover {
-            background: #f56565;
+
+        .add-btn {
+            background: #48bb78;
             color: white;
         }
 
-
-        /* Stats Section Styles */
-        .stats {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 20px;
-            flex-wrap: wrap;
+        .add-btn:hover {
+            background: #38a169;
         }
 
-        .stat-item {
-            text-align: center;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 15px 25px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
+        .remove-btn {
+            background: #e53e3e;
+            color: white;
         }
 
-        .stat-number {
-            font-size: 2em;
-            font-weight: bold;
-            color: white; /* Changed for better visibility */
-            display: block;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.3); /* Added for better visibility */
-        }
-
-        .stat-label {
-            color: white; /* Changed for better visibility */
-            font-size: 14px;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.3); /* Added for better visibility */
-        }
-
-        /* Empty State / Loading */
-        .no-contacts {
-            text-align: center;
-            padding: 60px 20px;
-            color: #718096;
-            font-size: 18px;
+        .remove-btn:hover {
+            background: #c53030;
         }
 
         .loading {
-            text-align: center;
-            padding: 40px;
-            color: #4a5568;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #e2e8f0;
+            border-top: 5px solid #667eea;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
         }
 
         @keyframes spin {
@@ -481,62 +442,106 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Duplicate List Specific Styles */
-        #duplicateList label {
-            align-items: flex-start;
+        .duplicate-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
         }
 
-        #duplicateList input[type="checkbox"] {
-            flex-shrink: 0;
-            margin-top: 4px;
+        .duplicate-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 10px;
         }
 
-        /* Group Management Modal Styles */
-        .group-list-item {
+        .duplicate-number {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .duplicate-contact {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .duplicate-contact input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
+        .group-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .group-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px;
-            border-bottom: 1px dashed #e2e8f0;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: #f7fafc;
+            border-radius: 10px;
         }
-        .group-list-item:last-child {
-            border-bottom: none;
-        }
-        .group-list-item span {
-            font-weight: bold;
+
+        .group-name {
+            font-weight: 600;
             color: #4a5568;
         }
-        .group-list-item button {
-            background: none;
-            border: none;
-            color: #f56565;
-            cursor: pointer;
+
+        .group-contact-count {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8em;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #718096;
+        }
+
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+
+        .empty-state-text {
             font-size: 1.2em;
-        }
-        .group-list-item button:hover {
-            color: #c53030;
+            margin-bottom: 10px;
         }
 
-        /* Media Queries for Responsiveness */
-        @media (max-width: 900px) {
-            body {
-                flex-direction: column;
-            }
-
-            .container {
-                flex-direction: column;
-            }
-
-            .sidebar {
-                width: auto;
-                margin-right: 0;
-                margin-bottom: 20px;
-            }
+        .empty-state-subtext {
+            color: #a0aec0;
         }
 
         @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2em;
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            
+            .contacts-grid {
+                grid-template-columns: 1fr;
             }
             
             .controls {
@@ -544,1127 +549,1043 @@
                 align-items: stretch;
             }
             
-            .search-box {
-                min-width: auto;
-                max-width: none;
-            }
-            
-            .contacts-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .contact-actions {
-                flex-direction: column;
-            }
-
-            .upload-section {
-                flex-direction: column;
-                align-items: center;
+            .btn {
+                width: 100%;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="sidebar">
-            <h2><i class="fas fa-filter"></i> フィルタ</h2>
-            <ul>
-                <li><a href="#" class="active" data-filter="all"><i class="fas fa-address-book"></i> すべての連絡先</a></li>
-                <li><a href="#" data-filter="favorites"><i class="fas fa-star"></i> お気に入り</a></li>
-                <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 15px 0;">
-                <li><h3><i class="fas fa-layer-group"></i> グループ</h3></li>
-                <div id="groupFilters">
-                    </div>
-            </ul>
+        <div class="header">
+            <h1>📱 連絡帳アプリケーション</h1>
+            <div class="controls">
+                <button class="btn btn-primary" onclick="document.getElementById('vcf-file').click()">📁 VCFファイルを選択</button>
+                <button class="btn btn-primary" onclick="document.getElementById('excel-file').click()">📂 Excelファイルを選択</button>
+                <button class="btn btn-secondary" onclick="showAddContactModal()">➕ 新規追加</button>
+                <button class="btn btn-secondary" onclick="exportContacts()">💾 エクスポート</button>
+                <button class="btn btn-secondary" onclick="removeIncompleteContacts()">🧹 情報不足削除 (<span id="incomplete-count">0</span>)</button>
+                <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
+                <button class="btn btn-secondary" onclick="showGroupManagement()">👥 グループ管理</button>
+                <button class="btn btn-danger" onclick="clearAllContacts()">🗑️ すべて削除</button>
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-number" id="total-contacts">0</div>
+                    <div class="stat-label">総連絡先数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="displayed-contacts">0</div>
+                    <div class="stat-label">表示中</div>
+                </div>
+            </div>
         </div>
 
         <div class="main-content">
-            <div class="header">
-                <h1>📱 VCF/Excel連絡先管理アプリ</h1>
+            <div class="sidebar">
+                <input type="text" class="search-box" id="search-box" placeholder="🔍 連絡先を検索...">
                 
-                <div class="upload-section">
-                    <div class="file-input-wrapper">
-                        <input type="file" id="vcfFile" class="file-input" accept=".vcf" multiple>
-                        <label for="vcfFile" class="file-input-label">
-                            📁 VCFファイルを選択
-                        </label>
+                <select class="sort-select" id="sort-select">
+                    <option value="name-asc">名前順 (昇順)</option>
+                    <option value="name-desc">名前順 (降順)</option>
+                    <option value="date-new">追加日時 (新しい順)</option>
+                    <option value="date-old">追加日時 (古い順)</option>
+                </select>
+
+                <div class="filter-section">
+                    <div class="filter-title">フィルター</div>
+                    <div class="filter-item active" data-filter="all">
+                        <span>すべて</span>
+                        <span class="filter-count" id="all-count">0</span>
                     </div>
-                     <div class="file-input-wrapper">
-                        <input type="file" id="excelFile" class="file-input" accept=".xlsx">
-                        <label for="excelFile" class="file-input-label">
-                            📂 Excelファイルを選択
-                        </label>
+                    <div class="filter-item" data-filter="favorites">
+                        <span>⭐ お気に入り</span>
+                        <span class="filter-count" id="favorites-count">0</span>
                     </div>
                 </div>
 
-                <div class="controls">
-                    <input type="text" id="searchInput" class="search-box" placeholder="🔍 連絡先を検索...">
-                    <select id="sortSelect" class="sort-select">
-                        <option value="name-asc">名前順 (昇順)</option>
-                        <option value="name-desc">名前順 (降順)</option>
-                        <option value="date-desc">追加日時 (新しい順)</option>
-                        <option value="date-asc">追加日時 (古い順)</option>
-                    </select>
-                    <button class="btn btn-primary" onclick="addContact()">➕ 新規追加</button>
-                    <button class="btn btn-secondary" onclick="exportContacts()">💾 エクスポート</button>
-                    <button class="btn btn-danger" onclick="clearContacts()">🗑️ すべて削除</button>
-                    <button class="btn btn-secondary" onclick="confirmDeleteNoContactInfo()">🧹 情報不足削除 (<span id="noInfoCount">0</span>)</button>
-                    <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
-                    <button class="btn btn-secondary" onclick="openGroupManagementModal()">👥 グループ管理</button>
-                </div>
-
-                <div class="stats">
-                    <div class="stat-item">
-                        <span class="stat-number" id="totalContacts">0</span>
-                        <span class="stat-label">総連絡先数</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="visibleContacts">0</span>
-                        <span class="stat-label">表示中</span>
-                    </div>
+                <div class="filter-section">
+                    <div class="filter-title">グループ</div>
+                    <div id="group-filters"></div>
                 </div>
             </div>
 
-            <div id="loadingArea" class="loading" style="display: none;">
-                <div class="spinner"></div>
-                <p>ファイルを読み込み中...</p>
-            </div>
-
-            <div id="contactsContainer">
-                <div class="no-contacts" id="noContacts">
-                    <h3>📄 連絡先がありません</h3>
-                    <p>VCFまたはExcelファイルをアップロードするか、新規で連絡先を追加してください。</p>
+            <div class="contacts-grid" id="contacts-grid">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📇</div>
+                    <div class="empty-state-text">連絡先がありません</div>
+                    <div class="empty-state-subtext">VCFファイルまたはExcelファイルを読み込むか、新規追加してください</div>
                 </div>
-                <div class="contacts-grid" id="contactsGrid"></div>
             </div>
         </div>
     </div>
 
-    <div id="contactModal" class="modal">
+    <!-- File inputs -->
+    <input type="file" id="vcf-file" class="file-input" accept=".vcf" multiple>
+    <input type="file" id="excel-file" class="file-input" accept=".xlsx,.xls">
+
+    <!-- Contact Modal -->
+    <div id="contact-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title" id="modalTitle">連絡先の編集</h3>
-                <span class="close" onclick="closeModal()">&times;</span>
+                <h2 class="modal-title" id="modal-title">連絡先を追加</h2>
+                <button class="close-btn" onclick="closeModal('contact-modal')">&times;</button>
             </div>
-            <form id="contactForm">
+            <form id="contact-form">
                 <div class="form-group">
-                    <label class="form-label">名前<span style="color: red;">*</span></label>
-                    <input type="text" id="contactName" class="form-input" required>
+                    <label class="form-label">名前 *</label>
+                    <input type="text" class="form-input" id="contact-name" required>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">電話番号</label>
-                    <div id="phoneInputs">
-                        </div>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="addInputField('phone')">電話番号を追加</button>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">メールアドレス</label>
-                    <div id="emailInputs">
-                        </div>
-                    <button type="button" class="btn btn-secondary btn-sm" onclick="addInputField('email')">メールアドレスを追加</button>
-                </div>
+                
                 <div class="form-group">
                     <label class="form-label">組織</label>
-                    <input type="text" id="contactOrg" class="form-input">
+                    <input type="text" class="form-input" id="contact-organization">
                 </div>
+
+                <div class="form-group">
+                    <label class="form-label">電話番号</label>
+                    <div id="phone-inputs">
+                        <div class="multi-input-group">
+                            <input type="tel" class="form-input" placeholder="電話番号を入力">
+                            <button type="button" class="add-btn" onclick="addPhoneInput()">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">メールアドレス</label>
+                    <div id="email-inputs">
+                        <div class="multi-input-group">
+                            <input type="email" class="form-input" placeholder="メールアドレスを入力">
+                            <button type="button" class="add-btn" onclick="addEmailInput()">+</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-label">住所</label>
-                    <input type="text" id="contactAddress" class="form-input">
+                    <textarea class="form-input form-textarea" id="contact-address" placeholder="住所を入力"></textarea>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">グループ</label>
-                    <input type="text" id="contactGroup" class="form-input" list="groupOptions">
-                    <datalist id="groupOptions"></datalist>
+                    <input type="text" class="form-input" id="contact-group" list="group-datalist" placeholder="グループを選択または入力">
+                    <datalist id="group-datalist"></datalist>
                 </div>
+
                 <div class="form-group">
                     <label class="form-label">メモ</label>
-                    <textarea id="contactNote" class="form-textarea" rows="3"></textarea>
+                    <textarea class="form-input form-textarea" id="contact-memo" placeholder="メモを入力"></textarea>
                 </div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
-                    <button type="submit" class="btn btn-primary">保存</button>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="contact-favorite"> お気に入り
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">保存</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <div id="groupManagementModal" class="modal">
+    <!-- Duplicate Phone Modal -->
+    <div id="duplicate-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3 class="modal-title">グループ管理</h3>
-                <span class="close" onclick="closeGroupManagementModal()">&times;</span>
+                <h2 class="modal-title">重複電話番号の検索結果</h2>
+                <button class="close-btn" onclick="closeModal('duplicate-modal')">&times;</button>
             </div>
-            <div id="groupList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; background: #f7fafc;">
+            <div id="duplicate-content">
+                <div class="duplicate-list" id="duplicate-list"></div>
+                <div style="text-align: center;">
+                    <button class="btn btn-danger" onclick="deleteDuplicateContacts()">選択した連絡先を削除</button>
                 </div>
-            <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
-                <button type="button" class="btn btn-secondary" onclick="closeGroupManagementModal()">閉じる</button>
             </div>
         </div>
     </div>
 
+    <!-- Group Management Modal -->
+    <div id="group-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">グループ管理</h2>
+                <button class="close-btn" onclick="closeModal('group-modal')">&times;</button>
+            </div>
+            <div class="group-list" id="group-list"></div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading" class="loading" style="display: none;">
+        <div class="loading-spinner"></div>
+    </div>
 
     <script>
         let contacts = [];
-        let currentEditingId = null;
-        let currentFilter = 'all'; // 'all', 'favorites', or group name
-        let currentSort = 'name-asc'; // 'name-asc', 'name-desc', 'date-asc', 'date-desc'
+        let filteredContacts = [];
+        let currentFilter = 'all';
+        let currentEditingIndex = -1;
 
-        // Initial setup
+        // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
-            loadContactsFromStorage();
+            loadContacts();
             setupEventListeners();
+            renderContacts();
             updateStats();
-            renderGroupFilters();
-            applyFiltersAndSort(); 
-            updateNoInfoCount();
-            populateGroupDatalist(); // Populate datalist on load
         });
 
+        // Setup event listeners
         function setupEventListeners() {
-            document.getElementById('vcfFile').addEventListener('change', handleVcfFileSelect);
-            document.getElementById('excelFile').addEventListener('change', handleExcelFileSelect);
-            document.getElementById('searchInput').addEventListener('input', applyFiltersAndSort);
-            document.getElementById('sortSelect').addEventListener('change', function(e) {
-                currentSort = e.target.value;
-                applyFiltersAndSort();
-            });
-            // Attach form submit listener to the modal form
-            document.getElementById('contactForm').addEventListener('submit', handleFormSubmit);
+            document.getElementById('vcf-file').addEventListener('change', handleVCFFiles);
+            document.getElementById('excel-file').addEventListener('change', handleExcelFile);
+            document.getElementById('search-box').addEventListener('input', handleSearch);
+            document.getElementById('sort-select').addEventListener('change', handleSort);
+            document.getElementById('contact-form').addEventListener('submit', handleContactSubmit);
             
-            // Close modals on outside click
-            document.getElementById('contactModal').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    closeModal();
-                }
-            });
-            document.getElementById('groupManagementModal').addEventListener('click', function(e) {
-                if (e.target === this) {
-                    closeGroupManagementModal();
-                }
-            });
-
-
-            // Sidebar filter clicks
-            document.querySelectorAll('.sidebar ul li a').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-                    currentFilter = this.dataset.filter;
-                    applyFiltersAndSort();
+            // Filter event listeners
+            document.querySelectorAll('.filter-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const filter = this.dataset.filter;
+                    setActiveFilter(filter);
                 });
             });
         }
 
-        // --- File Handling Functions ---
+        // Load contacts from localStorage
+        function loadContacts() {
+            const stored = localStorage.getItem('contacts');
+            if (stored) {
+                contacts = JSON.parse(stored);
+                // Migrate old format if needed
+                contacts = contacts.map(contact => ({
+                    id: contact.id || Date.now() + Math.random(),
+                    name: contact.name || '',
+                    organization: contact.organization || '',
+                    phones: contact.phones || [],
+                    emails: contact.emails || [],
+                    address: contact.address || '',
+                    group: contact.group || '',
+                    memo: contact.memo || '',
+                    favorite: contact.favorite || false,
+                    createdAt: contact.createdAt || new Date().toISOString()
+                }));
+                saveContacts();
+            }
+        }
 
+        // Save contacts to localStorage
+        function saveContacts() {
+            localStorage.setItem('contacts', JSON.stringify(contacts));
+        }
+
+        // Show loading overlay
         function showLoading() {
-            document.getElementById('loadingArea').style.display = 'block';
-            document.getElementById('contactsContainer').style.display = 'none';
+            document.getElementById('loading').style.display = 'flex';
         }
 
+        // Hide loading overlay
         function hideLoading() {
-            document.getElementById('loadingArea').style.display = 'none';
-            document.getElementById('contactsContainer').style.display = 'block';
+            document.getElementById('loading').style.display = 'none';
         }
 
-        async function handleVcfFileSelect(event) {
-            const files = event.target.files;
+        // Handle VCF files
+        async function handleVCFFiles(event) {
+            const files = Array.from(event.target.files);
             if (files.length === 0) return;
 
             showLoading();
-
-            const newContacts = [];
-            for (const file of files) {
-                try {
-                    const vcfContent = await readFileAsText(file);
-                    const parsedContacts = parseVCF(vcfContent);
-                    newContacts.push(...parsedContacts);
-                } catch (error) {
-                    console.error(`VCFファイルの読み込みエラー (${file.name}):`, error);
-                    alert(`VCFファイル '${file.name}' の読み込みに失敗しました。ファイルが破損しているか、形式が正しくない可能性があります。`);
+            
+            try {
+                for (const file of files) {
+                    const text = await file.text();
+                    const vcfContacts = parseVCF(text);
+                    contacts.push(...vcfContacts);
                 }
+                
+                saveContacts();
+                renderContacts();
+                updateStats();
+                alert(`${files.length}個のVCFファイルから連絡先を読み込みました。`);
+            } catch (error) {
+                alert('VCFファイルの読み込みに失敗しました: ' + error.message);
+            } finally {
+                hideLoading();
+                event.target.value = '';
             }
-            addNewContacts(newContacts);
-            hideLoading();
-            event.target.value = ''; // Clear file input
         }
 
-        async function handleExcelFileSelect(event) {
+        // Parse VCF content
+        function parseVCF(vcfContent) {
+            const vcfContacts = [];
+            const vcardBlocks = vcfContent.split('BEGIN:VCARD');
+            
+            for (let i = 1; i < vcardBlocks.length; i++) {
+                const block = 'BEGIN:VCARD' + vcardBlocks[i];
+                try {
+                    const contact = parseVCardBlock(block);
+                    if (contact.name) {
+                        vcfContacts.push(contact);
+                    }
+                } catch (error) {
+                    console.warn('Skipping invalid VCard block:', error);
+                }
+            }
+            
+            return vcfContacts;
+        }
+
+        // Parse individual VCard block
+        function parseVCardBlock(block) {
+            const lines = block.split('\n').map(line => line.trim()).filter(line => line);
+            let unfoldedLines = [];
+            
+            // Handle line folding
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i];
+                while (i + 1 < lines.length && lines[i + 1].startsWith(' ')) {
+                    line += lines[i + 1].substring(1);
+                    i++;
+                }
+                unfoldedLines.push(line);
+            }
+            
+            const contact = {
+                id: Date.now() + Math.random(),
+                name: '',
+                organization: '',
+                phones: [],
+                emails: [],
+                address: '',
+                group: '',
+                memo: '',
+                favorite: false,
+                createdAt: new Date().toISOString()
+            };
+            
+            for (const line of unfoldedLines) {
+                const colonIndex = line.indexOf(':');
+                if (colonIndex === -1) continue;
+                
+                const property = line.substring(0, colonIndex).toUpperCase();
+                const value = line.substring(colonIndex + 1);
+                
+                if (property.startsWith('FN')) {
+                    contact.name = value;
+                } else if (property.startsWith('N') && !contact.name) {
+                    const parts = value.split(';').filter(part => part);
+                    contact.name = parts.join(' ').trim();
+                } else if (property.startsWith('ORG')) {
+                    contact.organization = value;
+                } else if (property.startsWith('TEL')) {
+                    const phone = value.replace(/[^\d\+\-\(\)\s]/g, '');
+                    if (phone) contact.phones.push(phone);
+                } else if (property.startsWith('EMAIL')) {
+                    if (value) contact.emails.push(value);
+                } else if (property.startsWith('ADR')) {
+                    const addressParts = value.split(';').filter(part => part);
+                    contact.address = addressParts.join(', ');
+                } else if (property.startsWith('CATEGORIES')) {
+                    contact.group = value;
+                } else if (property.startsWith('NOTE')) {
+                    contact.memo = value;
+                }
+            }
+            
+            return contact;
+        }
+
+        // Handle Excel file
+        async function handleExcelFile(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             showLoading();
-
+            
             try {
-                const data = await readFileAsArrayBuffer(file);
-                const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet);
-
-                const newContacts = parseExcel(json);
-                addNewContacts(newContacts);
+                const data = await file.arrayBuffer();
+                const workbook = XLSX.read(data, { type: 'array' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                const excelContacts = parseExcelData(jsonData);
+                contacts.push(...excelContacts);
+                
+                saveContacts();
+                renderContacts();
+                updateStats();
+                alert(`Excelファイルから${excelContacts.length}件の連絡先を読み込みました。`);
             } catch (error) {
-                console.error('Excelファイルの読み込みエラー:', error);
-                alert('Excelファイルの読み込みに失敗しました。正しい形式のファイルか確認してください。');
+                alert('Excelファイルの読み込みに失敗しました: ' + error.message);
             } finally {
                 hideLoading();
-                event.target.value = ''; // Clear file input
+                event.target.value = '';
             }
         }
 
-        function readFileAsText(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = (e) => reject(e);
-                reader.readAsText(file);
-            });
-        }
-
-        function readFileAsArrayBuffer(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = (e) => reject(e);
-                reader.readAsArrayBuffer(file);
-            });
-        }
-
-
-        function parseVCF(vcfContent) {
-            const parsedContacts = [];
-            // Use non-greedy regex with DOTALL flag (s) to match across newlines for BEGIN:VCARD...END:VCARD blocks
-            const vcardBlocks = vcfContent.match(/BEGIN:VCARD[\s\S]*?END:VCARD/gi);
-
-            if (!vcardBlocks) {
-                console.warn("No VCard blocks found in the VCF content.");
-                return [];
-            }
+        // Parse Excel data
+        function parseExcelData(data) {
+            const excelContacts = [];
             
-            for (const block of vcardBlocks) {
-                const lines = block.split(/[\r\n]+/).map(line => line.trim());
-                
+            for (const row of data) {
                 const contact = {
+                    id: Date.now() + Math.random(),
                     name: '',
-                    phone: [], // Now an array
-                    email: [], // Now an array
-                    org: '',
+                    organization: '',
+                    phones: [],
+                    emails: [],
                     address: '',
-                    note: '',
                     group: '',
+                    memo: '',
+                    favorite: false,
+                    createdAt: new Date().toISOString()
                 };
                 
-                let lastKey = '';
-                let lastValue = ''; // Store value for folded lines
-
-                for (let i = 0; i < lines.length; i++) {
-                    let line = lines[i];
-
-                    if (line.startsWith(' ') || line.startsWith('\t')) {
-                        // Handle folded lines: append to the last processed value
-                        if (lastKey && lastValue !== undefined) {
-                            lastValue += line.trim();
-                            // Update the last added item in array properties
-                            if (lastKey.startsWith('TEL')) contact.phone[contact.phone.length - 1] = lastValue;
-                            else if (lastKey.startsWith('EMAIL')) contact.email[contact.email.length - 1] = lastValue;
-                            else if (lastKey.startsWith('FN')) contact.name = lastValue;
-                            else if (lastKey.startsWith('N')) {
-                                if (!contact.name) { // Only update if FN wasn't set
-                                    const nameParts = lastValue.split(';');
-                                    contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim();
-                                    if (!contact.name) contact.name = lastValue;
-                                }
-                            }
-                            else if (lastKey.startsWith('ORG')) contact.org = lastValue;
-                            else if (lastKey.startsWith('ADR')) contact.address = lastValue;
-                            else if (lastKey.startsWith('NOTE')) contact.note = lastValue;
-                            else if (lastKey.startsWith('CATEGORIES') || lastKey.startsWith('X-GROUP')) contact.group = lastValue;
-                        }
-                        continue; // Go to next line
-                    }
-
-                    // Process new line
-                    const parts = line.split(':');
-                    if (parts.length < 2) {
-                        if (line !== 'BEGIN:VCARD' && line !== 'END:VCARD') {
-                            // console.warn("Skipping malformed VCF line:", line);
-                        }
-                        lastKey = ''; // Reset lastKey as this wasn't a key-value pair
-                        lastValue = '';
-                        continue;
-                    }
-
-                    let keyWithParams = parts[0];
-                    let value = parts.slice(1).join(':').trim();
-                    const key = keyWithParams.split(';')[0].toUpperCase();
-                    
-                    switch (key) {
-                        case 'FN':
-                            contact.name = value;
-                            break;
-                        case 'N':
-                            if (!contact.name) { // Fallback to N if FN is not present
-                                // N field usually comes as "Family;Given;Middle;Prefix;Suffix"
-                                const nameParts = value.split(';');
-                                contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim();
-                                if (!contact.name) contact.name = value; // If still empty, use full N value
-                            }
-                            break;
-                        case 'TEL':
-                            contact.phone.push(value);
-                            break;
-                        case 'EMAIL':
-                            contact.email.push(value);
-                            break;
-                        case 'ORG':
-                            contact.org = value;
-                            break;
-                        case 'ADR':
-                            // ADR field usually comes as "POBox;ExtAdd;Street;City;State;PostalCode;Country"
-                            // Store as comma-separated for internal use for simplicity.
-                            const addressParts = value.split(';');
-                            contact.address = addressParts.filter(Boolean).join(', '); 
-                            break;
-                        case 'NOTE':
-                            contact.note = value;
-                            break;
-                        case 'CATEGORIES':
-                        case 'X-GROUP': // Common custom field for group
-                            contact.group = value;
-                            break;
-                    }
-                    lastKey = keyWithParams; // Store the full key with parameters for folded lines
-                    lastValue = value; // Store the value for folded lines
-                }
+                // Extract name
+                contact.name = row['名前'] || row['氏名'] || row['Name'] || '';
+                if (!contact.name) continue; // Skip rows without names
                 
-                // Clean up empty arrays
-                contact.phone = contact.phone.filter(p => p.trim() !== '');
-                contact.email = contact.email.filter(e => e.trim() !== '');
-
-                if (contact.name) {
-                    parsedContacts.push(contact);
-                } else {
-                    console.warn("Skipping VCard block (no name found):", block.substring(0, Math.min(block.length, 100)) + '...');
-                }
-            }
-            return parsedContacts;
-        }
-
-
-        function parseExcel(jsonData) {
-            const parsedContacts = [];
-            const headerMap = {
-                '名前': 'name',
-                '組織': 'org',
-                '住所': 'address',
-                'グループ': 'group',
-                'メモ': 'note',
-                'お気に入り': 'favorite'
-            };
-
-            jsonData.forEach(row => {
-                const contact = {
-                    name: '',
-                    phone: [],
-                    email: [],
-                    org: '',
-                    address: '',
-                    note: '',
-                    group: '',
-                    favorite: false
-                };
-
-                let hasName = false;
-                for (const key in row) {
-                    const trimmedKey = key.trim();
-                    const value = String(row[key]).trim(); // Ensure value is a string and trimmed
-
-                    if (headerMap[trimmedKey]) {
-                        if (headerMap[trimmedKey] === 'favorite') {
-                            contact.favorite = (value.toLowerCase() === 'true' || value === '1' || value.toLowerCase() === 'yes' || value.toLowerCase() === 'はい');
-                        } else {
-                            contact[headerMap[trimmedKey]] = value;
-                        }
-                        if (headerMap[trimmedKey] === 'name' && contact.name) {
-                            hasName = true;
-                        }
-                    } else if (trimmedKey.startsWith('電話番号')) {
-                        if (value) contact.phone.push(value);
-                    } else if (trimmedKey.startsWith('メールアドレス') || trimmedKey.startsWith('メール')) {
-                        if (value) contact.email.push(value);
+                // Extract organization
+                contact.organization = row['組織'] || row['会社'] || row['Organization'] || '';
+                
+                // Extract phones
+                const phoneFields = ['電話番号', '電話番号1', '電話番号2', '電話', 'Phone', 'Phone1', 'Phone2'];
+                for (const field of phoneFields) {
+                    if (row[field]) {
+                        const phone = String(row[field]).replace(/[^\d\+\-\(\)\s]/g, '');
+                        if (phone) contact.phones.push(phone);
                     }
                 }
                 
-                if (hasName) { // '名前' is mandatory
-                    parsedContacts.push(contact);
-                } else {
-                    console.warn('スキップされた行 (名前がありません):', row);
+                // Extract emails
+                const emailFields = ['メールアドレス', 'メールアドレス1', 'メールアドレス2', 'メール', 'Email', 'Email1', 'Email2'];
+                for (const field of emailFields) {
+                    if (row[field]) {
+                        contact.emails.push(String(row[field]));
+                    }
                 }
-            });
-            return parsedContacts;
-        }
-
-        function addNewContacts(newContacts) {
-            let addedCount = 0;
-            newContacts.forEach(newContact => {
-                // Ensure phone and email are arrays, even if they come from VCF/Excel as empty strings or null
-                newContact.phone = Array.isArray(newContact.phone) ? newContact.phone.filter(p => p.trim() !== '') : [];
-                newContact.email = Array.isArray(newContact.email) ? newContact.email.filter(e => e.trim() !== '') : [];
-
-                // Check if contact with same name and (any) phone/email already exists to avoid duplicates
-                const exists = contacts.some(c => 
-                    c.name === newContact.name && 
-                    // Compare sorted phone/email arrays for robust duplicate detection
-                    JSON.stringify(c.phone.sort()) === JSON.stringify(newContact.phone.sort()) &&
-                    JSON.stringify(c.email.sort()) === JSON.stringify(newContact.email.sort())
-                );
-                if (!exists) {
-                    contacts.push({
-                        id: generateId(),
-                        timestamp: Date.now(),
-                        favorite: newContact.favorite || false,
-                        ...newContact
-                    });
-                    addedCount++;
-                }
-            });
-            saveContactsToStorage();
-            applyFiltersAndSort();
-            updateStats();
-            renderGroupFilters();
-            updateNoInfoCount(); // 新しい連絡先が追加されたらカウントを更新
-            populateGroupDatalist(); // 新しいグループが追加された可能性があるので更新
-            if (addedCount > 0) {
-                alert(`${addedCount}件の連絡先を追加しました。`);
-            } else {
-                alert('新しい連絡先は追加されませんでした (重複の可能性があります)。');
-            }
-        }
-
-        function exportContacts() {
-            if (contacts.length === 0) {
-                alert('エクスポートする連絡先がありません。');
-                return;
-            }
-            
-            // Determine which contacts to export (filtered/sorted view)
-            const contactsToExport = getFilteredAndSortedContacts();
-
-            // Create VCF content
-            const vcfContent = contactsToExport.map(contact => {
-                if (!contact.name) { // VCF requires FN (Full Name)
-                    console.warn("Skipping contact without a name for VCF export:", contact);
-                    return ''; // Skip this contact
-                }
-
-                let vcard = `BEGIN:VCARD
-VERSION:3.0
-FN:${contact.name}`; // FN is mandatory
-
-                // Add phones
-                (contact.phone || []).forEach(p => {
-                    if (p) vcard += `\nTEL:${p}`;
-                });
-                // Add emails
-                (contact.email || []).forEach(e => {
-                    if (e) vcard += `\nEMAIL:${e}`;
-                });
                 
-                if (contact.org) vcard += `\nORG:${contact.org}`;
-                // ADR field should be semi-colon separated parts according to VCF spec
-                // POBox;ExtAdd;Street;City;State;PostalCode;Country
-                // Assuming contact.address might be comma-separated, convert it.
-                if (contact.address) {
-                    // Simple conversion: replace commas with semicolons. Might need more complex logic for full spec adherence.
-                    const adrValue = contact.address.split(', ').join(';'); 
-                    vcard += `\nADR;TYPE=WORK,POSTAL:${adrValue}`;
-                }
-                if (contact.group) vcard += `\nCATEGORIES:${contact.group}`;
-                if (contact.note) vcard += `\nNOTE:${contact.note}`;
+                // Extract address
+                contact.address = row['住所'] || row['Address'] || '';
                 
-                vcard += `\nEND:VCARD`;
-                return vcard;
-            }).filter(Boolean).join('\n\n'); // Filter out empty strings from skipped contacts
-            
-            // Create Excel content
-            const excelData = contactsToExport.map(contact => {
-                const row = {
-                    '名前': contact.name,
-                    '組織': contact.org,
-                    '住所': contact.address,
-                    'グループ': contact.group,
-                    'メモ': contact.note,
-                    'お気に入り': contact.favorite ? 'TRUE' : 'FALSE'
-                };
+                // Extract group
+                contact.group = row['グループ'] || row['Group'] || '';
                 
-                // Add phone numbers dynamically
-                (contact.phone || []).forEach((p, index) => {
-                    row[`電話番号${index > 0 ? index + 1 : ''}`] = p;
-                });
-                // Add email addresses dynamically
-                (contact.email || []).forEach((e, index) => {
-                    row[`メールアドレス${index > 0 ? index + 1 : ''}`] = e;
-                });
-                return row;
-            });
-
-            const ws = XLSX.utils.json_to_sheet(excelData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Contacts");
-            
-            // Download files
-            const date = new Date().toISOString().slice(0, 10);
-
-            // VCF download
-            if (vcfContent) { // Only download if there's content
-                const vcfBlob = new Blob([vcfContent], { type: 'text/vcard;charset=utf-8' });
-                const vcfUrl = URL.createObjectURL(vcfBlob);
-                const vcfA = document.createElement('a');
-                vcfA.href = vcfUrl;
-                vcfA.download = `連絡先_${date}.vcf`;
-                vcfA.click();
-                URL.revokeObjectURL(vcfUrl);
-            } else {
-                alert('VCFエクスポート用の名前のある連絡先が見つかりませんでした。');
-            }
-
-            // Excel download
-            XLSX.writeFile(wb, `連絡先_${date}.xlsx`);
-        }
-
-        // --- Utility Functions ---
-
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
-        }
-
-        function renderContacts(contactsToRender = contacts) {
-            const grid = document.getElementById('contactsGrid');
-            const noContacts = document.getElementById('noContacts');
-            
-            if (contactsToRender.length === 0) {
-                grid.innerHTML = '';
-                noContacts.style.display = 'block';
-                document.getElementById('visibleContacts').textContent = 0; // Update visible count
-                return;
+                // Extract memo
+                contact.memo = row['メモ'] || row['備考'] || row['Note'] || row['Memo'] || '';
+                
+                // Extract favorite
+                const favoriteValue = row['お気に入り'] || row['Favorite'] || '';
+                contact.favorite = ['TRUE', '1', 'YES', 'はい', 'true', 'True'].includes(String(favoriteValue));
+                
+                excelContacts.push(contact);
             }
             
-            noContacts.style.display = 'none';
+            return excelContacts;
+        }
+
+        // Handle search
+        function handleSearch() {
+            const searchTerm = document.getElementById('search-box').value.toLowerCase();
+            applyFilters(searchTerm);
+        }
+
+        // Handle sort
+        function handleSort() {
+            const sortBy = document.getElementById('sort-select').value;
+            sortContacts(sortBy);
+        }
+
+        // Apply filters
+        function applyFilters(searchTerm = '') {
+            let filtered = contacts;
             
-            grid.innerHTML = contactsToRender.map(contact => `
-                <div class="contact-card">
-                    <i class="far fa-star favorite-icon ${contact.favorite ? 'fas favorited' : ''}" onclick="toggleFavorite('${contact.id}')"></i>
-                    <div class="contact-name">${escapeHtml(contact.name)}</div>
-                    ${(contact.phone || []).map(p => p ? `<div class="contact-info"><i class="fas fa-phone"></i> ${escapeHtml(p)} <button class="action-button" onclick="callNumber('${escapeHtml(p)}')"><i class="fas fa-phone-alt"></i></button></div>` : '').join('')}
-                    ${(contact.email || []).map(e => e ? `<div class="contact-info"><i class="fas fa-envelope"></i> ${escapeHtml(e)} <button class="action-button" onclick="sendEmail('${escapeHtml(e)}')"><i class="fas fa-paper-plane"></i></button></div>` : '').join('')}
-                    ${contact.org ? `<div class="contact-info"><i class="fas fa-building"></i> ${escapeHtml(contact.org)}</div>` : ''}
-                    ${contact.address ? `<div class="contact-info"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(contact.address)}</div>` : ''}
-                    ${contact.group ? `<div class="contact-info"><i class="fas fa-tags"></i> ${escapeHtml(contact.group)}</div>` : ''}
-                    ${contact.note ? `<div class="contact-info"><i class="fas fa-sticky-note"></i> ${escapeHtml(contact.note)}</div>` : ''}
-                    <div class="contact-actions">
-                        <button class="btn btn-primary" onclick="editContact('${contact.id}')">編集</button>
-                        <button class="btn btn-danger" onclick="deleteContact('${contact.id}')">削除</button>
-                    </div>
-                </div>
-            `).join('');
-            document.getElementById('visibleContacts').textContent = contactsToRender.length; // Update visible count
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function callNumber(phoneNumber) {
-            const cleanNumber = phoneNumber.replace(/[^\d+]/g, ''); 
-            window.location.href = `tel:${cleanNumber}`;
-        }
-
-        function sendEmail(emailAddress) {
-            window.location.href = `mailto:${emailAddress}`;
-        }
-
-        function getFilteredAndSortedContacts() {
-            let filteredContacts = [...contacts];
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-
-            // Search filter
+            // Apply search filter
             if (searchTerm) {
-                filteredContacts = filteredContacts.filter(contact => 
-                    contact.name.toLowerCase().includes(searchTerm) ||
-                    (contact.phone || []).some(p => p.includes(searchTerm)) ||
-                    (contact.email || []).some(e => e.toLowerCase().includes(searchTerm)) ||
-                    contact.org.toLowerCase().includes(searchTerm) ||
-                    contact.address.toLowerCase().includes(searchTerm) ||
-                    contact.note.toLowerCase().includes(searchTerm) ||
-                    contact.group.toLowerCase().includes(searchTerm)
-                );
+                filtered = filtered.filter(contact => {
+                    return contact.name.toLowerCase().includes(searchTerm) ||
+                           contact.organization.toLowerCase().includes(searchTerm) ||
+                           contact.phones.some(phone => phone.includes(searchTerm)) ||
+                           contact.emails.some(email => email.toLowerCase().includes(searchTerm)) ||
+                           contact.address.toLowerCase().includes(searchTerm) ||
+                           contact.group.toLowerCase().includes(searchTerm) ||
+                           contact.memo.toLowerCase().includes(searchTerm);
+                });
             }
-
-            // Group/Favorite filter
+            
+            // Apply category filter
             if (currentFilter === 'favorites') {
-                filteredContacts = filteredContacts.filter(contact => contact.favorite);
+                filtered = filtered.filter(contact => contact.favorite);
             } else if (currentFilter !== 'all') {
-                filteredContacts = filteredContacts.filter(contact => contact.group.toLowerCase() === currentFilter.toLowerCase());
+                filtered = filtered.filter(contact => contact.group === currentFilter);
             }
+            
+            filteredContacts = filtered;
+            sortContacts(document.getElementById('sort-select').value);
+        }
 
-            // Sort
-            switch (currentSort) {
+        // Sort contacts
+        function sortContacts(sortBy) {
+            switch (sortBy) {
                 case 'name-asc':
                     filteredContacts.sort((a, b) => a.name.localeCompare(b.name));
                     break;
                 case 'name-desc':
                     filteredContacts.sort((a, b) => b.name.localeCompare(a.name));
                     break;
-                case 'date-asc':
-                    filteredContacts.sort((a, b) => a.timestamp - b.timestamp);
+                case 'date-new':
+                    filteredContacts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
                     break;
-                case 'date-desc':
-                    filteredContacts.sort((a, b) => b.timestamp - a.timestamp);
+                case 'date-old':
+                    filteredContacts.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
                     break;
             }
-            return filteredContacts;
+            renderContacts();
         }
 
-        function addInputField(type, value = '') {
-            const container = type === 'phone' ? document.getElementById('phoneInputs') : document.getElementById('emailInputs');
-            const newDiv = document.createElement('div');
-            newDiv.classList.add('input-group');
-            newDiv.innerHTML = `
-                <input type="${type === 'phone' ? 'tel' : 'email'}" class="form-input contact-${type}-input" value="${escapeHtml(value)}">
-                <button type="button" onclick="removeInputField(this)">-</button>
-            `;
-            container.appendChild(newDiv);
+        // Set active filter
+        function setActiveFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+            applyFilters(document.getElementById('search-box').value.toLowerCase());
         }
 
-        function removeInputField(button) {
-            const inputGroup = button.parentNode;
-            const container = inputGroup.parentNode;
-            inputGroup.remove();
-            // Ensure at least one input field remains if all are removed
-            if (container.children.length === 0) {
-                addInputField(container.id === 'phoneInputs' ? 'phone' : 'email');
-            }
-        }
-
-        function addContact() {
-            currentEditingId = null;
-            document.getElementById('modalTitle').textContent = '新規連絡先';
-            document.getElementById('contactForm').reset();
+        // Render contacts
+        function renderContacts() {
+            const grid = document.getElementById('contacts-grid');
             
-            // Clear and add a single phone/email input field
-            document.getElementById('phoneInputs').innerHTML = '';
-            addInputField('phone');
-
-            document.getElementById('emailInputs').innerHTML = '';
-            addInputField('email');
-
-            document.getElementById('contactName').value = '';
-            document.getElementById('contactOrg').value = '';
-            document.getElementById('contactAddress').value = '';
-            document.getElementById('contactGroup').value = '';
-            document.getElementById('contactNote').value = '';
-
-            populateGroupDatalist();
-            document.getElementById('contactModal').style.display = 'block';
-        }
-
-        function editContact(id) {
-            const contact = contacts.find(c => c.id === id);
-            if (!contact) return;
-            
-            currentEditingId = id;
-            document.getElementById('modalTitle').textContent = '連絡先の編集';
-            
-            document.getElementById('contactName').value = contact.name;
-            document.getElementById('contactOrg').value = contact.org;
-            document.getElementById('contactAddress').value = contact.address;
-            document.getElementById('contactGroup').value = contact.group;
-            document.getElementById('contactNote').value = contact.note;
-
-            const phoneInputsDiv = document.getElementById('phoneInputs');
-            phoneInputsDiv.innerHTML = '';
-            if (contact.phone && contact.phone.length > 0) {
-                contact.phone.forEach(p => addInputField('phone', p));
-            } else {
-                addInputField('phone'); // Add a default empty one if none exist
-            }
-
-            const emailInputsDiv = document.getElementById('emailInputs');
-            emailInputsDiv.innerHTML = '';
-            if (contact.email && contact.email.length > 0) {
-                contact.email.forEach(e => addInputField('email', e));
-            } else {
-                addInputField('email'); // Add a default empty one if none exist
-            }
-            
-            populateGroupDatalist();
-            document.getElementById('contactModal').style.display = 'block';
-        }
-
-        function deleteContact(id) {
-            if (confirm('この連絡先を削除しますか？')) {
-                contacts = contacts.filter(c => c.id !== id);
-                saveContactsToStorage();
-                applyFiltersAndSort();
-                updateStats();
-                renderGroupFilters();
-                updateNoInfoCount();
-                populateGroupDatalist(); // グループが変更された可能性があるので更新
-            }
-        }
-
-        function toggleFavorite(id) {
-            const contact = contacts.find(c => c.id === id);
-            if (contact) {
-                contact.favorite = !contact.favorite;
-                saveContactsToStorage();
-                applyFiltersAndSort();
-                updateStats();
-            }
-        }
-
-        function handleFormSubmit(e) {
-            e.preventDefault();
-            
-            const phones = Array.from(document.querySelectorAll('.contact-phone-input'))
-                                .map(input => input.value.trim())
-                                .filter(value => value !== '');
-            const emails = Array.from(document.querySelectorAll('.contact-email-input'))
-                                .map(input => input.value.trim())
-                                .filter(value => value !== '');
-
-            const formData = {
-                name: document.getElementById('contactName').value.trim(),
-                phone: phones,
-                email: emails,
-                org: document.getElementById('contactOrg').value.trim(),
-                address: document.getElementById('contactAddress').value.trim(),
-                group: document.getElementById('contactGroup').value.trim(),
-                note: document.getElementById('contactNote').value.trim()
-            };
-
-            if (!formData.name) {
-                alert('名前は必須項目です。');
+            if (filteredContacts.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📇</div>
+                        <div class="empty-state-text">${contacts.length === 0 ? '連絡先がありません' : '該当する連絡先が見つかりません'}</div>
+                        <div class="empty-state-subtext">${contacts.length === 0 ? 'VCFファイルまたはExcelファイルを読み込むか、新規追加してください' : '検索条件を変更してください'}</div>
+                    </div>
+                `;
                 return;
             }
             
-            if (currentEditingId) {
-                const contactIndex = contacts.findIndex(c => c.id === currentEditingId);
-                if (contactIndex !== -1) {
-                    contacts[contactIndex] = { ...contacts[contactIndex], ...formData };
-                }
-            } else {
-                contacts.push({
-                    id: generateId(),
-                    timestamp: Date.now(),
-                    favorite: false,
-                    ...formData
+            grid.innerHTML = filteredContacts.map((contact, index) => `
+                <div class="contact-card">
+                    <div class="contact-header">
+                        <div>
+                            <div class="contact-name">${escapeHtml(contact.name)}</div>
+                            ${contact.organization ? `<div class="contact-organization">${escapeHtml(contact.organization)}</div>` : ''}
+                        </div>
+                        <div class="favorite-star ${contact.favorite ? 'active' : ''}" onclick="toggleFavorite(${contacts.indexOf(contact)})">
+                            ⭐
+                        </div>
+                    </div>
+                    
+                    <div class="contact-info">
+                        ${contact.phones.map(phone => `
+                            <div class="contact-info-item">
+                                <span>📞</span>
+                                <a href="tel:${phone}">${escapeHtml(phone)}</a>
+                            </div>
+                        `).join('')}
+                        
+                        ${contact.emails.map(email => `
+                            <div class="contact-info-item">
+                                <span>✉️</span>
+                                <a href="mailto:${email}">${escapeHtml(email)}</a>
+                            </div>
+                        `).join('')}
+                        
+                        ${contact.address ? `
+                            <div class="contact-info-item">
+                                <span>📍</span>
+                                <span>${escapeHtml(contact.address)}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${contact.group ? `
+                            <div class="contact-info-item">
+                                <span>👥</span>
+                                <span>${escapeHtml(contact.group)}</span>
+                            </div>
+                        ` : ''}
+                        
+                        ${contact.memo ? `
+                            <div class="contact-info-item">
+                                <span>📝</span>
+                                <span>${escapeHtml(contact.memo)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <div class="contact-actions">
+                        <button class="btn btn-secondary" onclick="editContact(${contacts.indexOf(contact)})">編集</button>
+                        <button class="btn btn-danger" onclick="deleteContact(${contacts.indexOf(contact)})">削除</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            updateStats();
+            updateGroupFilters();
+        }
+
+        // Update statistics
+        function updateStats() {
+            document.getElementById('total-contacts').textContent = contacts.length;
+            document.getElementById('displayed-contacts').textContent = filteredContacts.length;
+            
+            // Update filter counts
+            document.getElementById('all-count').textContent = contacts.length;
+            document.getElementById('favorites-count').textContent = contacts.filter(c => c.favorite).length;
+            
+            // Update incomplete contacts count
+            const incompleteCount = contacts.filter(c => c.phones.length === 0 && c.emails.length === 0).length;
+            document.getElementById('incomplete-count').textContent = incompleteCount;
+        }
+
+        // Update group filters
+        function updateGroupFilters() {
+            const groupsContainer = document.getElementById('group-filters');
+            const groups = [...new Set(contacts.map(c => c.group).filter(g => g))];
+            
+            groupsContainer.innerHTML = groups.map(group => {
+                const count = contacts.filter(c => c.group === group).length;
+                return `
+                    <div class="filter-item" data-filter="${escapeHtml(group)}">
+                        <span>${escapeHtml(group)}</span>
+                        <span class="filter-count">${count}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // Add click listeners to group filters
+            groupsContainer.querySelectorAll('.filter-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    setActiveFilter(this.dataset.filter);
                 });
+            });
+            
+            // Update group datalist
+            const datalist = document.getElementById('group-datalist');
+            datalist.innerHTML = groups.map(group => `<option value="${escapeHtml(group)}">`).join('');
+        }
+
+        // Toggle favorite
+        function toggleFavorite(index) {
+            contacts[index].favorite = !contacts[index].favorite;
+            saveContacts();
+            renderContacts();
+        }
+
+        // Show add contact modal
+        function showAddContactModal() {
+            currentEditingIndex = -1;
+            document.getElementById('modal-title').textContent = '連絡先を追加';
+            clearContactForm();
+            document.getElementById('contact-modal').style.display = 'block';
+        }
+
+        // Edit contact
+        function editContact(index) {
+            currentEditingIndex = index;
+            const contact = contacts[index];
+            
+            document.getElementById('modal-title').textContent = '連絡先を編集';
+            document.getElementById('contact-name').value = contact.name;
+            document.getElementById('contact-organization').value = contact.organization;
+            document.getElementById('contact-address').value = contact.address;
+            document.getElementById('contact-group').value = contact.group;
+            document.getElementById('contact-memo').value = contact.memo;
+            document.getElementById('contact-favorite').checked = contact.favorite;
+            
+            // Set phone inputs
+            const phoneContainer = document.getElementById('phone-inputs');
+            phoneContainer.innerHTML = '';
+            if (contact.phones.length > 0) {
+                contact.phones.forEach((phone, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'multi-input-group';
+                    div.innerHTML = `
+                        <input type="tel" class="form-input" value="${escapeHtml(phone)}" placeholder="電話番号を入力">
+                        <button type="button" class="remove-btn" onclick="removeInput(this)">-</button>
+                    `;
+                    phoneContainer.appendChild(div);
+                });
+                addPhoneInput();
+            } else {
+                addPhoneInput();
             }
             
-            saveContactsToStorage();
-            applyFiltersAndSort();
-            updateStats();
-            renderGroupFilters();
-            updateNoInfoCount();
-            populateGroupDatalist(); // グループが変更された可能性があるので更新
-            closeModal();
+            // Set email inputs
+            const emailContainer = document.getElementById('email-inputs');
+            emailContainer.innerHTML = '';
+            if (contact.emails.length > 0) {
+                contact.emails.forEach((email, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'multi-input-group';
+                    div.innerHTML = `
+                        <input type="email" class="form-input" value="${escapeHtml(email)}" placeholder="メールアドレスを入力">
+                        <button type="button" class="remove-btn" onclick="removeInput(this)">-</button>
+                    `;
+                    emailContainer.appendChild(div);
+                });
+                addEmailInput();
+            } else {
+                addEmailInput();
+            }
+            
+            document.getElementById('contact-modal').style.display = 'block';
         }
 
-        function closeModal() {
-            document.getElementById('contactModal').style.display = 'none';
-            document.getElementById('contactForm').reset();
-            currentEditingId = null;
+        // Delete contact
+        function deleteContact(index) {
+            if (confirm('この連絡先を削除しますか？')) {
+                contacts.splice(index, 1);
+                saveContacts();
+                renderContacts();
+            }
         }
 
-        function clearContacts() {
+        // Clear contact form
+        function clearContactForm() {
+            document.getElementById('contact-form').reset();
+            document.getElementById('phone-inputs').innerHTML = '';
+            document.getElementById('email-inputs').innerHTML = '';
+            addPhoneInput();
+            addEmailInput();
+        }
+
+        // Add phone input
+        function addPhoneInput() {
+            const container = document.getElementById('phone-inputs');
+            const div = document.createElement('div');
+            div.className = 'multi-input-group';
+            div.innerHTML = `
+                <input type="tel" class="form-input" placeholder="電話番号を入力">
+                <button type="button" class="add-btn" onclick="addPhoneInput()">+</button>
+            `;
+            container.appendChild(div);
+            
+            // Convert previous add buttons to remove buttons
+            const addButtons = container.querySelectorAll('.add-btn');
+            addButtons.forEach((btn, index) => {
+                if (index < addButtons.length - 1) {
+                    btn.className = 'remove-btn';
+                    btn.textContent = '-';
+                    btn.onclick = function() { removeInput(this); };
+                }
+            });
+        }
+
+        // Add email input
+        function addEmailInput() {
+            const container = document.getElementById('email-inputs');
+            const div = document.createElement('div');
+            div.className = 'multi-input-group';
+            div.innerHTML = `
+                <input type="email" class="form-input" placeholder="メールアドレスを入力">
+                <button type="button" class="add-btn" onclick="addEmailInput()">+</button>
+            `;
+            container.appendChild(div);
+            
+            // Convert previous add buttons to remove buttons
+            const addButtons = container.querySelectorAll('.add-btn');
+            addButtons.forEach((btn, index) => {
+                if (index < addButtons.length - 1) {
+                    btn.className = 'remove-btn';
+                    btn.textContent = '-';
+                    btn.onclick = function() { removeInput(this); };
+                }
+            });
+        }
+
+        // Remove input
+        function removeInput(button) {
+            button.parentElement.remove();
+        }
+
+        // Handle contact form submit
+        function handleContactSubmit(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('contact-name').value.trim();
+            if (!name) {
+                alert('名前を入力してください。');
+                return;
+            }
+            
+            const contact = {
+                id: currentEditingIndex >= 0 ? contacts[currentEditingIndex].id : Date.now() + Math.random(),
+                name: name,
+                organization: document.getElementById('contact-organization').value.trim(),
+                phones: [],
+                emails: [],
+                address: document.getElementById('contact-address').value.trim(),
+                group: document.getElementById('contact-group').value.trim(),
+                memo: document.getElementById('contact-memo').value.trim(),
+                favorite: document.getElementById('contact-favorite').checked,
+                createdAt: currentEditingIndex >= 0 ? contacts[currentEditingIndex].createdAt : new Date().toISOString()
+            };
+            
+            // Collect phone numbers
+            const phoneInputs = document.querySelectorAll('#phone-inputs .form-input');
+            phoneInputs.forEach(input => {
+                const phone = input.value.trim();
+                if (phone) contact.phones.push(phone);
+            });
+            
+            // Collect email addresses
+            const emailInputs = document.querySelectorAll('#email-inputs .form-input');
+            emailInputs.forEach(input => {
+                const email = input.value.trim();
+                if (email) contact.emails.push(email);
+            });
+            
+            if (currentEditingIndex >= 0) {
+                contacts[currentEditingIndex] = contact;
+            } else {
+                contacts.push(contact);
+            }
+            
+            saveContacts();
+            renderContacts();
+            closeModal('contact-modal');
+        }
+
+        // Close modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Export contacts
+        function exportContacts() {
+            if (filteredContacts.length === 0) {
+                alert('エクスポートする連絡先がありません。');
+                return;
+            }
+            
+            // Export as VCF
+            const vcfContent = generateVCF(filteredContacts);
+            downloadFile(vcfContent, 'contacts.vcf', 'text/vcard');
+            
+            // Export as Excel
+            const excelData = generateExcelData(filteredContacts);
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Contacts');
+            XLSX.writeFile(workbook, 'contacts.xlsx');
+        }
+
+        // Generate VCF content
+        function generateVCF(contacts) {
+            return contacts.map(contact => {
+                let vcf = 'BEGIN:VCARD\nVERSION:3.0\n';
+                vcf += `FN:${contact.name}\n`;
+                
+                if (contact.organization) {
+                    vcf += `ORG:${contact.organization}\n`;
+                }
+                
+                contact.phones.forEach(phone => {
+                    vcf += `TEL:${phone}\n`;
+                });
+                
+                contact.emails.forEach(email => {
+                    vcf += `EMAIL:${email}\n`;
+                });
+                
+                if (contact.address) {
+                    vcf += `ADR:;;${contact.address};;;;\n`;
+                }
+                
+                if (contact.group) {
+                    vcf += `CATEGORIES:${contact.group}\n`;
+                }
+                
+                if (contact.memo) {
+                    vcf += `NOTE:${contact.memo}\n`;
+                }
+                
+                vcf += 'END:VCARD\n';
+                return vcf;
+            }).join('\n');
+        }
+
+        // Generate Excel data
+        function generateExcelData(contacts) {
+            return contacts.map(contact => ({
+                '名前': contact.name,
+                '組織': contact.organization,
+                '電話番号': contact.phones[0] || '',
+                '電話番号2': contact.phones[1] || '',
+                'メールアドレス': contact.emails[0] || '',
+                'メールアドレス2': contact.emails[1] || '',
+                '住所': contact.address,
+                'グループ': contact.group,
+                'メモ': contact.memo,
+                'お気に入り': contact.favorite ? 'TRUE' : 'FALSE'
+            }));
+        }
+
+        // Download file
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Clear all contacts
+        function clearAllContacts() {
             if (confirm('すべての連絡先を削除しますか？この操作は取り消せません。')) {
                 contacts = [];
-                saveContactsToStorage();
-                applyFiltersAndSort();
-                updateStats();
-                renderGroupFilters();
-                updateNoInfoCount();
-                populateGroupDatalist(); // グループリストもリセット
-                document.getElementById('searchInput').value = '';
-                currentFilter = 'all';
-                document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
-                document.querySelector('.sidebar ul li a[data-filter="all"]').classList.add('active');
+                saveContacts();
+                renderContacts();
             }
         }
 
-        function updateStats() {
-            document.getElementById('totalContacts').textContent = contacts.length;
-            applyFiltersAndSort(); // This will update visibleContacts
-        }
-
-        function saveContactsToStorage() {
-            const contactsData = JSON.stringify(contacts);
-            localStorage.setItem('vcfContacts', contactsData);
-        }
-
-        function loadContactsFromStorage() {
-            try {
-                const storedData = localStorage.getItem('vcfContacts');
-                if (storedData) {
-                    contacts = JSON.parse(storedData);
-                    contacts.forEach(contact => {
-                        // Ensure favorite and timestamp exist
-                        if (typeof contact.favorite === 'undefined') contact.favorite = false;
-                        if (typeof contact.timestamp === 'undefined') contact.timestamp = Date.now();
-                        
-                        // Migrate phone/email to array if they are strings
-                        if (!Array.isArray(contact.phone)) contact.phone = contact.phone ? [contact.phone] : [];
-                        if (!Array.isArray(contact.email)) contact.email = contact.email ? [contact.email] : [];
-
-                        // Filter out empty strings from phone/email arrays
-                        contact.phone = contact.phone.filter(p => p.trim() !== '');
-                        contact.email = contact.email.filter(e => e.trim() !== '');
-
-                        // Ensure group is a string
-                        if (typeof contact.group !== 'string') contact.group = '';
-                    });
-                }
-            } catch (error) {
-                console.error('連絡先データの読み込みエラー:', error);
-                contacts = [];
-            }
-        }
-
-        function applyFiltersAndSort() {
-            const filteredAndSortedContacts = getFilteredAndSortedContacts();
-            renderContacts(filteredAndSortedContacts);
-        }
-
-        function renderGroupFilters() {
-            const groupFiltersDiv = document.getElementById('groupFilters');
-            groupFiltersDiv.innerHTML = '';
-
-            const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
-
-            uniqueGroups.forEach(group => {
-                const li = document.createElement('li');
-                const a = document.createElement('a');
-                a.href = "#";
-                a.dataset.filter = group;
-                a.innerHTML = `<i class="fas fa-folder"></i> ${escapeHtml(group)}`;
-                a.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-                    currentFilter = this.dataset.filter;
-                    applyFiltersAndSort();
-                });
-                li.appendChild(a);
-                groupFiltersDiv.appendChild(li);
-            });
-
-            document.querySelectorAll('.sidebar ul li a').forEach(link => {
-                if (link.dataset.filter === currentFilter) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
-                }
-            });
-        }
-
-        // --- 新機能の追加 ---
-
-        // 1. 電話番号またはメールアドレスがない連絡先を削除する機能
-        function getContactsWithNoInfo() {
-            return contacts.filter(c => (c.phone || []).length === 0 && (c.email || []).length === 0);
-        }
-
-        function updateNoInfoCount() {
-            const count = getContactsWithNoInfo().length;
-            document.getElementById('noInfoCount').textContent = count;
-        }
-
-        function confirmDeleteNoContactInfo() {
-            const contactsToDelete = getContactsWithNoInfo();
-            const count = contactsToDelete.length;
-
-            if (count === 0) {
-                alert('電話番号またはメールアドレスのない連絡先はありません。');
+        // Remove incomplete contacts
+        function removeIncompleteContacts() {
+            const incompleteContacts = contacts.filter(c => c.phones.length === 0 && c.emails.length === 0);
+            if (incompleteContacts.length === 0) {
+                alert('削除対象の連絡先がありません。');
                 return;
             }
-
-            if (confirm(`${count}件の電話番号またはメールアドレスのない連絡先を削除しますか？`)) {
-                contacts = contacts.filter(c => (c.phone && c.phone.length > 0) || (c.email && c.email.length > 0));
-                saveContactsToStorage();
-                applyFiltersAndSort();
-                updateStats();
-                renderGroupFilters();
-                updateNoInfoCount();
-                populateGroupDatalist(); // グループリストも更新
-                alert(`${count}件の連絡先を削除しました。`);
+            
+            if (confirm(`${incompleteContacts.length}件の情報不足連絡先を削除しますか？`)) {
+                contacts = contacts.filter(c => c.phones.length > 0 || c.emails.length > 0);
+                saveContacts();
+                renderContacts();
+                alert(`${incompleteContacts.length}件の連絡先を削除しました。`);
             }
         }
 
-        // 2. 電話番号が重複している連絡先を検索し、選択して削除する機能
+        // Find duplicate phones
         function findDuplicatePhones() {
             const phoneMap = new Map();
-            const duplicates = [];
-
-            contacts.forEach(contact => {
-                (contact.phone || []).forEach(p => {
-                    if (p) {
-                        const cleanPhone = p.replace(/[^\d]/g, '');
-                        if (cleanPhone) {
-                            if (phoneMap.has(cleanPhone)) {
-                                phoneMap.get(cleanPhone).push(contact);
-                            } else {
-                                phoneMap.set(cleanPhone, [contact]);
-                            }
-                        }
+            
+            contacts.forEach((contact, index) => {
+                contact.phones.forEach(phone => {
+                    const normalizedPhone = phone.replace(/[^\d]/g, '');
+                    if (!phoneMap.has(normalizedPhone)) {
+                        phoneMap.set(normalizedPhone, []);
                     }
+                    phoneMap.get(normalizedPhone).push({ contact, index, originalPhone: phone });
                 });
             });
-
-            phoneMap.forEach(contactList => {
-                // Filter out unique contacts from the list, as one contact can have multiple identical phones
-                const uniqueContactsInList = Array.from(new Set(contactList));
-                if (uniqueContactsInList.length > 1) {
-                    duplicates.push(...uniqueContactsInList);
-                }
-            });
-
-            // Ensure unique contacts in the final duplicates list
-            const uniqueDuplicates = Array.from(new Set(duplicates));
-
-            if (uniqueDuplicates.length === 0) {
-                alert('電話番号の重複は見つかりませんでした。');
+            
+            const duplicates = Array.from(phoneMap.entries())
+                .filter(([phone, contacts]) => contacts.length > 1)
+                .map(([phone, contacts]) => ({ phone, contacts }));
+            
+            if (duplicates.length === 0) {
+                alert('重複する電話番号は見つかりませんでした。');
                 return;
             }
-
-            displayDuplicateSelectionModal(uniqueDuplicates);
+            
+            showDuplicateModal(duplicates);
         }
 
-        function displayDuplicateSelectionModal(duplicates) {
-            const modal = document.getElementById('contactModal'); // Reuse contactModal
-            const modalTitle = document.getElementById('modalTitle');
-            const form = document.getElementById('contactForm');
-
-            modalTitle.textContent = '重複する電話番号の連絡先';
-            form.innerHTML = `
-                <p style="margin-bottom: 20px;">以下の連絡先は電話番号が重複しています。削除したい連絡先を選択してください。</p>
-                <div id="duplicateList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; background: #f7fafc;"></div>
-                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
-                    <button type="button" class="btn btn-danger" onclick="deleteSelectedDuplicates()">選択した連絡先を削除</button>
+        // Show duplicate modal
+        function showDuplicateModal(duplicates) {
+            const duplicateList = document.getElementById('duplicate-list');
+            duplicateList.innerHTML = duplicates.map(({ phone, contacts }) => `
+                <div class="duplicate-group">
+                    <div class="duplicate-number">📞 ${phone}</div>
+                    ${contacts.map(({ contact, index }) => `
+                        <div class="duplicate-contact">
+                            <input type="checkbox" data-contact-index="${index}">
+                            <span>${escapeHtml(contact.name)} ${contact.organization ? `(${escapeHtml(contact.organization)})` : ''}</span>
+                        </div>
+                    `).join('')}
                 </div>
-            `;
-
-            const duplicateListDiv = document.getElementById('duplicateList');
-            duplicates.forEach(contact => {
-                const div = document.createElement('div');
-                div.style.marginBottom = '10px';
-                div.innerHTML = `
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" data-id="${contact.id}" style="margin-right: 10px; transform: scale(1.2);">
-                        <span>
-                            <strong>${escapeHtml(contact.name)}</strong><br>
-                            電話: ${(contact.phone || []).map(p => escapeHtml(p)).join(', ') || 'なし'}<br>
-                            メール: ${(contact.email || []).map(e => escapeHtml(e)).join(', ') || 'なし'}<br>
-                            ${contact.org ? `組織: ${escapeHtml(contact.org)}<br>` : ''}
-                            <small style="color: #718096;">ID: ${contact.id.substring(0, 8)}...</small>
-                        </span>
-                    </label>
-                    <hr style="border: 0; border-top: 1px dashed #e2e8f0; margin-top: 10px;">
-                `;
-                duplicateListDiv.appendChild(div);
-            });
-
-            modal.style.display = 'block';
+            `).join('');
+            
+            document.getElementById('duplicate-modal').style.display = 'block';
         }
 
-        function deleteSelectedDuplicates() {
-            const checkboxes = document.querySelectorAll('#duplicateList input[type="checkbox"]:checked');
-            const idsToDelete = Array.from(checkboxes).map(cb => cb.dataset.id);
-
-            if (idsToDelete.length === 0) {
+        // Delete duplicate contacts
+        function deleteDuplicateContacts() {
+            const checkboxes = document.querySelectorAll('#duplicate-list input[type="checkbox"]:checked');
+            const indicesToDelete = Array.from(checkboxes).map(cb => parseInt(cb.dataset.contactIndex));
+            
+            if (indicesToDelete.length === 0) {
                 alert('削除する連絡先を選択してください。');
                 return;
             }
-
-            if (confirm(`${idsToDelete.length}件の選択された連絡先を削除しますか？`)) {
-                contacts = contacts.filter(c => !idsToDelete.includes(c.id));
-                saveContactsToStorage();
-                applyFiltersAndSort();
-                updateStats();
-                renderGroupFilters();
-                updateNoInfoCount();
-                populateGroupDatalist(); // グループリストも更新
-                closeModal(); // モーダルを閉じる
-                alert(`${idsToDelete.length}件の連絡先を削除しました。`);
-            }
-        }
-
-        // 3. グループ選択用datalistの生成
-        function populateGroupDatalist() {
-            const datalist = document.getElementById('groupOptions');
-            // Check if datalist exists (it might not if modal isn't open)
-            if (datalist) {
-                datalist.innerHTML = '';
-                const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
+            
+            if (confirm(`${indicesToDelete.length}件の連絡先を削除しますか？`)) {
+                // Sort indices in descending order to avoid index shifting
+                indicesToDelete.sort((a, b) => b - a);
+                indicesToDelete.forEach(index => contacts.splice(index, 1));
                 
-                uniqueGroups.forEach(group => {
-                    const option = document.createElement('option');
-                    option.value = group;
-                    datalist.appendChild(option);
-                });
+                saveContacts();
+                renderContacts();
+                closeModal('duplicate-modal');
+                alert(`${indicesToDelete.length}件の連絡先を削除しました。`);
             }
         }
 
-        // 4. グループ管理モーダル
-        function openGroupManagementModal() {
-            const groupManagementModal = document.getElementById('groupManagementModal');
-            const groupListDiv = document.getElementById('groupList');
-            groupListDiv.innerHTML = '';
-
-            const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
-
-            if (uniqueGroups.length === 0) {
-                groupListDiv.innerHTML = '<p style="text-align: center; color: #718096;">グループはまだありません。</p>';
+        // Show group management
+        function showGroupManagement() {
+            const groups = [...new Set(contacts.map(c => c.group).filter(g => g))];
+            const groupList = document.getElementById('group-list');
+            
+            if (groups.length === 0) {
+                groupList.innerHTML = '<div style="text-align: center; color: #718096;">グループが見つかりません。</div>';
             } else {
-                uniqueGroups.forEach(group => {
-                    const div = document.createElement('div');
-                    div.classList.add('group-list-item');
-                    div.innerHTML = `
-                        <span>${escapeHtml(group)}</span>
-                        <button onclick="deleteGroup('${escapeHtml(group)}')"><i class="fas fa-trash-alt"></i></button>
+                groupList.innerHTML = groups.map(group => {
+                    const count = contacts.filter(c => c.group === group).length;
+                    return `
+                        <div class="group-item">
+                            <span class="group-name">${escapeHtml(group)}</span>
+                            <div>
+                                <span class="group-contact-count">${count}件</span>
+                                <button class="btn btn-danger" style="margin-left: 10px; padding: 4px 8px; font-size: 0.8em;" onclick="deleteGroup('${escapeHtml(group)}')">削除</button>
+                            </div>
+                        </div>
                     `;
-                    groupListDiv.appendChild(div);
-                });
+                }).join('');
             }
-
-            groupManagementModal.style.display = 'block';
+            
+            document.getElementById('group-modal').style.display = 'block';
         }
 
-        function closeGroupManagementModal() {
-            document.getElementById('groupManagementModal').style.display = 'none';
-        }
-
+        // Delete group
         function deleteGroup(groupName) {
-            if (confirm(`グループ「${groupName}」を削除しますか？このグループに属する連絡先のグループ情報は削除されます。`)) {
+            if (confirm(`グループ "${groupName}" を削除しますか？このグループに属する連絡先のグループ情報もクリアされます。`)) {
                 contacts.forEach(contact => {
                     if (contact.group === groupName) {
-                        contact.group = ''; // グループ情報を削除
+                        contact.group = '';
                     }
                 });
-                saveContactsToStorage();
-                applyFiltersAndSort();
-                updateStats();
-                renderGroupFilters();
-                populateGroupDatalist();
-                openGroupManagementModal(); // モーダルを再表示してリストを更新
-                alert(`グループ「${groupName}」を削除しました。`);
+                
+                saveContacts();
+                renderContacts();
+                showGroupManagement(); // Refresh the group list
             }
         }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize filters
+        function initializeFilters() {
+            applyFilters();
+        }
+
+        // Initialize app on load
+        window.addEventListener('load', initializeFilters);
     </script>
 </body>
 </html>
