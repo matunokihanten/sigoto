@@ -395,6 +395,32 @@
             resize: vertical;
         }
 
+        /* Styles for multiple inputs */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .input-group .form-input {
+            flex-grow: 1;
+            margin-bottom: 0;
+        }
+        .input-group button {
+            background: none;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            color: #f56565;
+            padding: 8px 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .input-group button:hover {
+            background: #f56565;
+            color: white;
+        }
+
+
         /* Stats Section Styles */
         .stats {
             display: flex;
@@ -417,11 +443,13 @@
             font-weight: bold;
             color: white;
             display: block;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3); /* Added for better visibility */
         }
 
         .stat-label {
-            color: rgba(255, 255, 255, 0.8);
+            color: white; /* Changed for better visibility */
             font-size: 14px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.3); /* Added for better visibility */
         }
 
         /* Empty State / Loading */
@@ -619,7 +647,52 @@
                 <span class="close" onclick="closeModal()">&times;</span>
             </div>
             <form id="contactForm">
-                </form>
+                <div class="form-group">
+                    <label class="form-label">名前<span style="color: red;">*</span></label>
+                    <input type="text" id="contactName" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">電話番号</label>
+                    <div id="phoneInputs">
+                        <div class="input-group">
+                            <input type="tel" class="form-input contact-phone-input">
+                            <button type="button" onclick="removeInputField(this)">-</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addInputField('phone')">電話番号を追加</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">メールアドレス</label>
+                    <div id="emailInputs">
+                        <div class="input-group">
+                            <input type="email" class="form-input contact-email-input">
+                            <button type="button" onclick="removeInputField(this)">-</button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="addInputField('email')">メールアドレスを追加</button>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">組織</label>
+                    <input type="text" id="contactOrg" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">住所</label>
+                    <input type="text" id="contactAddress" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">グループ</label>
+                    <input type="text" id="contactGroup" class="form-input" list="groupOptions">
+                    <datalist id="groupOptions"></datalist>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">メモ</label>
+                    <textarea id="contactNote" class="form-textarea" rows="3"></textarea>
+                </div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -643,42 +716,6 @@
         let currentEditingId = null;
         let currentFilter = 'all'; // 'all', 'favorites', or group name
         let currentSort = 'name-asc'; // 'name-asc', 'name-desc', 'date-asc', 'date-desc'
-        let originalContactFormHTML = `
-            <div class="form-group">
-                <label class="form-label">名前<span style="color: red;">*</span></label>
-                <input type="text" id="contactName" class="form-input" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">電話番号</label>
-                <input type="tel" id="contactPhone" class="form-input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">メールアドレス</label>
-                <input type="email" id="contactEmail" class="form-input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">組織</label>
-                <input type="text" id="contactOrg" class="form-input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">住所</label>
-                <input type="text" id="contactAddress" class="form-input">
-            </div>
-            <div class="form-group">
-                <label class="form-label">グループ</label>
-                <input type="text" id="contactGroup" class="form-input" list="groupOptions">
-                <datalist id="groupOptions"></datalist>
-            </div>
-            <div class="form-group">
-                <label class="form-label">メモ</label>
-                <textarea id="contactNote" class="form-textarea" rows="3"></textarea>
-            </div>
-            <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
-                <button type="submit" class="btn btn-primary">保存</button>
-            </div>
-        `; // Keep track of the default form HTML
-
 
         // Initial setup
         document.addEventListener('DOMContentLoaded', function() {
@@ -806,11 +843,9 @@
 
         function parseVCF(vcfContent) {
             const parsedContacts = [];
-            // Use a more robust split, handling potential newline variations and empty lines
             const vcardBlocks = vcfContent.split(/BEGIN:VCARD[\r\n]+/i).filter(block => block.trim() !== '');
             
             for (const block of vcardBlocks) {
-                // Ensure the block ends with END:VCARD for proper parsing
                 if (!block.trim().endsWith('END:VCARD')) {
                     console.warn("Skipping malformed VCard block (missing END:VCARD):", block.substring(0, 100) + '...');
                     continue;
@@ -820,58 +855,77 @@
                 
                 const contact = {
                     name: '',
-                    phone: '',
-                    email: '',
+                    phone: [], // Now an array
+                    email: [], // Now an array
                     org: '',
                     address: '',
                     note: '',
                     group: '',
                 };
                 
+                let lastKey = '';
                 lines.forEach(line => {
-                    // Handle folded lines (lines starting with whitespace)
                     if (line.startsWith(' ') || line.startsWith('\t')) {
-                        // Append to the previous line's value if it exists
-                        const lastKey = Object.keys(contact).find(k => contact[k] && typeof contact[k] === 'string' && contact[k].endsWith('='));
+                        // Handle folded lines (continuation)
                         if (lastKey) {
-                            contact[lastKey] = contact[lastKey].slice(0, -1) + line.trim(); // Remove = and append
-                            return;
+                            if (lastKey.startsWith('TEL')) contact.phone[contact.phone.length - 1] += line.trim();
+                            else if (lastKey.startsWith('EMAIL')) contact.email[contact.email.length - 1] += line.trim();
+                            else if (lastKey.startsWith('FN')) contact.name += line.trim();
+                            else if (lastKey.startsWith('N')) contact.name += line.trim(); // Handle N for name if FN isn't there
+                            else if (lastKey.startsWith('ORG')) contact.org += line.trim();
+                            else if (lastKey.startsWith('ADR')) contact.address += line.trim();
+                            else if (lastKey.startsWith('NOTE')) contact.note += line.trim();
+                            else if (lastKey.startsWith('CATEGORIES') || lastKey.startsWith('X-GROUP')) contact.group += line.trim();
                         }
+                        return;
                     }
 
                     const parts = line.split(':');
-                    let key = parts[0];
+                    let keyWithParams = parts[0];
                     let value = parts.slice(1).join(':').trim();
 
-                    // Handle parameters like TYPE=WORK, CHARSET=UTF-8 etc.
-                    const keyParts = key.split(';');
-                    key = keyParts[0]; // The actual field name (e.g., FN, TEL)
+                    const key = keyWithParams.split(';')[0].toUpperCase();
                     
-                    if (key.toUpperCase() === 'FN' && !contact.name) {
-                        contact.name = value;
-                    } else if (key.toUpperCase() === 'N' && !contact.name) { // Fallback to N if FN is not present
-                        // N field usually comes as "Family;Given;Middle;Prefix;Suffix"
-                        const nameParts = value.split(';');
-                        contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim(); // Given Family
-                        if (!contact.name) contact.name = value; // Fallback if name parts are empty
-                    } else if (key.toUpperCase().startsWith('TEL') && !contact.phone) {
-                        contact.phone = value;
-                    } else if (key.toUpperCase().startsWith('EMAIL') && !contact.email) {
-                        contact.email = value;
-                    } else if (key.toUpperCase().startsWith('ORG') && !contact.org) {
-                        contact.org = value;
-                    } else if (key.toUpperCase().startsWith('ADR') && !contact.address) {
-                        // ADR field usually comes as "POBox;ExtAdd;Street;City;State;PostalCode;Country"
-                        const addressParts = value.split(';');
-                        contact.address = addressParts.filter(Boolean).join(', ');
-                    } else if (key.toUpperCase().startsWith('NOTE') && !contact.note) {
-                        contact.note = value;
-                    } else if ((key.toUpperCase().startsWith('CATEGORIES') || key.toUpperCase().startsWith('X-GROUP')) && !contact.group) {
-                        contact.group = value;
+                    switch (key) {
+                        case 'FN':
+                            if (!contact.name) contact.name = value; // Prioritize FN
+                            break;
+                        case 'N':
+                            if (!contact.name) { // Fallback to N if FN is not present
+                                const nameParts = value.split(';');
+                                contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim();
+                                if (!contact.name) contact.name = value;
+                            }
+                            break;
+                        case 'TEL':
+                            contact.phone.push(value);
+                            break;
+                        case 'EMAIL':
+                            contact.email.push(value);
+                            break;
+                        case 'ORG':
+                            contact.org = value;
+                            break;
+                        case 'ADR':
+                            const addressParts = value.split(';');
+                            contact.address = addressParts.filter(Boolean).join(', ');
+                            break;
+                        case 'NOTE':
+                            contact.note = value;
+                            break;
+                        case 'CATEGORIES':
+                        case 'X-GROUP':
+                            contact.group = value;
+                            break;
                     }
+                    lastKey = keyWithParams; // Store the full key with parameters for folded lines
                 });
                 
-                if (contact.name) { // Ensure a name exists for a valid contact
+                // Clean up empty arrays
+                contact.phone = contact.phone.filter(p => p.trim() !== '');
+                contact.email = contact.email.filter(e => e.trim() !== '');
+
+                if (contact.name) {
                     parsedContacts.push(contact);
                 } else {
                     console.warn("Skipping VCard block (no name found):", block.substring(0, 100) + '...');
@@ -885,8 +939,6 @@
             const parsedContacts = [];
             const headerMap = {
                 '名前': 'name',
-                '電話番号': 'phone',
-                'メールアドレス': 'email',
                 '組織': 'org',
                 '住所': 'address',
                 'グループ': 'group',
@@ -897,8 +949,8 @@
             jsonData.forEach(row => {
                 const contact = {
                     name: '',
-                    phone: '',
-                    email: '',
+                    phone: [],
+                    email: [],
                     org: '',
                     address: '',
                     note: '',
@@ -908,17 +960,23 @@
 
                 let hasName = false;
                 for (const key in row) {
-                    const mappedKey = headerMap[key.trim()];
-                    if (mappedKey) {
-                        if (mappedKey === 'favorite') {
+                    const trimmedKey = key.trim();
+                    if (headerMap[trimmedKey]) {
+                        if (headerMap[trimmedKey] === 'favorite') {
                             const val = String(row[key]).toLowerCase();
                             contact.favorite = (val === 'true' || val === '1' || val === 'yes' || val === 'はい');
                         } else {
-                            contact[mappedKey] = String(row[key]);
+                            contact[headerMap[trimmedKey]] = String(row[key]);
                         }
-                        if (mappedKey === 'name' && contact.name.trim() !== '') {
+                        if (headerMap[trimmedKey] === 'name' && contact.name.trim() !== '') {
                             hasName = true;
                         }
+                    } else if (trimmedKey.startsWith('電話番号')) {
+                        const phone = String(row[key]).trim();
+                        if (phone) contact.phone.push(phone);
+                    } else if (trimmedKey.startsWith('メールアドレス')) {
+                        const email = String(row[key]).trim();
+                        if (email) contact.email.push(email);
                     }
                 }
                 
@@ -934,17 +992,19 @@
         function addNewContacts(newContacts) {
             let addedCount = 0;
             newContacts.forEach(newContact => {
-                // Check if contact with same name and phone already exists to avoid duplicates
+                // Basic duplicate check for name, phone, and email combination
                 const exists = contacts.some(c => 
                     c.name === newContact.name && 
-                    c.phone === newContact.phone &&
-                    c.email === newContact.email
+                    JSON.stringify(c.phone.sort()) === JSON.stringify(newContact.phone.sort()) &&
+                    JSON.stringify(c.email.sort()) === JSON.stringify(newContact.email.sort())
                 );
                 if (!exists) {
                     contacts.push({
                         id: generateId(),
                         timestamp: Date.now(),
-                        favorite: newContact.favorite || false, // Preserve favorite status from Excel if present
+                        favorite: newContact.favorite || false,
+                        phone: newContact.phone || [],
+                        email: newContact.email || [],
                         ...newContact
                     });
                     addedCount++;
@@ -974,29 +1034,47 @@
 
             // Create VCF content
             const vcfContent = contactsToExport.map(contact => {
-                return `BEGIN:VCARD
+                let vcard = `BEGIN:VCARD
 VERSION:3.0
-FN:${contact.name}
-${contact.phone ? `TEL:${contact.phone}` : ''}
-${contact.email ? `EMAIL:${contact.email}` : ''}
-${contact.org ? `ORG:${contact.org}` : ''}
-${contact.address ? `ADR;TYPE=WORK,POSTAL:${contact.address.replace(/, /g, ';')}` : ''}
-${contact.group ? `CATEGORIES:${contact.group}` : ''}
-${contact.note ? `NOTE:${contact.note}` : ''}
-END:VCARD`;
+FN:${contact.name || ''}`;
+                
+                (contact.phone || []).forEach(p => {
+                    if (p) vcard += `\nTEL:${p}`;
+                });
+                (contact.email || []).forEach(e => {
+                    if (e) vcard += `\nEMAIL:${e}`;
+                });
+                
+                if (contact.org) vcard += `\nORG:${contact.org}`;
+                if (contact.address) vcard += `\nADR;TYPE=WORK,POSTAL:${contact.address.replace(/, /g, ';')}`;
+                if (contact.group) vcard += `\nCATEGORIES:${contact.group}`;
+                if (contact.note) vcard += `\nNOTE:${contact.note}`;
+                
+                vcard += `\nEND:VCARD`;
+                return vcard;
             }).join('\n\n');
             
             // Create Excel content
-            const excelData = contactsToExport.map(contact => ({
-                '名前': contact.name,
-                '電話番号': contact.phone,
-                'メールアドレス': contact.email,
-                '組織': contact.org,
-                '住所': contact.address,
-                'グループ': contact.group,
-                'メモ': contact.note,
-                'お気に入り': contact.favorite ? 'TRUE' : 'FALSE'
-            }));
+            const excelData = contactsToExport.map(contact => {
+                const row = {
+                    '名前': contact.name,
+                    '組織': contact.org,
+                    '住所': contact.address,
+                    'グループ': contact.group,
+                    'メモ': contact.note,
+                    'お気に入り': contact.favorite ? 'TRUE' : 'FALSE'
+                };
+                
+                // Add phone numbers dynamically
+                (contact.phone || []).forEach((p, index) => {
+                    row[`電話番号${index > 0 ? index + 1 : ''}`] = p;
+                });
+                // Add email addresses dynamically
+                (contact.email || []).forEach((e, index) => {
+                    row[`メールアドレス${index > 0 ? index + 1 : ''}`] = e;
+                });
+                return row;
+            });
 
             const ws = XLSX.utils.json_to_sheet(excelData);
             const wb = XLSX.utils.book_new();
@@ -1040,8 +1118,8 @@ END:VCARD`;
                 <div class="contact-card">
                     <i class="far fa-star favorite-icon ${contact.favorite ? 'fas favorited' : ''}" onclick="toggleFavorite('${contact.id}')"></i>
                     <div class="contact-name">${escapeHtml(contact.name)}</div>
-                    ${contact.phone ? `<div class="contact-info"><i class="fas fa-phone"></i> ${escapeHtml(contact.phone)} <button class="action-button" onclick="callNumber('${escapeHtml(contact.phone)}')"><i class="fas fa-phone-alt"></i></button></div>` : ''}
-                    ${contact.email ? `<div class="contact-info"><i class="fas fa-envelope"></i> ${escapeHtml(contact.email)} <button class="action-button" onclick="sendEmail('${escapeHtml(contact.email)}')"><i class="fas fa-paper-plane"></i></button></div>` : ''}
+                    ${(contact.phone || []).map(p => p ? `<div class="contact-info"><i class="fas fa-phone"></i> ${escapeHtml(p)} <button class="action-button" onclick="callNumber('${escapeHtml(p)}')"><i class="fas fa-phone-alt"></i></button></div>` : '').join('')}
+                    ${(contact.email || []).map(e => e ? `<div class="contact-info"><i class="fas fa-envelope"></i> ${escapeHtml(e)} <button class="action-button" onclick="sendEmail('${escapeHtml(e)}')"><i class="fas fa-paper-plane"></i></button></div>` : '').join('')}
                     ${contact.org ? `<div class="contact-info"><i class="fas fa-building"></i> ${escapeHtml(contact.org)}</div>` : ''}
                     ${contact.address ? `<div class="contact-info"><i class="fas fa-map-marker-alt"></i> ${escapeHtml(contact.address)}</div>` : ''}
                     ${contact.group ? `<div class="contact-info"><i class="fas fa-tags"></i> ${escapeHtml(contact.group)}</div>` : ''}
@@ -1077,8 +1155,8 @@ END:VCARD`;
             if (searchTerm) {
                 filteredContacts = filteredContacts.filter(contact => 
                     contact.name.toLowerCase().includes(searchTerm) ||
-                    contact.phone.includes(searchTerm) ||
-                    contact.email.toLowerCase().includes(searchTerm) ||
+                    (contact.phone || []).some(p => p.includes(searchTerm)) ||
+                    (contact.email || []).some(e => e.toLowerCase().includes(searchTerm)) ||
                     contact.org.toLowerCase().includes(searchTerm) ||
                     contact.address.toLowerCase().includes(searchTerm) ||
                     contact.note.toLowerCase().includes(searchTerm) ||
@@ -1117,12 +1195,47 @@ END:VCARD`;
             document.getElementById('visibleContacts').textContent = contactsToRender.length;
         }
 
+        function addInputField(type) {
+            const container = type === 'phone' ? document.getElementById('phoneInputs') : document.getElementById('emailInputs');
+            const newDiv = document.createElement('div');
+            newDiv.classList.add('input-group');
+            newDiv.innerHTML = `
+                <input type="${type === 'phone' ? 'tel' : 'email'}" class="form-input contact-${type}-input">
+                <button type="button" onclick="removeInputField(this)">-</button>
+            `;
+            container.appendChild(newDiv);
+        }
+
+        function removeInputField(button) {
+            const inputGroup = button.parentNode;
+            inputGroup.remove();
+            // Ensure at least one input field remains if it's the last one
+            if (inputGroup.parentNode.children.length === 0) {
+                addInputField(inputGroup.querySelector('input').type === 'tel' ? 'phone' : 'email');
+            }
+        }
+
         function addContact() {
             currentEditingId = null;
             document.getElementById('modalTitle').textContent = '新規連絡先';
-            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // Restore default form
             document.getElementById('contactForm').reset();
-            populateGroupDatalist(); // Populate datalist for new contact
+            
+            // Clear and add a single phone/email input field
+            const phoneInputsDiv = document.getElementById('phoneInputs');
+            phoneInputsDiv.innerHTML = '';
+            addInputField('phone');
+
+            const emailInputsDiv = document.getElementById('emailInputs');
+            emailInputsDiv.innerHTML = '';
+            addInputField('email');
+
+            document.getElementById('contactName').value = '';
+            document.getElementById('contactOrg').value = '';
+            document.getElementById('contactAddress').value = '';
+            document.getElementById('contactGroup').value = '';
+            document.getElementById('contactNote').value = '';
+
+            populateGroupDatalist();
             document.getElementById('contactModal').style.display = 'block';
         }
 
@@ -1132,15 +1245,36 @@ END:VCARD`;
             
             currentEditingId = id;
             document.getElementById('modalTitle').textContent = '連絡先の編集';
-            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // Restore default form
+            
             document.getElementById('contactName').value = contact.name;
-            document.getElementById('contactPhone').value = contact.phone;
-            document.getElementById('contactEmail').value = contact.email;
             document.getElementById('contactOrg').value = contact.org;
             document.getElementById('contactAddress').value = contact.address;
             document.getElementById('contactGroup').value = contact.group;
             document.getElementById('contactNote').value = contact.note;
-            populateGroupDatalist(); // Populate datalist for editing existing contact
+
+            const phoneInputsDiv = document.getElementById('phoneInputs');
+            phoneInputsDiv.innerHTML = '';
+            if (contact.phone && contact.phone.length > 0) {
+                contact.phone.forEach(p => {
+                    addInputField('phone');
+                    phoneInputsDiv.lastChild.querySelector('.contact-phone-input').value = p;
+                });
+            } else {
+                addInputField('phone'); // Add a default empty one if none exist
+            }
+
+            const emailInputsDiv = document.getElementById('emailInputs');
+            emailInputsDiv.innerHTML = '';
+            if (contact.email && contact.email.length > 0) {
+                contact.email.forEach(e => {
+                    addInputField('email');
+                    emailInputsDiv.lastChild.querySelector('.contact-email-input').value = e;
+                });
+            } else {
+                addInputField('email'); // Add a default empty one if none exist
+            }
+            
+            populateGroupDatalist();
             document.getElementById('contactModal').style.display = 'block';
         }
 
@@ -1169,14 +1303,21 @@ END:VCARD`;
         function handleFormSubmit(e) {
             e.preventDefault();
             
+            const phones = Array.from(document.querySelectorAll('.contact-phone-input'))
+                                .map(input => input.value.trim())
+                                .filter(value => value !== '');
+            const emails = Array.from(document.querySelectorAll('.contact-email-input'))
+                                .map(input => input.value.trim())
+                                .filter(value => value !== '');
+
             const formData = {
-                name: document.getElementById('contactName').value,
-                phone: document.getElementById('contactPhone').value,
-                email: document.getElementById('contactEmail').value,
-                org: document.getElementById('contactOrg').value,
-                address: document.getElementById('contactAddress').value,
+                name: document.getElementById('contactName').value.trim(),
+                phone: phones,
+                email: emails,
+                org: document.getElementById('contactOrg').value.trim(),
+                address: document.getElementById('contactAddress').value.trim(),
                 group: document.getElementById('contactGroup').value.trim(),
-                note: document.getElementById('contactNote').value
+                note: document.getElementById('contactNote').value.trim()
             };
 
             if (!formData.name) {
@@ -1209,7 +1350,6 @@ END:VCARD`;
 
         function closeModal() {
             document.getElementById('contactModal').style.display = 'none';
-            document.getElementById('contactForm').innerHTML = originalContactFormHTML;
             document.getElementById('contactForm').reset();
             currentEditingId = null;
         }
@@ -1247,6 +1387,9 @@ END:VCARD`;
                     contacts.forEach(contact => {
                         if (typeof contact.favorite === 'undefined') contact.favorite = false;
                         if (typeof contact.timestamp === 'undefined') contact.timestamp = Date.now();
+                        // Ensure phone and email are arrays
+                        if (!Array.isArray(contact.phone)) contact.phone = contact.phone ? [contact.phone] : [];
+                        if (!Array.isArray(contact.email)) contact.email = contact.email ? [contact.email] : [];
                     });
                 }
             } catch (error) {
@@ -1291,7 +1434,7 @@ END:VCARD`;
 
         // 1. 電話番号またはメールアドレスがない連絡先を削除する機能
         function getContactsWithNoInfo() {
-            return contacts.filter(c => !c.phone && !c.email);
+            return contacts.filter(c => (c.phone || []).length === 0 && (c.email || []).length === 0);
         }
 
         function updateNoInfoCount() {
@@ -1309,7 +1452,7 @@ END:VCARD`;
             }
 
             if (confirm(`${count}件の電話番号またはメールアドレスのない連絡先を削除しますか？`)) {
-                contacts = contacts.filter(c => c.phone || c.email);
+                contacts = contacts.filter(c => (c.phone && c.phone.length > 0) || (c.email && c.email.length > 0));
                 saveContactsToStorage();
                 applyFiltersAndSort();
                 updateStats();
@@ -1326,30 +1469,37 @@ END:VCARD`;
             const duplicates = [];
 
             contacts.forEach(contact => {
-                if (contact.phone) {
-                    const cleanPhone = contact.phone.replace(/[^\d]/g, '');
-                    if (cleanPhone) {
-                        if (phoneMap.has(cleanPhone)) {
-                            phoneMap.get(cleanPhone).push(contact);
-                        } else {
-                            phoneMap.set(cleanPhone, [contact]);
+                (contact.phone || []).forEach(p => {
+                    if (p) {
+                        const cleanPhone = p.replace(/[^\d]/g, '');
+                        if (cleanPhone) {
+                            if (phoneMap.has(cleanPhone)) {
+                                phoneMap.get(cleanPhone).push(contact);
+                            } else {
+                                phoneMap.set(cleanPhone, [contact]);
+                            }
                         }
                     }
-                }
+                });
             });
 
             phoneMap.forEach(contactList => {
-                if (contactList.length > 1) {
-                    duplicates.push(...contactList);
+                // Filter out unique contacts from the list, as one contact can have multiple identical phones
+                const uniqueContactsInList = Array.from(new Set(contactList));
+                if (uniqueContactsInList.length > 1) {
+                    duplicates.push(...uniqueContactsInList);
                 }
             });
 
-            if (duplicates.length === 0) {
+            // Ensure unique contacts in the final duplicates list
+            const uniqueDuplicates = Array.from(new Set(duplicates));
+
+            if (uniqueDuplicates.length === 0) {
                 alert('電話番号の重複は見つかりませんでした。');
                 return;
             }
 
-            displayDuplicateSelectionModal(duplicates);
+            displayDuplicateSelectionModal(uniqueDuplicates);
         }
 
         function displayDuplicateSelectionModal(duplicates) {
@@ -1376,8 +1526,8 @@ END:VCARD`;
                         <input type="checkbox" data-id="${contact.id}" style="margin-right: 10px; transform: scale(1.2);">
                         <span>
                             <strong>${escapeHtml(contact.name)}</strong><br>
-                            電話: ${escapeHtml(contact.phone || 'なし')}<br>
-                            メール: ${escapeHtml(contact.email || 'なし')}<br>
+                            電話: ${(contact.phone || []).map(p => escapeHtml(p)).join(', ') || 'なし'}<br>
+                            メール: ${(contact.email || []).map(e => escapeHtml(e)).join(', ') || 'なし'}<br>
                             ${contact.org ? `組織: ${escapeHtml(contact.org)}<br>` : ''}
                             <small style="color: #718096;">ID: ${contact.id.substring(0, 8)}...</small>
                         </span>
