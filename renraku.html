@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* Base Styles */
         * {
             margin: 0;
             padding: 0;
@@ -18,7 +19,7 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             color: #333;
-            display: flex; /* Flexbox for layout */
+            display: flex;
         }
 
         .container {
@@ -29,6 +30,7 @@
             flex-grow: 1;
         }
 
+        /* Sidebar Styles */
         .sidebar {
             width: 250px;
             background: rgba(255, 255, 255, 0.95);
@@ -37,7 +39,7 @@
             padding: 20px;
             margin-right: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            flex-shrink: 0; /* Prevent sidebar from shrinking */
+            flex-shrink: 0;
         }
 
         .sidebar h2 {
@@ -80,8 +82,9 @@
             margin-right: 10px;
         }
 
+        /* Main Content Styles */
         .main-content {
-            flex-grow: 1; /* Allow main content to take remaining space */
+            flex-grow: 1;
         }
 
         .header {
@@ -187,7 +190,6 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
 
-
         .btn {
             padding: 12px 25px;
             border: none;
@@ -237,7 +239,7 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
             border: 1px solid rgba(255, 255, 255, 0.2);
-            position: relative; /* For favorite icon */
+            position: relative;
         }
 
         .contact-card:hover {
@@ -250,13 +252,13 @@
             top: 15px;
             right: 15px;
             font-size: 1.5em;
-            color: #cbd5e0; /* Default grey */
+            color: #cbd5e0;
             cursor: pointer;
             transition: color 0.2s ease;
         }
 
         .favorite-icon.favorited {
-            color: #ffc107; /* Gold for favorited */
+            color: #ffc107;
         }
 
         .contact-name {
@@ -281,7 +283,7 @@
             color: #718096;
         }
 
-        .contact-info .action-button { /* Common style for call and email buttons */
+        .contact-info .action-button {
             background: none;
             border: none;
             color: #667eea;
@@ -302,6 +304,7 @@
             margin-top: 20px;
         }
 
+        /* Modal Styles */
         .modal {
             display: none;
             position: fixed;
@@ -312,7 +315,7 @@
             height: 100%;
             background-color: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(5px);
-            overflow-y: auto; /* Allow scrolling for small screens */
+            overflow-y: auto;
         }
 
         .modal-content {
@@ -392,6 +395,7 @@
             resize: vertical;
         }
 
+        /* Stats Section Styles */
         .stats {
             display: flex;
             justify-content: center;
@@ -420,6 +424,7 @@
             font-size: 14px;
         }
 
+        /* Empty State / Loading */
         .no-contacts {
             text-align: center;
             padding: 60px 20px;
@@ -448,6 +453,17 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Duplicate List Specific Styles */
+        #duplicateList label {
+            align-items: flex-start;
+        }
+
+        #duplicateList input[type="checkbox"] {
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+
+        /* Media Queries for Responsiveness */
         @media (max-width: 900px) {
             body {
                 flex-direction: column;
@@ -538,6 +554,8 @@
                     <button class="btn btn-primary" onclick="addContact()">➕ 新規追加</button>
                     <button class="btn btn-secondary" onclick="exportContacts()">💾 エクスポート</button>
                     <button class="btn btn-danger" onclick="clearContacts()">🗑️ すべて削除</button>
+                    <button class="btn btn-secondary" onclick="confirmDeleteNoContactInfo()">🧹 情報不足削除 (<span id="noInfoCount">0</span>)</button>
+                    <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
                 </div>
 
                 <div class="stats">
@@ -615,6 +633,7 @@
         let currentEditingId = null;
         let currentFilter = 'all'; // 'all', 'favorites', or group name
         let currentSort = 'name-asc'; // 'name-asc', 'name-desc', 'date-asc', 'date-desc'
+        let originalContactFormHTML = ''; // 重複モーダルから元のフォームに戻すためのHTMLを保存
 
         // Initial setup
         document.addEventListener('DOMContentLoaded', function() {
@@ -622,17 +641,21 @@
             setupEventListeners();
             updateStats();
             renderGroupFilters();
-            applyFiltersAndSort(); // Initial render based on loaded contacts
+            applyFiltersAndSort(); 
+            updateNoInfoCount(); // 初期ロード時にカウントを更新
+            // フォームのHTMLを保存
+            originalContactFormHTML = document.getElementById('contactForm').innerHTML; 
         });
 
         function setupEventListeners() {
             document.getElementById('vcfFile').addEventListener('change', handleVcfFileSelect);
-            document.getElementById('excelFile').addEventListener('change', handleExcelFileSelect); // New Excel file input
+            document.getElementById('excelFile').addEventListener('change', handleExcelFileSelect);
             document.getElementById('searchInput').addEventListener('input', applyFiltersAndSort);
             document.getElementById('sortSelect').addEventListener('change', function(e) {
                 currentSort = e.target.value;
                 applyFiltersAndSort();
             });
+            // モーダルのフォームが元のフォームであることを確認してからイベントリスナーを追加
             document.getElementById('contactForm').addEventListener('submit', handleFormSubmit);
             
             // Close modal on outside click
@@ -837,6 +860,7 @@
             applyFiltersAndSort();
             updateStats();
             renderGroupFilters();
+            updateNoInfoCount(); // 新しい連絡先が追加されたらカウントを更新
         }
 
         function exportContacts() {
@@ -937,7 +961,6 @@ END:VCARD`;
         }
 
         function callNumber(phoneNumber) {
-            // Remove any non-digit characters for clean dialing
             const cleanNumber = phoneNumber.replace(/[^\d+]/g, ''); 
             window.location.href = `tel:${cleanNumber}`;
         }
@@ -997,6 +1020,7 @@ END:VCARD`;
         function addContact() {
             currentEditingId = null;
             document.getElementById('modalTitle').textContent = '新規連絡先';
+            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // 元のフォームに戻す
             document.getElementById('contactForm').reset();
             document.getElementById('contactModal').style.display = 'block';
         }
@@ -1007,12 +1031,13 @@ END:VCARD`;
             
             currentEditingId = id;
             document.getElementById('modalTitle').textContent = '連絡先の編集';
+            document.getElementById('contactForm').innerHTML = originalContactFormHTML; // 元のフォームに戻す
             document.getElementById('contactName').value = contact.name;
             document.getElementById('contactPhone').value = contact.phone;
             document.getElementById('contactEmail').value = contact.email;
             document.getElementById('contactOrg').value = contact.org;
             document.getElementById('contactAddress').value = contact.address;
-            document.getElementById('contactGroup').value = contact.group; // Set group field
+            document.getElementById('contactGroup').value = contact.group;
             document.getElementById('contactNote').value = contact.note;
             document.getElementById('contactModal').style.display = 'block';
         }
@@ -1024,6 +1049,7 @@ END:VCARD`;
                 applyFiltersAndSort();
                 updateStats();
                 renderGroupFilters();
+                updateNoInfoCount(); // 連絡先が削除されたらカウントを更新
             }
         }
 
@@ -1032,7 +1058,7 @@ END:VCARD`;
             if (contact) {
                 contact.favorite = !contact.favorite;
                 saveContactsToStorage();
-                applyFiltersAndSort(); // Re-render to update icon
+                applyFiltersAndSort();
                 updateStats();
             }
         }
@@ -1046,7 +1072,7 @@ END:VCARD`;
                 email: document.getElementById('contactEmail').value,
                 org: document.getElementById('contactOrg').value,
                 address: document.getElementById('contactAddress').value,
-                group: document.getElementById('contactGroup').value.trim(), // Get group value
+                group: document.getElementById('contactGroup').value.trim(),
                 note: document.getElementById('contactNote').value
             };
 
@@ -1056,17 +1082,15 @@ END:VCARD`;
             }
             
             if (currentEditingId) {
-                // 編集
                 const contactIndex = contacts.findIndex(c => c.id === currentEditingId);
                 if (contactIndex !== -1) {
                     contacts[contactIndex] = { ...contacts[contactIndex], ...formData };
                 }
             } else {
-                // 新規追加
                 contacts.push({
                     id: generateId(),
-                    timestamp: Date.now(), // Record creation time
-                    favorite: false, // Default new contact to not favorited
+                    timestamp: Date.now(),
+                    favorite: false,
                     ...formData
                 });
             }
@@ -1074,12 +1098,16 @@ END:VCARD`;
             saveContactsToStorage();
             applyFiltersAndSort();
             updateStats();
-            renderGroupFilters(); // Update group filters after adding/editing
+            renderGroupFilters();
+            updateNoInfoCount(); // 連絡先が追加/編集されたらカウントを更新
             closeModal();
         }
 
         function closeModal() {
             document.getElementById('contactModal').style.display = 'none';
+            // モーダルを閉じる際に、必ず元のフォーム内容に戻す
+            document.getElementById('contactForm').innerHTML = originalContactFormHTML;
+            document.getElementById('contactForm').reset(); // フォームをリセット
             currentEditingId = null;
         }
 
@@ -1090,8 +1118,8 @@ END:VCARD`;
                 applyFiltersAndSort();
                 updateStats();
                 renderGroupFilters();
+                updateNoInfoCount(); // 全削除したらカウントもリセット
                 document.getElementById('searchInput').value = '';
-                // Reset filter to 'all' and activate its sidebar link
                 currentFilter = 'all';
                 document.querySelectorAll('.sidebar ul li a').forEach(l => l.classList.remove('active'));
                 document.querySelector('.sidebar ul li a[data-filter="all"]').classList.add('active');
@@ -1100,7 +1128,6 @@ END:VCARD`;
 
         function updateStats() {
             document.getElementById('totalContacts').textContent = contacts.length;
-            // Visible contacts are updated by applyFiltersAndSort
         }
 
         function saveContactsToStorage() {
@@ -1113,10 +1140,9 @@ END:VCARD`;
                 const storedData = localStorage.getItem('vcfContacts');
                 if (storedData) {
                     contacts = JSON.parse(storedData);
-                    // Ensure older contacts have favorite and timestamp properties
                     contacts.forEach(contact => {
                         if (typeof contact.favorite === 'undefined') contact.favorite = false;
-                        if (typeof contact.timestamp === 'undefined') contact.timestamp = Date.now(); // Set current time if missing
+                        if (typeof contact.timestamp === 'undefined') contact.timestamp = Date.now();
                     });
                 }
             } catch (error) {
@@ -1127,7 +1153,7 @@ END:VCARD`;
 
         function renderGroupFilters() {
             const groupFiltersDiv = document.getElementById('groupFilters');
-            groupFiltersDiv.innerHTML = ''; // Clear existing filters
+            groupFiltersDiv.innerHTML = '';
 
             const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
 
@@ -1148,7 +1174,6 @@ END:VCARD`;
                 groupFiltersDiv.appendChild(li);
             });
 
-            // Ensure 'All Contacts' and 'Favorites' links remain active when their filters are selected
             document.querySelectorAll('.sidebar ul li a').forEach(link => {
                 if (link.dataset.filter === currentFilter) {
                     link.classList.add('active');
@@ -1157,9 +1182,129 @@ END:VCARD`;
                 }
             });
         }
+
+        // --- 新機能の追加 ---
+
+        // 1. 電話番号またはメールアドレスがない連絡先を削除する機能
+        function getContactsWithNoInfo() {
+            return contacts.filter(c => !c.phone && !c.email);
+        }
+
+        function updateNoInfoCount() {
+            const count = getContactsWithNoInfo().length;
+            document.getElementById('noInfoCount').textContent = count;
+        }
+
+        function confirmDeleteNoContactInfo() {
+            const contactsToDelete = getContactsWithNoInfo();
+            const count = contactsToDelete.length;
+
+            if (count === 0) {
+                alert('電話番号またはメールアドレスのない連絡先はありません。');
+                return;
+            }
+
+            if (confirm(`${count}件の電話番号またはメールアドレスのない連絡先を削除しますか？`)) {
+                contacts = contacts.filter(c => c.phone || c.email);
+                saveContactsToStorage();
+                applyFiltersAndSort();
+                updateStats();
+                renderGroupFilters();
+                updateNoInfoCount();
+                alert(`${count}件の連絡先を削除しました。`);
+            }
+        }
+
+        // 2. 電話番号が重複している連絡先を検索し、選択して削除する機能
+        function findDuplicatePhones() {
+            const phoneMap = new Map();
+            const duplicates = [];
+
+            contacts.forEach(contact => {
+                if (contact.phone) {
+                    const cleanPhone = contact.phone.replace(/[^\d]/g, '');
+                    if (cleanPhone) { // クリーンアップ後も電話番号が残っている場合のみ対象
+                        if (phoneMap.has(cleanPhone)) {
+                            phoneMap.get(cleanPhone).push(contact);
+                        } else {
+                            phoneMap.set(cleanPhone, [contact]);
+                        }
+                    }
+                }
+            });
+
+            phoneMap.forEach(contactList => {
+                if (contactList.length > 1) {
+                    duplicates.push(...contactList);
+                }
+            });
+
+            if (duplicates.length === 0) {
+                alert('電話番号の重複は見つかりませんでした。');
+                return;
+            }
+
+            displayDuplicateSelectionModal(duplicates);
+        }
+
+        function displayDuplicateSelectionModal(duplicates) {
+            const modal = document.getElementById('contactModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const form = document.getElementById('contactForm');
+
+            modalTitle.textContent = '重複する電話番号の連絡先';
+            form.innerHTML = `
+                <p style="margin-bottom: 20px;">以下の連絡先は電話番号が重複しています。削除したい連絡先を選択してください。</p>
+                <div id="duplicateList" style="max-height: 400px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; background: #f7fafc;"></div>
+                <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteSelectedDuplicates()">選択した連絡先を削除</button>
+                </div>
+            `;
+
+            const duplicateListDiv = document.getElementById('duplicateList');
+            duplicates.forEach(contact => {
+                const div = document.createElement('div');
+                div.style.marginBottom = '10px';
+                div.innerHTML = `
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" data-id="${contact.id}" style="margin-right: 10px; transform: scale(1.2);">
+                        <span>
+                            <strong>${escapeHtml(contact.name)}</strong><br>
+                            電話: ${escapeHtml(contact.phone || 'なし')}<br>
+                            メール: ${escapeHtml(contact.email || 'なし')}<br>
+                            ${contact.org ? `組織: ${escapeHtml(contact.org)}<br>` : ''}
+                            <small style="color: #718096;">ID: ${contact.id.substring(0, 8)}...</small>
+                        </span>
+                    </label>
+                    <hr style="border: 0; border-top: 1px dashed #e2e8f0; margin-top: 10px;">
+                `;
+                duplicateListDiv.appendChild(div);
+            });
+
+            modal.style.display = 'block';
+        }
+
+        function deleteSelectedDuplicates() {
+            const checkboxes = document.querySelectorAll('#duplicateList input[type="checkbox"]:checked');
+            const idsToDelete = Array.from(checkboxes).map(cb => cb.dataset.id);
+
+            if (idsToDelete.length === 0) {
+                alert('削除する連絡先を選択してください。');
+                return;
+            }
+
+            if (confirm(`${idsToDelete.length}件の選択された連絡先を削除しますか？`)) {
+                contacts = contacts.filter(c => !idsToDelete.includes(c.id));
+                saveContactsToStorage();
+                applyFiltersAndSort();
+                updateStats();
+                renderGroupFilters();
+                updateNoInfoCount();
+                closeModal(); // モーダルを閉じる
+                alert(`${idsToDelete.length}件の連絡先を削除しました。`);
+            }
+        }
     </script>
 </body>
 </html>
-
-
-もっと、連絡帳を綺麗にして見易くして。
