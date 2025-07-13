@@ -441,7 +441,7 @@
         .stat-number {
             font-size: 2em;
             font-weight: bold;
-            color: white;
+            color: white; /* Changed for better visibility */
             display: block;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.3); /* Added for better visibility */
         }
@@ -654,21 +654,13 @@
                 <div class="form-group">
                     <label class="form-label">電話番号</label>
                     <div id="phoneInputs">
-                        <div class="input-group">
-                            <input type="tel" class="form-input contact-phone-input">
-                            <button type="button" onclick="removeInputField(this)">-</button>
                         </div>
-                    </div>
                     <button type="button" class="btn btn-secondary btn-sm" onclick="addInputField('phone')">電話番号を追加</button>
                 </div>
                 <div class="form-group">
                     <label class="form-label">メールアドレス</label>
                     <div id="emailInputs">
-                        <div class="input-group">
-                            <input type="email" class="form-input contact-email-input">
-                            <button type="button" onclick="removeInputField(this)">-</button>
                         </div>
-                    </div>
                     <button type="button" class="btn btn-secondary btn-sm" onclick="addInputField('email')">メールアドレスを追加</button>
                 </div>
                 <div class="form-group">
@@ -843,15 +835,16 @@
 
         function parseVCF(vcfContent) {
             const parsedContacts = [];
-            const vcardBlocks = vcfContent.split(/BEGIN:VCARD[\r\n]+/i).filter(block => block.trim() !== '');
+            // Use non-greedy regex with DOTALL flag (s) to match across newlines for BEGIN:VCARD...END:VCARD blocks
+            const vcardBlocks = vcfContent.match(/BEGIN:VCARD[\s\S]*?END:VCARD/gi);
+
+            if (!vcardBlocks) {
+                console.warn("No VCard blocks found in the VCF content.");
+                return [];
+            }
             
             for (const block of vcardBlocks) {
-                if (!block.trim().endsWith('END:VCARD')) {
-                    console.warn("Skipping malformed VCard block (missing END:VCARD):", block.substring(0, 100) + '...');
-                    continue;
-                }
-
-                const lines = block.split(/[\r\n]+/).map(line => line.trim()).filter(line => line !== '' && !line.startsWith('END:VCARD'));
+                const lines = block.split(/[\r\n]+/).map(line => line.trim());
                 
                 const contact = {
                     name: '',
@@ -864,37 +857,59 @@
                 };
                 
                 let lastKey = '';
-                lines.forEach(line => {
+                let lastValue = ''; // Store value for folded lines
+
+                for (let i = 0; i < lines.length; i++) {
+                    let line = lines[i];
+
                     if (line.startsWith(' ') || line.startsWith('\t')) {
-                        // Handle folded lines (continuation)
-                        if (lastKey) {
-                            if (lastKey.startsWith('TEL')) contact.phone[contact.phone.length - 1] += line.trim();
-                            else if (lastKey.startsWith('EMAIL')) contact.email[contact.email.length - 1] += line.trim();
-                            else if (lastKey.startsWith('FN')) contact.name += line.trim();
-                            else if (lastKey.startsWith('N')) contact.name += line.trim(); // Handle N for name if FN isn't there
-                            else if (lastKey.startsWith('ORG')) contact.org += line.trim();
-                            else if (lastKey.startsWith('ADR')) contact.address += line.trim();
-                            else if (lastKey.startsWith('NOTE')) contact.note += line.trim();
-                            else if (lastKey.startsWith('CATEGORIES') || lastKey.startsWith('X-GROUP')) contact.group += line.trim();
+                        // Handle folded lines: append to the last processed value
+                        if (lastKey && lastValue !== undefined) {
+                            lastValue += line.trim();
+                            // Update the last added item in array properties
+                            if (lastKey.startsWith('TEL')) contact.phone[contact.phone.length - 1] = lastValue;
+                            else if (lastKey.startsWith('EMAIL')) contact.email[contact.email.length - 1] = lastValue;
+                            else if (lastKey.startsWith('FN')) contact.name = lastValue;
+                            else if (lastKey.startsWith('N')) {
+                                if (!contact.name) { // Only update if FN wasn't set
+                                    const nameParts = lastValue.split(';');
+                                    contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim();
+                                    if (!contact.name) contact.name = lastValue;
+                                }
+                            }
+                            else if (lastKey.startsWith('ORG')) contact.org = lastValue;
+                            else if (lastKey.startsWith('ADR')) contact.address = lastValue;
+                            else if (lastKey.startsWith('NOTE')) contact.note = lastValue;
+                            else if (lastKey.startsWith('CATEGORIES') || lastKey.startsWith('X-GROUP')) contact.group = lastValue;
                         }
-                        return;
+                        continue; // Go to next line
                     }
 
+                    // Process new line
                     const parts = line.split(':');
+                    if (parts.length < 2) {
+                        if (line !== 'BEGIN:VCARD' && line !== 'END:VCARD') {
+                            // console.warn("Skipping malformed VCF line:", line);
+                        }
+                        lastKey = ''; // Reset lastKey as this wasn't a key-value pair
+                        lastValue = '';
+                        continue;
+                    }
+
                     let keyWithParams = parts[0];
                     let value = parts.slice(1).join(':').trim();
-
                     const key = keyWithParams.split(';')[0].toUpperCase();
                     
                     switch (key) {
                         case 'FN':
-                            if (!contact.name) contact.name = value; // Prioritize FN
+                            contact.name = value;
                             break;
                         case 'N':
                             if (!contact.name) { // Fallback to N if FN is not present
+                                // N field usually comes as "Family;Given;Middle;Prefix;Suffix"
                                 const nameParts = value.split(';');
                                 contact.name = [nameParts[1], nameParts[0]].filter(Boolean).join(' ').trim();
-                                if (!contact.name) contact.name = value;
+                                if (!contact.name) contact.name = value; // If still empty, use full N value
                             }
                             break;
                         case 'TEL':
@@ -907,19 +922,22 @@
                             contact.org = value;
                             break;
                         case 'ADR':
+                            // ADR field usually comes as "POBox;ExtAdd;Street;City;State;PostalCode;Country"
+                            // Store as comma-separated for internal use for simplicity.
                             const addressParts = value.split(';');
-                            contact.address = addressParts.filter(Boolean).join(', ');
+                            contact.address = addressParts.filter(Boolean).join(', '); 
                             break;
                         case 'NOTE':
                             contact.note = value;
                             break;
                         case 'CATEGORIES':
-                        case 'X-GROUP':
+                        case 'X-GROUP': // Common custom field for group
                             contact.group = value;
                             break;
                     }
                     lastKey = keyWithParams; // Store the full key with parameters for folded lines
-                });
+                    lastValue = value; // Store the value for folded lines
+                }
                 
                 // Clean up empty arrays
                 contact.phone = contact.phone.filter(p => p.trim() !== '');
@@ -928,7 +946,7 @@
                 if (contact.name) {
                     parsedContacts.push(contact);
                 } else {
-                    console.warn("Skipping VCard block (no name found):", block.substring(0, 100) + '...');
+                    console.warn("Skipping VCard block (no name found):", block.substring(0, Math.min(block.length, 100)) + '...');
                 }
             }
             return parsedContacts;
@@ -961,22 +979,21 @@
                 let hasName = false;
                 for (const key in row) {
                     const trimmedKey = key.trim();
+                    const value = String(row[key]).trim(); // Ensure value is a string and trimmed
+
                     if (headerMap[trimmedKey]) {
                         if (headerMap[trimmedKey] === 'favorite') {
-                            const val = String(row[key]).toLowerCase();
-                            contact.favorite = (val === 'true' || val === '1' || val === 'yes' || val === 'はい');
+                            contact.favorite = (value.toLowerCase() === 'true' || value === '1' || value.toLowerCase() === 'yes' || value.toLowerCase() === 'はい');
                         } else {
-                            contact[headerMap[trimmedKey]] = String(row[key]);
+                            contact[headerMap[trimmedKey]] = value;
                         }
-                        if (headerMap[trimmedKey] === 'name' && contact.name.trim() !== '') {
+                        if (headerMap[trimmedKey] === 'name' && contact.name) {
                             hasName = true;
                         }
                     } else if (trimmedKey.startsWith('電話番号')) {
-                        const phone = String(row[key]).trim();
-                        if (phone) contact.phone.push(phone);
-                    } else if (trimmedKey.startsWith('メールアドレス')) {
-                        const email = String(row[key]).trim();
-                        if (email) contact.email.push(email);
+                        if (value) contact.phone.push(value);
+                    } else if (trimmedKey.startsWith('メールアドレス') || trimmedKey.startsWith('メール')) {
+                        if (value) contact.email.push(value);
                     }
                 }
                 
@@ -992,9 +1009,14 @@
         function addNewContacts(newContacts) {
             let addedCount = 0;
             newContacts.forEach(newContact => {
-                // Basic duplicate check for name, phone, and email combination
+                // Ensure phone and email are arrays, even if they come from VCF/Excel as empty strings or null
+                newContact.phone = Array.isArray(newContact.phone) ? newContact.phone.filter(p => p.trim() !== '') : [];
+                newContact.email = Array.isArray(newContact.email) ? newContact.email.filter(e => e.trim() !== '') : [];
+
+                // Check if contact with same name and (any) phone/email already exists to avoid duplicates
                 const exists = contacts.some(c => 
                     c.name === newContact.name && 
+                    // Compare sorted phone/email arrays for robust duplicate detection
                     JSON.stringify(c.phone.sort()) === JSON.stringify(newContact.phone.sort()) &&
                     JSON.stringify(c.email.sort()) === JSON.stringify(newContact.email.sort())
                 );
@@ -1003,8 +1025,6 @@
                         id: generateId(),
                         timestamp: Date.now(),
                         favorite: newContact.favorite || false,
-                        phone: newContact.phone || [],
-                        email: newContact.email || [],
                         ...newContact
                     });
                     addedCount++;
@@ -1034,25 +1054,39 @@
 
             // Create VCF content
             const vcfContent = contactsToExport.map(contact => {
+                if (!contact.name) { // VCF requires FN (Full Name)
+                    console.warn("Skipping contact without a name for VCF export:", contact);
+                    return ''; // Skip this contact
+                }
+
                 let vcard = `BEGIN:VCARD
 VERSION:3.0
-FN:${contact.name || ''}`;
-                
+FN:${contact.name}`; // FN is mandatory
+
+                // Add phones
                 (contact.phone || []).forEach(p => {
                     if (p) vcard += `\nTEL:${p}`;
                 });
+                // Add emails
                 (contact.email || []).forEach(e => {
                     if (e) vcard += `\nEMAIL:${e}`;
                 });
                 
                 if (contact.org) vcard += `\nORG:${contact.org}`;
-                if (contact.address) vcard += `\nADR;TYPE=WORK,POSTAL:${contact.address.replace(/, /g, ';')}`;
+                // ADR field should be semi-colon separated parts according to VCF spec
+                // POBox;ExtAdd;Street;City;State;PostalCode;Country
+                // Assuming contact.address might be comma-separated, convert it.
+                if (contact.address) {
+                    // Simple conversion: replace commas with semicolons. Might need more complex logic for full spec adherence.
+                    const adrValue = contact.address.split(', ').join(';'); 
+                    vcard += `\nADR;TYPE=WORK,POSTAL:${adrValue}`;
+                }
                 if (contact.group) vcard += `\nCATEGORIES:${contact.group}`;
                 if (contact.note) vcard += `\nNOTE:${contact.note}`;
                 
                 vcard += `\nEND:VCARD`;
                 return vcard;
-            }).join('\n\n');
+            }).filter(Boolean).join('\n\n'); // Filter out empty strings from skipped contacts
             
             // Create Excel content
             const excelData = contactsToExport.map(contact => {
@@ -1084,13 +1118,17 @@ FN:${contact.name || ''}`;
             const date = new Date().toISOString().slice(0, 10);
 
             // VCF download
-            const vcfBlob = new Blob([vcfContent], { type: 'text/vcard;charset=utf-8' });
-            const vcfUrl = URL.createObjectURL(vcfBlob);
-            const vcfA = document.createElement('a');
-            vcfA.href = vcfUrl;
-            vcfA.download = `連絡先_${date}.vcf`;
-            vcfA.click();
-            URL.revokeObjectURL(vcfUrl);
+            if (vcfContent) { // Only download if there's content
+                const vcfBlob = new Blob([vcfContent], { type: 'text/vcard;charset=utf-8' });
+                const vcfUrl = URL.createObjectURL(vcfBlob);
+                const vcfA = document.createElement('a');
+                vcfA.href = vcfUrl;
+                vcfA.download = `連絡先_${date}.vcf`;
+                vcfA.click();
+                URL.revokeObjectURL(vcfUrl);
+            } else {
+                alert('VCFエクスポート用の名前のある連絡先が見つかりませんでした。');
+            }
 
             // Excel download
             XLSX.writeFile(wb, `連絡先_${date}.xlsx`);
@@ -1109,6 +1147,7 @@ FN:${contact.name || ''}`;
             if (contactsToRender.length === 0) {
                 grid.innerHTML = '';
                 noContacts.style.display = 'block';
+                document.getElementById('visibleContacts').textContent = 0; // Update visible count
                 return;
             }
             
@@ -1130,6 +1169,7 @@ FN:${contact.name || ''}`;
                     </div>
                 </div>
             `).join('');
+            document.getElementById('visibleContacts').textContent = contactsToRender.length; // Update visible count
         }
 
         function escapeHtml(text) {
@@ -1189,18 +1229,12 @@ FN:${contact.name || ''}`;
             return filteredContacts;
         }
 
-        function applyFiltersAndSort() {
-            const contactsToRender = getFilteredAndSortedContacts();
-            renderContacts(contactsToRender);
-            document.getElementById('visibleContacts').textContent = contactsToRender.length;
-        }
-
-        function addInputField(type) {
+        function addInputField(type, value = '') {
             const container = type === 'phone' ? document.getElementById('phoneInputs') : document.getElementById('emailInputs');
             const newDiv = document.createElement('div');
             newDiv.classList.add('input-group');
             newDiv.innerHTML = `
-                <input type="${type === 'phone' ? 'tel' : 'email'}" class="form-input contact-${type}-input">
+                <input type="${type === 'phone' ? 'tel' : 'email'}" class="form-input contact-${type}-input" value="${escapeHtml(value)}">
                 <button type="button" onclick="removeInputField(this)">-</button>
             `;
             container.appendChild(newDiv);
@@ -1208,10 +1242,11 @@ FN:${contact.name || ''}`;
 
         function removeInputField(button) {
             const inputGroup = button.parentNode;
+            const container = inputGroup.parentNode;
             inputGroup.remove();
-            // Ensure at least one input field remains if it's the last one
-            if (inputGroup.parentNode.children.length === 0) {
-                addInputField(inputGroup.querySelector('input').type === 'tel' ? 'phone' : 'email');
+            // Ensure at least one input field remains if all are removed
+            if (container.children.length === 0) {
+                addInputField(container.id === 'phoneInputs' ? 'phone' : 'email');
             }
         }
 
@@ -1221,12 +1256,10 @@ FN:${contact.name || ''}`;
             document.getElementById('contactForm').reset();
             
             // Clear and add a single phone/email input field
-            const phoneInputsDiv = document.getElementById('phoneInputs');
-            phoneInputsDiv.innerHTML = '';
+            document.getElementById('phoneInputs').innerHTML = '';
             addInputField('phone');
 
-            const emailInputsDiv = document.getElementById('emailInputs');
-            emailInputsDiv.innerHTML = '';
+            document.getElementById('emailInputs').innerHTML = '';
             addInputField('email');
 
             document.getElementById('contactName').value = '';
@@ -1255,10 +1288,7 @@ FN:${contact.name || ''}`;
             const phoneInputsDiv = document.getElementById('phoneInputs');
             phoneInputsDiv.innerHTML = '';
             if (contact.phone && contact.phone.length > 0) {
-                contact.phone.forEach(p => {
-                    addInputField('phone');
-                    phoneInputsDiv.lastChild.querySelector('.contact-phone-input').value = p;
-                });
+                contact.phone.forEach(p => addInputField('phone', p));
             } else {
                 addInputField('phone'); // Add a default empty one if none exist
             }
@@ -1266,10 +1296,7 @@ FN:${contact.name || ''}`;
             const emailInputsDiv = document.getElementById('emailInputs');
             emailInputsDiv.innerHTML = '';
             if (contact.email && contact.email.length > 0) {
-                contact.email.forEach(e => {
-                    addInputField('email');
-                    emailInputsDiv.lastChild.querySelector('.contact-email-input').value = e;
-                });
+                contact.email.forEach(e => addInputField('email', e));
             } else {
                 addInputField('email'); // Add a default empty one if none exist
             }
@@ -1372,6 +1399,7 @@ FN:${contact.name || ''}`;
 
         function updateStats() {
             document.getElementById('totalContacts').textContent = contacts.length;
+            applyFiltersAndSort(); // This will update visibleContacts
         }
 
         function saveContactsToStorage() {
@@ -1385,17 +1413,31 @@ FN:${contact.name || ''}`;
                 if (storedData) {
                     contacts = JSON.parse(storedData);
                     contacts.forEach(contact => {
+                        // Ensure favorite and timestamp exist
                         if (typeof contact.favorite === 'undefined') contact.favorite = false;
                         if (typeof contact.timestamp === 'undefined') contact.timestamp = Date.now();
-                        // Ensure phone and email are arrays
+                        
+                        // Migrate phone/email to array if they are strings
                         if (!Array.isArray(contact.phone)) contact.phone = contact.phone ? [contact.phone] : [];
                         if (!Array.isArray(contact.email)) contact.email = contact.email ? [contact.email] : [];
+
+                        // Filter out empty strings from phone/email arrays
+                        contact.phone = contact.phone.filter(p => p.trim() !== '');
+                        contact.email = contact.email.filter(e => e.trim() !== '');
+
+                        // Ensure group is a string
+                        if (typeof contact.group !== 'string') contact.group = '';
                     });
                 }
             } catch (error) {
                 console.error('連絡先データの読み込みエラー:', error);
                 contacts = [];
             }
+        }
+
+        function applyFiltersAndSort() {
+            const filteredAndSortedContacts = getFilteredAndSortedContacts();
+            renderContacts(filteredAndSortedContacts);
         }
 
         function renderGroupFilters() {
@@ -1565,16 +1607,17 @@ FN:${contact.name || ''}`;
         // 3. グループ選択用datalistの生成
         function populateGroupDatalist() {
             const datalist = document.getElementById('groupOptions');
-            if (!datalist) return; // モーダルが閉じている場合は存在しない
-
-            datalist.innerHTML = '';
-            const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
-            
-            uniqueGroups.forEach(group => {
-                const option = document.createElement('option');
-                option.value = group;
-                datalist.appendChild(option);
-            });
+            // Check if datalist exists (it might not if modal isn't open)
+            if (datalist) {
+                datalist.innerHTML = '';
+                const uniqueGroups = [...new Set(contacts.map(c => c.group).filter(group => group))].sort((a, b) => a.localeCompare(b));
+                
+                uniqueGroups.forEach(group => {
+                    const option = document.createElement('option');
+                    option.value = group;
+                    datalist.appendChild(option);
+                });
+            }
         }
 
         // 4. グループ管理モーダル
