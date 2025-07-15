@@ -530,6 +530,104 @@
             color: #a0aec0;
         }
 
+        /* Dialpad specific styles */
+        .dialpad-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 1.5em;
+            text-align: center;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            background: #fdfdfd;
+        }
+
+        .dialpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .dialpad-btn {
+            width: 100%;
+            padding: 15px 0;
+            font-size: 1.5em;
+            border: none;
+            border-radius: 10px;
+            background: #e2e8f0;
+            color: #4a5568;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+        }
+
+        .dialpad-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .dialpad-btn:hover {
+            background: #cbd5e0;
+        }
+
+        .dialpad-btn.action-btn {
+            background: #a0aec0;
+            color: white;
+        }
+
+        .dialpad-btn.action-btn:hover {
+            background: #718096;
+        }
+
+        .dialpad-call-btn {
+            background: #48bb78;
+            color: white;
+            font-size: 1.8em;
+            padding: 15px 0;
+        }
+
+        .dialpad-call-btn:hover {
+            background: #38a169;
+        }
+        
+        .dialpad-backspace {
+            font-size: 1.2em;
+        }
+
+        /* Call history specific styles */
+        .call-history-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .call-history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            background: #f7fafc;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .call-history-number {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .call-history-time {
+            font-size: 0.8em;
+            color: #718096;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 flex-direction: column;
@@ -567,6 +665,8 @@
                 <button class="btn btn-secondary" onclick="removeIncompleteContacts()">🧹 情報不足削除 (<span id="incomplete-count">0</span>)</button>
                 <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
                 <button class="btn btn-secondary" onclick="showGroupManagement()">👥 グループ管理</button>
+                <button class="btn btn-secondary" onclick="showDialpad()">📞 キーパッド</button>
+                <button class="btn btn-secondary" onclick="showCallHistoryModal()">🕒 履歴</button>
                 <button class="btn btn-danger" onclick="clearAllContacts()">🗑️ すべて削除</button>
             </div>
             <div class="stats">
@@ -714,6 +814,49 @@
         </div>
     </div>
 
+    <div id="dialpad-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">電話をかける</h2>
+                <button class="close-btn" onclick="closeModal('dialpad-modal')">&times;</button>
+            </div>
+            <input type="text" class="dialpad-input" id="dialpad-input" placeholder="電話番号を入力" readonly>
+            <div class="dialpad-grid">
+                <button class="dialpad-btn" onclick="appendDigit('1')">1</button>
+                <button class="dialpad-btn" onclick="appendDigit('2')">2<br>ABC</button>
+                <button class="dialpad-btn" onclick="appendDigit('3')">3<br>DEF</button>
+                <button class="dialpad-btn" onclick="appendDigit('4')">4<br>GHI</button>
+                <button class="dialpad-btn" onclick="appendDigit('5')">5<br>JKL</button>
+                <button class="dialpad-btn" onclick="appendDigit('6')">6<br>MNO</button>
+                <button class="dialpad-btn" onclick="appendDigit('7')">7<br>PQRS</button>
+                <button class="dialpad-btn" onclick="appendDigit('8')">8<br>TUV</button>
+                <button class="dialpad-btn" onclick="appendDigit('9')">9<br>WXYZ</button>
+                <button class="dialpad-btn" onclick="appendDigit('*')">*</button>
+                <button class="dialpad-btn" onclick="appendDigit('0')">0<br>+</button>
+                <button class="dialpad-btn" onclick="appendDigit('#')">#</button>
+            </div>
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+                <button class="btn btn-danger dialpad-btn action-btn" style="flex: 1;" onclick="clearDialpad()">クリア</button>
+                <button class="btn btn-primary dialpad-call-btn" style="flex: 2;" onclick="dialFromDialpad()">📞</button>
+                <button class="btn btn-secondary dialpad-btn action-btn dialpad-backspace" style="flex: 1;" onclick="backspaceDialpad()">⌫</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="call-history-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">通話履歴</h2>
+                <button class="close-btn" onclick="closeModal('call-history-modal')">&times;</button>
+            </div>
+            <div class="call-history-list" id="call-history-list">
+                </div>
+            <div style="text-align: center;">
+                <button class="btn btn-danger" onclick="clearCallHistory()">履歴を削除</button>
+            </div>
+        </div>
+    </div>
+
     <div id="loading" class="loading" style="display: none;">
         <div class="loading-spinner"></div>
     </div>
@@ -723,13 +866,16 @@
         let filteredContacts = [];
         let currentFilter = 'all';
         let currentEditingIndex = -1;
+        let callHistory = []; // New array for call history
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             loadContacts();
+            loadCallHistory(); // Load call history
             setupEventListeners();
             renderContacts();
             updateStats();
+            renderCallHistory(); // Render call history on load
         });
 
         // Setup event listeners
@@ -774,6 +920,19 @@
         // Save contacts to localStorage
         function saveContacts() {
             localStorage.setItem('contacts', JSON.stringify(contacts));
+        }
+
+        // Load call history from localStorage
+        function loadCallHistory() {
+            const storedHistory = localStorage.getItem('callHistory');
+            if (storedHistory) {
+                callHistory = JSON.parse(storedHistory);
+            }
+        }
+
+        // Save call history to localStorage
+        function saveCallHistory() {
+            localStorage.setItem('callHistory', JSON.stringify(callHistory));
         }
 
         // Show loading overlay
@@ -1080,7 +1239,7 @@
                         ${contact.phones.map(phone => `
                             <div class="contact-info-item">
                                 <span>📞</span>
-                                <a href="tel:${phone}">${escapeHtml(phone)}</a>
+                                <a href="#" onclick="dialPhone('${escapeHtml(phone)}'); return false;">${escapeHtml(phone)}</a>
                             </div>
                         `).join('')}
                         
@@ -1576,6 +1735,105 @@
         // Initialize filters
         function initializeFilters() {
             applyFilters();
+        }
+
+        // --- New Dialpad and Call History Functions ---
+
+        // Function to dial a phone number and record history
+        function dialPhone(phoneNumber) {
+            if (phoneNumber) {
+                const confirmed = confirm(`「${phoneNumber}」に電話をかけますか？`);
+                if (confirmed) {
+                    window.location.href = `tel:${phoneNumber}`;
+                    recordCall(phoneNumber);
+                }
+            } else {
+                alert('電話番号がありません。');
+            }
+        }
+
+        // Show dialpad modal
+        function showDialpad(initialNumber = '') {
+            const dialpadInput = document.getElementById('dialpad-input');
+            dialpadInput.value = initialNumber;
+            document.getElementById('dialpad-modal').style.display = 'block';
+            dialpadInput.focus();
+        }
+
+        // Append digit to dialpad input
+        function appendDigit(digit) {
+            const dialpadInput = document.getElementById('dialpad-input');
+            dialpadInput.value += digit;
+        }
+
+        // Backspace on dialpad input
+        function backspaceDialpad() {
+            const dialpadInput = document.getElementById('dialpad-input');
+            dialpadInput.value = dialpadInput.value.slice(0, -1);
+        }
+
+        // Clear dialpad input
+        function clearDialpad() {
+            document.getElementById('dialpad-input').value = '';
+        }
+
+        // Dial from dialpad
+        function dialFromDialpad() {
+            const phoneNumber = document.getElementById('dialpad-input').value.trim();
+            if (phoneNumber) {
+                dialPhone(phoneNumber);
+                closeModal('dialpad-modal');
+            } else {
+                alert('電話番号を入力してください。');
+            }
+        }
+
+        // Record a call in history
+        function recordCall(phoneNumber) {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = (now.getMonth() + 1).toString().padStart(2, '0');
+            const day = now.getDate().toString().padStart(2, '0');
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+
+            const timestamp = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+
+            callHistory.unshift({ number: phoneNumber, time: timestamp }); // Add to the beginning
+            saveCallHistory();
+            renderCallHistory(); // Update history display
+        }
+
+        // Show call history modal
+        function showCallHistoryModal() {
+            renderCallHistory();
+            document.getElementById('call-history-modal').style.display = 'block';
+        }
+
+        // Render call history
+        function renderCallHistory() {
+            const historyList = document.getElementById('call-history-list');
+            if (callHistory.length === 0) {
+                historyList.innerHTML = '<div class="empty-state"><div class="empty-state-text">通話履歴がありません。</div></div>';
+                return;
+            }
+            historyList.innerHTML = callHistory.map(item => `
+                <div class="call-history-item">
+                    <span class="call-history-number">${escapeHtml(item.number)}</span>
+                    <span class="call-history-time">${escapeHtml(item.time)}</span>
+                </div>
+            `).join('');
+        }
+
+        // Clear call history
+        function clearCallHistory() {
+            if (confirm('通話履歴をすべて削除しますか？')) {
+                callHistory = [];
+                saveCallHistory();
+                renderCallHistory();
+                alert('通話履歴を削除しました。');
+            }
         }
 
         // Initialize app on load
