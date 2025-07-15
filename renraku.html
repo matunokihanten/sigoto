@@ -720,6 +720,8 @@
                 <button class="btn btn-primary" onclick="document.getElementById('excel-file').click()">📂 Excelファイルを選択</button>
                 <button class="btn btn-secondary" onclick="showAddContactModal()">➕ 新規追加</button>
                 <button class="btn btn-secondary" onclick="showExportOptionsModal()">💾 エクスポート</button>
+                <button class="btn btn-primary" onclick="document.getElementById('json-file-input').click()">⬆️ JSON読み込み</button>
+                <button class="btn btn-secondary" onclick="exportToJson()">⬇️ JSON保存</button>
                 <button class="btn btn-secondary" onclick="removeIncompleteContacts()">🧹 情報不足削除 (<span id="incomplete-count">0</span>)</button>
                 <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
                 <button class="btn btn-secondary" onclick="showGroupManagement()">👥 グループ管理</button>
@@ -780,6 +782,8 @@
 
     <input type="file" id="vcf-file" class="file-input" accept=".vcf" multiple>
     <input type="file" id="excel-file" class="file-input" accept=".xlsx,.xls">
+    <input type="file" id="json-file-input" class="file-input" accept=".json">
+
 
     <div id="contact-modal" class="modal">
         <div class="modal-content">
@@ -921,7 +925,6 @@
                 <h2 class="modal-title">エクスポート形式を選択</h2>
                 <button class="close-btn" onclick="closeModal('export-options-modal')">&times;</button>
             </div>
-            <button class="btn btn-primary" onclick="exportContacts('vcf')">VCFファイルとしてエクスポート</button>
             <button class="btn btn-secondary" onclick="exportContacts('excel')">Excelファイルとしてエクスポート</button>
         </div>
     </div>
@@ -966,6 +969,7 @@
         function setupEventListeners() {
             document.getElementById('vcf-file').addEventListener('change', handleVCFFiles);
             document.getElementById('excel-file').addEventListener('change', handleExcelFile);
+            document.getElementById('json-file-input').addEventListener('change', importFromJson); // New listener for JSON import
             document.getElementById('search-box').addEventListener('input', handleSearch);
             document.getElementById('sort-select').addEventListener('change', handleSort);
             document.getElementById('contact-form').addEventListener('submit', handleContactSubmit);
@@ -1666,10 +1670,7 @@
                 return;
             }
             
-            if (format === 'vcf') {
-                const vcfContent = generateVCF(filteredContacts);
-                downloadFile(vcfContent, 'contacts.vcf', 'text/vcard');
-            } else if (format === 'excel') {
+            if (format === 'excel') {
                 const excelData = generateExcelData(filteredContacts);
                 const worksheet = XLSX.utils.json_to_sheet(excelData);
                 const workbook = XLSX.utils.book_new();
@@ -1679,7 +1680,8 @@
             closeModal('export-options-modal');
         }
 
-        // Generate VCF content
+        // Generate VCF content - REMOVED AS PER REQUEST
+        /*
         function generateVCF(contacts) {
             return contacts.map(contact => {
                 let vcf = 'BEGIN:VCARD\nVERSION:3.0\n';
@@ -1713,6 +1715,7 @@
                 return vcf;
             }).join('\n');
         }
+        */
 
         // Generate Excel data
         function generateExcelData(contacts) {
@@ -1747,9 +1750,11 @@
         function clearAllContacts() {
             if (confirm('すべての連絡先を削除しますか？この操作は取り消せません。')) {
                 contacts = [];
+                callHistory = []; // Also clear call history
                 saveContacts();
+                saveCallHistory(); // Save cleared call history
                 renderContacts();
-                // 以下が追加・変更された部分
+                renderCallHistory(); // Update call history display
                 document.getElementById('total-contacts').textContent = '0';
                 document.getElementById('displayed-contacts').textContent = '0';
                 document.getElementById('contacts-grid').innerHTML = `
@@ -2033,6 +2038,69 @@
                 renderCallHistory();
                 alert('通話履歴を削除しました。');
             }
+        }
+
+        // --- New JSON Save/Load Functions ---
+
+        // Export all data (contacts and call history) to a JSON file
+        function exportToJson() {
+            const dataToExport = {
+                contacts: contacts,
+                callHistory: callHistory
+            };
+            const jsonString = JSON.stringify(dataToExport, null, 2); // Pretty print JSON
+            downloadFile(jsonString, 'contact_app_data.json', 'application/json');
+            alert('連絡帳データと通話履歴をJSONファイルとして保存しました。');
+        }
+
+        // Import data from a JSON file
+        function importFromJson(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading();
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (importedData.contacts) {
+                        contacts = importedData.contacts;
+                        saveContacts();
+                    } else {
+                        contacts = [];
+                        saveContacts();
+                        alert('JSONファイルに連絡先データが見つかりませんでした。');
+                    }
+
+                    if (importedData.callHistory) {
+                        callHistory = importedData.callHistory;
+                        saveCallHistory();
+                    } else {
+                        callHistory = [];
+                        saveCallHistory();
+                        alert('JSONファイルに通話履歴データが見つかりませんでした。');
+                    }
+                    
+                    renderContacts();
+                    renderCallHistory();
+                    updateStats();
+                    alert('JSONファイルから連絡帳データと通話履歴を読み込みました。');
+                } catch (error) {
+                    alert('JSONファイルの読み込みまたは解析に失敗しました: ' + error.message);
+                    console.error('Error parsing JSON:', error);
+                } finally {
+                    hideLoading();
+                    event.target.value = ''; // Clear file input
+                }
+            };
+            reader.onerror = function() {
+                alert('ファイルの読み込み中にエラーが発生しました。');
+                hideLoading();
+                event.target.value = '';
+            };
+            reader.readAsText(file);
         }
 
         // Initialize app on load
