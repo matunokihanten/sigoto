@@ -609,25 +609,45 @@
 
         .call-history-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column; /* Changed to column for name/number on separate lines */
+            align-items: flex-start;
             padding: 10px 15px;
             margin-bottom: 8px;
             background: #f7fafc;
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            cursor: pointer; /* Make history items clickable */
+        }
+
+        .call-history-item:hover {
+            background: #edf2f7;
+        }
+
+        .call-history-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            align-items: center;
+        }
+
+        .call-history-name {
+            font-weight: bold;
+            color: #2d3748;
+            font-size: 1.1em;
+            margin-bottom: 2px;
         }
 
         .call-history-number {
             font-weight: 600;
-            color: #4a5568;
+            color: #667eea;
         }
 
         .call-history-time {
             font-size: 0.8em;
             color: #718096;
+            text-align: right; /* Align time to the right */
         }
-
+        
         @media (max-width: 768px) {
             .main-content {
                 flex-direction: column;
@@ -867,6 +887,7 @@
         let currentFilter = 'all';
         let currentEditingIndex = -1;
         let callHistory = []; // New array for call history
+        let longPressTimer; // For call history item long press
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -1239,7 +1260,7 @@
                         ${contact.phones.map(phone => `
                             <div class="contact-info-item">
                                 <span>📞</span>
-                                <a href="#" onclick="dialPhone('${escapeHtml(phone)}'); return false;">${escapeHtml(phone)}</a>
+                                <a href="#" onclick="dialPhone('${escapeHtml(phone)}', '${escapeHtml(contact.name)}'); return false;">${escapeHtml(phone)}</a>
                             </div>
                         `).join('')}
                         
@@ -1332,10 +1353,26 @@
         }
 
         // Show add contact modal
-        function showAddContactModal() {
+        function showAddContactModal(initialPhone = '', initialName = '') {
             currentEditingIndex = -1;
             document.getElementById('modal-title').textContent = '連絡先を追加';
             clearContactForm();
+            document.getElementById('contact-name').value = initialName;
+
+            // Set initial phone if provided
+            const phoneContainer = document.getElementById('phone-inputs');
+            phoneContainer.innerHTML = ''; // Clear existing phone inputs
+            if (initialPhone) {
+                const div = document.createElement('div');
+                div.className = 'multi-input-group';
+                div.innerHTML = `
+                    <input type="tel" class="form-input" value="${escapeHtml(initialPhone)}" placeholder="電話番号を入力">
+                    <button type="button" class="remove-btn" onclick="removeInput(this)">-</button>
+                `;
+                phoneContainer.appendChild(div);
+            }
+            addPhoneInput(); // Add an empty input or another if one was pre-filled
+
             document.getElementById('contact-modal').style.display = 'block';
         }
 
@@ -1740,12 +1777,12 @@
         // --- New Dialpad and Call History Functions ---
 
         // Function to dial a phone number and record history
-        function dialPhone(phoneNumber) {
+        function dialPhone(phoneNumber, contactName = '') {
             if (phoneNumber) {
                 const confirmed = confirm(`「${phoneNumber}」に電話をかけますか？`);
                 if (confirmed) {
                     window.location.href = `tel:${phoneNumber}`;
-                    recordCall(phoneNumber);
+                    recordCall(phoneNumber, contactName);
                 }
             } else {
                 alert('電話番号がありません。');
@@ -1781,7 +1818,7 @@
         function dialFromDialpad() {
             const phoneNumber = document.getElementById('dialpad-input').value.trim();
             if (phoneNumber) {
-                dialPhone(phoneNumber);
+                dialPhone(phoneNumber); // No name for dialpad calls
                 closeModal('dialpad-modal');
             } else {
                 alert('電話番号を入力してください。');
@@ -1789,7 +1826,7 @@
         }
 
         // Record a call in history
-        function recordCall(phoneNumber) {
+        function recordCall(phoneNumber, contactName = '') {
             const now = new Date();
             const year = now.getFullYear();
             const month = (now.getMonth() + 1).toString().padStart(2, '0');
@@ -1800,7 +1837,7 @@
 
             const timestamp = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
 
-            callHistory.unshift({ number: phoneNumber, time: timestamp }); // Add to the beginning
+            callHistory.unshift({ number: phoneNumber, name: contactName, time: timestamp }); // Add to the beginning
             saveCallHistory();
             renderCallHistory(); // Update history display
         }
@@ -1818,13 +1855,51 @@
                 historyList.innerHTML = '<div class="empty-state"><div class="empty-state-text">通話履歴がありません。</div></div>';
                 return;
             }
-            historyList.innerHTML = callHistory.map(item => `
-                <div class="call-history-item">
+            historyList.innerHTML = callHistory.map((item, index) => {
+                const hasName = item.name && item.name.trim() !== '';
+                return `
+                <div class="call-history-item" 
+                     onclick="dialPhone('${escapeHtml(item.number)}', '${escapeHtml(item.name)}')" 
+                     oncontextmenu="handleHistoryLongPress(event, ${index})" 
+                     ontouchstart="handleTouchStart(event, ${index})" 
+                     ontouchend="handleTouchEnd()" 
+                     data-index="${index}">
+                    <div class="call-history-info">
+                        ${hasName ? `<span class="call-history-name">${escapeHtml(item.name)}</span>` : ''}
+                        <span class="call-history-time">${escapeHtml(item.time)}</span>
+                    </div>
                     <span class="call-history-number">${escapeHtml(item.number)}</span>
-                    <span class="call-history-time">${escapeHtml(item.time)}</span>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
+
+        // Handle long press on history item (for desktop)
+        function handleHistoryLongPress(event, index) {
+            event.preventDefault(); // Prevent default context menu
+            const item = callHistory[index];
+            if (!item.name || item.name.trim() === '') {
+                // Only allow edit if there's no name
+                if (confirm(`「${item.number}」の連絡先を編集しますか？`)) {
+                    showAddContactModal(item.number, ''); // Open add/edit modal with number
+                }
+            } else {
+                alert('名前が登録されている履歴は編集できません。');
+            }
+        }
+
+        // Handle touch start for long press (for mobile)
+        function handleTouchStart(event, index) {
+            longPressTimer = setTimeout(() => {
+                handleHistoryLongPress(event, index);
+            }, 1000); // 1 second for long press
+        }
+
+        // Handle touch end for long press (for mobile)
+        function handleTouchEnd() {
+            clearTimeout(longPressTimer);
+        }
+
 
         // Clear call history
         function clearCallHistory() {
