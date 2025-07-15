@@ -647,6 +647,44 @@
             color: #718096;
             text-align: right; /* Align time to the right */
         }
+
+        /* Context menu for contact card */
+        .context-menu {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .context-menu-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            color: #4a5568;
+            font-size: 0.9em;
+            transition: background 0.2s ease;
+        }
+
+        .context-menu-item:hover {
+            background: #edf2f7;
+        }
+
+        .context-menu-item.danger {
+            color: #e53e3e;
+        }
+
+        .export-options-modal .modal-content {
+            max-width: 350px;
+            text-align: center;
+        }
+
+        .export-options-modal .btn {
+            width: 100%;
+            margin-bottom: 10px;
+        }
         
         @media (max-width: 768px) {
             .main-content {
@@ -681,7 +719,7 @@
                 <button class="btn btn-primary" onclick="document.getElementById('vcf-file').click()">📁 VCFファイルを選択</button>
                 <button class="btn btn-primary" onclick="document.getElementById('excel-file').click()">📂 Excelファイルを選択</button>
                 <button class="btn btn-secondary" onclick="showAddContactModal()">➕ 新規追加</button>
-                <button class="btn btn-secondary" onclick="exportContacts()">💾 エクスポート</button>
+                <button class="btn btn-secondary" onclick="showExportOptionsModal()">💾 エクスポート</button>
                 <button class="btn btn-secondary" onclick="removeIncompleteContacts()">🧹 情報不足削除 (<span id="incomplete-count">0</span>)</button>
                 <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
                 <button class="btn btn-secondary" onclick="showGroupManagement()">👥 グループ管理</button>
@@ -877,8 +915,24 @@
         </div>
     </div>
 
+    <div id="export-options-modal" class="modal export-options-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">エクスポート形式を選択</h2>
+                <button class="close-btn" onclick="closeModal('export-options-modal')">&times;</button>
+            </div>
+            <button class="btn btn-primary" onclick="exportContacts('vcf')">VCFファイルとしてエクスポート</button>
+            <button class="btn btn-secondary" onclick="exportContacts('excel')">Excelファイルとしてエクスポート</button>
+        </div>
+    </div>
+
     <div id="loading" class="loading" style="display: none;">
         <div class="loading-spinner"></div>
+    </div>
+
+    <div id="contact-context-menu" class="context-menu">
+        <div class="context-menu-item" onclick="editContactFromContext()">編集</div>
+        <div class="context-menu-item danger" onclick="deleteContactFromContext()">削除</div>
     </div>
 
     <script>
@@ -888,6 +942,7 @@
         let currentEditingIndex = -1;
         let callHistory = []; // New array for call history
         let longPressTimer; // For call history item long press
+        let contextMenuTargetContactIndex = -1; // To store the index of the contact right-clicked
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
@@ -897,6 +952,14 @@
             renderContacts();
             updateStats();
             renderCallHistory(); // Render call history on load
+
+            // Close context menu if clicked outside
+            document.addEventListener('click', function(event) {
+                const contextMenu = document.getElementById('contact-context-menu');
+                if (contextMenu.style.display === 'block' && !contextMenu.contains(event.target)) {
+                    contextMenu.style.display = 'none';
+                }
+            });
         });
 
         // Setup event listeners
@@ -1246,7 +1309,10 @@
             }
             
             grid.innerHTML = filteredContacts.map((contact, index) => `
-                <div class="contact-card">
+                <div class="contact-card"
+                     oncontextmenu="showContactContextMenu(event, ${contacts.indexOf(contact)})"
+                     ontouchstart="handleTouchStartContact(event, ${contacts.indexOf(contact)})"
+                     ontouchend="handleTouchEndContact()">
                     <div class="contact-header">
                         <div>
                             <div class="contact-name">${escapeHtml(contact.name)}</div>
@@ -1292,17 +1358,53 @@
                             </div>
                         ` : ''}
                     </div>
-                    
-                    <div class="contact-actions">
-                        <button class="btn btn-secondary" onclick="editContact(${contacts.indexOf(contact)})">編集</button>
-                        <button class="btn btn-danger" onclick="deleteContact(${contacts.indexOf(contact)})">削除</button>
-                    </div>
                 </div>
             `).join('');
             
             updateStats();
             updateGroupFilters();
         }
+
+        // Show context menu for a contact card
+        function showContactContextMenu(event, index) {
+            event.preventDefault(); // Prevent default browser context menu
+            contextMenuTargetContactIndex = index;
+            const contextMenu = document.getElementById('contact-context-menu');
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = `${event.pageX}px`;
+            contextMenu.style.top = `${event.pageY}px`;
+        }
+
+        // Handle touch start for long press on contact card (for mobile)
+        function handleTouchStartContact(event, index) {
+            longPressTimer = setTimeout(() => {
+                showContactContextMenu(event, index);
+            }, 500); // 0.5 seconds for long press
+        }
+
+        // Handle touch end for long press on contact card (for mobile)
+        function handleTouchEndContact() {
+            clearTimeout(longPressTimer);
+        }
+
+        // Edit contact from context menu
+        function editContactFromContext() {
+            if (contextMenuTargetContactIndex !== -1) {
+                editContact(contextMenuTargetContactIndex);
+                document.getElementById('contact-context-menu').style.display = 'none';
+                contextMenuTargetContactIndex = -1;
+            }
+        }
+
+        // Delete contact from context menu
+        function deleteContactFromContext() {
+            if (contextMenuTargetContactIndex !== -1) {
+                deleteContact(contextMenuTargetContactIndex);
+                document.getElementById('contact-context-menu').style.display = 'none';
+                contextMenuTargetContactIndex = -1;
+            }
+        }
+
 
         // Update statistics
         function updateStats() {
@@ -1548,23 +1650,33 @@
             document.getElementById(modalId).style.display = 'none';
         }
 
+        // Show export options modal
+        function showExportOptionsModal() {
+            if (filteredContacts.length === 0) {
+                alert('エクスポートする連絡先がありません。');
+                return;
+            }
+            document.getElementById('export-options-modal').style.display = 'block';
+        }
+
         // Export contacts
-        function exportContacts() {
+        function exportContacts(format) {
             if (filteredContacts.length === 0) {
                 alert('エクスポートする連絡先がありません。');
                 return;
             }
             
-            // Export as VCF
-            const vcfContent = generateVCF(filteredContacts);
-            downloadFile(vcfContent, 'contacts.vcf', 'text/vcard');
-            
-            // Export as Excel
-            const excelData = generateExcelData(filteredContacts);
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Contacts');
-            XLSX.writeFile(workbook, 'contacts.xlsx');
+            if (format === 'vcf') {
+                const vcfContent = generateVCF(filteredContacts);
+                downloadFile(vcfContent, 'contacts.vcf', 'text/vcard');
+            } else if (format === 'excel') {
+                const excelData = generateExcelData(filteredContacts);
+                const worksheet = XLSX.utils.json_to_sheet(excelData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, 'Contacts');
+                XLSX.writeFile(workbook, 'contacts.xlsx');
+            }
+            closeModal('export-options-modal');
         }
 
         // Generate VCF content
@@ -1875,9 +1987,8 @@
                 <div class="call-history-item" 
                      onclick="dialPhone('${escapeHtml(item.number)}', '${escapeHtml(item.name)}')" 
                      oncontextmenu="handleHistoryLongPress(event, ${index})" 
-                     ontouchstart="handleTouchStart(event, ${index})" 
-                     ontouchend="handleTouchEnd()" 
-                     data-index="${index}">
+                     ontouchstart="handleTouchStartHistory(event, ${index})" 
+                     ontouchend="handleTouchEndHistory()">
                     <div class="call-history-info">
                         ${hasName ? `<span class="call-history-name">${escapeHtml(item.name)}</span>` : ''}
                         <span class="call-history-time">${escapeHtml(item.time)}</span>
@@ -1902,18 +2013,17 @@
             }
         }
 
-        // Handle touch start for long press (for mobile)
-        function handleTouchStart(event, index) {
+        // Handle touch start for long press on history item (for mobile)
+        function handleTouchStartHistory(event, index) {
             longPressTimer = setTimeout(() => {
                 handleHistoryLongPress(event, index);
             }, 1000); // 1 second for long press
         }
 
-        // Handle touch end for long press (for mobile)
-        function handleTouchEnd() {
+        // Handle touch end for long press on history item (for mobile)
+        function handleTouchEndHistory() {
             clearTimeout(longPressTimer);
         }
-
 
         // Clear call history
         function clearCallHistory() {
