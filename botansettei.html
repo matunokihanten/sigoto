@@ -619,7 +619,7 @@
         let currentLinkForTagging = null; // 現在タグ付け操作中のリンク
 
         // 定数として「タグ不明」を設定
-        const UNKNOWN_TAG = 'タグ不明';
+        let UNKNOWN_TAG = 'タグ不明'; // 変更可能にするためlet
 
         pageTitleElement.textContent = config.roomName + " - リンク抽出";
         roomNameElement.textContent = config.roomName;
@@ -739,9 +739,9 @@
 
             // リンクをタグでソートし、次にリンク名の最初の3文字でソート
             links.sort((a, b) => {
-                // 'タグ不明'を常にリストの最後にソート
-                const tagA = a.tags.includes(UNKNOWN_TAG) ? '\uffff' : (a.tags.length > 0 ? a.tags[0] : UNKNOWN_TAG); // UNKNOWN_TAGをソート順で最後に
-                const tagB = b.tags.includes(UNKNOWN_TAG) ? '\uffff' : (b.tags.length > 0 ? b.tags[0] : UNKNOWN_TAG); // \uffff はUnicodeの最後の文字
+                // UNKNOWN_TAGをソート順で最後に持ってくる
+                const tagA = a.tags.includes(UNKNOWN_TAG) ? '\uffff' : (a.tags.length > 0 ? a.tags[0] : UNKNOWN_TAG);
+                const tagB = b.tags.includes(UNKNOWN_TAG) ? '\uffff' : (b.tags.length > 0 ? b.tags[0] : UNKNOWN_TAG);
                 
                 const tagCompare = tagA.localeCompare(tagB);
                 if (tagCompare !== 0) {
@@ -802,7 +802,7 @@
                             }
 
                             dataLink.tags = dataLink.tags.filter(t => t !== tagToRemove);
-                            // タグがなくなったリンクには'タグ不明'を割り当てる
+                            // タグがなくなったリンクにはUNKNOWN_TAGを割り当てる
                             if (dataLink.tags.length === 0) {
                                 dataLink.tags.push(UNKNOWN_TAG);
                                 availableTags.add(UNKNOWN_TAG); // UNKNOWN_TAGがavailableTagsにない場合に備えて追加
@@ -840,7 +840,7 @@
                     
                     // 削除しようとしているタグがUNKNOWN_TAGで、それが唯一のタグの場合、削除を許可しない
                     if (newTagToRemove === UNKNOWN_TAG && linkData.tags.length === 1) {
-                        showMessage(`「${UNKNOWN_TAG}」タグは、リンクが他のタグを持たない限り削除できません。`, true);
+                        showMessage(`「${UNKNOWN_TAG}」は、リンクが他のタグを持たない限り削除できません。`, true);
                         return;
                     }
 
@@ -877,7 +877,7 @@
         // タグ管理エリアの描画
         function renderAvailableTags() {
             currentTagsList.innerHTML = '';
-            // 'タグ不明'を常にリストの最後にソート
+            // UNKNOWN_TAGをソート順で最後に持ってくる
             const sortedTags = Array.from(availableTags).sort((a, b) => {
                 if (a === UNKNOWN_TAG) return 1;
                 if (b === UNKNOWN_TAG) return -1;
@@ -887,47 +887,53 @@
             sortedTags.forEach(tag => {
                 const tagItem = document.createElement('div');
                 tagItem.classList.add('editable-tag-item');
-                // 'タグ不明'は編集不可
-                const isUnknownTag = tag === UNKNOWN_TAG;
-                tagItem.innerHTML = `<span>${tag}</span>${isUnknownTag ? '' : `<button data-tag="${tag}">&times;</button>`}`;
+                // UNKNOWN_TAGでも名前変更は可能
+                // 削除ボタンはUNKNOWN_TAGの場合は表示しない
+                tagItem.innerHTML = `<span>${tag}</span>${tag === UNKNOWN_TAG ? '' : `<button data-tag="${tag}">&times;</button>`}`;
                 currentTagsList.appendChild(tagItem);
 
-                // タグ名編集イベント (タグ不明は編集不可)
-                if (!isUnknownTag) {
-                    tagItem.querySelector('span').addEventListener('click', (e) => {
-                        const oldTag = e.target.textContent;
-                        const newTagName = prompt(`タグ「${oldTag}」の新しい名前を入力してください:`, oldTag);
-                        if (newTagName && newTagName.trim() !== '' && newTagName.trim() !== oldTag) {
-                            const trimmedNewTag = newTagName.trim();
-                            if (availableTags.has(trimmedNewTag)) {
-                                showMessage(`タグ「${trimmedNewTag}」は既に存在します。`, true);
-                                return;
-                            }
-                            // availableTags を更新
-                            availableTags.delete(oldTag);
-                            availableTags.add(trimmedNewTag);
-
-                            // extractedLinksData 内のタグも更新
-                            extractedLinksData.forEach(link => {
-                                link.tags = link.tags.map(t => t === oldTag ? trimmedNewTag : t);
-                            });
-                            showMessage(`タグ「${oldTag}」を「${trimmedNewTag}」に変更しました。`);
-                            renderAvailableTags(); // リストを再描画
-                            displayLinksForSelection(extractedLinksData); // リンク表示も再描画
-                        } else if (newTagName !== null && newTagName.trim() === '') {
-                            showMessage('タグ名は空にできません。', true);
+                // タグ名編集イベント
+                tagItem.querySelector('span').addEventListener('click', (e) => {
+                    const oldTag = e.target.textContent;
+                    const newTagName = prompt(`タグ「${oldTag}」の新しい名前を入力してください:`, oldTag);
+                    if (newTagName && newTagName.trim() !== '' && newTagName.trim() !== oldTag) {
+                        const trimmedNewTag = newTagName.trim();
+                        if (availableTags.has(trimmedNewTag)) {
+                            showMessage(`タグ「${trimmedNewTag}」は既に存在します。`, true);
+                            return;
                         }
-                    });
+                        // availableTags を更新
+                        availableTags.delete(oldTag);
+                        availableTags.add(trimmedNewTag);
 
-                    // タグ削除イベント (タグ不明はボタンがないため対象外)
+                        // extractedLinksData 内のタグも更新
+                        extractedLinksData.forEach(link => {
+                            link.tags = link.tags.map(t => t === oldTag ? trimmedNewTag : t);
+                        });
+
+                        // UNKNOWN_TAG自体が変更された場合、UNKNOWN_TAG変数を更新
+                        if (oldTag === UNKNOWN_TAG) {
+                            UNKNOWN_TAG = trimmedNewTag;
+                        }
+
+                        showMessage(`タグ「${oldTag}」を「${trimmedNewTag}」に変更しました。`);
+                        renderAvailableTags(); // リストを再描画
+                        displayLinksForSelection(extractedLinksData); // リンク表示も再描画
+                    } else if (newTagName !== null && newTagName.trim() === '') {
+                        showMessage('タグ名は空にできません。', true);
+                    }
+                });
+
+                // タグ削除イベント (UNKNOWN_TAGはボタンがないため対象外)
+                if (tag !== UNKNOWN_TAG) {
                     tagItem.querySelector('button').addEventListener('click', (e) => {
                         const tagToDelete = e.target.dataset.tag;
-                        if (confirm(`タグ「${tagToDelete}」を削除しますか？このタグが割り当てられているすべてのリンクからも削除されます。`)) {
+                        if (confirm(`タグ「${tagToDelete}」を削除しますか？このタグが割り当てられているすべてのリンクからも削除され、タグがないリンクには「${UNKNOWN_TAG}」が割り当てられます。`)) {
                             availableTags.delete(tagToDelete);
                             // extractedLinksData 内のタグも更新
                             extractedLinksData.forEach(link => {
                                 link.tags = link.tags.filter(t => t !== tagToDelete);
-                                // タグがなくなったリンクには'タグ不明'を割り当てる
+                                // タグがなくなったリンクにはUNKNOWN_TAGを割り当てる
                                 if (link.tags.length === 0) {
                                     link.tags.push(UNKNOWN_TAG);
                                     availableTags.add(UNKNOWN_TAG); // UNKNOWN_TAGがavailableTagsにない場合に備えて追加
@@ -945,7 +951,7 @@
         // タグ選択モーダルを開く関数
         function openTagModal(currentLinkTags) {
             modalTagList.innerHTML = '';
-            // 'タグ不明'を常にリストの最後にソート
+            // UNKNOWN_TAGをソート順で最後に持ってくる
             const allSortedTags = Array.from(availableTags).sort((a, b) => {
                 if (a === UNKNOWN_TAG) return 1;
                 if (b === UNKNOWN_TAG) return -1;
@@ -957,26 +963,33 @@
                 const tagItem = document.createElement('div');
                 tagItem.classList.add('tag-select-item');
                 tagItem.innerHTML = `
-                    <input type="checkbox" id="modal-tag-${tag}" value="${tag}" ${isChecked ? 'checked' : ''} ${tag === UNKNOWN_TAG && currentLinkTags.length === 1 ? 'disabled' : ''}>
+                    <input type="checkbox" id="modal-tag-${tag}" value="${tag}" ${isChecked ? 'checked' : ''}>
                     <label for="modal-tag-${tag}">${tag}</label>
                 `;
                 modalTagList.appendChild(tagItem);
 
-                // 'タグ不明'が唯一のタグの場合、そのチェックボックスは無効化
+                // UNKNOWN_TAGが唯一のタグの場合、そのチェックボックスは無効化 (他のタグが選択されるまで)
                 const checkbox = tagItem.querySelector('input');
-                if (tag === UNKNOWN_TAG) {
-                    checkbox.addEventListener('change', (e) => {
-                        // UNKNOWN_TAGが選択解除されようとしていて、かつ他のタグが選択されていない場合
-                        if (!e.target.checked) {
-                            const anyOtherTagChecked = Array.from(modalTagList.querySelectorAll('input[type="checkbox"]'))
-                                .some(cb => cb.value !== UNKNOWN_TAG && cb.checked);
-                            if (!anyOtherTagChecked) {
-                                e.target.checked = true; // 元に戻す
-                                showMessage(`「${UNKNOWN_TAG}」は、少なくとも1つの他のタグが選択されていない限り、選択解除できません。`, true);
-                            }
-                        }
-                    });
+                // 初期ロード時にチェック状態に基づいてdisabledを設定
+                if (tag === UNKNOWN_TAG && currentLinkTags.length === 1 && currentLinkTags[0] === UNKNOWN_TAG) {
+                    checkbox.disabled = true;
                 }
+
+                checkbox.addEventListener('change', (e) => {
+                    const tempSelectedTags = Array.from(modalTagList.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+
+                    // UNKNOWN_TAGが選択解除されようとしていて、かつ他のタグが選択されていない場合
+                    if (tag === UNKNOWN_TAG && !e.target.checked) {
+                        const anyOtherTagChecked = tempSelectedTags.some(val => val !== UNKNOWN_TAG);
+                        if (!anyOtherTagChecked) {
+                            e.target.checked = true; // 元に戻す
+                            showMessage(`「${UNKNOWN_TAG}」は、少なくとも1つの他のタグが選択されていない限り、選択解除できません。`, true);
+                        }
+                    }
+
+                    // 他のタグが選択された場合、UNKNOWN_TAGのdisabledを解除する可能性を考慮
+                    // これはconfirmボタン押下時にまとめて処理するので、ここでは不要
+                });
             });
             tagModal.style.display = 'flex'; // flexで中央寄せ
         }
@@ -997,7 +1010,7 @@
             linksToInclude.forEach(link => {
                 link.tags.forEach(tag => allUniqueTags.add(tag));
             });
-            // 'タグ不明'をソート順で最後に持ってくる
+            // UNKNOWN_TAGをソート順で最後に持ってくる
             const sortedUniqueTags = Array.from(allUniqueTags).sort((a, b) => {
                 if (a === UNKNOWN_TAG) return 1;
                 if (b === UNKNOWN_TAG) return -1;
@@ -1229,7 +1242,8 @@
                     checked: document.getElementById(link.id)?.checked || false // チェック状態も保存
                 })),
                 availableTags: Array.from(availableTags),
-                config: config 
+                config: config,
+                unknownTagValue: UNKNOWN_TAG // UNKNOWN_TAGの現在の値も保存
             };
             const dataStr = JSON.stringify(state, null, 2); // 2スペースインデントで整形
 
@@ -1259,6 +1273,11 @@
                     const state = JSON.parse(e.target.result);
                     htmlSourceInput.value = state.htmlSource || '';
                     
+                    // UNKNOWN_TAGの値を復元
+                    if (state.unknownTagValue) {
+                        UNKNOWN_TAG = state.unknownTagValue;
+                    }
+
                     extractedLinksData = state.extractedLinksData || [];
                     extractedLinksData.forEach(link => {
                         link.checked = link.checked ?? true; // 保存されていない場合はデフォルトでtrue
@@ -1266,6 +1285,8 @@
 
                     // ロード時にavailableTagsをセット
                     availableTags = new Set(state.availableTags || []);
+                    // ロードされたデータにUNKNOWN_TAGが含まれていない場合でも、現在のUNKNOWN_TAGの値をavailableTagsに追加しておく
+                    availableTags.add(UNKNOWN_TAG);
                     
                     // configは上書きしないが、読み込んだデータに含まれる場合は利用
                     // Object.assign(config, state.config); // configも復元したい場合
@@ -1293,9 +1314,11 @@
                 colorMap.clear();
                 colorIndex = 0;
 
-                // 新しい抽出時は、既存のチェック状態をリセットし、全てチェック済みにする
+                // 新しい抽出時は、タグもリセットし、KNOWN_TAGも初期値に戻す
+                UNKNOWN_TAG = 'タグ不明'; 
+                availableTags.clear();
+                
                 // extractedLinksData の中身を新しい抽出結果で完全に置き換える
-                availableTags.clear(); // 新規抽出時はタグもリセット
                 extractedLinksData = extractLinksFromHtml(htmlCode);
                 extractedLinksData.forEach(link => link.checked = true); // デフォルトで全てチェック
                 
@@ -1350,6 +1373,7 @@
                 linkSelectionArea.style.display = 'none';
                 extractedLinksData = [];
                 availableTags.clear(); // タグリストもクリア
+                UNKNOWN_TAG = 'タグ不明'; // UNKNOWN_TAGを初期値に戻す
                 renderAvailableTags(); // タグリスト表示も更新
                 showMessage('入力内容がクリアされました。');
             }
@@ -1370,7 +1394,7 @@
             const newTag = newTagInput.value.trim();
             if (newTag) {
                 if (newTag === UNKNOWN_TAG) {
-                    showMessage(`「${UNKNOWN_TAG}」タグはシステム予約名のため追加できません。`, true);
+                    showMessage(`「${UNKNOWN_TAG}」は現在設定されているタグ不明の名称です。別のタグ名を使用するか、既存のタグ不明のタグ名を変更してください。`, true);
                     return;
                 }
                 if (availableTags.has(newTag)) {
@@ -1408,12 +1432,10 @@
                 selectedTags.push(checkbox.value);
             });
 
-            // 選択されたタグがない場合、デフォルトの'タグ不明'を割り当てる
+            // 選択されたタグがない場合、UNKNOWN_TAGを割り当てる
             currentLinkForTagging.tags = selectedTags.length > 0 ? selectedTags : [UNKNOWN_TAG];
             
             // リンク表示を更新して変更を反映
-            // `extractedLinksData` の中の `currentLinkForTagging` (参照渡し) が既に更新されているので、
-            // `displayLinksForSelection` を呼んでUIを更新する
             const linkElement = document.getElementById(currentLinkForTagging.id)?.closest('.link-item');
             if (linkElement) {
                 const tagsDiv = linkElement.querySelector('.link-tags');
