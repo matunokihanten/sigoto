@@ -668,7 +668,7 @@
         .dialpad-btn {
             width: 100%;
             padding: 18px 0; /* Larger padding for buttons */
-            font-size: 1.6em; /* Larger font */
+            font-size: 2.2em; /* Larger font for numbers */
             border: none;
             border-radius: 12px; /* Larger border radius */
             background: #e0e0e0; /* Light gray */
@@ -690,11 +690,8 @@
         }
 
         .dialpad-btn span {
-            font-size: 0.6em; /* Smaller text for letters */
-            display: block;
-            margin-top: 2px;
-            font-weight: normal;
-            color: #718096;
+            /* Removed, as per request to delete roman letters */
+            display: none; 
         }
 
         .dialpad-btn.action-btn {
@@ -880,7 +877,7 @@
 
             .dialpad-btn {
                 padding: 14px 0;
-                font-size: 1.4em;
+                font-size: 2em; /* Ensure large numbers on small screens too */
             }
 
             .dialpad-call-btn {
@@ -1065,19 +1062,19 @@
                 <h2 class="modal-title">電話をかける</h2>
                 <button class="close-btn" onclick="closeModal('dialpad-modal')">&times;</button>
             </div>
-            <input type="text" class="dialpad-input" id="dialpad-input" placeholder="電話番号を入力" readonly>
+            <input type="text" class="dialpad-input" id="dialpad-input" placeholder="電話番号を入力">
             <div class="dialpad-grid">
                 <button class="dialpad-btn" onclick="appendDigit('1')">1</button>
-                <button class="dialpad-btn" onclick="appendDigit('2')">2<span>ABC</span></button>
-                <button class="dialpad-btn" onclick="appendDigit('3')">3<span>DEF</span></button>
-                <button class="dialpad-btn" onclick="appendDigit('4')">4<span>GHI</span></button>
-                <button class="dialpad-btn" onclick="appendDigit('5')">5<span>JKL</span></button>
-                <button class="dialpad-btn" onclick="appendDigit('6')">6<span>MNO</span></button>
-                <button class="dialpad-btn" onclick="appendDigit('7')">7<span>PQRS</span></button>
-                <button class="dialpad-btn" onclick="appendDigit('8')">8<span>TUV</span></button>
-                <button class="dialpad-btn" onclick="appendDigit('9')">9<span>WXYZ</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('2')">2</button>
+                <button class="dialpad-btn" onclick="appendDigit('3')">3</button>
+                <button class="dialpad-btn" onclick="appendDigit('4')">4</button>
+                <button class="dialpad-btn" onclick="appendDigit('5')">5</button>
+                <button class="dialpad-btn" onclick="appendDigit('6')">6</button>
+                <button class="dialpad-btn" onclick="appendDigit('7')">7</button>
+                <button class="dialpad-btn" onclick="appendDigit('8')">8</button>
+                <button class="dialpad-btn" onclick="appendDigit('9')">9</button>
                 <button class="dialpad-btn" onclick="appendDigit('*')">*</button>
-                <button class="dialpad-btn" onclick="appendDigit('0')">0<span>+</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('0')">0</button>
                 <button class="dialpad-btn" onclick="appendDigit('#')">#</button>
             </div>
             <div style="display: flex; justify-content: space-between; gap: 10px;">
@@ -1164,6 +1161,9 @@
                     setActiveFilter(filter);
                 });
             });
+
+            // Add paste event listener for dialpad input
+            document.getElementById('dialpad-input').addEventListener('paste', handleDialpadPaste);
         }
 
         // Load contacts from localStorage
@@ -2071,13 +2071,16 @@
             const dialpadInput = document.getElementById('dialpad-input');
             dialpadInput.value = initialNumber;
             document.getElementById('dialpad-modal').style.display = 'block';
-            dialpadInput.focus();
+            dialpadInput.focus(); // Focus the input for direct typing/pasting
         }
 
         // Append digit to dialpad input
         function appendDigit(digit) {
             const dialpadInput = document.getElementById('dialpad-input');
-            dialpadInput.value += digit;
+            // Ensure only digits, *, #, + are allowed when appending
+            if (/^[\d*#+]$/.test(digit)) {
+                dialpadInput.value += digit;
+            }
         }
 
         // Backspace on dialpad input
@@ -2101,6 +2104,17 @@
                 alert('電話番号を入力してください。');
             }
         }
+
+        // Handle paste event for dialpad input
+        function handleDialpadPaste(event) {
+            event.preventDefault(); // Prevent default paste behavior
+            const pastedText = (event.clipboardData || window.clipboardData).getData('text');
+            const dialpadInput = document.getElementById('dialpad-input');
+            // Allow only digits, +, -, (, ), and spaces from paste
+            const cleanedText = pastedText.replace(/[^\d+\-()\s]/g, '');
+            dialpadInput.value += cleanedText;
+        }
+
 
         // Record a call in history
         function recordCall(phoneNumber, contactName = '') {
