@@ -6,6 +6,8 @@
     <title>連絡帳アプリケーション</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+
         * {
             margin: 0;
             padding: 0;
@@ -13,16 +15,21 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #e0f2f7 0%, #bbdefb 100%); /* Light blue gradient */
             min-height: 100vh;
             color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top */
+            padding: 20px; /* Add padding for overall layout */
         }
 
         .container {
+            width: 100%;
             max-width: 1400px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 0; /* Remove internal padding */
         }
 
         .header {
@@ -32,49 +39,83 @@
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .header h1 {
             color: #4a5568;
-            font-size: 2.5em;
-            margin-bottom: 20px;
-            text-align: center;
+            font-size: 2.2em; /* Adjusted font size */
+            margin-bottom: 25px; /* Adjusted margin */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px; /* Space between icon and text */
+        }
+
+        .header h1::before {
+            content: '📱'; /* Icon */
+            font-size: 1.2em; /* Adjust icon size relative to text */
         }
 
         .controls {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
+            display: grid; /* Use grid for button layout */
+            grid-template-columns: repeat(4, 1fr); /* 4 columns */
+            gap: 15px; /* Gap between buttons */
+            width: 100%; /* Take full width */
+            margin-bottom: 25px; /* Adjusted margin */
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 12px 10px; /* Adjusted padding for better fit */
             border: none;
-            border-radius: 12px;
+            border-radius: 10px; /* Smaller border radius */
             cursor: pointer;
             font-size: 14px;
             font-weight: 600;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08); /* Lighter shadow */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* Gap for icon and text */
         }
 
         .btn-primary {
-            background: linear-gradient(45deg, #667eea, #764ba2);
+            background: #4CAF50; /* Green for primary actions */
             color: white;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            background: #45a049;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
+        
+        /* Specific colors for "JSON読み込み" and "JSON保存" */
+        .btn.json-btn-load {
+            background: #007bff; /* Blue */
+            color: white;
+        }
+        .btn.json-btn-load:hover {
+            background: #0069d9;
+        }
+
+        .btn.json-btn-save {
+            background: #6c757d; /* Gray */
+            color: white;
+        }
+        .btn.json-btn-save:hover {
+            background: #5a6268;
+        }
+
 
         .btn-secondary {
             background: #f7fafc;
             color: #4a5568;
-            border: 2px solid #e2e8f0;
+            border: 1px solid #e2e8f0; /* Thinner border */
         }
 
         .btn-secondary:hover {
@@ -89,75 +130,92 @@
 
         .btn-danger:hover {
             background: #c53030;
-            transform: translateY(-2px);
+            transform: translateY(-1px);
         }
 
         .stats {
             display: flex;
             justify-content: center;
-            gap: 30px;
-            margin-top: 20px;
+            gap: 40px; /* Wider gap */
+            margin-top: 15px; /* Adjusted margin */
+            width: 100%; /* Take full width */
         }
 
         .stat-item {
             text-align: center;
-            padding: 15px 25px;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            padding: 10px 20px; /* Reduced padding */
+            background: #e0f2f7; /* Light background for stats */
+            border-radius: 12px; /* Smaller border radius */
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05); /* Inset shadow */
+            flex: 1; /* Allow items to grow */
+            max-width: 180px; /* Max width for stats */
         }
 
         .stat-number {
             font-size: 2em;
             font-weight: bold;
-            color: #667eea;
+            color: #007bff; /* Blue color for numbers */
         }
 
         .stat-label {
-            font-size: 0.9em;
+            font-size: 0.85em; /* Smaller label font */
             color: #718096;
             margin-top: 5px;
         }
 
         .main-content {
             display: flex;
-            gap: 30px;
+            gap: 25px; /* Slightly smaller gap */
+            align-items: flex-start; /* Align sidebar and grid to top */
         }
 
         .sidebar {
-            width: 300px;
+            width: 320px; /* Slightly wider sidebar */
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 25px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            height: fit-content;
+            height: fit-content; /* Adjust height to content */
+            position: sticky; /* Sticky sidebar */
+            top: 20px; /* Distance from top */
         }
 
         .search-box {
             width: 100%;
-            padding: 15px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 16px;
+            padding: 14px; /* Adjusted padding */
+            border: 1px solid #e2e8f0; /* Thinner border */
+            border-radius: 10px; /* Smaller border radius */
+            font-size: 15px;
             margin-bottom: 20px;
-            transition: border-color 0.3s ease;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+            background-repeat: no-repeat;
+            background-position: 12px center;
+            padding-left: 40px; /* Space for icon */
         }
 
         .search-box:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #007bff; /* Blue border on focus */
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15); /* Blue glow on focus */
         }
 
         .sort-select {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
             font-size: 14px;
             margin-bottom: 20px;
             background: white;
+            -webkit-appearance: none; /* Remove default arrow */
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23a0aec0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 35px; /* Space for custom arrow */
         }
 
         .filter-section {
@@ -166,9 +224,11 @@
 
         .filter-title {
             font-size: 1.1em;
-            font-weight: 600;
-            color: #4a5568;
+            font-weight: 700; /* Bolder title */
+            color: #2d3748;
             margin-bottom: 15px;
+            border-bottom: 1px solid #edf2f7; /* Separator line */
+            padding-bottom: 8px;
         }
 
         .filter-item {
@@ -178,82 +238,108 @@
             padding: 10px 15px;
             margin-bottom: 8px;
             background: #f7fafc;
-            border-radius: 10px;
+            border-radius: 8px; /* Smaller radius */
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            font-size: 0.95em;
         }
 
         .filter-item:hover {
-            background: #edf2f7;
-            transform: translateX(5px);
+            background: #e2e8f0; /* Lighter hover */
+            transform: none; /* No transform on hover */
         }
 
         .filter-item.active {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
+            background: #cce7ff; /* Light blue for active */
+            color: #007bff; /* Darker blue text */
+            font-weight: 600;
         }
 
         .filter-count {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 4px 8px;
-            border-radius: 6px;
+            background: #90CAF9; /* Light blue for count bubble */
+            color: white;
+            padding: 4px 10px;
+            border-radius: 15px; /* Pill shape */
             font-size: 0.8em;
-            font-weight: 600;
+            font-weight: 700;
+        }
+
+        .filter-item.active .filter-count {
+            background: #007bff; /* Darker blue for active count */
         }
 
         .contacts-grid {
             flex: 1;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); /* Adjusted min-width for cards */
             gap: 20px;
             max-height: 800px;
             overflow-y: auto;
+            padding-right: 5px; /* For scrollbar */
+        }
+
+        .contacts-grid::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .contacts-grid::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .contacts-grid::-webkit-scrollbar-thumb {
+            background: #a0aec0;
+            border-radius: 10px;
+        }
+
+        .contacts-grid::-webkit-scrollbar-thumb:hover {
+            background: #718096;
         }
 
         .contact-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
+            border-radius: 15px; /* Smaller border radius */
+            padding: 20px; /* Reduced padding */
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08); /* Lighter shadow */
+            transition: all 0.2s ease;
             position: relative;
         }
 
         .contact-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
         }
 
         .contact-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 15px;
+            margin-bottom: 12px; /* Reduced margin */
         }
 
         .contact-name {
-            font-size: 1.3em;
+            font-size: 1.2em; /* Slightly smaller font */
             font-weight: 700;
             color: #2d3748;
-            margin-bottom: 5px;
+            margin-bottom: 3px;
         }
 
         .contact-organization {
-            font-size: 0.9em;
+            font-size: 0.85em; /* Smaller font */
             color: #718096;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         .favorite-star {
-            font-size: 1.5em;
+            font-size: 1.4em; /* Smaller star */
             cursor: pointer;
-            color: #cbd5e0; /* Default color (white star) */
-            transition: color 0.3s ease;
+            color: #e2e8f0; /* Default light grey */
+            transition: color 0.2s ease;
         }
 
         .favorite-star.active {
-            color: #ffd700; /* Yellow for active (favorite) */
+            color: #FFD700; /* Gold for active (favorite) */
         }
 
         .contact-info {
@@ -263,19 +349,21 @@
         .contact-info-item {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
-            padding: 8px 12px;
-            background: #f7fafc;
-            border-radius: 10px;
+            gap: 8px; /* Smaller gap */
+            margin-bottom: 6px; /* Smaller margin */
+            padding: 6px 10px; /* Reduced padding */
+            background: #fbfdff; /* Even lighter background */
+            border-radius: 8px;
+            font-size: 0.9em; /* Smaller font */
         }
 
-        .contact-info-item:hover {
-            background: #edf2f7;
+        .contact-info-item span:first-child { /* Icon */
+            color: #667eea; /* Consistent icon color */
+            font-size: 1.1em;
         }
 
         .contact-info-item a {
-            color: #667eea;
+            color: #007bff; /* Blue links */
             text-decoration: none;
             flex: 1;
         }
@@ -286,14 +374,14 @@
 
         .contact-actions {
             display: flex;
-            gap: 10px;
-            margin-top: 15px;
+            gap: 8px; /* Smaller gap */
+            margin-top: 10px;
         }
 
         .contact-actions .btn {
             flex: 1;
-            padding: 8px 16px;
-            font-size: 0.9em;
+            padding: 6px 12px; /* Reduced padding */
+            font-size: 0.85em; /* Smaller font */
         }
 
         .modal {
@@ -303,9 +391,9 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.4); /* Slightly lighter overlay */
             z-index: 1000;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(4px); /* Slightly less blur */
         }
 
         .modal-content {
@@ -315,23 +403,23 @@
             transform: translate(-50%, -50%);
             background: white;
             padding: 30px;
-            border-radius: 20px;
+            border-radius: 18px; /* Slightly smaller radius */
             width: 90%;
-            max-width: 500px;
+            max-width: 550px; /* Slightly wider modal */
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.2); /* Lighter shadow */
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px; /* Adjusted margin */
         }
 
         .modal-title {
-            font-size: 1.5em;
+            font-size: 1.6em; /* Slightly larger title */
             font-weight: 700;
             color: #2d3748;
         }
@@ -339,14 +427,19 @@
         .close-btn {
             background: none;
             border: none;
-            font-size: 1.5em;
+            font-size: 1.8em; /* Larger close button */
             cursor: pointer;
-            color: #718096;
+            color: #a0aec0; /* Lighter grey close button */
             padding: 5px;
+            transition: color 0.2s ease;
+        }
+
+        .close-btn:hover {
+            color: #718096;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 18px; /* Adjusted margin */
         }
 
         .form-label {
@@ -354,21 +447,22 @@
             margin-bottom: 8px;
             font-weight: 600;
             color: #4a5568;
+            font-size: 0.95em;
         }
 
         .form-input {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s ease;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px; /* Smaller radius */
+            font-size: 15px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .form-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
         }
 
         .form-textarea {
@@ -380,6 +474,7 @@
             display: flex;
             gap: 10px;
             margin-bottom: 10px;
+            align-items: center;
         }
 
         .multi-input-group .form-input {
@@ -387,23 +482,24 @@
         }
 
         .add-btn, .remove-btn {
-            width: 40px;
-            height: 40px;
+            width: 36px; /* Smaller buttons */
+            height: 36px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px; /* Smaller radius */
             cursor: pointer;
-            font-size: 1.2em;
+            font-size: 1.1em;
             font-weight: bold;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            flex-shrink: 0; /* Prevent shrinking */
         }
 
         .add-btn {
-            background: #48bb78;
+            background: #4CAF50; /* Green */
             color: white;
         }
 
         .add-btn:hover {
-            background: #38a169;
+            background: #45a049;
         }
 
         .remove-btn {
@@ -421,7 +517,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.85); /* Slightly less opaque */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -432,7 +528,7 @@
             width: 50px;
             height: 50px;
             border: 5px solid #e2e8f0;
-            border-top: 5px solid #667eea;
+            border-top: 5px solid #007bff; /* Blue spinner */
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -445,8 +541,8 @@
         .duplicate-list {
             max-height: 400px;
             overflow-y: auto;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            border: 1px solid #e2e8f0; /* Thinner border */
+            border-radius: 10px;
             padding: 15px;
             margin-bottom: 20px;
         }
@@ -454,14 +550,22 @@
         .duplicate-group {
             margin-bottom: 20px;
             padding: 15px;
-            background: #f7fafc;
+            background: #e0f2f7; /* Light blue background for groups */
             border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         .duplicate-number {
-            font-weight: 600;
-            color: #667eea;
+            font-weight: 700;
+            color: #007bff; /* Blue for numbers */
             margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .duplicate-number::before {
+            content: '📞'; /* Phone icon */
+            font-size: 1.1em;
         }
 
         .duplicate-contact {
@@ -472,10 +576,12 @@
             padding: 8px 12px;
             background: white;
             border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
 
         .duplicate-contact input[type="checkbox"] {
-            margin-right: 10px;
+            margin-right: 5px;
+            transform: scale(1.2); /* Slightly larger checkbox */
         }
 
         .group-list {
@@ -491,6 +597,7 @@
             margin-bottom: 8px;
             background: #f7fafc;
             border-radius: 10px;
+            font-size: 0.95em;
         }
 
         .group-name {
@@ -499,11 +606,12 @@
         }
 
         .group-contact-count {
-            background: #667eea;
+            background: #90CAF9; /* Light blue for count */
             color: white;
-            padding: 4px 8px;
-            border-radius: 6px;
+            padding: 4px 10px;
+            border-radius: 15px;
             font-size: 0.8em;
+            font-weight: 700;
         }
 
         .file-input {
@@ -514,63 +622,79 @@
             text-align: center;
             padding: 60px 20px;
             color: #718096;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 20px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
         }
 
         .empty-state-icon {
-            font-size: 4em;
+            font-size: 4.5em; /* Larger icon */
             margin-bottom: 20px;
+            color: #a0aec0;
         }
 
         .empty-state-text {
-            font-size: 1.2em;
+            font-size: 1.3em; /* Larger text */
+            font-weight: 600;
             margin-bottom: 10px;
         }
 
         .empty-state-subtext {
             color: #a0aec0;
+            font-size: 0.95em;
         }
 
         /* Dialpad specific styles */
         .dialpad-input {
             width: 100%;
             padding: 15px;
-            border: 2px solid #e2e8f0;
+            border: 1px solid #e2e8f0;
             border-radius: 10px;
-            font-size: 1.5em;
+            font-size: 1.8em; /* Larger input text */
             text-align: center;
             margin-bottom: 20px;
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
             background: #fdfdfd;
+            font-weight: 600;
         }
 
         .dialpad-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 12px; /* Slightly larger gap */
             margin-bottom: 20px;
         }
 
         .dialpad-btn {
             width: 100%;
-            padding: 15px 0;
-            font-size: 1.5em;
+            padding: 18px 0; /* Larger padding for buttons */
+            font-size: 1.6em; /* Larger font */
             border: none;
-            border-radius: 10px;
-            background: #e2e8f0;
+            border-radius: 12px; /* Larger border radius */
+            background: #e0e0e0; /* Light gray */
             color: #4a5568;
             cursor: pointer;
-            transition: background 0.2s ease, transform 0.1s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1); /* Lighter shadow */
             font-weight: bold;
+            line-height: 1.2; /* Adjust line height for ABC/DEF text */
         }
 
         .dialpad-btn:active {
             transform: translateY(1px);
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
         }
 
         .dialpad-btn:hover {
-            background: #cbd5e0;
+            background: #d5d5d5;
+        }
+
+        .dialpad-btn span {
+            font-size: 0.6em; /* Smaller text for letters */
+            display: block;
+            margin-top: 2px;
+            font-weight: normal;
+            color: #718096;
         }
 
         .dialpad-btn.action-btn {
@@ -583,26 +707,30 @@
         }
 
         .dialpad-call-btn {
-            background: #48bb78;
+            background: #4CAF50; /* Green call button */
             color: white;
-            font-size: 1.8em;
-            padding: 15px 0;
+            font-size: 2em; /* Larger call icon */
+            padding: 18px 0;
         }
 
         .dialpad-call-btn:hover {
-            background: #38a169;
+            background: #45a049;
         }
         
         .dialpad-backspace {
-            font-size: 1.2em;
+            font-size: 1.6em;
+            color: #6c757d; /* Gray for backspace */
+        }
+        .dialpad-backspace:hover {
+            background: #d5d5d5;
         }
 
         /* Call history specific styles */
         .call-history-list {
             max-height: 400px;
             overflow-y: auto;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
             padding: 15px;
             margin-bottom: 20px;
         }
@@ -616,7 +744,8 @@
             background: #f7fafc;
             border-radius: 10px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-            cursor: pointer; /* Make history items clickable */
+            cursor: pointer;
+            transition: background 0.2s ease;
         }
 
         .call-history-item:hover {
@@ -628,24 +757,25 @@
             justify-content: space-between;
             width: 100%;
             align-items: center;
+            margin-bottom: 4px; /* Space between name/time and number */
         }
 
         .call-history-name {
             font-weight: bold;
             color: #2d3748;
-            font-size: 1.1em;
-            margin-bottom: 2px;
+            font-size: 1.05em;
         }
 
         .call-history-number {
             font-weight: 600;
-            color: #667eea;
+            color: #007bff; /* Blue for numbers */
+            font-size: 0.9em;
         }
 
         .call-history-time {
-            font-size: 0.8em;
+            font-size: 0.75em; /* Smaller time font */
             color: #718096;
-            text-align: right; /* Align time to the right */
+            text-align: right;
         }
 
         /* Context menu for contact card */
@@ -687,26 +817,79 @@
         }
         
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 0;
+            }
+            .header {
+                padding: 20px;
+                margin-bottom: 20px;
+            }
+            .header h1 {
+                font-size: 1.8em;
+                margin-bottom: 15px;
+            }
+            .controls {
+                grid-template-columns: repeat(2, 1fr); /* 2 columns for smaller screens */
+                gap: 10px;
+            }
+            
+            .btn {
+                padding: 10px;
+                font-size: 13px;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .stat-item {
+                max-width: none;
+                width: 100%;
+                padding: 8px 15px;
+            }
+
             .main-content {
                 flex-direction: column;
+                gap: 20px;
             }
             
             .sidebar {
                 width: 100%;
-                margin-bottom: 20px;
+                margin-bottom: 0; /* No bottom margin, gap handles it */
+                position: static; /* Remove sticky on mobile */
+                top: auto;
+                padding: 20px;
             }
             
             .contacts-grid {
-                grid-template-columns: 1fr;
+                grid-template-columns: 1fr; /* Single column for small screens */
+                padding-right: 0;
             }
-            
-            .controls {
-                flex-direction: column;
-                align-items: stretch;
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
             }
-            
-            .btn {
-                width: 100%;
+
+            .modal-title {
+                font-size: 1.4em;
+            }
+
+            .dialpad-btn {
+                padding: 14px 0;
+                font-size: 1.4em;
+            }
+
+            .dialpad-call-btn {
+                font-size: 1.8em;
+            }
+
+            .dialpad-input {
+                font-size: 1.5em;
+                padding: 12px;
             }
         }
     </style>
@@ -714,14 +897,14 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📱 連絡帳アプリケーション</h1>
+            <h1>連絡帳アプリケーション</h1>
             <div class="controls">
-                <button class="btn btn-primary" onclick="document.getElementById('vcf-file').click()">📁 VCFファイルを選択</button>
-                <button class="btn btn-primary" onclick="document.getElementById('excel-file').click()">📂 Excelファイルを選択</button>
-                <button class="btn btn-secondary" onclick="showAddContactModal()">➕ 新規追加</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('vcf-file').click()">📁 VCFファイルを選択</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('excel-file').click()">📂 Excelファイルを選択</button>
+                <button class="btn btn-primary" onclick="showAddContactModal()">➕ 新規追加</button>
                 <button class="btn btn-secondary" onclick="showExportOptionsModal()">💾 エクスポート</button>
-                <button class="btn btn-primary" onclick="document.getElementById('json-file-input').click()">⬆️ JSON読み込み</button>
-                <button class="btn btn-secondary" onclick="exportToJson()">⬇️ JSON保存</button>
+                <button class="btn btn-secondary json-btn-load" onclick="document.getElementById('json-file-input').click()">⬆️ JSON読み込み</button>
+                <button class="btn btn-secondary json-btn-save" onclick="exportToJson()">⬇️ JSON保存</button>
                 <button class="btn btn-secondary" onclick="removeIncompleteContacts()">🧹 情報不足削除 (<span id="incomplete-count">0</span>)</button>
                 <button class="btn btn-secondary" onclick="findDuplicatePhones()">🕵️ 重複電話検索</button>
                 <button class="btn btn-secondary" onclick="showGroupManagement()">👥 グループ管理</button>
@@ -743,7 +926,7 @@
 
         <div class="main-content">
             <div class="sidebar">
-                <input type="text" class="search-box" id="search-box" placeholder="🔍 連絡先を検索...">
+                <input type="text" class="search-box" id="search-box" placeholder="連絡先を検索...">
                 
                 <select class="sort-select" id="sort-select">
                     <option value="name-asc">名前順 (昇順)</option>
@@ -885,16 +1068,16 @@
             <input type="text" class="dialpad-input" id="dialpad-input" placeholder="電話番号を入力" readonly>
             <div class="dialpad-grid">
                 <button class="dialpad-btn" onclick="appendDigit('1')">1</button>
-                <button class="dialpad-btn" onclick="appendDigit('2')">2<br>ABC</button>
-                <button class="dialpad-btn" onclick="appendDigit('3')">3<br>DEF</button>
-                <button class="dialpad-btn" onclick="appendDigit('4')">4<br>GHI</button>
-                <button class="dialpad-btn" onclick="appendDigit('5')">5<br>JKL</button>
-                <button class="dialpad-btn" onclick="appendDigit('6')">6<br>MNO</button>
-                <button class="dialpad-btn" onclick="appendDigit('7')">7<br>PQRS</button>
-                <button class="dialpad-btn" onclick="appendDigit('8')">8<br>TUV</button>
-                <button class="dialpad-btn" onclick="appendDigit('9')">9<br>WXYZ</button>
+                <button class="dialpad-btn" onclick="appendDigit('2')">2<span>ABC</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('3')">3<span>DEF</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('4')">4<span>GHI</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('5')">5<span>JKL</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('6')">6<span>MNO</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('7')">7<span>PQRS</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('8')">8<span>TUV</span></button>
+                <button class="dialpad-btn" onclick="appendDigit('9')">9<span>WXYZ</span></button>
                 <button class="dialpad-btn" onclick="appendDigit('*')">*</button>
-                <button class="dialpad-btn" onclick="appendDigit('0')">0<br>+</button>
+                <button class="dialpad-btn" onclick="appendDigit('0')">0<span>+</span></button>
                 <button class="dialpad-btn" onclick="appendDigit('#')">#</button>
             </div>
             <div style="display: flex; justify-content: space-between; gap: 10px;">
@@ -943,18 +1126,18 @@
         let filteredContacts = [];
         let currentFilter = 'all';
         let currentEditingIndex = -1;
-        let callHistory = []; // New array for call history
-        let longPressTimer; // For call history item long press
-        let contextMenuTargetContactIndex = -1; // To store the index of the contact right-clicked
+        let callHistory = [];
+        let longPressTimer;
+        let contextMenuTargetContactIndex = -1;
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             loadContacts();
-            loadCallHistory(); // Load call history
+            loadCallHistory();
             setupEventListeners();
             renderContacts();
             updateStats();
-            renderCallHistory(); // Render call history on load
+            renderCallHistory();
 
             // Close context menu if clicked outside
             document.addEventListener('click', function(event) {
@@ -969,7 +1152,7 @@
         function setupEventListeners() {
             document.getElementById('vcf-file').addEventListener('change', handleVCFFiles);
             document.getElementById('excel-file').addEventListener('change', handleExcelFile);
-            document.getElementById('json-file-input').addEventListener('change', importFromJson); // New listener for JSON import
+            document.getElementById('json-file-input').addEventListener('change', importFromJson);
             document.getElementById('search-box').addEventListener('input', handleSearch);
             document.getElementById('sort-select').addEventListener('change', handleSort);
             document.getElementById('contact-form').addEventListener('submit', handleContactSubmit);
@@ -1680,43 +1863,6 @@
             closeModal('export-options-modal');
         }
 
-        // Generate VCF content - REMOVED AS PER REQUEST
-        /*
-        function generateVCF(contacts) {
-            return contacts.map(contact => {
-                let vcf = 'BEGIN:VCARD\nVERSION:3.0\n';
-                vcf += `FN:${contact.name}\n`;
-                
-                if (contact.organization) {
-                    vcf += `ORG:${contact.organization}\n`;
-                }
-                
-                contact.phones.forEach(phone => {
-                    vcf += `TEL:${phone}\n`;
-                });
-                
-                contact.emails.forEach(email => {
-                    vcf += `EMAIL:${email}\n`;
-                });
-                
-                if (contact.address) {
-                    vcf += `ADR:;;${contact.address};;;;\n`;
-                }
-                
-                if (contact.group) {
-                    vcf += `CATEGORIES:${contact.group}\n`;
-                }
-                
-                if (contact.memo) {
-                    vcf += `NOTE:${contact.memo}\n`;
-                }
-                
-                vcf += 'END:VCARD\n';
-                return vcf;
-            }).join('\n');
-        }
-        */
-
         // Generate Excel data
         function generateExcelData(contacts) {
             return contacts.map(contact => ({
@@ -1750,11 +1896,11 @@
         function clearAllContacts() {
             if (confirm('すべての連絡先を削除しますか？この操作は取り消せません。')) {
                 contacts = [];
-                callHistory = []; // Also clear call history
+                callHistory = [];
                 saveContacts();
-                saveCallHistory(); // Save cleared call history
+                saveCallHistory();
                 renderContacts();
-                renderCallHistory(); // Update call history display
+                renderCallHistory();
                 document.getElementById('total-contacts').textContent = '0';
                 document.getElementById('displayed-contacts').textContent = '0';
                 document.getElementById('contacts-grid').innerHTML = `
@@ -1767,7 +1913,7 @@
                 document.getElementById('all-count').textContent = '0';
                 document.getElementById('favorites-count').textContent = '0';
                 document.getElementById('incomplete-count').textContent = '0';
-                document.getElementById('group-filters').innerHTML = ''; // グループフィルターもクリア
+                document.getElementById('group-filters').innerHTML = '';
             }
         }
 
@@ -1818,7 +1964,7 @@
             const duplicateList = document.getElementById('duplicate-list');
             duplicateList.innerHTML = duplicates.map(({ phone, contacts }) => `
                 <div class="duplicate-group">
-                    <div class="duplicate-number">📞 ${phone}</div>
+                    <div class="duplicate-number">${phone}</div>
                     ${contacts.map(({ contact, index }) => `
                         <div class="duplicate-contact">
                             <input type="checkbox" data-contact-index="${index}">
@@ -2092,7 +2238,7 @@
                     console.error('Error parsing JSON:', error);
                 } finally {
                     hideLoading();
-                    event.target.value = ''; // Clear file input
+                    event.target.value = '';
                 }
             };
             reader.onerror = function() {
