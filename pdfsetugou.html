@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF結合ツール</title>
+    <title>PDF・画像結合ツール</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -197,15 +197,15 @@
 </head>
 <body>
     <div id="app">
-        <h1>PDF結合ツール</h1>
+        <h1>PDF・画像結合ツール</h1>
 
         <div id="drop-area">
-            <p>PDFファイルをここにドラッグ＆ドロップするか、<label for="file-input">クリックして選択</label>してください。</p>
-            <input type="file" id="file-input" accept=".pdf" multiple style="display: none;">
+            <p>PDFファイルや画像ファイル（JPG, PNG）をここにドラッグ＆ドロップするか、<label for="file-input">クリックして選択</label>してください。</p>
+            <input type="file" id="file-input" accept=".pdf, .jpg, .jpeg, .png" multiple style="display: none;">
         </div>
 
         <div id="file-list-container">
-            <h2>選択中のPDFファイル</h2>
+            <h2>選択中のファイル</h2>
             <ul id="file-list">
                 <li class="placeholder">ファイルが選択されていません。</li>
             </ul>
@@ -305,11 +305,13 @@
             showStatus(''); // Clear previous status
             downloadArea.style.display = 'none'; // Hide download area
 
+            const supportedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif']; // GIFも受け入れるが、pdf-libで直接埋め込むのはJPG/PNGのみ
+
             const newFiles = Array.from(files).filter(file => {
-                if (file.type === 'application/pdf') {
+                if (supportedTypes.includes(file.type)) {
                     return true;
                 } else {
-                    showStatus(`"${file.name}" はPDFファイルではありません。PDFファイルのみ選択してください。`, true);
+                    showStatus(`"${file.name}" はサポートされていないファイル形式です。PDF、JPG、PNGファイルのみ選択してください。`, true);
                     return false;
                 }
             });
@@ -369,7 +371,7 @@
         // PDF結合ボタンクリック時の処理
         mergeButton.addEventListener('click', async () => {
             if (selectedFiles.length === 0) {
-                showStatus('結合するPDFファイルが選択されていません。', true);
+                showStatus('結合するファイルが選択されていません。', true);
                 return;
             }
 
@@ -382,11 +384,36 @@
 
                 for (const file of selectedFiles) {
                     const arrayBuffer = await file.arrayBuffer(); // ファイルをArrayBufferとして読み込む
-                    const pdfDoc = await PDFDocument.load(arrayBuffer); // 既存のPDFを読み込む
-                    
-                    // 既存のPDFの全ページを新しいPDFにコピー
-                    const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
-                    copiedPages.forEach((page) => mergedPdf.addPage(page)); // コピーしたページを追加
+
+                    if (file.type === 'application/pdf') {
+                        const pdfDoc = await PDFDocument.load(arrayBuffer); // 既存のPDFを読み込む
+                        // 既存のPDFの全ページを新しいPDFにコピー
+                        const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+                        copiedPages.forEach((page) => mergedPdf.addPage(page)); // コピーしたページを追加
+                    } else if (file.type === 'image/jpeg' || file.type === 'image/png') {
+                        let image;
+                        if (file.type === 'image/jpeg') {
+                            image = await mergedPdf.embedJpg(arrayBuffer);
+                        } else { // image/png
+                            image = await mergedPdf.embedPng(arrayBuffer);
+                        }
+
+                        // 画像の元のサイズを取得
+                        const imageDims = image.scale(1); 
+                        // 画像のサイズに合わせた新しいページを追加
+                        const page = mergedPdf.addPage([imageDims.width, imageDims.height]); 
+                        // ページ全体に画像を配置
+                        page.drawImage(image, {
+                            x: 0,
+                            y: 0,
+                            width: imageDims.width,
+                            height: imageDims.height,
+                        });
+                    } else {
+                        // ここには到達しないはずだが、念のため
+                        console.warn(`サポートされていないファイル形式が選択されました: ${file.name} (${file.type})`);
+                        showStatus(`"${file.name}" はサポートされていないファイル形式のためスキップされました。`, true);
+                    }
                 }
 
                 const mergedPdfBytes = await mergedPdf.save(); // 結合されたPDFをバイトデータとして取得
@@ -399,8 +426,8 @@
 
                 showStatus('PDFの結合が完了しました！');
             } catch (error) {
-                console.error('PDF結合エラー:', error);
-                showStatus(`PDFの結合中にエラーが発生しました: ${error.message}`, true);
+                console.error('ファイル結合エラー:', error);
+                showStatus(`ファイルの結合中にエラーが発生しました: ${error.message}`, true);
             } finally {
                 mergeButton.disabled = false; // 処理完了後にボタンを有効化
             }
