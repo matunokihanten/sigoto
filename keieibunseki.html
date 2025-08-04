@@ -228,11 +228,50 @@
         if (m.fixedLongRatio <= 100) comments.push("固定長期適合率が100%以下で、長期的な資金繰りが安定しています。");
         else comments.push("固定長期適合率が100%を超えています。固定資産への投資を自己資本と長期負債で賄いきれておらず、資金繰りが悪化するリスクがあります。");
 
-        // 総合スコア
-        score = (m.roa * 3) + (m.roe * 1) + (m.operatingMargin * 2) + (m.equityRatio * 1) + (m.currentRatio * 0.5) - (m.debtRatio * 0.5);
-        score = Math.max(0, score).toFixed(0);
+        // 総合スコアの計算ロジックを修正
+        // 各指標のパーセンテージ値を直接加減算するのではなく、点数化して合計するように変更
+        const scoreWeights = {
+            roa: [3, 5, 15], // 3%以下5点, 5%以下10点, 5%超15点
+            roe: [10, 15, 15], // 10%以下5点, 15%以下10点, 15%超15点
+            operatingMargin: [5, 10, 15], // 5%以下5点, 10%以下10点, 10%超15点
+            equityRatio: [30, 50, 15], // 30%以下5点, 50%以下10点, 50%超15点
+            currentRatio: [120, 150, 10], // 120%以下3点, 150%以下5点, 150%超10点
+            breakevenRatio: [85, 70, 15] // 85%超5点, 70%超10点, 70%以下15点
+        };
 
-        return { score, comments };
+        const breakevenRatio = (m.breakeven / parseFloat(document.getElementById("sales").value)) * 100;
+
+        // ROAスコア
+        if (m.roa >= scoreWeights.roa[1]) score += scoreWeights.roa[2];
+        else if (m.roa >= scoreWeights.roa[0]) score += 10;
+        else score += 5;
+
+        // ROEスコア
+        if (m.roe >= scoreWeights.roe[1]) score += scoreWeights.roe[2];
+        else if (m.roe >= scoreWeights.roe[0]) score += 10;
+        else score += 5;
+
+        // 営業利益率スコア
+        if (m.operatingMargin >= scoreWeights.operatingMargin[1]) score += scoreWeights.operatingMargin[2];
+        else if (m.operatingMargin >= scoreWeights.operatingMargin[0]) score += 10;
+        else score += 5;
+
+        // 自己資本比率スコア
+        if (m.equityRatio >= scoreWeights.equityRatio[1]) score += scoreWeights.equityRatio[2];
+        else if (m.equityRatio >= scoreWeights.equityRatio[0]) score += 10;
+        else score += 5;
+
+        // 流動比率スコア
+        if (m.currentRatio >= scoreWeights.currentRatio[1]) score += scoreWeights.currentRatio[2];
+        else if (m.currentRatio >= scoreWeights.currentRatio[0]) score += 5;
+        else score += 3;
+
+        // 損益分岐点スコア
+        if (breakevenRatio <= scoreWeights.breakevenRatio[1]) score += scoreWeights.breakevenRatio[2];
+        else if (breakevenRatio <= scoreWeights.breakevenRatio[0]) score += 10;
+        else score += 5;
+
+        return { score: score.toFixed(0), comments };
     };
 
     const updateDashboard = () => {
