@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>飲食店経営分析ダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      background: #f9f9f9;
+    }
+    h1 { text-align: center; }
+    .input-form {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .input-group {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      width: 45%;
+      min-width: 300px;
+    }
+    .input-group h2 {
+      margin-top: 0;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 10px;
+    }
+    .input-group label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      display: block;
+      width: 200px;
+      margin: 20px auto;
+      padding: 10px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .summary-box {
+      background: #eef;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 30px auto;
+      width: 80%;
+    }
+    .summary-box h2 {
+      margin-top: 0;
+    }
+    .score {
+      font-size: 2em;
+      font-weight: bold;
+      color: #007bff;
+      text-align: center;
+    }
+    canvas { max-width: 800px; margin: 40px auto; display: block; }
+    table {
+      margin: 30px auto;
+      border-collapse: collapse;
+      width: 80%;
+      background: #fff;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: right;
+    }
+    th { background: #eee; }
+    .metric-value {
+      width: 150px;
+    }
+    .average-value {
+      width: 120px;
+      color: #555;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <h1>飲食店経営分析ダッシュボード</h1>
+
+  <div class="input-form">
+    <div class="input-group">
+      <h2>損益計算書データ</h2>
+      <label for="sales">売上高:</label>
+      <input type="number" id="sales" value="87372059">
+      <label for="grossProfit">売上総利益:</label>
+      <input type="number" id="grossProfit" value="59773028">
+      <label for="operatingProfit">営業利益:</label>
+      <input type="number" id="operatingProfit" value="6192140">
+      <label for="netProfit">当期純利益:</label>
+      <input type="number" id="netProfit" value="4783999">
+      <label for="fixedCost">固定費:</label>
+      <input type="number" id="fixedCost" value="53580888">
+      <label for="laborCost">人件費:</label>
+      <input type="number" id="laborCost" value="30322662">
+    </div>
+
+    <div class="input-group">
+      <h2>貸借対照表・その他データ</h2>
+      <label for="totalAssets">総資産:</label>
+      <input type="number" id="totalAssets" value="103504754">
+      <label for="equity">自己資本:</label>
+      <input type="number" id="equity" value="30525631">
+      <label for="liabilities">負債総額:</label>
+      <input type="number" id="liabilities" value="72979123">
+      <label for="fixedAssets">固定資産:</label>
+      <input type="number" id="fixedAssets" value="50000000">
+      <label for="currentAssets">流動資産:</label>
+      <input type="number" id="currentAssets" value="53504754">
+      <label for="currentLiabilities">流動負債:</label>
+      <input type="number" id="currentLiabilities" value="197508310">
+      <label for="fixedLiabilities">固定負債:</label>
+      <input type="number" id="fixedLiabilities" value="38000000">
+      <label for="employees">従業員数:</label>
+      <input type="number" id="employees" value="25">
+    </div>
+  </div>
+
+  <button onclick="updateDashboard()">ダッシュボードを更新</button>
+
+  <div class="summary-box">
+    <h2>経営状況の総括</h2>
+    <div class="score" id="score">-</div>
+    <p id="summaryText"></p>
+  </div>
+
+  <table>
+    <tr><th>指標</th><th class="metric-value">値</th><th class="average-value">目安</th><th>コメント</th></tr>
+    <tr><th colspan="4" style="text-align: left;">収益性・効率性分析</th></tr>
+    <tr><td>総資産利益率 (ROA)</td><td id="roa">-</td><td class="average-value">3～5%</td><td>資産効率</td></tr>
+    <tr><td>自己資本利益率 (ROE)</td><td id="roe">-</td><td class="average-value">10～15%</td><td>資本効率</td></tr>
+    <tr><td>総資産回転率</td><td id="turnover">-</td><td class="average-value">1回以上</td><td>売上効率</td></tr>
+    <tr><td>損益分岐点売上高</td><td id="breakeven">-</td><td class="average-value">売上高の80%以下</td><td>黒字ライン</td></tr>
+    <tr><td>売上高総利益率</td><td id="grossMargin">-</td><td class="average-value">65～75%</td><td>商品競争力</td></tr>
+    <tr><td>営業利益率</td><td id="operatingMargin">-</td><td class="average-value">5～10%</td><td>本業収益力</td></tr>
+    <tr><td>労働分配率</td><td id="laborShare">-</td><td class="average-value">35～45%</td><td>人件費比率</td></tr>
+    <tr><td>一人当たり売上高</td><td id="salesPerEmployee">-</td><td class="average-value">800万円以上</td><td>労働生産性</td></tr>
+    <tr><td>一人当たり人件費</td><td id="laborCostPerEmployee">-</td><td class="average-value">300万円前後</td><td>人件費効率</td></tr>
+    <tr><th colspan="4" style="text-align: left;">安全性・資本構成分析</th></tr>
+    <tr><td>自己資本比率</td><td id="equityRatio">-</td><td class="average-value">30%以上</td><td>倒産リスク</td></tr>
+    <tr><td>流動比率</td><td id="currentRatio">-</td><td class="average-value">120%以上</td><td>短期支払い能力</td></tr>
+    <tr><td>負債依存度（負債比率）</td><td id="debtRatio">-</td><td class="average-value">100%以下</td><td>借入依存度</td></tr>
+    <tr><td>固定長期適合率</td><td id="fixedLongRatio">-</td><td class="average-value">100%以下</td><td>長期安定性</td></tr>
+  </table>
+
+  <canvas id="radarChart"></canvas>
+  <canvas id="trendChart"></canvas>
+
+  <script>
+    let radarChart, trendChart;
+
+    const calcMetrics = (d) => {
+      const contributionRate = d.grossProfit / d.sales;
+      return {
+        roa: (d.netProfit / d.totalAssets * 100).toFixed(1),
+        roe: (d.netProfit / d.equity * 100).toFixed(1),
+        turnover: (d.sales / d.totalAssets).toFixed(2),
+        breakeven: contributionRate > 0 ? Math.round(d.fixedCost / contributionRate) : 0,
+        laborShare: d.grossProfit > 0 ? (d.laborCost / d.grossProfit * 100).toFixed(1) : 0,
+        grossMargin: (d.grossProfit / d.sales * 100).toFixed(1),
+        operatingMargin: (d.operatingProfit / d.sales * 100).toFixed(1),
+        netMargin: (d.netProfit / d.sales * 100).toFixed(1),
+        salesPerEmployee: d.employees > 0 ? Math.round(d.sales / d.employees) : 0,
+        laborCostPerEmployee: d.employees > 0 ? Math.round(d.laborCost / d.employees) : 0,
+        equityRatio: (d.equity / d.totalAssets * 100).toFixed(1),
+        currentRatio: d.currentLiabilities > 0 ? (d.currentAssets / d.currentLiabilities * 100).toFixed(1) : 0,
+        debtRatio: d.equity > 0 ? (d.liabilities / d.equity * 100).toFixed(1) : 0,
+        fixedLongRatio: (d.equity + d.fixedLiabilities) > 0 ? (d.fixedAssets / (d.equity + d.fixedLiabilities) * 100).toFixed(1) : 0
+      };
+    };
+
+    const scoreMetrics = (m) => {
+        let score = 0;
+        let comments = [];
+
+        // ROA採点 (目標5%以上)
+        if (m.roa >= 5) { score += 15; comments.push("ROAは優良な水準です。効率的な資産活用ができています。"); }
+        else if (m.roa >= 3) { score += 10; comments.push("ROAはまずまずの水準です。さらなる改善の余地があります。"); }
+        else { score += 5; comments.push("ROAは改善が必要です。資産の活用方法を見直しましょう。"); }
+
+        // ROE採点 (目標10%以上)
+        if (m.roe >= 15) { score += 15; comments.push("ROEは非常に高く、株主資本を効率的に活用できています。"); }
+        else if (m.roe >= 10) { score += 10; comments.push("ROEは健全な水準です。"); }
+        else { score += 5; comments.push("ROEは改善が必要です。資本の収益性を高めましょう。"); }
+
+        // 営業利益率採点 (目標10%以上)
+        if (m.operatingMargin >= 10) { score += 15; comments.push("営業利益率は素晴らしい水準です。本業での収益力が高いです。"); }
+        else if (m.operatingMargin >= 5) { score += 10; comments.push("営業利益率は健全な水準です。"); }
+        else { score += 5; comments.push("営業利益率が低めです。販売費や一般管理費の見直しを検討しましょう。"); }
+
+        // 自己資本比率採点 (目標30%以上)
+        if (m.equityRatio >= 50) { score += 15; comments.push("自己資本比率は非常に高く、財務基盤が強固です。"); }
+        else if (m.equityRatio >= 30) { score += 10; comments.push("自己資本比率は健全な水準です。"); }
+        else { score += 5; comments.push("自己資本比率が低めです。借入に依存しすぎないか注意しましょう。"); }
+
+        // 流動比率採点 (目標120%以上)
+        if (m.currentRatio >= 150) { score += 10; comments.push("流動比率は非常に高く、短期的な支払能力に問題ありません。"); }
+        else if (m.currentRatio >= 120) { score += 5; comments.push("流動比率は健全な水準です。"); }
+        else { score += 3; comments.push("流動比率が低いです。短期的な資金繰りに注意が必要です。"); }
+
+        // 損益分岐点売上高採点 (目標売上高の80%以下)
+        const breakevenRatio = (m.breakeven / parseFloat(document.getElementById("sales").value)) * 100;
+        if (breakevenRatio <= 70) { score += 15; comments.push("損益分岐点が低く、非常に安定した経営です。"); }
+        else if (breakevenRatio <= 85) { score += 10; comments.push("損益分岐点は妥当な水準です。"); }
+        else { score += 5; comments.push("損益分岐点が高く、売上減少で赤字になるリスクがあります。"); }
+
+        return { score, comments };
+    };
+
+    const updateDashboard = () => {
+      const inputData = {
+        sales: parseFloat(document.getElementById("sales").value),
+        grossProfit: parseFloat(document.getElementById("grossProfit").value),
+        operatingProfit: parseFloat(document.getElementById("operatingProfit").value),
+        netProfit: parseFloat(document.getElementById("netProfit").value),
+        totalAssets: parseFloat(document.getElementById("totalAssets").value),
+        equity: parseFloat(document.getElementById("equity").value),
+        liabilities: parseFloat(document.getElementById("liabilities").value),
+        fixedAssets: parseFloat(document.getElementById("fixedAssets").value),
+        currentAssets: parseFloat(document.getElementById("currentAssets").value),
+        currentLiabilities: parseFloat(document.getElementById("currentLiabilities").value),
+        fixedLiabilities: parseFloat(document.getElementById("fixedLiabilities").value),
+        fixedCost: parseFloat(document.getElementById("fixedCost").value),
+        laborCost: parseFloat(document.getElementById("laborCost").value),
+        employees: parseFloat(document.getElementById("employees").value)
+      };
+
+      const m = calcMetrics(inputData);
+      const { score, comments } = scoreMetrics(m);
+
+      // 表を更新
+      document.getElementById("roa").textContent = `${m.roa} %`;
+      document.getElementById("roe").textContent = `${m.roe} %`;
+      document.getElementById("turnover").textContent = `${m.turnover} 回`;
+      document.getElementById("breakeven").textContent = `${m.breakeven.toLocaleString()} 円`;
+      document.getElementById("laborShare").textContent = `${m.laborShare} %`;
+      document.getElementById("grossMargin").textContent = `${m.grossMargin} %`;
+      document.getElementById("operatingMargin").textContent = `${m.operatingMargin} %`;
+      document.getElementById("salesPerEmployee").textContent = `${m.salesPerEmployee.toLocaleString()} 円`;
+      document.getElementById("laborCostPerEmployee").textContent = `${m.laborCostPerEmployee.toLocaleString()} 円`;
+      document.getElementById("equityRatio").textContent = `${m.equityRatio} %`;
+      document.getElementById("currentRatio").textContent = `${m.currentRatio} %`;
+      document.getElementById("debtRatio").textContent = `${m.debtRatio} %`;
+      document.getElementById("fixedLongRatio").textContent = `${m.fixedLongRatio} %`;
+
+      // 総括を更新
+      document.getElementById("score").textContent = `総合スコア: ${score}点`;
+      document.getElementById("summaryText").innerHTML = comments.map(c => `<li>${c}</li>`).join('');
+
+      // レーダーチャートを更新
+      if (radarChart) {
+        radarChart.data.datasets[0].data = [m.roa, m.roe, m.turnover * 100, m.breakeven / 1000000, m.laborShare, m.operatingMargin];
+        radarChart.update();
+      } else {
+        radarChart = new Chart(document.getElementById("radarChart"), {
+          type: 'radar',
+          data: {
+            labels: ["ROA", "ROE", "資産回転率", "損益分岐点(百万)", "労働分配率", "営業利益率"],
+            datasets: [{
+              label: "分析結果",
+              data: [m.roa, m.roe, m.turnover * 100, m.breakeven / 1000000, m.laborShare, m.operatingMargin],
+              backgroundColor: 'rgba(0, 123, 255, 0.2)',
+              borderColor: 'rgba(0, 123, 255, 1)'
+            }]
+          },
+          options: {
+            scales: {
+              r: {
+                angleLines: { display: true },
+                suggestedMin: 0,
+                suggestedMax: 100
+              }
+            }
+          }
+        });
+      }
+
+      // トレンドチャートを更新
+      if (trendChart) {
+        trendChart.data.datasets[0].data[3] = m.roa;
+        trendChart.data.datasets[1].data[3] = m.roe;
+        trendChart.data.datasets[2].data[3] = m.operatingMargin;
+        trendChart.update();
+      } else {
+        trendChart = new Chart(document.getElementById("trendChart"), {
+          type: 'line',
+          data: {
+            labels: ["2022", "2023", "2024", "最新"],
+            datasets: [
+              { label: "ROA (%)", data: [3.8, 4.2, 4.4, m.roa], borderColor: "blue", fill: false },
+              { label: "ROE (%)", data: [11.2, 13.1, 14.6, m.roe], borderColor: "green", fill: false },
+              { label: "営業利益率 (%)", data: [6.1, 7.5, 7.8, m.operatingMargin], borderColor: "purple", fill: false }
+            ]
+          }
+        });
+      }
+    };
+
+    // 初期表示
+    updateDashboard();
+  </script>
+</body>
+</html>
