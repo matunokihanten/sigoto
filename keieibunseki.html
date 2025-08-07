@@ -58,7 +58,18 @@
         outline: 0;
         box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
     }
-    
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+      font-weight: normal;
+    }
+    .checkbox-container input[type="checkbox"] {
+      width: auto;
+      margin-right: 10px;
+    }
+
     .button-group {
       display: flex;
       justify-content: center;
@@ -188,8 +199,14 @@
       <input type="number" id="netProfit" value="4783999">
       <label for="fixedCost">販売費・一般管理費合計:</label>
       <input type="number" id="fixedCost" value="53580888">
-      <label for="laborCost">人件費（役員報酬含む）:</label>
-      <input type="number" id="laborCost" value="30322662">
+      <label for="laborCostExcluding">人件費（役員報酬含まない）:</label>
+      <input type="number" id="laborCostExcluding" value="19506662">
+      <label for="directorSalary">役員報酬:</label>
+      <input type="number" id="directorSalary" value="10816000">
+      <div class="checkbox-container">
+        <input type="checkbox" id="includeDirectorSalary" checked>
+        <label for="includeDirectorSalary">人件費に役員報酬を含める</label>
+      </div>
       <label for="employees">従業員数:</label>
       <input type="number" id="employees" value="9">
     </div>
@@ -214,6 +231,10 @@
       <input type="number" id="interestBearingDebt" value="56258235">
       <label for="directorLoan">役員借入金:</label>
       <input type="number" id="directorLoan" value="31720235">
+      <div class="checkbox-container">
+        <input type="checkbox" id="includeDirectorLoan" checked>
+        <label for="includeDirectorLoan">有利子負債に役員借入金を含める</label>
+      </div>
     </div>
   </div>
 
@@ -254,7 +275,7 @@
         <tr><td class="metric-name">流動比率</td><td class="metric-formula">流動資産 / 流動負債</td><td id="currentRatio">-</td><td id="currentRatioScore">-</td><td class="average-value">120%以上</td><td class="comment-text">短期的な支払能力</td></tr>
         <tr><td class="metric-name">固定比率</td><td class="metric-formula">固定資産 / 自己資本</td><td id="fixedRatio">-</td><td id="fixedRatioScore">-</td><td class="average-value">100%以下</td><td class="comment-text">設備投資の健全性</td></tr>
         <tr><td class="metric-name">固定長期適合率</td><td class="metric-formula">固定資産 / (自己資本 + 固定負債)</td><td id="fixedLongRatio">-</td><td id="fixedLongRatioScore">-</td><td class="average-value">100%以下</td><td class="comment-text">長期的な安定性</td></tr>
-        <tr><td class="metric-name">負債比率</td><td class="metric-formula">負債合計 / 自己資本</td><td id="debtRatio">-</td><td id="debtRatioScore">-</td><td class="average-value">100%以下</td><td class="comment-text">他人資本への依存度</td></tr>
+        <tr><td class="metric-name">負債比率</td><td class="metric-formula">負債合計 / 自己資本</td><td id="debtRatio">-</td><td id="debtRatioScore">-</td><td class="average-text">100%以下</td><td class="comment-text">他人資本への依存度</td></tr>
         <tr><td class="metric-name">有利子負債依存度</td><td class="metric-formula">有利子負債 / 総資産</td><td id="interestBearingDebtRatio">-</td><td id="interestBearingDebtRatioScore">-</td><td class="average-value">40%以下</td><td class="comment-text">借入金の返済負担リスク</td></tr>
       </tbody>
     </table>
@@ -354,9 +375,16 @@
       const contributionRate = safeDiv(d.grossProfit, d.sales);
       const breakevenSales = safeDiv(d.fixedCost, contributionRate);
       
-      const adjustedFixedLiabilities = d.fixedLiabilities + d.directorLoan;
-      const adjustedCurrentLiabilities = d.currentLiabilities - d.directorLoan;
-      const totalLiabilities = adjustedFixedLiabilities + adjustedCurrentLiabilities;
+      const includeDirectorLoan = document.getElementById('includeDirectorLoan').checked;
+      const includeDirectorSalary = document.getElementById('includeDirectorSalary').checked;
+
+      const totalLiabilities = d.liabilities;
+      const interestBearingDebt = includeDirectorLoan ? d.interestBearingDebt : d.interestBearingDebt - d.directorLoan;
+      const laborCost = includeDirectorSalary ? d.laborCostExcluding + d.directorSalary : d.laborCostExcluding;
+
+      const adjustedFixedLiabilities = d.fixedLiabilities;
+      const adjustedCurrentLiabilities = d.currentLiabilities;
+      const adjustedEquity = d.equity + d.directorLoan;
 
       return {
         grossMargin: safeDiv(d.grossProfit, d.sales) * 100,
@@ -367,8 +395,8 @@
         roe: safeDiv(d.netProfit, d.equity) * 100,
         breakevenRatio: safeDiv(breakevenSales, d.sales) * 100,
         breakevenSales: breakevenSales,
-        laborShare: safeDiv(d.laborCost, d.grossProfit) * 100,
-        laborCostRatio: safeDiv(d.laborCost, d.sales) * 100,
+        laborShare: safeDiv(laborCost, d.grossProfit) * 100,
+        laborCostRatio: safeDiv(laborCost, d.sales) * 100,
         salesPerEmployee: safeDiv(d.sales, d.employees),
         opPerEmployee: safeDiv(d.operatingProfit, d.employees),
         totalAssetTurnover: safeDiv(d.sales, d.totalAssets),
@@ -378,7 +406,7 @@
         fixedRatio: safeDiv(d.fixedAssets, d.equity) * 100,
         fixedLongRatio: safeDiv(d.fixedAssets, (d.equity + adjustedFixedLiabilities)) * 100,
         debtRatio: safeDiv(totalLiabilities, d.equity) * 100,
-        interestBearingDebtRatio: safeDiv(d.interestBearingDebt, d.totalAssets) * 100
+        interestBearingDebtRatio: safeDiv(interestBearingDebt, d.totalAssets) * 100
       };
     };
 
@@ -518,10 +546,14 @@
     }
 
     function updateCostStructureChart(d) {
+        const includeDirectorSalary = document.getElementById('includeDirectorSalary').checked;
+        const laborCost = includeDirectorSalary ? d.laborCostExcluding + d.directorSalary : d.laborCostExcluding;
+        const otherFixedCost = d.fixedCost - laborCost;
+
         const data = {
             labels: ['人件費', 'その他販管費'],
             datasets: [{
-                data: [d.laborCost, d.fixedCost - d.laborCost],
+                data: [laborCost, otherFixedCost],
                 backgroundColor: ['#007bff', '#6c757d'],
                 hoverOffset: 4
             }]
@@ -711,6 +743,8 @@
     window.onload = () => {
       updateEmployeeCount();
       updateDashboard();
+      document.getElementById('includeDirectorLoan').addEventListener('change', updateDashboard);
+      document.getElementById('includeDirectorSalary').addEventListener('change', updateDashboard);
     };
   </script>
 </body>
