@@ -121,7 +121,23 @@
     tbody th { background: #e9ecef; }
     .metric-name { text-align: left; }
     .metric-formula { text-align: left; font-family: monospace; color: #555; }
-    
+
+    .score-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 12px;
+        color: #fff;
+        font-weight: bold;
+        font-size: 0.8em;
+        margin-left: 10px;
+    }
+    .score-badge-100 { background-color: #28a745; }
+    .score-badge-80 { background-color: #17a2b8; }
+    .score-badge-60 { background-color: #ffc107; }
+    .score-badge-40 { background-color: #fd7e14; }
+    .score-badge-20 { background-color: #dc3545; }
+    .score-badge-0 { background-color: #6c757d; }
+
     .charts-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
@@ -196,6 +212,8 @@
       <input type="number" id="equity" value="30525631">
       <label for="interestBearingDebt">有利子負債合計:</label>
       <input type="number" id="interestBearingDebt" value="56258235">
+      <label for="directorLoan">役員借入金:</label>
+      <input type="number" id="directorLoan" value="31720235">
     </div>
   </div>
 
@@ -214,30 +232,30 @@
     
     <table id="analysisTable">
       <thead>
-        <tr><th class="metric-name">指標</th><th class="metric-formula">計算式</th><th class="metric-value">値</th><th class="average-value">目安</th><th class="comment-text">コメント</th></tr>
+        <tr><th class="metric-name">指標</th><th class="metric-formula">計算式</th><th class="metric-value">値</th><th class="score-column">スコア</th><th class="average-value">目安</th><th class="comment-text">コメント</th></tr>
       </thead>
       <tbody>
-        <tr><th colspan="5" style="text-align: left;">収益性・効率性分析</th></tr>
-        <tr><td class="metric-name">売上高総利益率</td><td class="metric-formula">売上総利益 / 売上高</td><td id="grossMargin">-</td><td class="average-value">65～75%</td><td class="comment-text">商品競争力</td></tr>
-        <tr><td class="metric-name">売上高営業利益率</td><td class="metric-formula">営業利益 / 売上高</td><td id="operatingMargin">-</td><td class="average-value">5～10%</td><td class="comment-text">本業での収益力</td></tr>
-        <tr><td class="metric-name">売上高経常利益率</td><td class="metric-formula">経常利益 / 売上高</td><td id="recurringMargin">-</td><td class="average-value">3～8%</td><td class="comment-text">総合的な収益力</td></tr>
-        <tr><td class="metric-name">売上高純利益率</td><td class="metric-formula">当期純利益 / 売上高</td><td id="netProfitMargin">-</td><td class="average-value">2～5%</td><td class="comment-text">最終的な収益力</td></tr>
-        <tr><td class="metric-name">総資産利益率 (ROA)</td><td class="metric-formula">当期純利益 / 総資産</td><td id="roa">-</td><td class="average-value">3～5%</td><td class="comment-text">資産全体の効率性</td></tr>
-        <tr><td class="metric-name">自己資本利益率 (ROE)</td><td class="metric-formula">当期純利益 / 自己資本</td><td id="roe">-</td><td class="average-value">10～15%</td><td class="comment-text">株主資本の効率性</td></tr>
-        <tr><td class="metric-name">損益分岐点比率</td><td class="metric-formula">損益分岐点売上高 / 売上高</td><td id="breakevenRatio">-</td><td class="average-value">80%以下</td><td class="comment-text">赤字への抵抗力</td></tr>
-        <tr><td class="metric-name">損益分岐点売上高</td><td class="metric-formula">固定費 / (1 - (売上原価 / 売上高))</td><td id="breakevenSales">-</td><td class="average-value">8000万円以下</td><td class="comment-text">損益分岐点となる売上</td></tr>
-        <tr><td class="metric-name">労働分配率</td><td class="metric-formula">人件費 / 売上総利益</td><td id="laborShare">-</td><td class="average-value">35～45%</td><td class="comment-text">付加価値の人件費配分</td></tr>
-        <tr><td class="metric-name">人件費率</td><td class="metric-formula">人件費 / 売上高</td><td id="laborCostRatio">-</td><td class="average-value">30～35%</td><td class="comment-text">売上に対する人件費の割合</td></tr>
-        <tr><td class="metric-name">一人当たり売上高</td><td class="metric-formula">売上高 / 従業員数</td><td id="salesPerEmployee">-</td><td class="average-value">800万円以上</td><td class="comment-text">労働生産性（売上）</td></tr>
-        <tr><td class="metric-name">一人当たり営業利益</td><td class="metric-formula">営業利益 / 従業員数</td><td id="opPerEmployee">-</td><td class="average-value">50万円以上</td><td class="comment-text">労働生産性（利益）</td></tr>
-        <tr><td class="metric-name">総資本回転率</td><td class="metric-formula">売上高 / 総資産</td><td id="totalAssetTurnover">-</td><td class="average-value">1.0～1.5回</td><td class="comment-text">資産の回転効率</td></tr>
-        <tr><th colspan="5" style="text-align: left;">安全性・資本構成分析</th></tr>
-        <tr><td class="metric-name">自己資本比率</td><td class="metric-formula">自己資本 / 総資産</td><td id="equityRatio">-</td><td class="average-value">30%以上</td><td class="comment-text">財務基盤の安定性</td></tr>
-        <tr><td class="metric-name">流動比率</td><td class="metric-formula">流動資産 / 流動負債</td><td id="currentRatio">-</td><td class="average-value">120%以上</td><td class="comment-text">短期的な支払能力</td></tr>
-        <tr><td class="metric-name">固定比率</td><td class="metric-formula">固定資産 / 自己資本</td><td id="fixedRatio">-</td><td class="average-value">100%以下</td><td class="comment-text">設備投資の健全性</td></tr>
-        <tr><td class="metric-name">固定長期適合率</td><td class="metric-formula">固定資産 / (自己資本 + 固定負債)</td><td id="fixedLongRatio">-</td><td class="average-value">100%以下</td><td class="comment-text">長期的な安定性</td></tr>
-        <tr><td class="metric-name">負債比率</td><td class="metric-formula">負債合計 / 自己資本</td><td id="debtRatio">-</td><td class="average-value">100%以下</td><td class="comment-text">他人資本への依存度</td></tr>
-        <tr><td class="metric-name">有利子負債依存度</td><td class="metric-formula">有利子負債 / 総資産</td><td id="interestBearingDebtRatio">-</td><td class="average-value">40%以下</td><td class="comment-text">借入金の返済負担リスク</td></tr>
+        <tr><th colspan="6" style="text-align: left;">収益性・効率性分析</th></tr>
+        <tr><td class="metric-name">売上高総利益率</td><td class="metric-formula">売上総利益 / 売上高</td><td id="grossMargin">-</td><td id="grossMarginScore">-</td><td class="average-value">65～75%</td><td class="comment-text">商品競争力</td></tr>
+        <tr><td class="metric-name">売上高営業利益率</td><td class="metric-formula">営業利益 / 売上高</td><td id="operatingMargin">-</td><td id="operatingMarginScore">-</td><td class="average-value">5～10%</td><td class="comment-text">本業での収益力</td></tr>
+        <tr><td class="metric-name">売上高経常利益率</td><td class="metric-formula">経常利益 / 売上高</td><td id="recurringMargin">-</td><td id="recurringMarginScore">-</td><td class="average-value">3～8%</td><td class="comment-text">総合的な収益力</td></tr>
+        <tr><td class="metric-name">売上高純利益率</td><td class="metric-formula">当期純利益 / 売上高</td><td id="netProfitMargin">-</td><td id="netProfitMarginScore">-</td><td class="average-value">2～5%</td><td class="comment-text">最終的な収益力</td></tr>
+        <tr><td class="metric-name">総資産利益率 (ROA)</td><td class="metric-formula">当期純利益 / 総資産</td><td id="roa">-</td><td id="roaScore">-</td><td class="average-value">3～5%</td><td class="comment-text">資産全体の効率性</td></tr>
+        <tr><td class="metric-name">自己資本利益率 (ROE)</td><td class="metric-formula">当期純利益 / 自己資本</td><td id="roe">-</td><td id="roeScore">-</td><td class="average-value">10～15%</td><td class="comment-text">株主資本の効率性</td></tr>
+        <tr><td class="metric-name">損益分岐点比率</td><td class="metric-formula">損益分岐点売上高 / 売上高</td><td id="breakevenRatio">-</td><td id="breakevenRatioScore">-</td><td class="average-value">80%以下</td><td class="comment-text">赤字への抵抗力</td></tr>
+        <tr><td class="metric-name">損益分岐点売上高</td><td class="metric-formula">固定費 / (1 - (売上原価 / 売上高))</td><td id="breakevenSales">-</td><td id="breakevenSalesScore">-</td><td class="average-value">8000万円以下</td><td class="comment-text">損益分岐点となる売上</td></tr>
+        <tr><td class="metric-name">労働分配率</td><td class="metric-formula">人件費 / 売上総利益</td><td id="laborShare">-</td><td id="laborShareScore">-</td><td class="average-value">35～45%</td><td class="comment-text">付加価値の人件費配分</td></tr>
+        <tr><td class="metric-name">人件費率</td><td class="metric-formula">人件費 / 売上高</td><td id="laborCostRatio">-</td><td id="laborCostRatioScore">-</td><td class="average-value">30～35%</td><td class="comment-text">売上に対する人件費の割合</td></tr>
+        <tr><td class="metric-name">一人当たり売上高</td><td class="metric-formula">売上高 / 従業員数</td><td id="salesPerEmployee">-</td><td id="salesPerEmployeeScore">-</td><td class="average-value">800万円以上</td><td class="comment-text">労働生産性（売上）</td></tr>
+        <tr><td class="metric-name">一人当たり営業利益</td><td class="metric-formula">営業利益 / 従業員数</td><td id="opPerEmployee">-</td><td id="opPerEmployeeScore">-</td><td class="average-value">50万円以上</td><td class="comment-text">労働生産性（利益）</td></tr>
+        <tr><td class="metric-name">総資本回転率</td><td class="metric-formula">売上高 / 総資産</td><td id="totalAssetTurnover">-</td><td id="totalAssetTurnoverScore">-</td><td class="average-value">1.0～1.5回</td><td class="comment-text">資産の回転効率</td></tr>
+        <tr><th colspan="6" style="text-align: left;">安全性・資本構成分析</th></tr>
+        <tr><td class="metric-name">自己資本比率</td><td class="metric-formula">自己資本 / 総資産</td><td id="equityRatio">-</td><td id="equityRatioScore">-</td><td class="average-value">30%以上</td><td class="comment-text">財務基盤の安定性</td></tr>
+        <tr><td class="metric-name">流動比率</td><td class="metric-formula">流動資産 / 流動負債</td><td id="currentRatio">-</td><td id="currentRatioScore">-</td><td class="average-value">120%以上</td><td class="comment-text">短期的な支払能力</td></tr>
+        <tr><td class="metric-name">固定比率</td><td class="metric-formula">固定資産 / 自己資本</td><td id="fixedRatio">-</td><td id="fixedRatioScore">-</td><td class="average-value">100%以下</td><td class="comment-text">設備投資の健全性</td></tr>
+        <tr><td class="metric-name">固定長期適合率</td><td class="metric-formula">固定資産 / (自己資本 + 固定負債)</td><td id="fixedLongRatio">-</td><td id="fixedLongRatioScore">-</td><td class="average-value">100%以下</td><td class="comment-text">長期的な安定性</td></tr>
+        <tr><td class="metric-name">負債比率</td><td class="metric-formula">負債合計 / 自己資本</td><td id="debtRatio">-</td><td id="debtRatioScore">-</td><td class="average-value">100%以下</td><td class="comment-text">他人資本への依存度</td></tr>
+        <tr><td class="metric-name">有利子負債依存度</td><td class="metric-formula">有利子負債 / 総資産</td><td id="interestBearingDebtRatio">-</td><td id="interestBearingDebtRatioScore">-</td><td class="average-value">40%以下</td><td class="comment-text">借入金の返済負担リスク</td></tr>
       </tbody>
     </table>
 
@@ -298,40 +316,98 @@
     };
     Chart.register(gaugeTextPlugin);
 
-    // ▼▼▼ 変更点: 新しい指標の計算式を追加 ▼▼▼
+    // スコア計算ロジックを修正：目安の範囲から外れても0にならないように
+    const getScore = (value, targetMin, targetMax, isHigherBetter = true) => {
+        let score;
+        const idealScore = 100;
+        const acceptableScore = 50;
+
+        if (isHigherBetter) {
+            if (value >= targetMax) {
+                score = idealScore;
+            } else if (value >= targetMin) {
+                score = acceptableScore + ((value - targetMin) / (targetMax - targetMin)) * (idealScore - acceptableScore);
+            } else {
+                // 目安範囲を外れた場合、乖離度に応じて0〜50点の範囲で減点
+                const diff = targetMin - value;
+                const penaltyScale = targetMin * 0.5; // 例: 目安値の50%を乖離の減点スケールとする
+                score = acceptableScore - (diff / penaltyScale) * acceptableScore;
+            }
+        } else { // isLowerBetter
+            if (value <= targetMin) {
+                score = idealScore;
+            } else if (value <= targetMax) {
+                score = acceptableScore + ((targetMax - value) / (targetMax - targetMin)) * (idealScore - acceptableScore);
+            } else {
+                // 目安範囲を外れた場合、乖離度に応じて0〜50点の範囲で減点
+                const diff = value - targetMax;
+                const penaltyScale = targetMax * 0.5; // 例: 目安値の50%を乖離の減点スケールとする
+                score = acceptableScore - (diff / penaltyScale) * acceptableScore;
+            }
+        }
+        
+        return Math.round(Math.max(0, Math.min(100, score)));
+    };
+
     const calcMetrics = (d) => {
       const safeDiv = (num, den) => (den > 0 ? num / den : 0);
       const contributionRate = safeDiv(d.grossProfit, d.sales);
       const breakevenSales = safeDiv(d.fixedCost, contributionRate);
       
-      return {
-        // 収益性・効率性
-        grossMargin: (safeDiv(d.grossProfit, d.sales) * 100).toFixed(1),
-        operatingMargin: (safeDiv(d.operatingProfit, d.sales) * 100).toFixed(1),
-        recurringMargin: (safeDiv(d.recurringProfit, d.sales) * 100).toFixed(1),
-        netProfitMargin: (safeDiv(d.netProfit, d.sales) * 100).toFixed(1), // 追加
-        roa: (safeDiv(d.netProfit, d.totalAssets) * 100).toFixed(1),
-        roe: (safeDiv(d.netProfit, d.equity) * 100).toFixed(1),
-        breakevenRatio: (safeDiv(breakevenSales, d.sales) * 100).toFixed(1),
-        breakevenSales: Math.round(breakevenSales), // 追加
-        laborShare: (safeDiv(d.laborCost, d.grossProfit) * 100).toFixed(1),
-        laborCostRatio: (safeDiv(d.laborCost, d.sales) * 100).toFixed(1), // 追加
-        salesPerEmployee: Math.round(safeDiv(d.sales, d.employees)),
-        opPerEmployee: Math.round(safeDiv(d.operatingProfit, d.employees)), // 追加
-        totalAssetTurnover: (safeDiv(d.sales, d.totalAssets)).toFixed(2), // 追加
+      const adjustedFixedLiabilities = d.fixedLiabilities + d.directorLoan;
+      const adjustedCurrentLiabilities = d.currentLiabilities - d.directorLoan;
+      const totalLiabilities = adjustedFixedLiabilities + adjustedCurrentLiabilities;
 
-        // 安全性・資本構成
-        equityRatio: (safeDiv(d.equity, d.totalAssets) * 100).toFixed(1),
-        currentRatio: (safeDiv(d.currentAssets, d.currentLiabilities) * 100).toFixed(1),
-        fixedRatio: (safeDiv(d.fixedAssets, d.equity) * 100).toFixed(1), // 追加
-        fixedLongRatio: (safeDiv(d.fixedAssets, (d.equity + d.fixedLiabilities)) * 100).toFixed(1),
-        debtRatio: (safeDiv(d.liabilities, d.equity) * 100).toFixed(1),
-        interestBearingDebtRatio: (safeDiv(d.interestBearingDebt, d.totalAssets) * 100).toFixed(1) // 追加
+      return {
+        grossMargin: safeDiv(d.grossProfit, d.sales) * 100,
+        operatingMargin: safeDiv(d.operatingProfit, d.sales) * 100,
+        recurringMargin: safeDiv(d.recurringProfit, d.sales) * 100,
+        netProfitMargin: safeDiv(d.netProfit, d.sales) * 100,
+        roa: safeDiv(d.netProfit, d.totalAssets) * 100,
+        roe: safeDiv(d.netProfit, d.equity) * 100,
+        breakevenRatio: safeDiv(breakevenSales, d.sales) * 100,
+        breakevenSales: breakevenSales,
+        laborShare: safeDiv(d.laborCost, d.grossProfit) * 100,
+        laborCostRatio: safeDiv(d.laborCost, d.sales) * 100,
+        salesPerEmployee: safeDiv(d.sales, d.employees),
+        opPerEmployee: safeDiv(d.operatingProfit, d.employees),
+        totalAssetTurnover: safeDiv(d.sales, d.totalAssets),
+
+        equityRatio: safeDiv(d.equity, d.totalAssets) * 100,
+        currentRatio: safeDiv(d.currentAssets, adjustedCurrentLiabilities) * 100,
+        fixedRatio: safeDiv(d.fixedAssets, d.equity) * 100,
+        fixedLongRatio: safeDiv(d.fixedAssets, (d.equity + adjustedFixedLiabilities)) * 100,
+        debtRatio: safeDiv(totalLiabilities, d.equity) * 100,
+        interestBearingDebtRatio: safeDiv(d.interestBearingDebt, d.totalAssets) * 100
       };
     };
 
     const scoreMetrics = (m) => {
         let comments = [];
+        const scores = {};
+        
+        // スコアリング
+        scores.grossMarginScore = getScore(m.grossMargin, 65, 75);
+        scores.operatingMarginScore = getScore(m.operatingMargin, 5, 10);
+        scores.recurringMarginScore = getScore(m.recurringMargin, 3, 8);
+        scores.netProfitMarginScore = getScore(m.netProfitMargin, 2, 5);
+        scores.roaScore = getScore(m.roa, 3, 5);
+        scores.roeScore = getScore(m.roe, 10, 15);
+        scores.breakevenRatioScore = getScore(m.breakevenRatio, 50, 80, false);
+        scores.breakevenSalesScore = getScore(m.breakevenSales, 50000000, 80000000, false);
+        scores.laborShareScore = getScore(m.laborShare, 35, 45, false);
+        scores.laborCostRatioScore = getScore(m.laborCostRatio, 30, 35, false);
+        scores.salesPerEmployeeScore = getScore(m.salesPerEmployee, 8000000, 12000000);
+        scores.opPerEmployeeScore = getScore(m.opPerEmployee, 500000, 1000000);
+        scores.totalAssetTurnoverScore = getScore(m.totalAssetTurnover, 1.0, 1.5);
+        scores.equityRatioScore = getScore(m.equityRatio, 30, 50);
+        scores.currentRatioScore = getScore(m.currentRatio, 120, 200);
+        scores.fixedRatioScore = getScore(m.fixedRatio, 80, 100, false);
+        scores.fixedLongRatioScore = getScore(m.fixedLongRatio, 80, 100, false);
+        scores.debtRatioScore = getScore(m.debtRatio, 50, 100, false);
+        scores.interestBearingDebtRatioScore = getScore(m.interestBearingDebtRatio, 20, 40, false);
+
+        // 総括コメント
         if (m.roe >= 10) comments.push("自己資本利益率(ROE)は良好です。資本を効率的に活用し利益を生み出せています。");
         else comments.push("自己資本利益率(ROE)が低めです。収益性を高めるか、資産効率の改善が必要です。");
 
@@ -348,15 +424,15 @@
         if (m.breakevenRatio <= 80) comments.push("損益分岐点比率は良好です。売上減少に対する抵抗力があります。");
         else comments.push("損益分岐点比率が高いです。売上が少し落ち込むと赤字になる可能性があります。固定費の削減が課題です。");
 
-        const scoreWeights = { roe: [10, 15, 25], operatingMargin: [5, 10, 25], equityRatio: [10, 30, 25], currentRatio: [100, 120, 15], breakevenRatio: [90, 80, 10] };
-        let scoreValue = 0;
-        if (m.roe >= scoreWeights.roe[1]) scoreValue += scoreWeights.roe[2]; else if (m.roe >= scoreWeights.roe[0]) scoreValue += 15; else scoreValue += 5;
-        if (m.operatingMargin >= scoreWeights.operatingMargin[1]) scoreValue += scoreWeights.operatingMargin[2]; else if (m.operatingMargin >= scoreWeights.operatingMargin[0]) scoreValue += 15; else scoreValue += 5;
-        if (m.equityRatio >= scoreWeights.equityRatio[1]) scoreValue += scoreWeights.equityRatio[2]; else if (m.equityRatio >= scoreWeights.equityRatio[0]) scoreValue += 15; else scoreValue += 5;
-        if (m.currentRatio >= scoreWeights.currentRatio[1]) scoreValue += scoreWeights.currentRatio[2]; else if (m.currentRatio >= scoreWeights.currentRatio[0]) scoreValue += 10;
-        if (m.breakevenRatio <= scoreWeights.breakevenRatio[1]) scoreValue += scoreWeights.breakevenRatio[2]; else if (m.breakevenRatio <= scoreWeights.breakevenRatio[0]) scoreValue += 5;
+        const scoreWeights = { roe: 25, operatingMargin: 25, equityRatio: 25, currentRatio: 15, breakevenRatio: 10 };
+        let totalScore = 0;
+        totalScore += (scores.roeScore / 100) * scoreWeights.roe;
+        totalScore += (scores.operatingMarginScore / 100) * scoreWeights.operatingMargin;
+        totalScore += (scores.equityRatioScore / 100) * scoreWeights.equityRatio;
+        totalScore += (scores.currentRatioScore / 100) * scoreWeights.currentRatio;
+        totalScore += (scores.breakevenRatioScore / 100) * scoreWeights.breakevenRatio;
 
-        return { score: scoreValue.toFixed(0), comments };
+        return { score: totalScore.toFixed(0), comments, detailScores: scores };
     };
     
     const updateDashboard = () => {
@@ -365,21 +441,37 @@
       );
 
       const m = calcMetrics(inputData);
-      const { score, comments } = scoreMetrics(m);
+      const { score, comments, detailScores } = scoreMetrics(m);
       
-      // ▼▼▼ 変更点: 新しい指標の表示形式（単位）に対応 ▼▼▼
       // テーブル更新
       Object.keys(m).forEach(key => {
         const el = document.getElementById(key);
         if (el) {
           if (key === 'salesPerEmployee' || key === 'opPerEmployee' || key === 'breakevenSales') {
-            el.textContent = `${m[key].toLocaleString()} 円`;
+            el.textContent = `${Math.round(m[key]).toLocaleString()} 円`;
           } else if (key === 'totalAssetTurnover') {
-            el.textContent = `${m[key]} 回`;
+            el.textContent = `${m[key].toFixed(2)} 回`;
           } else {
-            el.textContent = `${m[key]} %`;
+            el.textContent = `${m[key].toFixed(1)} %`;
           }
         }
+      });
+
+      // スコア表示
+      const getScoreClass = (scoreValue) => {
+          if (scoreValue >= 80) return 'score-badge-100';
+          if (scoreValue >= 60) return 'score-badge-80';
+          if (scoreValue >= 40) return 'score-badge-60';
+          if (scoreValue >= 20) return 'score-badge-40';
+          if (scoreValue >= 0) return 'score-badge-20';
+          return 'score-badge-0';
+      };
+      Object.keys(detailScores).forEach(key => {
+          const el = document.getElementById(key);
+          if (el) {
+              const scoreValue = detailScores[key];
+              el.innerHTML = `<span class="score-badge ${getScoreClass(scoreValue)}">${scoreValue}点</span>`;
+          }
       });
       
       // サマリー更新
@@ -448,11 +540,11 @@
         };
         const equityOptions = {
             circumference: 180, rotation: -90, cutout: '70%', responsive: true, maintainAspectRatio: true,
-            plugins: { tooltip: { enabled: false }, gaugeText: { display: true, text: `${m.equityRatio}%`, subtext: '自己資本比率' } }
+            plugins: { tooltip: { enabled: false }, gaugeText: { display: true, text: `${m.equityRatio.toFixed(1)}%`, subtext: '自己資本比率' } }
         };
         if (equityRatioGauge) {
             equityRatioGauge.data = equityData;
-            equityRatioGauge.options.plugins.gaugeText.text = `${m.equityRatio}%`;
+            equityRatioGauge.options.plugins.gaugeText.text = `${m.equityRatio.toFixed(1)}%`;
             equityRatioGauge.update();
         } else {
             equityRatioGauge = new Chart(document.getElementById("equityRatioGauge"), { type: 'doughnut', data: equityData, options: equityOptions });
@@ -464,11 +556,11 @@
         };
         const currentOptions = {
             circumference: 180, rotation: -90, cutout: '70%', responsive: true, maintainAspectRatio: true,
-            plugins: { tooltip: { enabled: false }, gaugeText: { display: true, text: `${m.currentRatio}%`, subtext: '流動比率' } }
+            plugins: { tooltip: { enabled: false }, gaugeText: { display: true, text: `${m.currentRatio.toFixed(1)}%`, subtext: '流動比率' } }
         };
         if (currentRatioGauge) {
             currentRatioGauge.data = currentData;
-            currentRatioGauge.options.plugins.gaugeText.text = `${m.currentRatio}%`;
+            currentRatioGauge.options.plugins.gaugeText.text = `${m.currentRatio.toFixed(1)}%`;
             currentRatioGauge.update();
         } else {
             currentRatioGauge = new Chart(document.getElementById("currentRatioGauge"), { type: 'doughnut', data: currentData, options: currentOptions });
