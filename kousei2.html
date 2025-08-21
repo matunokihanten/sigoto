@@ -383,9 +383,9 @@
           <option value="web">Webサイト構成</option>
           <option value="docs">ドキュメント構成</option>
         </select>
-        <button id="btn-add-folder" type="button" title="ルートに新規フォルダを追加">📁 フォルダ追加</button>
-        <button id="btn-add-file" type="button" title="ルートに新規ファイルを追加">📄 ファイル追加</button>
-        <button id="btn-add-html" type="button" title="ルートに新規HTMLファイルを追加">📄 HTML追加</button>
+        <button id="btn-add-folder" type="button" title="選択中のフォルダに新規フォルダを追加">📁 フォルダ追加</button>
+        <button id="btn-add-file" type="button" title="選択中のフォルダに新規ファイルを追加">📄 ファイル追加</button>
+        <button id="btn-add-html" type="button" title="選択中のフォルダに新規HTMLファイルを追加">📄 HTML追加</button>
         <button id="btn-save-json" type="button" title="現在の構造をJSONで保存">💾 保存</button>
         <button id="btn-load-json" type="button" title="JSONファイルを読み込む">📂 読込</button>
         <button id="btn-export-zip" type="button" title="構造をZIPファイルで出力">🗜 ZIP出力</button>
@@ -574,7 +574,7 @@
     return yiq >= 128 ? '#000000' : '#FFFFFF';
   }
   function isDescendant(parentNode, possibleDescendant) {
-    if (parentNode.type !== 'folder') return false;
+    if (parentNode.type !== 'folder' || !parentNode.children) return false;
     for (const c of parentNode.children) {
       if (c.id === possibleDescendant.id) return true;
       if (c.type === 'folder' && isDescendant(c, possibleDescendant)) return true;
@@ -589,6 +589,7 @@
 
   // ===== レンダリング =====
   function render() {
+    const prevSelectedId = selectedId;
     treeEl.innerHTML = '';
     function build(node, container) {
       node.children.forEach(child => {
@@ -772,6 +773,7 @@
             const parent = findParentById(root, child.id);
             if (parent) {
               parent.children = parent.children.filter(c => c.id !== child.id);
+              selectedId = null;
               saveHistory();
               render();
             }
@@ -794,26 +796,60 @@
 
     build(root, treeEl);
     updateUndoRedoButtons();
+    // 選択状態を復元
+    if (prevSelectedId) {
+        const newSelectedEl = treeEl.querySelector(`[data-id="${prevSelectedId}"]`);
+        if (newSelectedEl) {
+            selectedId = prevSelectedId;
+            newSelectedEl.querySelector('.node-inner').classList.add('selected');
+            updateColorPicker();
+        } else {
+            selectedId = null;
+            updateColorPicker();
+        }
+    }
   }
 
   // ===== イベントハンドラ =====
+  function getTargetFolder() {
+    if (selectedId) {
+      const selectedNode = findNodeById(root, selectedId);
+      if (selectedNode) {
+        // 選択されたノードがフォルダならそのノードを返す
+        if (selectedNode.type === 'folder') {
+          return selectedNode;
+        }
+        // 選択されたノードがファイルならその親フォルダを返す
+        const parent = findParentById(root, selectedId);
+        if (parent) {
+          return parent;
+        }
+      }
+    }
+    // 何も選択されていないか、親フォルダが見つからない場合はルートを返す
+    return root;
+  }
+  
   btnAddFolder.addEventListener('click', () => {
-    root.children.push(createNode('新規フォルダ', 'folder'));
-    root.expanded = true;
+    const targetFolder = getTargetFolder();
+    targetFolder.children.push(createNode('新規フォルダ', 'folder'));
+    targetFolder.expanded = true;
     saveHistory();
     render();
   });
   btnAddFile.addEventListener('click', () => {
-    root.children.push(createNode('新規ファイル.txt', 'file'));
-    root.expanded = true;
+    const targetFolder = getTargetFolder();
+    targetFolder.children.push(createNode('新規ファイル.txt', 'file'));
+    targetFolder.expanded = true;
     saveHistory();
     render();
   });
   btnAddHtml.addEventListener('click', () => {
+    const targetFolder = getTargetFolder();
     const newNode = createNode('index.html', 'file');
     newNode.content = getFileTemplate('index.html');
-    root.children.push(newNode);
-    root.expanded = true;
+    targetFolder.children.push(newNode);
+    targetFolder.expanded = true;
     saveHistory();
     render();
   });
@@ -1079,6 +1115,7 @@
     sourceParent.children = sourceParent.children.filter(c => c.id !== sourceNode.id);
 
     if (dropPosition === 'inside' && targetNode.type === 'folder') {
+      if (!targetNode.children) targetNode.children = [];
       targetNode.children.push(sourceNode);
       targetNode.expanded = true;
     } else {
