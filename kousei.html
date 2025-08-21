@@ -131,87 +131,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
   <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
   <script>
-    // --- interfaces.ts
-    // TypeScriptの型定義をJavaScriptのコメントとして記述
-    /**
-     * @typedef {Object} Node
-     * @property {string} id
-     * @property {string} name
-     * @property {'folder' | 'file'} type
-     * @property {Node[]} children
-     * @property {string} content
-     * @property {string} color
-     */
-
-    /**
-     * @typedef {Object} FavoriteTemplate
-     * @property {string} name
-     * @property {string} data
-     */
-
-    // --- utils.ts
-    const getFileTemplate = (name) => {
-      if (name.endsWith('.html')) {
-        const t = name.replace(/\.html$/, '');
-        return `<!DOCTYPE html>
-<html lang="ja">
-<head><meta charset="UTF-8"><title>${t}</title></head>
-<body>
-
-</body>
-</html>`;
-      }
-      return '';
-    };
-
-    const getContrastYIQ = (hexcolor) => {
-      const hex = hexcolor.replace("#", "");
-      const r = parseInt(hex.substring(0, 2), 16);
-      const g = parseInt(hex.substring(2, 4), 16);
-      const b = parseInt(hex.substring(4, 6), 16);
-      const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-      return (yiq >= 128) ? 'black' : 'white';
-    };
-
-    const findNode = (root, id) => {
-      const stack = [root];
-      while (stack.length > 0) {
-        const node = stack.pop();
-        if (node.id === id) {
-          return node;
-        }
-        stack.push(...node.children);
-      }
-      return null;
-    };
-
-    const findParent = (root, id) => {
-      const stack = [root];
-      while (stack.length > 0) {
-        const node = stack.pop();
-        if (node.children.some(c => c.id === id)) {
-          return node;
-        }
-        stack.push(...node.children);
-      }
-      return null;
-    };
-
-    const getMaxId = (node) => {
-      let max = 0;
-      const stack = node.children.slice();
-      while (stack.length > 0) {
-        const n = stack.pop();
-        const num = parseInt(n.id.replace('n', ''), 10);
-        if (num > max) {
-          max = num;
-        }
-        stack.push(...n.children);
-      }
-      return max;
-    };
-    
-    // --- templates.ts
+    //―― テンプレート ――
     const templates = {
       empty: ``,
       js: `
@@ -227,642 +147,657 @@
 └── script.js`.trim()
     };
 
-    const loadTemplate = (key, createNodeFunc) => {
-      const newRoot = createNodeFunc('/', 'folder');
-      let idCounter = 1;
-      const localCreateNode = (name, type, color = '#FFFFFF') => {
-          return { id: `n${idCounter++}`, name, type, children: [], content: '', color };
-      };
-      if (key !== 'empty') {
-        const lines = templates[key].split('\n');
-        const stack = [];
-        lines.forEach(raw => {
-          const depth = (raw.match(/^(\s*[│├└─]+)?/)?.[0] || '').replace(/[│├└─]/g, '').length / 2;
-          const txt = raw.replace(/^[\s│├└─]+/, '').trim();
-          if (!txt) return;
+    //―― ユーティリティ ――
+    let idCounter = 1;
+    function genId() { return 'n'+(idCounter++); }
+    function createNode(name, type, color = '#FFFFFF') {
+        return { id: genId(), name, type, children: [], content: '', color: color };
+    }
+    function getFileTemplate(name){
+      if(name.endsWith('.html')){
+        const t=name.replace(/\.html$/,'');
+        return `<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>${t}</title></head>
+<body>
 
-          const isDir = txt.endsWith('/');
-          const name = txt.replace(/\/$/, '');
-          const node = localCreateNode(name, isDir ? 'folder' : 'file');
-
-          while (stack.length > depth) {
-            stack.pop();
-          }
-
-          const parent = stack[stack.length - 1] || newRoot;
-          parent.children.push(node);
-          if (isDir) {
-            stack.push(node);
-          }
-        });
+</body>
+</html>`;
       }
-      return newRoot;
-    };
-
-    // --- file-handlers.ts
-    const treeToCsv = (root) => {
-      const rows = [['path', 'type', 'content', 'color']];
-      const walk = (node, pathPrefix) => {
-        node.children.forEach(c => {
-          const path = `${pathPrefix}/${c.name}`;
-          const content = c.type === 'file' ? c.content || '' : '';
-          const encodedContent = btoa(encodeURIComponent(content));
-          rows.push([path, c.type, encodedContent, c.color || '#FFFFFF']);
-          if (c.type === 'folder') {
-            walk(c, path);
-          }
-        });
-      };
-      walk(root, '');
-      return rows.map(r => r.map(x => `"${(x || '').replace(/"/g, '""')}"`).join(',')).join('\n');
-    };
-
-    const loadCsv = async (createNodeFunc) => {
-      try {
-        const [fileHandle] = await window.showOpenFilePicker({ types: [{ accept: { 'text/csv': ['.csv'] } }] });
-        const file = await fileHandle.getFile();
-        const text = await file.text();
-        const lines = text.split('\n').filter(l => l.trim());
-        const newRoot = createNodeFunc('/', 'folder');
-        lines.slice(1).forEach(l => {
-          const parts = l.match(/(".*?"|[^",\s]+)(?=\s*|\s*,|$)/g)?.map(p => p.replace(/^"|"$/g, '').replace(/""/g, '"')) || [];
-          if (parts.length < 2) return;
-          const [path, type, contentStr, color] = parts;
-          let content = '';
-          if (contentStr && type === 'file') {
-            try {
-              content = decodeURIComponent(atob(contentStr));
-            } catch (e) {
-              console.error('Failed to decode content from Base64:', e);
-              content = '';
-            }
-          }
-          const segments = path.split('/').filter(Boolean);
-          let parent = newRoot;
-          segments.forEach((segment, i) => {
-            const isLast = i === segments.length - 1;
-            const nodeType = isLast ? type : 'folder';
-            let existingNode = parent.children.find(c => c.name === segment && c.type === nodeType);
-            if (!existingNode) {
-              existingNode = createNodeFunc(segment, nodeType, color);
-              if (isLast && type === 'file') {
-                existingNode.content = content;
-              }
-              parent.children.push(existingNode);
-            }
-            parent = existingNode;
-          });
-        });
-        return newRoot;
-      } catch (e) {
-        if (e.name !== 'AbortError') {
-          alert('CSVファイルの読み込みに失敗しました。');
-        }
-        return null;
-      }
-    };
-
-    const downloadZip = (root) => {
-      const zip = new JSZip();
-      const add = (node, folder) => {
-        node.children.forEach(child => {
-          if (child.type === 'folder') {
-            add(child, folder.folder(child.name));
-          } else {
-            folder.file(child.name, child.content || getFileTemplate(child.name));
-          }
-        });
-      };
-      add(root, zip);
-      zip.generateAsync({ type: 'blob' }).then(blob => {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'structure.zip';
-        a.click();
-        URL.revokeObjectURL(a.href);
-      });
-    };
-
-    const readFsRecursive = async (directoryHandle, parentNode, createNodeFunc) => {
-      for await (const entry of (directoryHandle.values())) {
-        if (entry.kind === 'directory') {
-          const folderNode = createNodeFunc(entry.name, 'folder');
-          parentNode.children.push(folderNode);
-          await readFsRecursive(entry, folderNode, createNodeFunc);
-        } else {
-          const fileNode = createNodeFunc(entry.name, 'file');
-          parentNode.children.push(fileNode);
-          try {
-            const file = await entry.getFile();
-            fileNode.content = await file.text();
-          } catch (e) {
-            fileNode.content = `ERROR: ${e.message}`;
-          }
-        }
-      }
-    };
-
-    // --- history-manager.ts
-    class HistoryManager {
-      constructor(initialState) {
-        this.history = [];
-        this.future = [];
-        this.maxStates = 100;
-        this.save(initialState);
-      }
-      save(state) {
-        this.history.push(JSON.stringify(state));
-        if (this.history.length > this.maxStates) {
-          this.history.shift();
-        }
-        this.future = [];
-      }
-      undo() {
-        if (this.history.length <= 1) return null;
-        this.future.push(this.history.pop());
-        return JSON.parse(this.history[this.history.length - 1]);
-      }
-      redo() {
-        if (this.future.length === 0) return null;
-        const nextState = this.future.pop();
-        this.history.push(nextState);
-        return JSON.parse(nextState);
-      }
-      canUndo() {
-        return this.history.length > 1;
-      }
-      canRedo() {
-        return this.future.length > 0;
-      }
+      return '';
+    }
+    function getContrastYIQ(hexcolor){
+        hexcolor = hexcolor.replace("#", "");
+        var r = parseInt(hexcolor.substr(0,2),16);
+        var g = parseInt(hexcolor.substr(2,2),16);
+        var b = parseInt(hexcolor.substr(4,2),16);
+        var yiq = ((r*299)+(g*587)+(b*114))/1000;
+        return (yiq >= 128) ? 'black' : 'white';
     }
 
-    // --- app.ts
-    class App {
-      constructor() {
-        this.idCounter = 1;
-        this.root = this.createNode('/', 'folder');
-        this.editingId = null;
-        this.selectedId = null;
-        this.draggedId = null;
-        this.dropPosition = 'inside';
-        this.historyManager = new HistoryManager(this.root);
-        this.bindEvents();
-        this.render();
-      }
 
-      createNode(name, type, color = '#FFFFFF') {
-        return { id: `n${this.idCounter++}`, name, type, children: [], content: '', color };
-      }
-
-      render() {
-        const ul = document.getElementById('tree');
-        ul.innerHTML = '';
-        const build = (node, container) => {
-          node.children.forEach(ch => {
-            const li = document.createElement('li');
-            li.draggable = true;
-            li.dataset.id = ch.id;
-
-            const sp = document.createElement('span');
-            sp.className = 'node';
-            if (ch.id === this.selectedId) {
-              sp.classList.add('selected');
-            }
-            sp.style.backgroundColor = ch.color;
-            sp.style.color = getContrastYIQ(ch.color);
-            sp.textContent = ch.name + (ch.type === 'folder' ? '/' : '');
-            sp.onclick = (e) => this.handleNodeClick(e, ch);
-            sp.ondblclick = () => this.startEditing(ch);
-            li.appendChild(sp);
-            
-            const act = document.createElement('span');
-            act.className = 'actions';
-            const btns = [
-                { t: '✎', fn: () => this.startEditing(ch) },
-                { t: '+フォルダ', fn: () => this.addNode(ch, 'folder'), cond: ch.type === 'folder' },
-                { t: '+html', fn: () => this.addNode(ch, 'file', '.html'), cond: ch.type === 'folder' },
-                { t: '+txt', fn: () => this.addNode(ch, 'file', '.txt'), cond: ch.type === 'folder' },
-                { t: '✕', fn: () => this.removeNode(ch) },
-                { t: '📝', fn: () => this.editFileContent(ch), cond: ch.type === 'file' },
-                { t: '▶', fn: () => this.executeHtmlFile(ch), cond: ch.type === 'file' && ch.name.endsWith('.html') }
-            ];
-            btns.forEach(b => {
-                if (b.cond === false) return;
-                const btn = document.createElement('button');
-                btn.textContent = b.t; btn.onclick = b.fn;
-                act.appendChild(btn);
-            });
-            li.appendChild(act);
-
-            li.addEventListener('dragstart', (e) => this.onDragStart(e));
-            li.addEventListener('dragover', (e) => this.onDragOver(e));
-            li.addEventListener('dragleave', (e) => this.onDragLeave(e));
-            li.addEventListener('drop', (e) => this.onDrop(e));
-            li.addEventListener('dragend', (e) => this.onDragEnd(e));
-
-            container.appendChild(li);
-            if (ch.type === 'folder') {
-              const sub = document.createElement('ul');
-              sub.className = 'children';
-              li.appendChild(sub);
-              build(ch, sub);
-            }
-          });
-        };
-        build(this.root, ul);
-        this.updateUndoRedoBtn();
-        this.renderFavList();
-      }
-
-      handleNodeClick(e, node) {
-          e.stopPropagation();
-          this.selectedId = node.id;
-          const selectedNode = findNode(this.root, this.selectedId);
-          const colorRadios = document.querySelectorAll('#color-picker input[name="color"]');
-          colorRadios.forEach(radio => {
-              radio.checked = radio.value === (selectedNode.color || '#FFFFFF');
-          });
-          this.render();
-      }
-
-      startEditing(node) {
-        this.editingId = node.id;
-        this.selectedId = null;
-        this.render();
-      }
-
-      commitEdit(val) {
-        if (val.trim()) findNode(this.root, this.editingId).name = val.trim();
-        this.editingId = null;
-        this.saveStateAndRender();
-      }
-
-      saveStateAndRender() {
-        this.historyManager.save(this.root);
-        this.render();
-      }
-
-      addNode(parent, type, suffix = '') {
-        const newNode = this.createNode(`新しい${type === 'folder' ? 'フォルダ' : 'ファイル'}${suffix}`, type, parent.color);
-        parent.children.push(newNode);
-        this.saveStateAndRender();
-      }
-
-      removeNode(node) {
-        const parent = findParent(this.root, node.id);
-        if (parent) {
-          parent.children = parent.children.filter(c => c.id !== node.id);
-          this.selectedId = null;
-          this.saveStateAndRender();
+    //―― Undo/Redo用履歴管理 ――
+    let history = [];
+    let future = [];
+    function saveHistory(){
+      history.push(JSON.stringify(root));
+      if(history.length>100) history.shift();
+      future = [];
+      updateUndoRedoBtn();
+    }
+    function undo(){
+      if(history.length<=1) return; // Keep the initial state
+      future.push(JSON.stringify(root));
+      history.pop(); // Pop current state
+      root = JSON.parse(history[history.length-1]); // Peek at new current state
+      idCounter = getMaxId(root)+1;
+      selectedId = null; // Deselect on undo
+      render();
+      updateUndoRedoBtn();
+    }
+    function redo(){
+      if(future.length===0) return;
+      const nextState = future.pop();
+      history.push(nextState);
+      root = JSON.parse(nextState);
+      idCounter = getMaxId(root)+1;
+      selectedId = null; // Deselect on redo
+      render();
+      updateUndoRedoBtn();
+    }
+    function getMaxId(node){
+        let max = 0;
+        function walk(n){
+            const num = parseInt(n.id.replace('n',''), 10);
+            if(num > max) max = num;
+            if(n.children) n.children.forEach(walk);
         }
-      }
+        if(node.children) node.children.forEach(walk);
+        return max;
+    }
+    function updateUndoRedoBtn(){
+      document.getElementById('undoBtn').disabled = history.length <= 1;
+      document.getElementById('redoBtn').disabled = future.length === 0;
+    }
 
-      editFileContent(node) {
-        this.modalNode = node;
-        document.getElementById('modal-label').textContent = `「${node.name}」の内容を編集`;
-        document.getElementById('modal-text').value = node.content || '';
-        document.getElementById('modal-bg').style.display = 'flex';
-        document.getElementById('modal-text').focus();
-      }
+    //―― グローバル状態 ――
+    let root = createNode('/', 'folder');
+    let editingId = null;
+    let selectedId = null;
+    let draggedId = null;
 
-      executeHtmlFile(node) {
+    //―― テンプレート読み込み ――
+    function loadTemplate(key){
+      root = createNode('/', 'folder');
+      idCounter = 1; editingId = null; selectedId = null;
+      if(key!=='empty'){
+        const lines=templates[key].split('\n'), stack=[];
+        lines.forEach(raw=>{
+          const depth=(raw.match(/^(\s*[│├└─]+)?/)?.[0]||'').replace(/[│├└─]/g,'').length/2;
+          const txt=raw.replace(/^[\s│├└─]+/,'').trim();
+          if(!txt) return;
+          const isDir=txt.endsWith('/');
+          const name=txt.replace(/\/$/,'');
+          const node=createNode(name, isDir ? 'folder' : 'file');
+          while(stack.length > depth) stack.pop();
+          const parent = stack[stack.length-1] || root;
+          parent.children.push(node);
+          if(isDir) stack.push(node);
+        });
+      }
+      saveHistory();
+      render();
+    }
+
+    //―― ファイル内容編集用（モーダル）
+    let modalNode = null;
+    function editFileContent(node) {
+      modalNode = node;
+      document.getElementById('modal-label').textContent = `「${node.name}」の内容を編集`;
+      document.getElementById('modal-text').value = node.content || '';
+      document.getElementById('modal-bg').style.display = 'flex';
+      document.getElementById('modal-text').focus();
+    }
+    document.getElementById('modal-cancel').onclick = ()=>{
+      document.getElementById('modal-bg').style.display = 'none';
+      modalNode = null;
+    };
+    document.getElementById('modal-ok').onclick = ()=>{
+      if(modalNode){
+        modalNode.content = document.getElementById('modal-text').value;
+        saveHistory();
+        render();
+      }
+      document.getElementById('modal-bg').style.display = 'none';
+      modalNode = null;
+    };
+
+    //―― HTMLファイル実行用 ――
+    function executeHtmlFile(node) {
         if (node.type === 'file' && node.name.endsWith('.html')) {
-          const blob = new Blob([node.content], { type: 'text/html' });
-          const url = URL.createObjectURL(blob);
-          window.open(url, '_blank');
+            const blob = new Blob([node.content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+            // 一時的なURLなので、不要になったら解放する
+            // setTimeout(() => URL.revokeObjectURL(url), 60000); // 1分後に解放
         } else {
-          alert('これはHTMLファイルではありません。');
+            alert('これはHTMLファイルではありません。');
         }
-      }
+    }
 
-      updateUndoRedoBtn() {
-        document.getElementById('undoBtn').disabled = !this.historyManager.canUndo();
-        document.getElementById('redoBtn').disabled = !this.historyManager.canRedo();
-      }
+    //―― レンダリング ――
+    function render(){
+      const ul=document.getElementById('tree');
+      ul.innerHTML='';
+      function build(node, container){
+        node.children.forEach((ch, idx)=>{
+          const li=document.createElement('li');
+          li.draggable=true;
+          li.dataset.id=ch.id;
+          li.dataset.parentId = node.id; // Store parent ID for easier lookup
 
-      onDragStart(e) {
-        this.draggedId = e.currentTarget.dataset.id;
+          if(ch.id===editingId){
+            const inp=document.createElement('input');
+            inp.value=ch.name; inp.className='node-input';
+            inp.onblur=()=>commitEdit(inp.value);
+            inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); };
+            li.appendChild(inp);
+            setTimeout(()=>inp.select(),0);
+          } else {
+            const sp=document.createElement('span');
+            sp.className='node';
+            if (ch.id === selectedId) {
+                sp.classList.add('selected');
+            }
+            sp.style.backgroundColor = ch.color || '#FFFFFF';
+            sp.style.color = getContrastYIQ(ch.color || '#FFFFFF');
+            sp.textContent=ch.name+(ch.type==='folder'?'/':'');
+            sp.ondblclick=()=>{ editingId=ch.id; render(); };
+            sp.onclick = (e) => {
+                e.stopPropagation();
+                selectedId = ch.id;
+                const selectedNode = findNode(root, selectedId);
+                const colorRadios = document.querySelectorAll('#color-picker input[name="color"]');
+                colorRadios.forEach(radio => {
+                    radio.checked = radio.value === (selectedNode.color || '#FFFFFF');
+                });
+                render();
+            };
+            li.appendChild(sp);
+          }
+
+          const act=document.createElement('span');
+          act.className='actions';
+          const btns=[
+            {t:'✎',fn:()=>{ editingId=ch.id; selectedId=null; render(); }},
+            {t:'+フォルダー',fn:()=>{ const newNode=createNode('新しいフォルダ','folder', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'+html',fn:()=>{ const newNode=createNode('新しいファイル.html','file', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'+txt',fn:()=>{ const newNode=createNode('新しいファイル.txt','file', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder'},
+            {t:'✕',fn:()=>{ removeNode(root,ch.id); saveHistory(); render(); }},
+            {t:'📝',fn:() => editFileContent(ch), cond:ch.type==='file'},
+            {t:'▶',fn:() => executeHtmlFile(ch), cond:ch.type==='file' && ch.name.endsWith('.html')} // HTML実行ボタンを追加
+          ];
+          btns.forEach(b=>{
+            if(b.cond===false) return;
+            const btn=document.createElement('button');
+            btn.textContent=b.t; btn.onclick=b.fn;
+            act.appendChild(btn);
+          });
+          li.appendChild(act);
+
+          li.addEventListener('dragstart', onDragStart);
+          li.addEventListener('dragover', onDragOver);
+          li.addEventListener('dragleave', onDragLeave);
+          li.addEventListener('drop', onDrop);
+          li.addEventListener('dragend', onDragEnd); // Clean up on drag end
+
+          container.appendChild(li);
+          if(ch.type==='folder'){
+            const sub=document.createElement('ul');
+            sub.className='children';
+            li.appendChild(sub);
+            build(ch,sub);
+          }
+        });
+      }
+      build(root,ul);
+      updateUndoRedoBtn();
+      renderFavList();
+    }
+
+    function commitEdit(val){
+      if(val.trim()) findNode(root,editingId).name=val.trim();
+      editingId=null; saveHistory(); render();
+    }
+
+    // This function now correctly removes the node and returns true if found and removed
+    function removeNode(p,id){
+        for (let i = 0; i < p.children.length; i++) {
+            if (p.children[i].id === id) {
+                p.children.splice(i, 1);
+                return true;
+            }
+            if (removeNode(p.children[i], id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function findNode(p,id){
+      if(p.id===id) return p;
+      for(const c of p.children){ const r=findNode(c,id); if(r) return r; }
+      return null; // Ensure null is returned if not found
+    }
+    function findParent(p,id){
+      for(const c of p.children){
+        if(c.id===id) return p;
+        const r=findParent(c,id);
+        if(r) return r;
+      }
+      return null; // Ensure null is returned if not found
+    }
+
+    //―― Drag & Drop ――
+    let dropPosition = 'inside'; // 'before', 'after', 'inside'
+
+    function onDragStart(e) {
+        draggedId = e.currentTarget.dataset.id;
         e.dataTransfer.effectAllowed = 'move';
         e.currentTarget.classList.add('dragging');
-      }
+    }
 
-      onDragOver(e) {
+    function onDragOver(e) {
         e.preventDefault();
         const targetLi = e.currentTarget;
-        const targetId = targetLi.dataset.id;
-        const targetNode = findNode(this.root, targetId);
-        const draggedNode = findNode(this.root, this.draggedId);
+        const targetNode = findNode(root, targetLi.dataset.id);
+        const draggedNode = findNode(root, draggedId);
 
+        // Clear previous visual feedback from all list items
         document.querySelectorAll('#tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
-          li.classList.remove('over', 'drop-before', 'drop-after');
+            li.classList.remove('over', 'drop-before', 'drop-after');
         });
 
-        if (!targetNode || !draggedNode || this.draggedId === targetId) {
-          e.dataTransfer.dropEffect = 'none';
-          return;
-        }
-
-        let current = targetNode;
-        while(current) {
-          if (current.id === this.draggedId) {
+        if (!targetNode || !draggedNode || draggedId === targetLi.dataset.id) { // Corrected targetId
             e.dataTransfer.dropEffect = 'none';
             return;
-          }
-          current = findParent(this.root, current.id);
+        }
+
+        // Prevent dropping a parent into its own child
+        let current = targetNode;
+        while(current) {
+            if (current.id === draggedId) {
+                e.dataTransfer.dropEffect = 'none';
+                return;
+            }
+            current = findParent(root, current.id);
         }
         e.dataTransfer.dropEffect = 'move';
 
         const rect = targetLi.getBoundingClientRect();
         const y = e.clientY - rect.top;
+
         const third = rect.height / 3;
 
+        // Visual feedback based on Y position for precise dropping
         if (targetNode.type === 'folder') {
-          if (y < third) {
-            this.dropPosition = 'before';
-            targetLi.classList.add('drop-before');
-          } else if (y > third * 2) {
-            this.dropPosition = 'after';
-            targetLi.classList.add('drop-after');
-          } else {
-            this.dropPosition = 'inside';
-            targetLi.classList.add('over');
-          }
-        } else {
-          if (y < rect.height / 2) {
-            this.dropPosition = 'before';
-            targetLi.classList.add('drop-before');
-          } else {
-            this.dropPosition = 'after';
-            targetLi.classList.add('drop-after');
-          }
+            if (y < third) { // Top third: drop before target
+                dropPosition = 'before';
+                targetLi.classList.add('drop-before');
+            } else if (y > third * 2) { // Bottom third: drop after target
+                dropPosition = 'after';
+                targetLi.classList.add('drop-after');
+            } else { // Middle third: drop inside folder
+                dropPosition = 'inside';
+                targetLi.classList.add('over'); // Highlight folder for "inside" drop
+            }
+        } else { // If target is a file, can only drop before or after
+            if (y < rect.height / 2) {
+                dropPosition = 'before';
+                targetLi.classList.add('drop-before');
+            } else {
+                dropPosition = 'after';
+                targetLi.classList.add('drop-after');
+            }
         }
-      }
+    }
 
-      onDragLeave(e) {
+    function onDragLeave(e) {
         e.currentTarget.classList.remove('over', 'drop-before', 'drop-after');
-      }
+    }
 
-      onDrop(e) {
+    function onDrop(e) {
         e.preventDefault();
         e.stopPropagation();
-
+        
+        // Clear all visual feedbacks
         document.querySelectorAll('#tree li.dragging, #tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
-          li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
+            li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
         });
 
         const targetId = e.currentTarget.dataset.id;
-        if (this.draggedId === targetId) return;
+        if (draggedId === targetId) return;
 
-        const draggedNode = findNode(this.root, this.draggedId);
+        const draggedNode = findNode(root, draggedId);
         if (!draggedNode) return;
 
-        const sourceParent = findParent(this.root, this.draggedId);
+        // Remove from original position
+        const sourceParent = findParent(root, draggedId);
         if (sourceParent) {
-          sourceParent.children = sourceParent.children.filter(c => c.id !== this.draggedId);
+            removeNode(sourceParent, draggedId);
         } else {
-          this.draggedId = null;
-          return;
+            console.error("Dragged node's parent not found. This should not happen for draggable nodes.");
+            draggedId = null;
+            return;
         }
 
-        const targetNode = findNode(this.root, targetId);
+        const targetNode = findNode(root, targetId);
         if (!targetNode) return;
 
-        if (this.dropPosition === 'inside' && targetNode.type === 'folder') {
-          targetNode.children.push(draggedNode);
+        if (dropPosition === 'inside' && targetNode.type === 'folder') {
+            targetNode.children.push(draggedNode);
         } else {
-          const targetParent = findParent(this.root, targetId);
-          const parentToInsertInto = targetParent || this.root;
-          const targetIndex = parentToInsertInto.children.findIndex(c => c.id === targetId);
-          if (targetIndex > -1) {
-            if (this.dropPosition === 'before') {
-              parentToInsertInto.children.splice(targetIndex, 0, draggedNode);
+            const targetParent = findParent(root, targetId);
+            // If targetParent is null, it means targetNode is a direct child of the conceptual root
+            const parentToInsertInto = targetParent || root;
+            const targetIndex = parentToInsertInto.children.findIndex(c => c.id === targetId);
+
+            if (targetIndex > -1) {
+                if (dropPosition === 'before') {
+                    parentToInsertInto.children.splice(targetIndex, 0, draggedNode);
+                } else { // after
+                    parentToInsertInto.children.splice(targetIndex + 1, 0, draggedNode);
+                }
             } else {
-              parentToInsertInto.children.splice(targetIndex + 1, 0, draggedNode);
+                // Fallback for unexpected cases, or if target is root itself (not draggable)
+                parentToInsertInto.children.push(draggedNode);
             }
-          } else {
-            parentToInsertInto.children.push(draggedNode);
-          }
         }
 
-        this.draggedId = null;
-        this.saveStateAndRender();
-      }
+        draggedId = null;
+        saveHistory();
+        render();
+    }
 
-      onDragEnd(e) {
+    function onDragEnd(e) {
+        // Clean up classes after the drag operation finishes (success or cancel)
         document.querySelectorAll('#tree li.dragging, #tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
-          li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
+            li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
         });
-        this.draggedId = null;
-      }
+        draggedId = null;
+    }
 
-      updateChildrenColor(node, newColor) {
+
+    //―― CSV 保存/読込 ――
+    function treeToCsv(){
+      const rows=[['path','type','content','color']];
+      (function w(n,p){
+        n.children.forEach(c=>{
+          const path=p+'/'+c.name;
+          rows.push([path,c.type,c.type==='file'?btoa(unescape(encodeURIComponent(c.content||''))):'', c.color || '#FFFFFF']);
+          if(c.type==='folder') w(c,path);
+        });
+      })(root,'');
+      return rows.map(r=>r.map(x=>`"${(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    }
+    document.getElementById('saveCsv').onclick = () => {
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+      const csv = treeToCsv();
+      const blob = new Blob([bom, csv], {type:'text/csv'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='structure.csv';
+      a.click();
+    };
+    document.getElementById('loadCsv').onclick = async () => {
+      try {
+        const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
+        const txt=await (await f.getFile()).text();
+        const lines=txt.split('\n').filter(l=>l.trim());
+        root=createNode('/','folder'); idCounter = 1;
+        lines.slice(1).forEach(l=>{
+          // Handle quoted fields correctly
+          const parts = [];
+          let inQuote = false;
+          let currentPart = '';
+          for (let i = 0; i < l.length; i++) {
+              const char = l[i];
+              if (char === '"') {
+                  if (i + 1 < l.length && l[i+1] === '"') { // Escaped quote
+                      currentPart += '"';
+                      i++;
+                  } else {
+                      inQuote = !inQuote;
+                  }
+              } else if (char === ',' && !inQuote) {
+                  parts.push(currentPart);
+                  currentPart = '';
+              } else {
+                  currentPart += char;
+              }
+          }
+          parts.push(currentPart); // Add the last part
+
+          if (parts.length < 2) return;
+          const [path, type, contentStr, color] = parts;
+          const content = (contentStr && type === 'file') ? decodeURIComponent(escape(atob(contentStr))) : '';
+          const seg=path.split('/').filter(Boolean);
+          let p=root;
+          seg.forEach((n,i)=>{
+            const last=i===seg.length-1;
+            const nodeType = last ? type : 'folder';
+            let d=p.children.find(c=>c.name===n&&c.type===nodeType);
+            if(!d){
+               d=createNode(n, nodeType, color);
+               if(last && type === 'file') d.content = content;
+               p.children.push(d);
+            }
+            p=d;
+          });
+        });
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('CSVファイルの読み込みに失敗しました。');
+      }
+    };
+
+    //―― フォルダから読込 ――
+    document.getElementById('importFs').onclick = async () => {
+      try {
+        const dh=await window.showDirectoryPicker();
+        idCounter=1; root=createNode('/','folder');
+        await readFsRecursive(dh, root);
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('フォルダの読み込みに失敗しました。');
+      }
+    };
+    async function readFsRecursive(dh, parentNode){
+      for await(const [name,ent] of dh.entries()){
+        if(ent.kind==='directory') {
+          const folderNode = createNode(name,'folder');
+          parentNode.children.push(folderNode);
+          await readFsRecursive(ent, folderNode);
+        } else {
+          const fileNode = createNode(name,'file');
+          parentNode.children.push(fileNode);
+          try {
+            const file = await ent.getFile();
+            fileNode.content = await file.text();
+          } catch (e) { fileNode.content = `ERROR: ${e.message}`; }
+        }
+      }
+    }
+
+    //―― ZIP 出力 ――
+    document.getElementById('downloadZip').onclick = () => {
+      const zip=new JSZip();
+      (function add(n, f){
+        n.children.forEach(c => {
+          if(c.type==='folder') {
+            add(c, f.folder(c.name));
+          } else {
+            f.file(c.name, c.content ?? getFileTemplate(c.name));
+          }
+        });
+      })(root, zip);
+      zip.generateAsync({type:'blob'}).then(b=>{
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(b); a.download='structure.zip';
+        a.click();
+      });
+    };
+
+    //―― PNG画像でダウンロード ――
+    document.getElementById('downloadPng').onclick = () => {
+      const originalBodyPadding = document.body.style.padding;
+      document.body.style.padding = '0';
+
+      // PNG生成時のみ、ボタンを一時的に非表示にする
+      document.body.classList.add('hide-for-capture');
+
+      html2canvas(document.getElementById('tree'), {
+          scale: 2, // 高解像度でレンダリング
+          logging: false, // コンソールログを無効化
+          useCORS: true, // クロスオリジンの画像がある場合
+          backgroundColor: '#f8f9fa', // 明示的な背景色
+      }).then(canvas => {
+          const a = document.createElement('a');
+          a.href = canvas.toDataURL('image/png');
+          a.download = 'structure.png';
+          a.click();
+      }).finally(() => {
+          // 処理完了後、ボタンの表示を元に戻す
+          document.body.classList.remove('hide-for-capture');
+          document.body.style.padding = originalBodyPadding;
+      });
+    };
+
+    //―― TXTプレビュー ――
+    document.getElementById('txtPreviewBtn').onclick=()=>{
+      let txt = '';
+      function walk(n, prefix=''){
+        n.children.forEach(c=>{
+          txt += prefix + c.name + (c.type==='folder'?'/':'') + '\n';
+          if(c.type==='file' && c.content){
+            txt += c.content.split(/\r?\n/).map(line=>'　'+line).join('\n')+'\n\n';
+          }
+          if(c.type==='folder') walk(c, prefix+'　');
+        });
+      }
+      walk(root);
+      document.getElementById('txt-preview').textContent = txt;
+      document.getElementById('txt-preview').style.display = 'block';
+    };
+
+
+    //―― 完全保存・読込（JSON）――
+    document.getElementById('saveAllBtn').onclick=()=>{
+      const blob = new Blob([JSON.stringify(root, null, 2)], {type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='structure.json';
+      a.click();
+    };
+    document.getElementById('loadAllBtn').onclick=async()=>{
+      try {
+        const [f]=await window.showOpenFilePicker({types:[{accept:{'application/json':['.json']}}]});
+        const txt=await (await f.getFile()).text();
+        root=JSON.parse(txt);
+        idCounter = getMaxId(root)+1;
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('JSONファイルの読み込みに失敗しました。');
+      }
+    };
+
+    //―― お気に入りテンプレート保存・呼び出し ――
+    function renderFavList(){
+      const favDiv = document.getElementById('fav-list');
+      favDiv.innerHTML = '<b>お気に入り: </b>';
+      const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+      favs.forEach((f,i)=>{
+        const btnContainer = document.createElement('span');
+        const btn = document.createElement('button');
+        btn.textContent = f.name;
+        btn.onclick = ()=>{ root = JSON.parse(f.data); idCounter = getMaxId(root)+1; saveHistory(); render(); };
+        btnContainer.appendChild(btn);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '✕'; deleteBtn.title = 'お気に入りを削除';
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`「${f.name}」を削除しますか？`)) { removeFav(i); }
+        };
+        btnContainer.appendChild(deleteBtn);
+        favDiv.appendChild(btnContainer);
+      });
+    }
+
+    function removeFav(index){
+        const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+        favs.splice(index, 1);
+        localStorage.setItem('favTemplates', JSON.stringify(favs));
+        renderFavList();
+    }
+
+    document.getElementById('addFavBtn').onclick=()=>{
+      const name = prompt('お気に入り名を入力してください:');
+      if(!name) return;
+      const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+      favs.push({name, data: JSON.stringify(root)});
+      localStorage.setItem('favTemplates', JSON.stringify(favs));
+      renderFavList();
+    };
+
+    //―― 全て削除ボタン ――
+    document.getElementById('clearAllBtn').onclick = () => {
+        if (confirm('本当にすべて削除しますか？')) {
+            root = createNode('/', 'folder'); idCounter = 1;
+            saveHistory(); render();
+        }
+    };
+
+    // 再帰的に子ノードの色を更新する関数
+    function updateChildrenColor(node, newColor) {
         node.children.forEach(child => {
             child.color = newColor;
             if (child.type === 'folder') {
-                this.updateChildrenColor(child, newColor);
+                updateChildrenColor(child, newColor);
             }
         });
-      }
-
-      renderFavList() {
-        const favDiv = document.getElementById('fav-list');
-        favDiv.innerHTML = '<b>お気に入り: </b>';
-        const favs = JSON.parse(localStorage.getItem('favTemplates') || '[]');
-        favs.forEach((f, i) => {
-          const btnContainer = document.createElement('span');
-          const btn = document.createElement('button');
-          btn.textContent = f.name;
-          btn.onclick = () => {
-            this.root = JSON.parse(f.data);
-            this.idCounter = getMaxId(this.root) + 1;
-            this.historyManager = new HistoryManager(this.root);
-            this.render();
-          };
-          btnContainer.appendChild(btn);
-
-          const deleteBtn = document.createElement('button');
-          deleteBtn.textContent = '✕';
-          deleteBtn.title = 'お気に入りを削除';
-          deleteBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (confirm(`「${f.name}」を削除しますか？`)) { this.removeFav(i); }
-          };
-          btnContainer.appendChild(deleteBtn);
-          favDiv.appendChild(btnContainer);
-        });
-      }
-
-      removeFav(index) {
-        const favs = JSON.parse(localStorage.getItem('favTemplates') || '[]');
-        favs.splice(index, 1);
-        localStorage.setItem('favTemplates', JSON.stringify(favs));
-        this.renderFavList();
-      }
-
-      bindEvents() {
-        document.getElementById('templateSelect').onchange = (e) => {
-          this.root = loadTemplate(e.target.value, this.createNode.bind(this));
-          this.idCounter = getMaxId(this.root) + 1;
-          this.saveStateAndRender();
-        };
-        document.getElementById('addRootFolder').onclick = () => {
-          this.root.children.push(this.createNode('新しいフォルダ', 'folder'));
-          this.saveStateAndRender();
-        };
-        document.getElementById('addRootFile').onclick = () => {
-          const newNode = this.createNode('新しいファイル.html', 'file');
-          newNode.content = getFileTemplate(newNode.name);
-          this.root.children.push(newNode);
-          this.saveStateAndRender();
-        };
-        document.getElementById('addRootTxt').onclick = () => {
-            const newNode = this.createNode('新しいファイル.txt', 'file');
-            this.root.children.push(newNode);
-            this.saveStateAndRender();
-        };
-        document.getElementById('saveCsv').onclick = () => {
-          const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-          const csv = treeToCsv(this.root);
-          const blob = new Blob([bom, csv], { type: 'text/csv' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'structure.csv';
-          a.click();
-        };
-        document.getElementById('loadCsv').onclick = async () => {
-          const newRoot = await loadCsv(this.createNode.bind(this));
-          if (newRoot) {
-            this.root = newRoot;
-            this.idCounter = getMaxId(this.root) + 1;
-            this.saveStateAndRender();
-          }
-        };
-        document.getElementById('importFs').onclick = async () => {
-          try {
-            const dh = await window.showDirectoryPicker();
-            this.idCounter = 1;
-            this.root = this.createNode('/', 'folder');
-            await readFsRecursive(dh, this.root, this.createNode.bind(this));
-            this.saveStateAndRender();
-          } catch (e) {
-            if (e.name !== 'AbortError') alert('フォルダの読み込みに失敗しました。');
-          }
-        };
-        document.getElementById('downloadZip').onclick = () => downloadZip(this.root);
-        document.getElementById('downloadPng').onclick = () => {
-          const originalBodyPadding = document.body.style.padding;
-          document.body.style.padding = '0';
-          document.body.classList.add('hide-for-capture');
-          html2canvas(document.getElementById('tree'), {
-            scale: 2,
-            logging: false,
-            useCORS: true,
-            backgroundColor: '#f8f9fa',
-          }).then(canvas => {
-            const a = document.createElement('a');
-            a.href = canvas.toDataURL('image/png');
-            a.download = 'structure.png';
-            a.click();
-          }).finally(() => {
-            document.body.classList.remove('hide-for-capture');
-            document.body.style.padding = originalBodyPadding;
-          });
-        };
-        document.getElementById('txtPreviewBtn').onclick = () => {
-          let txt = '';
-          const walk = (n, prefix = '') => {
-            n.children.forEach(c => {
-              txt += prefix + c.name + (c.type === 'folder' ? '/' : '') + '\n';
-              if (c.type === 'file' && c.content) {
-                txt += c.content.split(/\r?\n/).map(line => '　' + line).join('\n') + '\n\n';
-              }
-              if (c.type === 'folder') walk(c, prefix + '　');
-            });
-          };
-          walk(this.root);
-          document.getElementById('txt-preview').textContent = txt;
-          document.getElementById('txt-preview').style.display = 'block';
-        };
-        document.getElementById('undoBtn').onclick = () => {
-          const newState = this.historyManager.undo();
-          if (newState) {
-            this.root = newState;
-            this.idCounter = getMaxId(this.root) + 1;
-            this.selectedId = null;
-            this.render();
-          }
-        };
-        document.getElementById('redoBtn').onclick = () => {
-          const newState = this.historyManager.redo();
-          if (newState) {
-            this.root = newState;
-            this.idCounter = getMaxId(this.root) + 1;
-            this.selectedId = null;
-            this.render();
-          }
-        };
-        document.getElementById('saveAllBtn').onclick = () => {
-          const blob = new Blob([JSON.stringify(this.root, null, 2)], { type: 'application/json' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'structure.json';
-          a.click();
-        };
-        document.getElementById('loadAllBtn').onclick = async () => {
-          try {
-            const [f] = await window.showOpenFilePicker({ types: [{ accept: { 'application/json': ['.json'] } }] });
-            const txt = await (await f.getFile()).text();
-            this.root = JSON.parse(txt);
-            this.idCounter = getMaxId(this.root) + 1;
-            this.saveStateAndRender();
-          } catch (e) {
-            if (e.name !== 'AbortError') alert('JSONファイルの読み込みに失敗しました。');
-          }
-        };
-        document.getElementById('addFavBtn').onclick = () => {
-          const name = prompt('お気に入り名を入力してください:');
-          if (!name) return;
-          const favs = JSON.parse(localStorage.getItem('favTemplates') || '[]');
-          favs.push({ name, data: JSON.stringify(this.root) });
-          localStorage.setItem('favTemplates', JSON.stringify(favs));
-          this.renderFavList();
-        };
-        document.getElementById('clearAllBtn').onclick = () => {
-          if (confirm('本当にすべて削除しますか？')) {
-            this.root = this.createNode('/', 'folder');
-            this.idCounter = 1;
-            this.saveStateAndRender();
-          }
-        };
-        document.querySelectorAll('#color-picker input[name="color"]').forEach(radio => {
-          radio.addEventListener('change', (e) => {
-            if (this.selectedId) {
-              const node = findNode(this.root, this.selectedId);
-              if (node) {
-                node.color = e.target.value;
-                if (node.type === 'folder') {
-                  this.updateChildrenColor(node, e.target.value);
-                }
-                this.saveStateAndRender();
-              }
-            }
-          });
-        });
-        document.getElementById('modal-cancel').onclick = () => {
-          document.getElementById('modal-bg').style.display = 'none';
-          this.modalNode = null;
-        };
-        document.getElementById('modal-ok').onclick = () => {
-          if (this.modalNode) {
-            this.modalNode.content = document.getElementById('modal-text').value;
-            this.saveStateAndRender();
-          }
-          document.getElementById('modal-bg').style.display = 'none';
-          this.modalNode = null;
-        };
-      }
     }
-    new App();
+
+    //―― イベントバインド & 初期化 ――
+    document.getElementById('templateSelect').onchange=e=>loadTemplate(e.target.value);
+    document.getElementById('addRootFolder').onclick=()=>{ root.children.push(createNode('新しいフォルダ','folder')); saveHistory(); render(); };
+    document.getElementById('addRootFile').onclick=()=>{ root.children.push(createNode('新しいファイル.html','file')); saveHistory(); render(); };
+    document.getElementById('addRootTxt').onclick=()=>{ root.children.push(createNode('新しいファイル.txt','file')); saveHistory(); render(); };
+    document.getElementById('undoBtn').onclick=undo;
+    document.getElementById('redoBtn').onclick=redo;
+
+    document.querySelectorAll('#color-picker input[name="color"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (selectedId) {
+                const node = findNode(root, selectedId);
+                if (node) {
+                    node.color = e.target.value;
+                    // If it's a folder, update all children's colors as well
+                    if (node.type === 'folder') {
+                        updateChildrenColor(node, e.target.value);
+                    }
+                    saveHistory();
+                    render();
+                }
+            }
+        });
+    });
+
+    // Initial Load
+    saveHistory();
+    render();
   </script>
 </body>
 </html>
