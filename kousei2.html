@@ -1,1142 +1,1479 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<title>超高機能構造エディタ + 実行 & 履歴付き</title>
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<style>
-  *, *::before, *::after {box-sizing: border-box;}
-  html, body {
-    height: 100%; margin: 0; padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,
-      Ubuntu,Cantarell,"Open Sans","Helvetica Neue",sans-serif;
-    background: #f9fafb;
-    overflow: hidden;
-    user-select: none;
-  }
-  h2 {
-    margin:0; padding:1rem;
-    background-color: #4338ca;
-    color: white;
-    font-weight: 700;
-    font-size: 1.2rem;
-    text-align: center;
-    user-select: text;
-  }
-  #app {
-    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
-  }
-  #bar {
-    display: flex; flex-wrap: wrap; align-items: center;
-    gap: 8px;
-    padding: 0.5rem 1rem;
-    background-color: #eef2ff;
-    user-select: none;
-    flex-shrink: 0;
-  }
-  #left-controls {
-    display: flex; gap: 6px; flex-wrap: wrap; max-width: 60%;
-  }
-  #search {
-    flex-grow: 1;
-    max-width: 40vw;
-    min-width: 120px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    border: 1px solid #a5b4fc;
-    outline: none;
-    font-size: 1rem;
-    box-shadow: inset 0 0 8px #dbeafe;
-  }
-  #search:focus {
-    border-color: #4338ca;
-    box-shadow: 0 0 9px #818cf8;
-  }
-  button, select, input[type=color] {
-    cursor: pointer;
-    border-radius: 8px;
-    border: 1px solid #a5b4fc;
-    background: white;
-    min-width: 32px;
-    font-size: 1rem;
-    padding: 6px 10px;
-    font-weight: 700;
-    transition: background-color 0.15s, border-color 0.15s;
-    user-select: none;
-    white-space: nowrap;
-  }
-  button:disabled, button[disabled] {
-    opacity: 0.4;
-    cursor: default;
-  }
-  button:hover:not(:disabled), select:hover, input[type=color]:hover {
-    background: #eef2ff;
-    border-color: #4338ca;
-  }
-  select {
-    font-weight: 600;
-    min-width: 120px;
-  }
-  #color-picker {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    user-select: none;
-    min-width: 75px;
-  }
-  #color-picker label {
-    font-weight: 700;
-    font-size: 1rem;
-    margin-right: 4px;
-  }
-  #color-input {
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    border: none;
-    cursor: pointer;
-    border-radius: 8px;
-    box-shadow: 0 0 4px #a5b4fc;
-    transition: box-shadow 0.2s ease;
-  }
-  #color-input:focus {
-    outline: none;
-    box-shadow: 0 0 6px #4338ca;
-  }
-  #tree-container {
-    flex-grow: 1;
-    overflow-y: auto;
-    background: white;
-    border-top: 2px solid #4338ca;
-    border-bottom: 2px solid #4338ca;
-    padding: 0.7rem 0.8rem 0.8rem 1rem;
-    -webkit-overflow-scrolling: touch;
-    user-select: text;
-  }
-  #tree {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-    font-family: monospace;
-    font-size: 1rem;
-  }
-  li {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 8px;
-    border-radius: 8px;
-    cursor: pointer;
-    white-space: nowrap;
-    position: relative;
-    user-select: text;
-    -webkit-user-select: text;
-  }
-  li.dragging {
-    opacity: 0.5;
-  }
-  li.over-drop-before {
-    border-top: 3px solid #4338ca !important;
-  }
-  li.over-drop-after {
-    border-bottom: 3px solid #4338ca !important;
-  }
-  li.over-drop-inside > .node-inner {
-    background-color: #dbeafe !important;
-    border-radius: 8px;
-  }
-  .children {
-    border-left: 2px solid #a5b4fc;
-    margin-left: 2rem;
-    padding-left: 0.6rem;
-    user-select: none;
-  }
-  .toggle-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-weight: 700;
-    font-size: 1.1rem;
-    padding: 0;
-    width: 1.35rem;
-    color: #4338ca;
-    user-select: none;
-    line-height: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .toggle-btn:focus-visible {
-    outline: 3px solid #4338ca;
-    outline-offset: 2px;
-  }
-  .node-inner {
-    flex-grow: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 12px;
-    border-radius: 8px;
-    border: 1px solid transparent;
-    user-select: text;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
-  .node-inner.selected {
-    background-color: #4338ca;
-    color: white;
-    border-color: #4338ca;
-  }
-  .node-inner:focus-visible {
-    outline: 3px solid #4338ca;
-    outline-offset: 3px;
-  }
-  .node-type-icon {
-    font-size: 1.3rem;
-    margin-right: 6px;
-    flex-shrink: 0;
-    user-select: none;
-    width: 1.4rem;
-    text-align: center;
-    line-height: 1;
-  }
-  .node-name {
-    flex-grow: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    user-select: text;
-    -webkit-user-select: text;
-  }
-  .actions {
-    display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-    user-select: none;
-  }
-  .actions button {
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    transition: background-color 0.15s ease-in-out;
-    font-size: 1.1rem;
-    padding: 3px 8px;
-    color: #4338ca;
-    cursor: pointer;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    user-select: none;
-  }
-  .actions button:disabled {
-    color: #a5b4fc;
-    cursor: default;
-  }
-  .actions button:hover:not(:disabled) {
-    background-color: #c7d2fe;
-  }
-  .tooltip {
-    position: relative;
-    display: inline-block;
-  }
-  .tooltip .tooltiptext {
-    visibility: hidden;
-    width: 80px;
-    background-color: #4338ca;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px 0;
-    position: absolute;
-    z-index: 10;
-    bottom: 130%;
-    left: 50%;
-    margin-left: -40px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    user-select: none;
-    font-size: 0.85rem;
-    line-height: 1.2;
-  }
-  .tooltip:hover .tooltiptext,
-  .tooltip:focus-within .tooltiptext {
-    visibility: visible;
-    opacity: 1;
-  }
-  #modal-bg {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0,0,0,0.4);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 20000;
-    -webkit-overflow-scrolling: touch;
-  }
-  #modal {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 6px 30px rgba(0,0,0,0.25);
-    padding: 1.5rem;
-    width: min(90vw, 600px);
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-  }
-  #modal label {
-    font-weight: 700;
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-    user-select: none;
-  }
-  #modal-text {
-    flex-grow: 1;
-    width: 100%;
-    resize: vertical;
-    min-height: 200px;
-    font-family: monospace;
-    font-size: 1rem;
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: 1px solid #bbb;
-    outline: none;
-    box-sizing: border-box;
-    font-weight: 400;
-    line-height: 1.4;
-    user-select: text;
-    -webkit-user-select: text;
-  }
-  #modal-text:focus {
-    border-color: #4338ca;
-    box-shadow: 0 0 8px #818cf8;
-  }
-  #modal-btns {
-    display: flex;
-    justify-content: flex-end;
-    gap: 14px;
-    margin-top: 1rem;
-  }
-  #modal-btns button {
-    cursor: pointer;
-    border-radius: 10px;
-    padding: 8px 22px;
-    font-weight: 600;
-    font-size: 1rem;
-    border: none;
-    min-width: 90px;
-    user-select: none;
-    transition: background-color 0.2s ease;
-  }
-  #modal-btns .cancel-btn {
-    background-color: #e0e0e0;
-    color: #333;
-  }
-  #modal-btns .cancel-btn:hover {
-    background-color: #c0c0c0;
-  }
-  #modal-btns .save-btn {
-    background-color: #4338ca;
-    color: white;
-    box-shadow: 0 0 12px #4338cacc;
-  }
-  #modal-btns .save-btn:hover {
-    background-color: #2c23a9;
-    box-shadow: 0 0 14px #2c23a9dd;
-  }
-  @media (max-width: 600px) {
-    #bar {
-      flex-direction: column;
-      align-items: stretch;
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🌟 Beautiful Structure Editor</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-    #left-controls, #search, #color-picker {
-      max-width: 100% !important;
-      flex-grow: 1 !important;
+
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 20px;
     }
-    .actions button {
-      font-size: 1.25rem;
-      padding: 5px 10px;
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
     }
-    li {
-      padding: 6px 12px;
+
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e9ecef;
     }
+
+    .header h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 10px;
+    }
+
+    .header p {
+      color: #6c757d;
+      font-size: 1.1rem;
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 30px;
+      align-items: start;
+    }
+
+    .sidebar {
+      background: #f8f9fa;
+      border-radius: 15px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+      position: sticky;
+      top: 20px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
+
+    .sidebar h3 {
+      color: #495057;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .control-section {
+      margin-bottom: 25px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .control-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .template-select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e9ecef;
+      border-radius: 10px;
+      background: white;
+      font-size: 14px;
+      margin-bottom: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .template-select:focus {
+      border-color: #667eea;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .btn-group {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .btn {
+      padding: 12px 16px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      background: #dee2e6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #dc3545 0%, #e83e8c 100%);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+      color: #212529;
+    }
+
+    .color-picker {
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .color-picker h4 {
+      margin-bottom: 12px;
+      color: #495057;
+      font-size: 0.95rem;
+    }
+
+    .color-options {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .color-option {
+      position: relative;
+      cursor: pointer;
+    }
+
+    .color-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .color-swatch {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 2px solid #dee2e6;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .color-option input[type="radio"]:checked + .color-swatch {
+      border-color: #667eea;
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .color-option input[type="radio"]:checked + .color-swatch::after {
+      content: "✓";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #667eea;
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    .tree-container {
+      background: white;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+      min-height: 500px;
+    }
+
     #tree {
-      font-size: 1.125rem;
+      list-style: none;
+      padding: 0;
+      margin: 0;
     }
-    .node-inner {
-      padding: 10px 16px;
+
+    li {
+      margin: 8px 0;
+      position: relative;
+      transition: all 0.3s ease;
     }
-  }
-</style>
-</head>
-<body>
-  <div id="app" role="application" aria-label="構造エディタ">
-    <h2>🚀 超高機能構造エディタ (縦画面スマホ対応・履歴付き)</h2>
-    <div id="bar" role="region" aria-label="ツールバー">
-      <div id="left-controls">
-        <select aria-label="プリセットテンプレート選択" id="template-select" title="プリセットテンプレート">
-          <option value="">白紙から開始</option>
-          <option value="js">JavaScriptプロジェクト</option>
-          <option value="web">Webサイト構成</option>
-          <option value="docs">ドキュメント構成</option>
-        </select>
-        <button id="btn-add-folder" type="button" title="選択中のフォルダに新規フォルダを追加">📁 フォルダ追加</button>
-        <button id="btn-add-file" type="button" title="選択中のフォルダに新規ファイルを追加">📄 ファイル追加</button>
-        <button id="btn-add-html" type="button" title="選択中のフォルダに新規HTMLファイルを追加">📄 HTML追加</button>
-        <button id="btn-save-json" type="button" title="現在の構造をJSONで保存">💾 保存</button>
-        <button id="btn-load-json" type="button" title="JSONファイルを読み込む">📂 読込</button>
-        <button id="btn-export-zip" type="button" title="構造をZIPファイルで出力">🗜 ZIP出力</button>
-        <button id="btn-download-png" type="button" title="構造をPNG画像で出力">🖼 PNG出力</button>
-        <button id="btn-undo" type="button" title="戻る（Undo）">↩ 戻る</button>
-        <button id="btn-redo" type="button" title="進む（Redo）">↪ 進む</button>
-      </div>
-      <input id="search" type="search" autocomplete="off" placeholder="🔍 検索... (名前・内容対象)" aria-label="検索ボックス" />
-      <div id="color-picker" title="選択中ノードの色を変更">
-        <label for="color-input">🎨 色:</label>
-        <input type="color" id="color-input" value="#ffffff" aria-label="ノード色選択"/>
-      </div>
-    </div>
-    <div id="tree-container" tabindex="0" aria-label="ファイルツリー">
-      <ul id="tree" role="tree" aria-live="polite" aria-relevant="additions removals"></ul>
-    </div>
-  </div>
 
-  <div id="modal-bg" role="dialog" aria-modal="true" aria-labelledby="modal-label" tabindex="-1">
-    <div id="modal">
-      <label id="modal-label" for="modal-text">内容編集</label>
-      <textarea id="modal-text" aria-multiline="true" spellcheck="false"></textarea>
-      <div id="modal-btns">
-        <button class="cancel-btn" id="modal-cancel" type="button">キャンセル</button>
-        <button class="save-btn" id="modal-ok" type="button">保存</button>
-      </div>
-    </div>
-  </div>
+    li::before {
+      content: "";
+      position: absolute;
+      top: 20px;
+      left: -15px;
+      width: 15px;
+      height: 1px;
+      background: #dee2e6;
+    }
 
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.7.1/dist/jszip.min.js"></script>
-<script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-<script>
-(() => {
-  // ===== 状態管理 =====
-  const templates = {
-    js: `/my-app
-├── README.md
-├── package.json
-├── src/
-│   └── index.js
-└── tests/
-    └── test.js`.trim(),
-    web: `/site
-├── index.html
-├── assets/
-│   ├── style.css
-│   └── script.js`.trim(),
-    docs: `/docs
-├── README.md
-├── guide.md
-└── changelog.md`.trim()
-  };
+    .children {
+      border-left: 2px solid #e9ecef;
+      margin-left: 15px;
+      padding-left: 20px;
+      position: relative;
+    }
 
-  let idCounter = 1;
-  const genId = () => 'n' + (idCounter++);
-  function createNode(name, type, color = '#ffffff', expanded = true) {
-    return {
-      id: genId(),
-      name,
-      type,
-      color,
-      expanded,
-      children: type === 'folder' ? [] : null,
-      content: type === 'file' ? '' : null
-    };
-  }
+    .node, .node-input {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      background: white;
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
 
-  let root = createNode('/', 'folder');
-  let selectedId = null;
-  let editingId = null;
-  let draggedId = null;
-  let dropPosition = null;
-  let clipboard = null;
-  let modalNode = null;
+    .node {
+      cursor: pointer;
+      user-select: none;
+    }
 
-  // Undo/Redo履歴管理
-  const history = [];
-  const future = [];
-  function saveHistory() {
-    history.push(JSON.stringify(root));
-    if(history.length > 100) history.shift();
-    future.length = 0;
-    updateUndoRedoButtons();
-  }
-  function undo() {
-    if (history.length <= 1) return;
-    future.push(history.pop());
-    root = JSON.parse(history[history.length - 1]);
-    selectedId = null;
-    editingId = null;
-    render();
-    updateUndoRedoButtons();
-  }
-  function redo() {
-    if (future.length === 0) return;
-    const next = future.pop();
-    history.push(next);
-    root = JSON.parse(next);
-    selectedId = null;
-    editingId = null;
-    render();
-    updateUndoRedoButtons();
-  }
-  function updateUndoRedoButtons() {
-    document.getElementById('btn-undo').disabled = history.length <= 1;
-    document.getElementById('btn-redo').disabled = future.length === 0;
-  }
+    .node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      border-color: #667eea;
+    }
 
-  // ===== DOM Elements =====
-  const treeEl = document.getElementById('tree');
-  const templateSelect = document.getElementById('template-select');
-  const btnAddFolder = document.getElementById('btn-add-folder');
-  const btnAddFile = document.getElementById('btn-add-file');
-  const btnAddHtml = document.getElementById('btn-add-html');
-  const btnSaveJson = document.getElementById('btn-save-json');
-  const btnLoadJson = document.getElementById('btn-load-json');
-  const btnExportZip = document.getElementById('btn-export-zip');
-  const btnDownloadPng = document.getElementById('btn-download-png');
-  const btnUndo = document.getElementById('btn-undo');
-  const btnRedo = document.getElementById('btn-redo');
-  const searchInput = document.getElementById('search');
-  const colorInput = document.getElementById('color-input');
-  const modalBg = document.getElementById('modal-bg');
-  const modalText = document.getElementById('modal-text');
-  const modalCancel = document.getElementById('modal-cancel');
-  const modalOk = document.getElementById('modal-ok');
+    .node.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
+    }
 
-  // ===== ユーティリティ =====
-  function findNodeById(node, id) {
-    if (node.id === id) return node;
-    if (node.type === 'folder') {
-      for (const c of node.children) {
-        const found = findNodeById(c, id);
-        if (found) return found;
+    .node-input {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      outline: none;
+    }
+
+    .actions {
+      margin-left: 12px;
+      display: inline-flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .actions button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      background: #f8f9fa;
+      color: #495057;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .actions button:hover {
+      background: #e9ecef;
+      transform: translateY(-1px);
+    }
+
+    .actions button:active {
+      transform: translateY(0);
+    }
+
+    /* Drag & Drop Styles */
+    .dragging {
+      opacity: 0.6;
+      transform: rotate(5deg);
+    }
+
+    .drop-before {
+      border-top: 3px solid #667eea !important;
+      border-radius: 12px 12px 0 0;
+    }
+
+    .drop-after {
+      border-bottom: 3px solid #667eea !important;
+      border-radius: 0 0 12px 12px;
+    }
+
+    .over > .node {
+      background: linear-gradient(135deg, #667eea20, #764ba220) !important;
+      border-color: #667eea !important;
+      transform: scale(1.05);
+    }
+
+    /* Modal Styles */
+    #modal-bg {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #modal {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      min-width: 500px;
+      max-width: 80vw;
+      max-height: 80vh;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      overflow-y: auto;
+    }
+
+    #modal h3 {
+      margin-bottom: 20px;
+      color: #495057;
+      font-size: 1.3rem;
+    }
+
+    #modal textarea {
+      width: 100%;
+      height: 400px;
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      font-size: 14px;
+      border: 2px solid #e9ecef;
+      border-radius: 12px;
+      padding: 15px;
+      resize: vertical;
+      margin-bottom: 20px;
+      transition: border-color 0.3s ease;
+    }
+
+    #modal textarea:focus {
+      border-color: #667eea;
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .modal-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .favorites {
+      background: white;
+      border: 2px solid #e9ecef;
+      border-radius: 15px;
+      padding: 15px;
+      margin-bottom: 15px;
+    }
+
+    .favorites h4 {
+      margin-bottom: 12px;
+      color: #495057;
+      font-size: 0.95rem;
+    }
+
+    .fav-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin: 4px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .fav-item button {
+      padding: 8px 12px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background-color 0.2s ease;
+    }
+
+    .fav-item button:first-child {
+      color: #495057;
+    }
+
+    .fav-item button:first-child:hover {
+      background: #e9ecef;
+    }
+
+    .fav-item button:last-child {
+      color: #dc3545;
+      padding: 8px;
+    }
+
+    .fav-item button:last-child:hover {
+      background: #f5c6cb;
+    }
+
+    #txt-preview {
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-radius: 15px;
+      padding: 20px;
+      margin-top: 20px;
+      font-family: 'SF Mono', 'Monaco', 'Cascadia Code', monospace;
+      font-size: 14px;
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+        margin: 10px;
+      }
+
+      .main-content {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+
+      .sidebar {
+        position: static;
+        max-height: none;
+      }
+
+      .header h1 {
+        font-size: 2rem;
+      }
+
+      .color-options {
+        grid-template-columns: repeat(8, 1fr);
+      }
+
+      .color-swatch {
+        width: 30px;
+        height: 30px;
       }
     }
-    return null;
-  }
-  function findParentById(node, childId) {
-    if (node.type !== 'folder') return null;
-    for (const c of node.children) {
-      if (c.id === childId) return node;
-      const found = findParentById(c, childId);
-      if (found) return found;
+
+    /* Hide for capture */
+    body.hide-for-capture .actions {
+      display: none !important;
     }
-    return null;
-  }
-  function cloneNode(node) {
-    const copy = JSON.parse(JSON.stringify(node));
-    (function renewIds(n) {
-      n.id = genId();
-      if(n.type === 'folder' && n.children) n.children.forEach(renewIds);
-    })(copy);
-    return copy;
-  }
-  function nodeMatchesSearch(node, term) {
-    if (!term || term.length < 1) return true;
-    term = term.toLowerCase();
-    if (node.name.toLowerCase().includes(term)) return true;
-    if (node.type === 'file' && node.content && node.content.toLowerCase().includes(term)) return true;
-    if (node.type === 'folder') return node.children.some(c => nodeMatchesSearch(c, term));
-    return false;
-  }
-  function getFileTemplate(name) {
-    if (name.match(/\.html?$/i)) return `<!DOCTYPE html>
+
+    /* Loading animation */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .loading {
+      animation: pulse 1.5s infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🌟 Beautiful Structure Editor</h1>
+      <p>プロジェクト構造を視覚的に作成・編集できる高機能エディタ</p>
+    </div>
+
+    <div class="main-content">
+      <div class="sidebar">
+        <div class="control-section">
+          <h3>📁 テンプレート</h3>
+          <select id="templateSelect" class="template-select">
+            <option value="empty">— 空 —</option>
+            <option value="js">JavaScript プロジェクト</option>
+            <option value="html">HTML ファイル構成</option>
+          </select>
+        </div>
+
+        <div class="control-section">
+          <h3>➕ 追加</h3>
+          <div class="btn-group">
+            <button id="addRootFolder" class="btn">📁 フォルダ</button>
+            <button id="addRootFile" class="btn">📄 HTMLファイル</button>
+            <button id="addRootTxt" class="btn">📝 テキストファイル</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>💾 保存・読込</h3>
+          <div class="btn-group">
+            <button id="saveCsv" class="btn btn-success">CSV保存</button>
+            <button id="loadCsv" class="btn btn-success">CSV読込</button>
+            <button id="saveAllBtn" class="btn btn-success">JSON保存</button>
+            <button id="loadAllBtn" class="btn btn-success">JSON読込</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>📂 インポート・エクスポート</h3>
+          <div class="btn-group">
+            <button id="importFs" class="btn btn-warning">フォルダ読込</button>
+            <button id="downloadZip" class="btn btn-warning">ZIP出力</button>
+            <button id="downloadPng" class="btn btn-warning">PNG出力</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>🔄 編集</h3>
+          <div class="btn-group">
+            <button id="undoBtn" class="btn btn-secondary">↶ 元に戻す</button>
+            <button id="redoBtn" class="btn btn-secondary">↷ やり直し</button>
+            <button id="clearAllBtn" class="btn btn-danger">🗑️ 全削除</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>👁️ プレビュー</h3>
+          <div class="btn-group">
+            <button id="txtPreviewBtn" class="btn">📄 TXTプレビュー</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <div class="color-picker">
+            <h4>🎨 色選択</h4>
+            <div class="color-options">
+              <label class="color-option">
+                <input type="radio" name="color" value="#FFFFFF" checked>
+                <div class="color-swatch" style="background-color: #FFFFFF;"></div>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="color" value="#ffdddd">
+                <div class="color-swatch" style="background-color: #ffdddd;"></div>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="color" value="#ddffdd">
+                <div class="color-swatch" style="background-color: #ddffdd;"></div>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="color" value="#ddddff">
+                <div class="color-swatch" style="background-color: #ddddff;"></div>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="color" value="#ffffdd">
+                <div class="color-swatch" style="background-color: #ffffdd;"></div>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="color" value="#ffddff">
+                <div class="color-swatch" style="background-color: #ffddff;"></div>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="color" value="#ddffff">
+                <div class="color-swatch" style="background-color: #ddffff;"></div>
+              </label>
+              <label class="color-option">
+                <input type="radio" name="color" value="#f0f0f0">
+                <div class="color-swatch" style="background-color: #f0f0f0;"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <div class="favorites">
+            <h4>⭐ お気に入り</h4>
+            <div id="fav-list"></div>
+            <button id="addFavBtn" class="btn" style="width: 100%; margin-top: 10px;">⭐ 現在の状態を保存</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tree-container">
+        <ul id="tree"></ul>
+        <div id="txt-preview" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-bg">
+    <div id="modal">
+      <h3 id="modal-label"></h3>
+      <textarea id="modal-text" placeholder="ファイルの内容を入力してください..."></textarea>
+      <div class="modal-btns">
+        <button id="modal-cancel" class="btn btn-secondary">キャンセル</button>
+        <button id="modal-ok" class="btn">💾 保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script>
+    //―― テンプレート ――
+    const templates = {
+      empty: ``,
+      js: `
+/my-app
+├── src/
+│   └── index.js
+├── package.json
+└── README.md`.trim(),
+      html: `
+/site
+├── index.html
+├── style.css
+└── script.js`.trim()
+    };
+
+    //―― ユーティリティ ――
+    let idCounter = 1;
+    function genId() { return 'n'+(idCounter++); }
+    function createNode(name, type, color = '#FFFFFF') {
+        return { id: genId(), name, type, children: [], content: '', color: color };
+    }
+    function getFileTemplate(name){
+      if(name.endsWith('.html')){
+        const t=name.replace(/\.html$/,'');
+        return `<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>${name.replace(/\.html?$/i, '')}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${t}</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Hello, World!</h1>
+    <div class="container">
+        <h1>${t}</h1>
+        <p>このページの内容をここに追加してください。</p>
+    </div>
 </body>
 </html>`;
-    if (name.match(/\.js$/i)) return `// ${name}\nconsole.log('Hello, world!');`;
-    if (name.match(/\.css$/i)) return `/* ${name} */\nbody {\n  margin: 0;\n}\n`;
-    return '';
-  }
-  function getContrastYIQ(hexcolor) {
-    if (!hexcolor) return '#000000';
-    hexcolor = hexcolor.replace("#", "");
-    const r = parseInt(hexcolor.substr(0,2),16);
-    const g = parseInt(hexcolor.substr(2,2),16);
-    const b = parseInt(hexcolor.substr(4,2),16);
-    const yiq = (r*299 + g*587 + b*114) / 1000;
-    return yiq >= 128 ? '#000000' : '#FFFFFF';
-  }
-  function isDescendant(parentNode, possibleDescendant) {
-    if (parentNode.type !== 'folder' || !parentNode.children) return false;
-    for (const c of parentNode.children) {
-      if (c.id === possibleDescendant.id) return true;
-      if (c.type === 'folder' && isDescendant(c, possibleDescendant)) return true;
-    }
-    return false;
-  }
-  function clearDragClasses() {
-    document.querySelectorAll('#tree li').forEach(el => {
-      el.classList.remove('over-drop-before', 'over-drop-after', 'over-drop-inside');
-    });
-  }
-
-  // ===== レンダリング =====
-  function render() {
-    const prevSelectedId = selectedId;
-    treeEl.innerHTML = '';
-    function build(node, container) {
-      node.children.forEach(child => {
-        if (!nodeMatchesSearch(child, searchInput.value.trim())) return;
-
-        const li = document.createElement('li');
-        li.setAttribute('role', 'treeitem');
-        li.dataset.id = child.id;
-        li.tabIndex = 0;
-        li.setAttribute('aria-expanded', child.type === 'folder' ? String(child.expanded) : undefined);
-        li.classList.remove('dragging', 'over-drop-before', 'over-drop-after', 'over-drop-inside');
-
-        // 折りたたみボタン
-        if (child.type === 'folder') {
-          const toggleBtn = document.createElement('button');
-          toggleBtn.className = 'toggle-btn';
-          toggleBtn.ariaLabel = child.expanded ? '折り畳む' : '展開する';
-          toggleBtn.textContent = child.expanded ? '▼' : '▶';
-          toggleBtn.addEventListener('click', e => {
-            child.expanded = !child.expanded;
-            render();
-            e.stopPropagation();
-          });
-          li.appendChild(toggleBtn);
-        } else {
-          const spacer = document.createElement('span');
-          spacer.style.width = '1.35rem';
-          li.appendChild(spacer);
-        }
-
-        // インライン編集または通常表示
-        if (editingId === child.id) {
-          const input = document.createElement('input');
-          input.type = 'text';
-          input.value = child.name;
-          input.className = 'node-inner';
-          input.style.flexGrow = '1';
-          li.appendChild(input);
-          input.focus();
-          input.select();
-          input.addEventListener('blur', e => {
-            const val = e.target.value.trim();
-            if(val.length > 0) child.name = val;
-            if(child.type === 'file' && (!child.content || child.content.trim() === ''))
-              child.content = getFileTemplate(val);
-            editingId = null;
-            saveHistory();
-            render();
-          });
-          input.addEventListener('keydown', e => {
-            if(e.key === 'Enter') input.blur();
-            if(e.key === 'Escape') {
-              editingId = null;
-              render();
-            }
-          });
-        } else {
-          const nodeInner = document.createElement('div');
-          nodeInner.className = 'node-inner' + (child.id === selectedId ? ' selected' : '');
-          nodeInner.tabIndex = 0;
-
-          // アイコン
-          const icon = document.createElement('span');
-          icon.className = 'node-type-icon tooltip';
-          icon.textContent = child.type === 'folder' ? '📁' : '📄';
-          const tooltip = document.createElement('span');
-          tooltip.className = 'tooltiptext';
-          tooltip.textContent = child.type === 'folder' ? 'フォルダ' : 'ファイル';
-          icon.appendChild(tooltip);
-          nodeInner.appendChild(icon);
-
-          const nameSpan = document.createElement('span');
-          nameSpan.className = 'node-name';
-          nameSpan.textContent = child.name + (child.type === 'folder' ? '/' : '');
-          nodeInner.appendChild(nameSpan);
-
-          if (child.color && child.color !== '#ffffff') {
-            nodeInner.style.backgroundColor = child.color;
-            nodeInner.style.color = getContrastYIQ(child.color);
-          } else {
-            nodeInner.style.backgroundColor = '';
-            nodeInner.style.color = '';
-          }
-
-          // 選択・ダブルクリック
-          nodeInner.addEventListener('click', e => {
-            e.stopPropagation();
-            selectedId = child.id;
-            editingId = null;
-            updateColorPicker();
-            render();
-          });
-          nodeInner.addEventListener('dblclick', e => {
-            e.stopPropagation();
-            if(child.type === 'file') openModal(child);
-            else {
-              child.expanded = !child.expanded;
-              render();
-            }
-          });
-
-          li.appendChild(nodeInner);
-        }
-
-        // アクションボタン群
-        const actions = document.createElement('span');
-        actions.className = 'actions';
-
-        // HTML実行ボタン
-        if (child.type === 'file' && (child.name.endsWith('.html') || child.name.endsWith('.htm'))) {
-          const btnRun = document.createElement('button');
-          btnRun.textContent = '▶';
-          btnRun.title = '実行';
-          btnRun.addEventListener('click', e => {
-            e.stopPropagation();
-            const win = window.open('', '_blank');
-            win.document.open();
-            win.document.write(child.content);
-            win.document.close();
-          });
-          actions.appendChild(btnRun);
-        }
-
-        // 名前変更(F2)
-        const btnRename = document.createElement('button');
-        btnRename.textContent = '✎';
-        btnRename.title = '名前変更 (F2)';
-        btnRename.addEventListener('click', e => {
-          e.stopPropagation();
-          editingId = child.id;
-          selectedId = null;
-          render();
-        });
-        actions.appendChild(btnRename);
-
-        // 内容編集(Enter)
-        if (child.type === 'file') {
-          const btnEdit = document.createElement('button');
-          btnEdit.textContent = '📝';
-          btnEdit.title = '内容編集 (Enter)';
-          btnEdit.addEventListener('click', e => {
-            e.stopPropagation();
-            openModal(child);
-          });
-          actions.appendChild(btnEdit);
-        }
-
-        // コピー(Ctrl+C)
-        const btnCopy = document.createElement('button');
-        btnCopy.textContent = '📋';
-        btnCopy.title = 'コピー (Ctrl+C)';
-        btnCopy.addEventListener('click', e => {
-          e.stopPropagation();
-          clipboard = cloneNode(child);
-        });
-        actions.appendChild(btnCopy);
-
-        // ペースト(Ctrl+V)
-        if (child.type === 'folder' && clipboard) {
-          const btnPaste = document.createElement('button');
-          btnPaste.textContent = '📌';
-          btnPaste.title = 'ペースト (Ctrl+V)';
-          btnPaste.addEventListener('click', e => {
-            e.stopPropagation();
-            const pastedNode = cloneNode(clipboard);
-            child.children.push(pastedNode);
-            child.expanded = true;
-            saveHistory();
-            render();
-          });
-          actions.appendChild(btnPaste);
-        }
-
-        // 削除(Del)
-        const btnDelete = document.createElement('button');
-        btnDelete.textContent = '✖';
-        btnDelete.title = '削除 (Del)';
-        btnDelete.addEventListener('click', e => {
-          e.stopPropagation();
-          if (confirm(`${child.name} を削除しますか？`)) {
-            const parent = findParentById(root, child.id);
-            if (parent) {
-              parent.children = parent.children.filter(c => c.id !== child.id);
-              selectedId = null;
-              saveHistory();
-              render();
-            }
-          }
-        });
-        actions.appendChild(btnDelete);
-
-        li.appendChild(actions);
-
-        container.appendChild(li);
-
-        if (child.type === 'folder' && child.expanded) {
-          const ul = document.createElement('ul');
-          ul.className = 'children';
-          build(child, ul);
-          li.appendChild(ul);
-        }
-      });
-    }
-
-    build(root, treeEl);
-    updateUndoRedoButtons();
-    // 選択状態を復元
-    if (prevSelectedId) {
-        const newSelectedEl = treeEl.querySelector(`[data-id="${prevSelectedId}"]`);
-        if (newSelectedEl) {
-            selectedId = prevSelectedId;
-            newSelectedEl.querySelector('.node-inner').classList.add('selected');
-            updateColorPicker();
-        } else {
-            selectedId = null;
-            updateColorPicker();
-        }
-    }
-  }
-
-  // ===== イベントハンドラ =====
-  function getTargetFolder() {
-    if (selectedId) {
-      const selectedNode = findNodeById(root, selectedId);
-      if (selectedNode) {
-        // 選択されたノードがフォルダならそのノードを返す
-        if (selectedNode.type === 'folder') {
-          return selectedNode;
-        }
-        // 選択されたノードがファイルならその親フォルダを返す
-        const parent = findParentById(root, selectedId);
-        if (parent) {
-          return parent;
-        }
       }
-    }
-    // 何も選択されていないか、親フォルダが見つからない場合はルートを返す
-    return root;
-  }
-  
-  btnAddFolder.addEventListener('click', () => {
-    const targetFolder = getTargetFolder();
-    targetFolder.children.push(createNode('新規フォルダ', 'folder'));
-    targetFolder.expanded = true;
-    saveHistory();
-    render();
-  });
-  btnAddFile.addEventListener('click', () => {
-    const targetFolder = getTargetFolder();
-    targetFolder.children.push(createNode('新規ファイル.txt', 'file'));
-    targetFolder.expanded = true;
-    saveHistory();
-    render();
-  });
-  btnAddHtml.addEventListener('click', () => {
-    const targetFolder = getTargetFolder();
-    const newNode = createNode('index.html', 'file');
-    newNode.content = getFileTemplate('index.html');
-    targetFolder.children.push(newNode);
-    targetFolder.expanded = true;
-    saveHistory();
-    render();
-  });
-  btnSaveJson.addEventListener('click', () => {
-    const json = JSON.stringify(root, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'structure.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  });
-  btnLoadJson.addEventListener('click', () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = e => {
-        try {
-          const loadedRoot = JSON.parse(e.target.result);
-          if (loadedRoot && loadedRoot.type === 'folder' && Array.isArray(loadedRoot.children)) {
-            root = loadedRoot;
-            saveHistory();
-            render();
-            alert('JSONを読み込みました！');
-          } else {
-            alert('有効な構造データではありません。');
-          }
-        } catch (error) {
-          alert('JSONファイルの解析に失敗しました。');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  });
-  btnExportZip.addEventListener('click', async () => {
-    const zip = new JSZip();
-    function createZipStructure(node, currentZip) {
-      if (node.type === 'folder') {
-        const folder = currentZip.folder(node.name);
-        node.children.forEach(child => createZipStructure(child, folder));
-      } else if (node.type === 'file') {
-        currentZip.file(node.name, node.content || '');
+      if(name.endsWith('.js')){
+        return `// ${name}
+console.log('Hello from ${name}');
+`;
       }
+      if(name.endsWith('.css')){
+        return `/* ${name} */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    line-height: 1.6;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+`;
+      }
+      return '';
     }
-    root.children.forEach(child => createZipStructure(child, zip));
-    zip.generateAsync({ type: "blob" }).then(content => {
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'project.zip';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
-  });
-  btnDownloadPng.addEventListener('click', async () => {
-    const container = document.getElementById('tree-container');
-    const originalStyle = container.style.boxShadow;
-    container.style.boxShadow = 'none';
+    function getContrastYIQ(hexcolor){
+        hexcolor = hexcolor.replace("#", "");
+        var r = parseInt(hexcolor.substr(0,2),16);
+        var g = parseInt(hexcolor.substr(2,2),16);
+        var b = parseInt(hexcolor.substr(4,2),16);
+        var yiq = ((r*299)+(g*587)+(b*114))/1000;
+        return (yiq >= 128) ? 'black' : 'white';
+    }
 
-    // 一時的に余白を調整して見栄えを良くする
-    const tempPadding = container.style.padding;
-    container.style.padding = '20px';
+    //―― Undo/Redo用履歴管理 ――
+    let history = [];
+    let future = [];
+    function saveHistory(){
+      history.push(JSON.stringify(root));
+      if(history.length>100) history.shift();
+      future = [];
+      updateUndoRedoBtn();
+    }
+    function undo(){
+      if(history.length<=1) return;
+      future.push(JSON.stringify(root));
+      history.pop();
+      root = JSON.parse(history[history.length-1]);
+      idCounter = getMaxId(root)+1;
+      selectedId = null;
+      render();
+      updateUndoRedoBtn();
+    }
+    function redo(){
+      if(future.length===0) return;
+      const nextState = future.pop();
+      history.push(nextState);
+      root = JSON.parse(nextState);
+      idCounter = getMaxId(root)+1;
+      selectedId = null;
+      render();
+      updateUndoRedoBtn();
+    }
+    function getMaxId(node){
+        let max = 0;
+        function walk(n){
+            const num = parseInt(n.id.replace('n',''), 10);
+            if(num > max) max = num;
+            if(n.children) n.children.forEach(walk);
+        }
+        if(node.children) node.children.forEach(walk);
+        return max;
+    }
+    function updateUndoRedoBtn(){
+      document.getElementById('undoBtn').disabled = history.length <= 1;
+      document.getElementById('redoBtn').disabled = future.length === 0;
+    }
 
-    html2canvas(container, {
-      backgroundColor: '#ffffff',
-      scale: 2,
-      useCORS: true
-    }).then(canvas => {
-      container.style.boxShadow = originalStyle;
-      container.style.padding = tempPadding;
+    //―― グローバル状態 ――
+    let root = createNode('/', 'folder');
+    let editingId = null;
+    let selectedId = null;
+    let draggedId = null;
 
-      const url = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'structure.png';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
-  });
-  btnUndo.addEventListener('click', undo);
-  btnRedo.addEventListener('click', redo);
-  searchInput.addEventListener('input', render);
-  colorInput.addEventListener('change', () => {
-    const node = findNodeById(root, selectedId);
-    if (node) {
-      node.color = colorInput.value;
+    //―― テンプレート読み込み ――
+    function loadTemplate(key){
+      root = createNode('/', 'folder');
+      idCounter = 1; editingId = null; selectedId = null;
+      if(key!=='empty'){
+        const lines=templates[key].split('\n'), stack=[];
+        lines.forEach(raw=>{
+          const depth=(raw.match(/^(\s*[│├└─]+)?/)?.[0]||'').replace(/[│├└─]/g,'').length/2;
+          const txt=raw.replace(/^[\s│├└─]+/,'').trim();
+          if(!txt) return;
+          const isDir=txt.endsWith('/');
+          const name=txt.replace(/\/$/,'');
+          const node=createNode(name, isDir ? 'folder' : 'file');
+          if(node.type === 'file' && node.content === '') {
+            node.content = getFileTemplate(node.name);
+          }
+          while(stack.length > depth) stack.pop();
+          const parent = stack[stack.length-1] || root;
+          parent.children.push(node);
+          if(isDir) stack.push(node);
+        });
+      }
       saveHistory();
       render();
     }
-  });
-  function updateColorPicker() {
-    const node = findNodeById(root, selectedId);
-    if (node) {
-      colorInput.value = node.color || '#ffffff';
-      colorInput.disabled = false;
-    } else {
-      colorInput.value = '#ffffff';
-      colorInput.disabled = true;
-    }
-  }
 
-  // モーダル関連
-  function openModal(node) {
-    modalNode = node;
-    modalText.value = node.content;
-    modalBg.style.display = 'flex';
-    modalText.focus();
-  }
-  modalCancel.addEventListener('click', () => {
-    modalBg.style.display = 'none';
-    modalNode = null;
-  });
-  modalOk.addEventListener('click', () => {
-    if (modalNode) {
-      modalNode.content = modalText.value;
-      saveHistory();
+    //―― ファイル内容編集用（モーダル）
+    let modalNode = null;
+    function editFileContent(node) {
+      modalNode = node;
+      document.getElementById('modal-label').textContent = `「${node.name}」の内容を編集`;
+      document.getElementById('modal-text').value = node.content || '';
+      document.getElementById('modal-bg').style.display = 'flex';
+      document.getElementById('modal-text').focus();
     }
-    modalBg.style.display = 'none';
-    modalNode = null;
-    render();
-  });
-  modalBg.addEventListener('click', e => {
-    if (e.target.id === 'modal-bg') {
-      modalBg.style.display = 'none';
+    document.getElementById('modal-cancel').onclick = ()=>{
+      document.getElementById('modal-bg').style.display = 'none';
       modalNode = null;
-    }
-  });
-
-  // キーボードショートカット
-  document.addEventListener('keydown', e => {
-    if (editingId) return;
-
-    if (modalBg.style.display === 'flex') {
-      if (e.key === 'Escape') {
-        modalCancel.click();
-      }
-      return;
-    }
-
-    const selectedNode = findNodeById(root, selectedId);
-    if (selectedNode) {
-      if (e.key === 'F2') {
-        e.preventDefault();
-        editingId = selectedId;
+    };
+    document.getElementById('modal-ok').onclick = ()=>{
+      if(modalNode){
+        modalNode.content = document.getElementById('modal-text').value;
+        saveHistory();
         render();
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        const parent = findParentById(root, selectedNode.id);
-        if (parent && confirm(`${selectedNode.name} を削除しますか？`)) {
-          parent.children = parent.children.filter(c => c.id !== selectedNode.id);
-          selectedId = null;
-          saveHistory();
-          render();
+      }
+      document.getElementById('modal-bg').style.display = 'none';
+      modalNode = null;
+    };
+
+    // Modal background click to close
+    document.getElementById('modal-bg').onclick = (e) => {
+      if (e.target === document.getElementById('modal-bg')) {
+        document.getElementById('modal-bg').style.display = 'none';
+        modalNode = null;
+      }
+    };
+
+    //―― HTMLファイル実行用 ――
+    function executeHtmlFile(node) {
+        if (node.type === 'file' && node.name.endsWith('.html')) {
+            const blob = new Blob([node.content], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank');
+        } else {
+            alert('これはHTMLファイルではありません。');
         }
-      } else if (e.key === 'Enter' && selectedNode.type === 'file') {
+    }
+
+    //―― アイコン取得 ――
+    function getFileIcon(name) {
+      if (name.endsWith('.html')) return '🌐';
+      if (name.endsWith('.css')) return '🎨';
+      if (name.endsWith('.js')) return '⚡';
+      if (name.endsWith('.json')) return '📋';
+      if (name.endsWith('.md')) return '📝';
+      if (name.endsWith('.txt')) return '📄';
+      if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.gif')) return '🖼️';
+      return '📄';
+    }
+
+    //―― レンダリング ――
+    function render(){
+      const ul=document.getElementById('tree');
+      ul.innerHTML='';
+      function build(node, container){
+        node.children.forEach((ch, idx)=>{
+          const li=document.createElement('li');
+          li.draggable=true;
+          li.dataset.id=ch.id;
+          li.dataset.parentId = node.id;
+
+          if(ch.id===editingId){
+            const inp=document.createElement('input');
+            inp.value=ch.name; 
+            inp.className='node-input';
+            inp.onblur=()=>commitEdit(inp.value);
+            inp.onkeydown=e=>{ if(e.key==='Enter') inp.blur(); };
+            li.appendChild(inp);
+            setTimeout(()=>inp.select(),0);
+          } else {
+            const sp=document.createElement('span');
+            sp.className='node';
+            if (ch.id === selectedId) {
+                sp.classList.add('selected');
+            }
+            sp.style.backgroundColor = ch.color || '#FFFFFF';
+            sp.style.color = getContrastYIQ(ch.color || '#FFFFFF');
+            
+            // Add icon and name
+            const icon = ch.type === 'folder' ? '📁' : getFileIcon(ch.name);
+            sp.innerHTML = `${icon} ${ch.name}${ch.type==='folder'?'/':''}`;
+            
+            sp.ondblclick=()=>{ editingId=ch.id; render(); };
+            sp.onclick = (e) => {
+                e.stopPropagation();
+                selectedId = ch.id;
+                const selectedNode = findNode(root, selectedId);
+                const colorRadios = document.querySelectorAll('#color-picker input[name="color"]');
+                colorRadios.forEach(radio => {
+                    radio.checked = radio.value === (selectedNode.color || '#FFFFFF');
+                });
+                render();
+            };
+            li.appendChild(sp);
+          }
+
+          const act=document.createElement('span');
+          act.className='actions';
+          const btns=[
+            {t:'✏️',fn:()=>{ editingId=ch.id; selectedId=null; render(); }, title:'名前を編集'},
+            {t:'📁+',fn:()=>{ const newNode=createNode('新しいフォルダ','folder', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder', title:'フォルダを追加'},
+            {t:'🌐+',fn:()=>{ const newNode=createNode('新しいファイル.html','file', ch.color); newNode.content = getFileTemplate(newNode.name); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder', title:'HTMLファイルを追加'},
+            {t:'📄+',fn:()=>{ const newNode=createNode('新しいファイル.txt','file', ch.color); ch.children.push(newNode); saveHistory(); render(); },cond:ch.type==='folder', title:'テキストファイルを追加'},
+            {t:'❌',fn:()=>{ if(confirm(`「${ch.name}」を削除しますか？`)) { removeNode(root,ch.id); saveHistory(); render(); }}, title:'削除'},
+            {t:'📝',fn:() => editFileContent(ch), cond:ch.type==='file', title:'内容を編集'},
+            {t:'▶️',fn:() => executeHtmlFile(ch), cond:ch.type==='file' && ch.name.endsWith('.html'), title:'HTMLを実行'}
+          ];
+          btns.forEach(b=>{
+            if(b.cond===false) return;
+            const btn=document.createElement('button');
+            btn.textContent=b.t; 
+            btn.onclick=b.fn;
+            btn.title=b.title;
+            act.appendChild(btn);
+          });
+          li.appendChild(act);
+
+          li.addEventListener('dragstart', onDragStart);
+          li.addEventListener('dragover', onDragOver);
+          li.addEventListener('dragleave', onDragLeave);
+          li.addEventListener('drop', onDrop);
+          li.addEventListener('dragend', onDragEnd);
+
+          container.appendChild(li);
+          if(ch.type==='folder'){
+            const sub=document.createElement('ul');
+            sub.className='children';
+            li.appendChild(sub);
+            build(ch,sub);
+          }
+        });
+      }
+      build(root,ul);
+      updateUndoRedoBtn();
+      renderFavList();
+    }
+
+    function commitEdit(val){
+      if(val.trim()) {
+        const node = findNode(root, editingId);
+        const oldName = node.name;
+        node.name = val.trim();
+        
+        // If it's a file and the extension changed, update template
+        if(node.type === 'file' && !node.content && oldName !== node.name) {
+          node.content = getFileTemplate(node.name);
+        }
+      }
+      editingId=null; 
+      saveHistory(); 
+      render();
+    }
+
+    function removeNode(p,id){
+        for (let i = 0; i < p.children.length; i++) {
+            if (p.children[i].id === id) {
+                p.children.splice(i, 1);
+                return true;
+            }
+            if (removeNode(p.children[i], id)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function findNode(p,id){
+      if(p.id===id) return p;
+      for(const c of p.children){ const r=findNode(c,id); if(r) return r; }
+      return null;
+    }
+    function findParent(p,id){
+      for(const c of p.children){
+        if(c.id===id) return p;
+        const r=findParent(c,id);
+        if(r) return r;
+      }
+      return null;
+    }
+
+    //―― Drag & Drop ――
+    let dropPosition = 'inside';
+
+    function onDragStart(e) {
+        draggedId = e.currentTarget.dataset.id;
+        e.dataTransfer.effectAllowed = 'move';
+        e.currentTarget.classList.add('dragging');
+    }
+
+    function onDragOver(e) {
         e.preventDefault();
-        openModal(selectedNode);
-      } else if (e.ctrlKey && e.key === 'c') {
+        const targetLi = e.currentTarget;
+        const targetNode = findNode(root, targetLi.dataset.id);
+        const draggedNode = findNode(root, draggedId);
+
+        document.querySelectorAll('#tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
+            li.classList.remove('over', 'drop-before', 'drop-after');
+        });
+
+        if (!targetNode || !draggedNode || draggedId === targetLi.dataset.id) {
+            e.dataTransfer.dropEffect = 'none';
+            return;
+        }
+
+        let current = targetNode;
+        while(current) {
+            if (current.id === draggedId) {
+                e.dataTransfer.dropEffect = 'none';
+                return;
+            }
+            current = findParent(root, current.id);
+        }
+        e.dataTransfer.dropEffect = 'move';
+
+        const rect = targetLi.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const third = rect.height / 3;
+
+        if (targetNode.type === 'folder') {
+            if (y < third) {
+                dropPosition = 'before';
+                targetLi.classList.add('drop-before');
+            } else if (y > third * 2) {
+                dropPosition = 'after';
+                targetLi.classList.add('drop-after');
+            } else {
+                dropPosition = 'inside';
+                targetLi.classList.add('over');
+            }
+        } else {
+            if (y < rect.height / 2) {
+                dropPosition = 'before';
+                targetLi.classList.add('drop-before');
+            } else {
+                dropPosition = 'after';
+                targetLi.classList.add('drop-after');
+            }
+        }
+    }
+
+    function onDragLeave(e) {
+        e.currentTarget.classList.remove('over', 'drop-before', 'drop-after');
+    }
+
+    function onDrop(e) {
         e.preventDefault();
-        clipboard = cloneNode(selectedNode);
-      } else if (e.ctrlKey && e.key === 'v') {
-        e.preventDefault();
-        const parent = selectedNode.type === 'folder' ? selectedNode : findParentById(root, selectedId);
-        if (clipboard && parent) {
-          const pastedNode = cloneNode(clipboard);
-          parent.children.push(pastedNode);
-          parent.expanded = true;
-          saveHistory();
-          render();
+        e.stopPropagation();
+        
+        document.querySelectorAll('#tree li.dragging, #tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
+            li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
+        });
+
+        const targetId = e.currentTarget.dataset.id;
+        if (draggedId === targetId) return;
+
+        const draggedNode = findNode(root, draggedId);
+        if (!draggedNode) return;
+
+        const sourceParent = findParent(root, draggedId);
+        if (sourceParent) {
+            removeNode(sourceParent, draggedId);
+        } else {
+            console.error("Dragged node's parent not found.");
+            draggedId = null;
+            return;
+        }
+
+        const targetNode = findNode(root, targetId);
+        if (!targetNode) return;
+
+        if (dropPosition === 'inside' && targetNode.type === 'folder') {
+            targetNode.children.push(draggedNode);
+        } else {
+            const targetParent = findParent(root, targetId);
+            const parentToInsertInto = targetParent || root;
+            const targetIndex = parentToInsertInto.children.findIndex(c => c.id === targetId);
+
+            if (targetIndex > -1) {
+                if (dropPosition === 'before') {
+                    parentToInsertInto.children.splice(targetIndex, 0, draggedNode);
+                } else {
+                    parentToInsertInto.children.splice(targetIndex + 1, 0, draggedNode);
+                }
+            } else {
+                parentToInsertInto.children.push(draggedNode);
+            }
+        }
+
+        draggedId = null;
+        saveHistory();
+        render();
+    }
+
+    function onDragEnd(e) {
+        document.querySelectorAll('#tree li.dragging, #tree li.over, #tree li.drop-before, #tree li.drop-after').forEach(li => {
+            li.classList.remove('dragging', 'over', 'drop-before', 'drop-after');
+        });
+        draggedId = null;
+    }
+
+    //―― CSV 保存/読込 ――
+    function treeToCsv(){
+      const rows=[['path','type','content','color']];
+      (function w(n,p){
+        n.children.forEach(c=>{
+          const path=p+'/'+c.name;
+          rows.push([path,c.type,c.type==='file'?btoa(unescape(encodeURIComponent(c.content||''))):'', c.color || '#FFFFFF']);
+          if(c.type==='folder') w(c,path);
+        });
+      })(root,'');
+      return rows.map(r=>r.map(x=>`"${(x||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    }
+    document.getElementById('saveCsv').onclick = () => {
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+      const csv = treeToCsv();
+      const blob = new Blob([bom, csv], {type:'text/csv'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='structure.csv';
+      a.click();
+    };
+    document.getElementById('loadCsv').onclick = async () => {
+      try {
+        const [f]=await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
+        const txt=await (await f.getFile()).text();
+        const lines=txt.split('\n').filter(l=>l.trim());
+        root=createNode('/','folder'); idCounter = 1;
+        lines.slice(1).forEach(l=>{
+          const parts = [];
+          let inQuote = false;
+          let currentPart = '';
+          for (let i = 0; i < l.length; i++) {
+              const char = l[i];
+              if (char === '"') {
+                  if (i + 1 < l.length && l[i+1] === '"') {
+                      currentPart += '"';
+                      i++;
+                  } else {
+                      inQuote = !inQuote;
+                  }
+              } else if (char === ',' && !inQuote) {
+                  parts.push(currentPart);
+                  currentPart = '';
+              } else {
+                  currentPart += char;
+              }
+          }
+          parts.push(currentPart);
+
+          if (parts.length < 2) return;
+          const [path, type, contentStr, color] = parts;
+          const content = (contentStr && type === 'file') ? decodeURIComponent(escape(atob(contentStr))) : '';
+          const seg=path.split('/').filter(Boolean);
+          let p=root;
+          seg.forEach((n,i)=>{
+            const last=i===seg.length-1;
+            const nodeType = last ? type : 'folder';
+            let d=p.children.find(c=>c.name===n&&c.type===nodeType);
+            if(!d){
+               d=createNode(n, nodeType, color);
+               if(last && type === 'file') d.content = content;
+               p.children.push(d);
+            }
+            p=d;
+          });
+        });
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('CSVファイルの読み込みに失敗しました。');
+      }
+    };
+
+    //―― フォルダから読込 ――
+    document.getElementById('importFs').onclick = async () => {
+      try {
+        const dh=await window.showDirectoryPicker();
+        idCounter=1; root=createNode('/','folder');
+        await readFsRecursive(dh, root);
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('フォルダの読み込みに失敗しました。');
+      }
+    };
+    async function readFsRecursive(dh, parentNode){
+      for await(const [name,ent] of dh.entries()){
+        if(ent.kind==='directory') {
+          const folderNode = createNode(name,'folder');
+          parentNode.children.push(folderNode);
+          await readFsRecursive(ent, folderNode);
+        } else {
+          const fileNode = createNode(name,'file');
+          parentNode.children.push(fileNode);
+          try {
+            const file = await ent.getFile();
+            if (file.size < 1024 * 1024) { // Only read files smaller than 1MB
+              fileNode.content = await file.text();
+            } else {
+              fileNode.content = `[Large file: ${(file.size / 1024 / 1024).toFixed(2)}MB - Content not loaded]`;
+            }
+          } catch (e) { 
+            fileNode.content = `[Error reading file: ${e.message}]`; 
+          }
         }
       }
     }
 
-    if (e.ctrlKey && e.key === 'z') {
-      e.preventDefault();
-      undo();
-    }
-    if (e.ctrlKey && e.key === 'y') {
-      e.preventDefault();
-      redo();
-    }
-  });
+    //―― ZIP 出力 ――
+    document.getElementById('downloadZip').onclick = () => {
+      const zip=new JSZip();
+      (function add(n, f){
+        n.children.forEach(c => {
+          if(c.type==='folder') {
+            add(c, f.folder(c.name));
+          } else {
+            f.file(c.name, c.content ?? getFileTemplate(c.name));
+          }
+        });
+      })(root, zip);
+      zip.generateAsync({type:'blob'}).then(b=>{
+        const a=document.createElement('a');
+        a.href=URL.createObjectURL(b); a.download='structure.zip';
+        a.click();
+      });
+    };
 
-  // ドラッグ＆ドロップ機能
-  let draggedEl = null;
-  treeEl.addEventListener('dragstart', e => {
-    if (e.target.tagName === 'LI') {
-      draggedEl = e.target;
-      draggedId = draggedEl.dataset.id;
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', draggedId);
-      setTimeout(() => draggedEl.classList.add('dragging'), 0);
-    }
-  });
-  treeEl.addEventListener('dragend', () => {
-    clearDragClasses();
-    if (draggedEl) {
-      draggedEl.classList.remove('dragging');
-      draggedEl = null;
-    }
-    draggedId = null;
-    dropPosition = null;
-  });
-  treeEl.addEventListener('dragover', e => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    clearDragClasses();
+    //―― PNG画像でダウンロード ――
+    document.getElementById('downloadPng').onclick = () => {
+      document.body.classList.add('hide-for-capture');
+      
+      const treeContainer = document.querySelector('.tree-container');
+      const originalBackground = treeContainer.style.background;
+      treeContainer.style.background = 'white';
 
-    const targetEl = e.target.closest('li');
-    if (!targetEl || targetEl === draggedEl) return;
+      html2canvas(treeContainer, {
+          scale: 3,
+          logging: false,
+          useCORS: true,
+          backgroundColor: 'white',
+          width: treeContainer.scrollWidth,
+          height: treeContainer.scrollHeight,
+      }).then(canvas => {
+          const a = document.createElement('a');
+          a.href = canvas.toDataURL('image/png');
+          a.download = 'structure.png';
+          a.click();
+      }).finally(() => {
+          document.body.classList.remove('hide-for-capture');
+          treeContainer.style.background = originalBackground;
+      });
+    };
 
-    const rect = targetEl.getBoundingClientRect();
-    const y = e.clientY;
-    const hoverMiddleY = rect.top + rect.height / 2;
-    const targetNode = findNodeById(root, targetEl.dataset.id);
-    const draggedNode = findNodeById(root, draggedId);
-
-    if (targetNode === draggedNode || isDescendant(draggedNode, targetNode)) {
-      dropPosition = null;
-      return;
-    }
-
-    if (y < hoverMiddleY - 5) {
-      targetEl.classList.add('over-drop-before');
-      dropPosition = 'before';
-    } else if (y > hoverMiddleY + 5) {
-      targetEl.classList.add('over-drop-after');
-      dropPosition = 'after';
-    } else {
-      if (targetNode.type === 'folder') {
-        targetEl.classList.add('over-drop-inside');
-        dropPosition = 'inside';
-      } else {
-        targetEl.classList.add('over-drop-after');
-        dropPosition = 'after';
+    //―― TXTプレビュー ――
+    document.getElementById('txtPreviewBtn').onclick=()=>{
+      let txt = '';
+      function walk(n, prefix=''){
+        n.children.forEach(c=>{
+          txt += prefix + (c.type==='folder'?'📁':'📄') + ' ' + c.name + (c.type==='folder'?'/':'') + '\n';
+          if(c.type==='file' && c.content){
+            const lines = c.content.split(/\r?\n/);
+            const previewLines = lines.slice(0, 10); // Show first 10 lines
+            txt += previewLines.map(line=>'  │ '+line).join('\n');
+            if(lines.length > 10) {
+              txt += `\n  │ ... (${lines.length - 10} more lines)`;
+            }
+            txt += '\n\n';
+          }
+          if(c.type==='folder') walk(c, prefix+'  ');
+        });
       }
-    }
-  });
-  treeEl.addEventListener('drop', e => {
-    e.preventDefault();
-    clearDragClasses();
-    if (!draggedId || !dropPosition) return;
+      walk(root);
+      const preview = document.getElementById('txt-preview');
+      preview.textContent = txt;
+      preview.style.display = preview.style.display === 'none' ? 'block' : 'none';
+    };
 
-    const sourceNode = findNodeById(root, draggedId);
-    const sourceParent = findParentById(root, draggedId);
-    const targetEl = e.target.closest('li');
-    if (!sourceNode || !sourceParent || !targetEl) return;
-
-    const targetNode = findNodeById(root, targetEl.dataset.id);
-    if (!targetNode || targetNode === sourceNode || isDescendant(sourceNode, targetNode)) return;
-
-    sourceParent.children = sourceParent.children.filter(c => c.id !== sourceNode.id);
-
-    if (dropPosition === 'inside' && targetNode.type === 'folder') {
-      if (!targetNode.children) targetNode.children = [];
-      targetNode.children.push(sourceNode);
-      targetNode.expanded = true;
-    } else {
-      const targetParent = findParentById(root, targetNode.id);
-      if (!targetParent) return;
-      const targetIndex = targetParent.children.findIndex(c => c.id === targetNode.id);
-      if (dropPosition === 'before') {
-        targetParent.children.splice(targetIndex, 0, sourceNode);
-      } else if (dropPosition === 'after') {
-        targetParent.children.splice(targetIndex + 1, 0, sourceNode);
+    //―― 完全保存・読込（JSON）――
+    document.getElementById('saveAllBtn').onclick=()=>{
+      const blob = new Blob([JSON.stringify(root, null, 2)], {type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='structure.json';
+      a.click();
+    };
+    document.getElementById('loadAllBtn').onclick=async()=>{
+      try {
+        const [f]=await window.showOpenFilePicker({types:[{accept:{'application/json':['.json']}}]});
+        const txt=await (await f.getFile()).text();
+        root=JSON.parse(txt);
+        idCounter = getMaxId(root)+1;
+        saveHistory();
+        render();
+      } catch (e) {
+        if(e.name !== 'AbortError') alert('JSONファイルの読み込みに失敗しました。');
       }
+    };
+
+    //―― お気に入りテンプレート保存・呼び出し ――
+    function renderFavList(){
+      const favDiv = document.getElementById('fav-list');
+      const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+      
+      if(favs.length === 0) {
+        favDiv.innerHTML = '<p style="color: #6c757d; font-style: italic; margin: 0;">お気に入りはありません</p>';
+        return;
+      }
+
+      favDiv.innerHTML = '';
+      favs.forEach((f,i)=>{
+        const item = document.createElement('div');
+        item.className = 'fav-item';
+        
+        const loadBtn = document.createElement('button');
+        loadBtn.textContent = f.name;
+        loadBtn.onclick = ()=>{ 
+          if(confirm(`「${f.name}」を読み込みますか？現在の内容は失われます。`)) {
+            root = JSON.parse(f.data); 
+            idCounter = getMaxId(root)+1; 
+            saveHistory(); 
+            render(); 
+          }
+        };
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '✕'; 
+        deleteBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`「${f.name}」を削除しますか？`)) { 
+              removeFav(i); 
+            }
+        };
+        
+        item.appendChild(loadBtn);
+        item.appendChild(deleteBtn);
+        favDiv.appendChild(item);
+      });
     }
 
+    function removeFav(index){
+        const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+        favs.splice(index, 1);
+        localStorage.setItem('favTemplates', JSON.stringify(favs));
+        renderFavList();
+    }
+
+    document.getElementById('addFavBtn').onclick=()=>{
+      const name = prompt('お気に入り名を入力してください:');
+      if(!name || !name.trim()) return;
+      const favs = JSON.parse(localStorage.getItem('favTemplates')||'[]');
+      favs.push({name: name.trim(), data: JSON.stringify(root)});
+      localStorage.setItem('favTemplates', JSON.stringify(favs));
+      renderFavList();
+    };
+
+    //―― 全て削除ボタン ――
+    document.getElementById('clearAllBtn').onclick = () => {
+        if (confirm('本当にすべて削除しますか？この操作は元に戻せません。')) {
+            root = createNode('/', 'folder'); 
+            idCounter = 1;
+            selectedId = null;
+            saveHistory(); 
+            render();
+        }
+    };
+
+    // 再帰的に子ノードの色を更新する関数
+    function updateChildrenColor(node, newColor) {
+        node.children.forEach(child => {
+            child.color = newColor;
+            if (child.type === 'folder') {
+                updateChildrenColor(child, newColor);
+            }
+        });
+    }
+
+    //―― イベントバインド & 初期化 ――
+    document.getElementById('templateSelect').onchange=e=>loadTemplate(e.target.value);
+    document.getElementById('addRootFolder').onclick=()=>{ 
+      root.children.push(createNode('新しいフォルダ','folder')); 
+      saveHistory(); 
+      render(); 
+    };
+    document.getElementById('addRootFile').onclick=()=>{ 
+      const newNode = createNode('新しいファイル.html','file');
+      newNode.content = getFileTemplate(newNode.name);
+      root.children.push(newNode); 
+      saveHistory(); 
+      render(); 
+    };
+    document.getElementById('addRootTxt').onclick=()=>{ 
+      root.children.push(createNode('新しいファイル.txt','file')); 
+      saveHistory(); 
+      render(); 
+    };
+    document.getElementById('undoBtn').onclick=undo;
+    document.getElementById('redoBtn').onclick=redo;
+
+    document.querySelectorAll('#color-picker input[name="color"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            if (selectedId) {
+                const node = findNode(root, selectedId);
+                if (node) {
+                    node.color = e.target.value;
+                    if (node.type === 'folder') {
+                        updateChildrenColor(node, e.target.value);
+                    }
+                    saveHistory();
+                    render();
+                }
+            }
+        });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            break;
+          case 's':
+            e.preventDefault();
+            document.getElementById('saveAllBtn').click();
+            break;
+        }
+      }
+    });
+
+    // Click outside to deselect
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#tree') && !e.target.closest('.sidebar')) {
+        selectedId = null;
+        render();
+      }
+    });
+
+    // Initial Load
     saveHistory();
     render();
-  });
 
-  // 初期化
-  saveHistory();
-  render();
-})();
-</script>
+    // Welcome message
+    setTimeout(() => {
+      if (root.children.length === 0) {
+        const welcome = confirm(
+          '🌟 Beautiful Structure Editor へようこそ！\n\n' +
+          '左のサイドバーからテンプレートを選択するか、\n' +
+          '「フォルダ」ボタンでプロジェクト構造を作成してみませんか？\n\n' +
+          'JavaScriptプロジェクトのテンプレートを読み込みますか？'
+        );
+        if (welcome) {
+          loadTemplate('js');
+        }
+      }
+    }, 1000);
+  </script>
 </body>
 </html>
