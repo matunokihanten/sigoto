@@ -209,11 +209,7 @@
   /* ノード右側の操作ボタン */
   .node-controls {
     display: none;
-    position: absolute;
-    right: 5px; /* ノードの右端に配置 */
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 10;
+    margin-left: 10px;
     gap: 5px;
   }
   .node-controls button, .node-controls select {
@@ -259,6 +255,8 @@
   <div id="controls">
     <button id="importBtn" class="btn">📂 ファイルを開く</button>
     <button id="saveBtn" class="btn btn-secondary" disabled>💾 JSONとして保存</button>
+    <button id="saveToLocalBtn" class="btn">保存</button>
+    <button id="loadFromLocalBtn" class="btn">読込</button>
   </div>
 </div>
 
@@ -290,6 +288,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileBtn = document.getElementById('fileBtn');
     const importBtn = document.getElementById('importBtn');
     const saveBtn = document.getElementById('saveBtn');
+    const saveToLocalBtn = document.getElementById('saveToLocalBtn');
+    const loadFromLocalBtn = document.getElementById('loadFromLocalBtn');
     const jsonDisplay = document.getElementById('json-display');
     const treeView = document.getElementById('tree-view');
     const textEditor = document.getElementById('text-editor');
@@ -396,6 +396,43 @@ document.addEventListener('DOMContentLoaded', () => {
         saveBtn.style.opacity = currentData ? 1 : 0.5;
     }
 
+    // === ローカルストレージ機能 ===
+    const LOCAL_STORAGE_KEY = "json-editor-data";
+
+    saveToLocalBtn.addEventListener('click', () => {
+        if (!currentData) {
+            alert("保存するデータがありません。");
+            return;
+        }
+        try {
+            const dataToSave = editorMode === 'tree' ? currentData : JSON.parse(textEditor.value);
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+            alert("データをローカルストレージに保存しました。");
+        } catch (e) {
+            alert("データの保存に失敗しました。");
+        }
+    });
+
+    loadFromLocalBtn.addEventListener('click', () => {
+        const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (storedData) {
+            try {
+                currentData = JSON.parse(storedData);
+                displayData();
+                fileZone.style.display = 'none';
+                jsonDisplay.style.display = 'flex';
+                updateSaveButton();
+                switchMode('tree');
+                alert("データをローカルストレージから読み込みました。");
+            } catch (e) {
+                alert("データの読み込みに失敗しました。");
+            }
+        } else {
+            alert("ローカルストレージに保存されたデータが見つかりません。");
+        }
+    });
+
+
     // === エディタモード切替 ===
     modeBtns.forEach(btn => {
         btn.addEventListener('click', () => {
@@ -456,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const nodeContent = document.createElement('div');
         nodeContent.style.display = 'flex';
         nodeContent.style.alignItems = 'center';
+        nodeContent.style.flexWrap = 'wrap'; /* ボタンが重ならないように折り返す */
 
         // アイコンとトグル
         const toggleIcon = document.createElement('span');
