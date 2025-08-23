@@ -1,262 +1,1391 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Web CLI (VFS搭載)</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin:0; padding:0; height:100vh;
-      font-family: monospace;
-      background:#272822; color:#f8f8f2;
-    }
-    #terminal {
-      position:absolute; top:0; left:0; right:0; bottom:60px;
-      overflow-y:auto; padding:10px;
-      white-space:pre-wrap;
-    }
-    .line { margin:2px 0; display:flex; align-items:center; }
-    .output { flex:1; padding:2px 4px; }
-    .copyBtn { margin-left:6px; cursor:pointer; opacity:0.6; }
-    .copyBtn:hover {opacity:1;}
-    /* help ハイライト専用 */
-    .help-highlight {
-      background: yellow;
-      color: black;
-      border-radius: 4px;
-      padding: 2px 4px;
-      display: inline-block;
-      width: 100%;
-    }
-    .prompt-line {
-      position:absolute; bottom:0; left:0; right:0;
-      display:flex; align-items:center;
-      padding:10px;
-      background:#1e1e1e; border-top:1px solid #444;
-    }
-    .prompt-label { margin-right:6px; }
-    #input {
-      flex:1; font-size:1em;
-      background:none; border:none; outline:none; color:inherit;
-    }
-    .error{color:#f92672;} .success{color:#a6e22e;} .info{color:#66d9ef;}
-    #helpBtn{
-      position:fixed; top:12px; right:12px; z-index:1000;
-      width:42px; height:42px;
-      background:#1e1e1e; color:#f8f8f2;
-      border:none; border-radius:6px;
-      font-size:1.2em;
-    }
-    .overlay{position:fixed; inset:0; display:flex;
-      align-items:center; justify-content:center;
-      background:rgba(0,0,0,0.75); padding:20px;}
-    .hidden{display:none;}
-    .overlay-content{background:#272822; color:#f8f8f2; padding:20px; border-radius:8px; width:320px;}
-    .overlay-content ul{list-style:none; padding:0;}
-    .overlay-content li{margin-bottom:6px;}
-    .overlay-content button{margin-top:12px; padding:8px 14px; background:#444; border:none; border-radius:4px; color:#eee;}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Enhanced Web CLI - 高機能ターミナル</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0; height: 100vh;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #00ff88;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  #header {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    padding: 10px 15px;
+    border-bottom: 1px solid #444;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+  }
+
+  #header h1 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #00ff88;
+    text-shadow: 0 0 10px #00ff88;
+  }
+
+  #controls {
+    display: flex;
+    gap: 10px;
+  }
+
+  #controls button {
+    padding: 5px 10px;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid #00ff88;
+    border-radius: 5px;
+    color: #00ff88;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9em;
+  }
+
+  #controls button:hover {
+    background: rgba(0, 255, 136, 0.2);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+  }
+
+  #terminal {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+    white-space: pre-wrap;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  .line {
+    margin: 3px 0;
+    display: flex;
+    align-items: flex-start;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .output {
+    flex: 1;
+    padding: 2px 6px;
+    border-radius: 3px;
+    word-wrap: break-word;
+  }
+
+  .copyBtn {
+    margin-left: 8px;
+    cursor: pointer;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 0.8em;
+  }
+
+  .copyBtn:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .help-highlight {
+    background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 5px;
+    margin: 2px 0;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  }
+
+  .prompt-line {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid #444;
+    position: relative;
+  }
+
+  #promptLabel {
+    color: #ff79c6;
+    margin-right: 10px;
+    white-space: nowrap;
+    user-select: none;
+    font-weight: bold;
+    min-width: 200px;
+    text-shadow: 0 0 5px #ff79c6;
+  }
+
+  #input {
+    flex: 1;
+    font-size: 1em;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(0, 255, 136, 0.3);
+    border-radius: 5px;
+    outline: none;
+    color: #00ff88;
+    font-family: inherit;
+    padding: 8px 12px;
+    transition: all 0.3s;
+  }
+
+  #input:focus {
+    border-color: #00ff88;
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+  }
+
+  #suggestions {
+    position: absolute;
+    bottom: 100%;
+    left: 215px;
+    right: 15px;
+    background: rgba(0, 0, 0, 0.9);
+    backdrop-filter: blur(10px);
+    border: 1px solid #444;
+    border-radius: 5px;
+    max-height: 150px;
+    overflow-y: auto;
+    display: none;
+  }
+
+  .suggestion {
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #333;
+    transition: background 0.2s;
+  }
+
+  .suggestion:hover, .suggestion.selected {
+    background: rgba(0, 255, 136, 0.1);
+  }
+
+  .suggestion:last-child {
+    border-bottom: none;
+  }
+
+  .error { color: #ff5555; }
+  .success { color: #50fa7b; }
+  .info { color: #8be9fd; }
+  .warning { color: #f1fa8c; }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    padding: 20px;
+    z-index: 1000;
+  }
+
+  .hidden { display: none; }
+
+  .overlay-content {
+    background: linear-gradient(135deg, #2d2d2d, #1a1a2e);
+    color: #f8f8f2;
+    padding: 25px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    max-width: 90%;
+    width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .overlay-content h2 {
+    color: #00ff88;
+    text-align: center;
+    margin-top: 0;
+    text-shadow: 0 0 10px #00ff88;
+  }
+
+  .overlay-content ul {
+    list-style: none;
+    padding: 0;
+  }
+
+  .overlay-content li {
+    margin-bottom: 8px;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+    border-left: 3px solid #00ff88;
+  }
+
+  .overlay-content code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: #ff79c6;
+  }
+
+  .overlay-content button {
+    margin: 15px 5px 5px;
+    padding: 10px 16px;
+    background: linear-gradient(45deg, #444, #666);
+    border: none;
+    border-radius: 5px;
+    color: #eee;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+
+  .overlay-content button:hover {
+    background: linear-gradient(45deg, #555, #777);
+    transform: translateY(-2px);
+  }
+
+  #editorOverlay textarea {
+    width: 100%;
+    height: 350px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #f8f8f2;
+    border: 1px solid #444;
+    border-radius: 5px;
+    outline: none;
+    font-family: inherit;
+    font-size: 1em;
+    padding: 12px;
+    resize: vertical;
+    transition: border-color 0.3s;
+  }
+
+  #editorOverlay textarea:focus {
+    border-color: #00ff88;
+  }
+
+  .btnGroup {
+    margin-top: 12px;
+    text-align: right;
+  }
+
+  .btnGroup button {
+    margin-left: 10px;
+  }
+
+  .status-bar {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 5px 15px;
+    font-size: 0.9em;
+    color: #888;
+    border-top: 1px solid #333;
+  }
+
+  .file-icon {
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    margin-right: 5px;
+  }
+
+  /* スクロールバーのスタイル */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 136, 0.3);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 136, 0.5);
+  }
+</style>
 </head>
 <body>
-  <button id="helpBtn">?</button>
-  <div id="terminal"></div>
-  <div class="prompt-line">
-    <span class="prompt-label">></span>
-    <input id="input" autocomplete="off" autofocus/>
+  <div id="header">
+    <h1>🚀 Enhanced Web CLI</h1>
+    <div id="controls">
+      <button id="helpBtn" title="ヘルプ">❓ Help</button>
+      <button id="themeBtn" title="テーマ切替">🎨 Theme</button>
+      <button id="clearBtn" title="画面クリア">🗑️ Clear</button>
+    </div>
   </div>
-  <div id="cmdOverlay" class="overlay hidden">
+
+  <div id="terminal" aria-live="polite" aria-atomic="false"></div>
+  
+  <div class="prompt-line" role="region" aria-label="コマンド入力">
+    <span id="promptLabel">user@webcli:/ $</span>
+    <input id="input" autocomplete="off" placeholder="コマンドを入力... (Tab で補完)" />
+    <div id="suggestions"></div>
+  </div>
+
+  <div class="status-bar">
+    <span id="statusText">Ready</span> | Files: <span id="fileCount">0</span> | Last: <span id="lastCommand">-</span>
+  </div>
+
+  <div id="cmdOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <div class="overlay-content">
-      <h2>コマンド一覧</h2>
-      <ul>
-        <li><code>help</code>               : コマンド一覧表示</li>
-        <li><code>pwd</code>                : カレントディレクトリ表示</li>
-        <li><code>ls</code>                 : ディレクトリ一覧</li>
-        <li><code>cd &lt;dir&gt;</code>     : カレント変更</li>
-        <li><code>mkdir &lt;dir&gt;</code>   : ディレクトリ作成</li>
-        <li><code>touch &lt;file&gt;</code>  : ファイル作成</li>
-        <li><code>cat &lt;file&gt;</code>    : ファイル表示</li>
-        <li><code>write &lt;file&gt; text</code>: ファイル上書き</li>
-        <li><code>append &lt;file&gt; text</code>: ファイル追記</li>
-        <li><code>rm &lt;file/dir&gt;</code>   : 削除</li>
-        <li><code>tree</code>              : ツリー表示</li>
-        <li><code>clear</code>             : 画面クリア</li>
+      <h2 id="helpTitle">📚 コマンド一覧</h2>
+      <ul id="helpList">
+        <li><code>help</code> : コマンド一覧と説明を表示</li>
+        <li><code>pwd</code> : カレントディレクトリ表示</li>
+        <li><code>ls [-l] [path]</code> : ディレクトリ一覧。-lで詳細表示</li>
+        <li><code>cd &lt;dir&gt;</code> : ディレクトリ移動</li>
+        <li><code>mkdir &lt;dir&gt;</code> : ディレクトリ作成</li>
+        <li><code>touch &lt;file&gt;</code> : 空ファイル作成</li>
+        <li><code>cat &lt;file&gt;</code> : ファイル内容表示</li>
+        <li><code>write &lt;file&gt; text</code> : ファイルに上書き</li>
+        <li><code>append &lt;file&gt; text</code> : ファイルに追記</li>
+        <li><code>rm &lt;file/dir&gt;</code> : ファイル/ディレクトリ削除</li>
+        <li><code>mv &lt;from&gt; &lt;to&gt;</code> : ファイル/ディレクトリ移動・リネーム</li>
+        <li><code>cp &lt;from&gt; &lt;to&gt;</code> : ファイル/ディレクトリコピー</li>
+        <li><code>find &lt;name&gt;</code> : ファイル/ディレクトリ検索</li>
+        <li><code>tree [path]</code> : ファイルツリー表示</li>
+        <li><code>clear</code> : 画面クリア</li>
+        <li><code>edit &lt;file&gt;</code> : テキストエディタ起動</li>
+        <li><code>history</code> : コマンド履歴表示</li>
+        <li><code>export</code> : ファイルシステムをJSONでエクスポート</li>
+        <li><code>import</code> : JSONからファイルシステムをインポート</li>
+        <li><code>reset</code> : ファイルシステムをリセット</li>
       </ul>
-      <button id="closeOverlay">閉じる</button>
+      <div style="text-align: center;">
+        <button id="closeOverlay">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="editorOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="overlay-content">
+      <h2 id="editTitle">📝 ファイル編集</h2>
+      <textarea id="editorText" aria-label="ファイル編集エリア" placeholder="ファイルの内容を入力..."></textarea>
+      <div class="btnGroup">
+        <button id="btnSave">💾 保存</button>
+        <button id="btnCancel">❌ キャンセル</button>
+      </div>
     </div>
   </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', ()=>{
-  const terminal=document.getElementById('terminal');
-  const input=document.getElementById('input');
-  const helpBtn=document.getElementById('helpBtn');
-  const overlay=document.getElementById('cmdOverlay');
-  const closeBtn=document.getElementById('closeOverlay');
+document.addEventListener("DOMContentLoaded", () => {
+  const terminal = document.getElementById("terminal");
+  const input = document.getElementById("input");
+  const promptLabel = document.getElementById("promptLabel");
+  const suggestions = document.getElementById("suggestions");
+  const helpBtn = document.getElementById("helpBtn");
+  const themeBtn = document.getElementById("themeBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const overlay = document.getElementById("cmdOverlay");
+  const closeBtn = document.getElementById("closeOverlay");
+  const editorOverlay = document.getElementById("editorOverlay");
+  const editorText = document.getElementById("editorText");
+  const btnSave = document.getElementById("btnSave");
+  const btnCancel = document.getElementById("btnCancel");
+  const statusText = document.getElementById("statusText");
+  const fileCount = document.getElementById("fileCount");
+  const lastCommand = document.getElementById("lastCommand");
 
-  // === VFS初期化 ===
-  let vfs = JSON.parse(localStorage.getItem("VFS")) || {type:"dir", children:{}}; 
-  let cwd = []; // path配列
-  function saveVFS(){ localStorage.setItem("VFS",JSON.stringify(vfs)); }
-  function getNode(path){
-    let node=vfs;
-    for(let p of path){
-      if(node.type==="dir" && node.children[p]) node=node.children[p];
-      else return null;
+  // テーマ設定
+  const themes = {
+    default: {
+      bg: 'linear-gradient(135deg, #1a1a2e, #16213e)',
+      text: '#00ff88',
+      accent: '#ff79c6'
+    },
+    matrix: {
+      bg: 'linear-gradient(135deg, #000000, #0d1b0d)',
+      text: '#00ff00',
+      accent: '#ffffff'
+    },
+    cyberpunk: {
+      bg: 'linear-gradient(135deg, #0f0f2e, #2e0f2e)',
+      text: '#ff00ff',
+      accent: '#00ffff'
+    }
+  };
+
+  let currentTheme = 0;
+  const themeKeys = Object.keys(themes);
+
+  function applyTheme() {
+    const theme = themes[themeKeys[currentTheme]];
+    document.body.style.background = theme.bg;
+    document.body.style.color = theme.text;
+    document.documentElement.style.setProperty('--accent-color', theme.accent);
+  }
+
+  // VFS構造体＆初期化
+  let vfs = JSON.parse(localStorage.getItem("VFS")) || {
+    type: "dir",
+    children: {
+      "welcome.txt": {
+        type: "file",
+        content: "Enhanced Web CLI へようこそ！\n\nこのターミナルでは以下のことができます:\n- ファイル・ディレクトリ操作\n- テキストエディタ\n- 検索・コピー・移動\n- データのエクスポート・インポート\n\n'help' コマンドで詳細を確認してください。",
+        ctime: new Date().toISOString(),
+        mtime: new Date().toISOString()
+      },
+      "docs": {
+        type: "dir",
+        children: {
+          "readme.md": {
+            type: "file",
+            content: "# Enhanced Web CLI\n\n高機能なWebベースのターミナルエミュレータです。\n\n## 特徴\n- 直感的なUI\n- 豊富なコマンド\n- ファイル管理\n- データ永続化",
+            ctime: new Date().toISOString(),
+            mtime: new Date().toISOString()
+          }
+        }
+      }
+    }
+  };
+  
+  let cwd = []; // カレントディレクトリ パス配列
+  const history = JSON.parse(localStorage.getItem("CLI_HISTORY")) || [];
+  let historyIndex = history.length;
+  let completionList = [];
+  let completionIndex = -1;
+  let selectedSuggestion = -1;
+
+  function saveVFS() {
+    localStorage.setItem("VFS", JSON.stringify(vfs));
+    updateFileCount();
+  }
+
+  function saveHistory() {
+    localStorage.setItem("CLI_HISTORY", JSON.stringify(history.slice(-50))); // 最新50件のみ保存
+  }
+
+  function getNode(path) {
+    let node = vfs;
+    for (let p of path) {
+      if (node.type === "dir" && node.children[p]) {
+        node = node.children[p];
+      } else {
+        return null;
+      }
     }
     return node;
   }
-  function ensureDir(node){ return node && node.type==="dir"; }
 
-  // === 出力関数 ===
-  function print(text, cls="", highlight=false){
-    const line=document.createElement("div");
-    line.className="line";
-    const span=document.createElement("span");
-    span.className="output"; 
-    if(cls) span.classList.add(cls);
-    span.textContent=text;
-    if(highlight){
-      span.classList.add("help-highlight");
-    }
-    const cbtn=document.createElement("span");
-    cbtn.textContent="📋"; cbtn.className="copyBtn";
-    cbtn.onclick=()=>navigator.clipboard.writeText(text);
-    line.appendChild(span);
-    if(text) line.appendChild(cbtn);
-    terminal.appendChild(line);
-    terminal.scrollTop=terminal.scrollHeight;
+  function ensureDir(node) {
+    return node && node.type === "dir";
   }
 
-  function resolvePath(pathStr){
-    if(!pathStr) return [...cwd];
-    let parts=pathStr.split("/");
-    let res=(pathStr.startsWith("/"))? []:[...cwd];
-    for(let p of parts){
-      if(p===""||p===".") continue;
-      if(p==="..") res.pop(); else res.push(p);
+  function getFileIcon(file) {
+    if (file.type === "dir") return "📁";
+    const name = file.name || "";
+    if (name.endsWith(".txt")) return "📄";
+    if (name.endsWith(".md")) return "📝";
+    if (name.endsWith(".js")) return "📜";
+    if (name.endsWith(".html")) return "🌐";
+    if (name.endsWith(".css")) return "🎨";
+    if (name.endsWith(".json")) return "🔧";
+    return "📄";
+  }
+
+  function fmtDate(d) {
+    if (!(d instanceof Date)) d = new Date(d);
+    return d.toLocaleString('ja-JP');
+  }
+
+  function fmtSize(n) {
+    if (n < 1024) return n + "B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + "KB";
+    if (n < 1024 * 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + "MB";
+    return (n / 1024 / 1024 / 1024).toFixed(1) + "GB";
+  }
+
+  function fileSize(file) {
+    if (typeof file.content === "string") {
+      return new TextEncoder().encode(file.content).length;
+    }
+    return 0;
+  }
+
+  function updatePrompt() {
+    const pathStr = "/" + (cwd.length === 0 ? "" : cwd.join("/"));
+    promptLabel.textContent = `user@webcli:${pathStr} $`;
+  }
+
+  function updateFileCount() {
+    let count = 0;
+    function countFiles(node) {
+      if (node.type === "file") count++;
+      if (node.type === "dir") {
+        Object.values(node.children).forEach(countFiles);
+      }
+    }
+    countFiles(vfs);
+    fileCount.textContent = count;
+  }
+
+  function updateStatus(message) {
+    statusText.textContent = message;
+    setTimeout(() => statusText.textContent = "Ready", 3000);
+  }
+
+  // 出力関数（改良版）
+  function print(text, cls = "", highlight = false) {
+    const line = document.createElement("div");
+    line.className = "line";
+    
+    const span = document.createElement("span");
+    span.className = "output";
+    if (cls) span.classList.add(cls);
+    if (highlight) span.classList.add("help-highlight");
+    
+    // 改行やタブを適切に処理
+    span.innerHTML = text.replace(/\n/g, '<br>').replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
+    
+    const copyBtn = document.createElement("span");
+    copyBtn.innerHTML = "📋";
+    copyBtn.className = "copyBtn";
+    copyBtn.title = "コピー";
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(text);
+      copyBtn.innerHTML = "✅";
+      setTimeout(() => copyBtn.innerHTML = "📋", 1000);
+    };
+    
+    line.appendChild(span);
+    if (text.trim()) line.appendChild(copyBtn);
+    
+    terminal.appendChild(line);
+    terminal.scrollTop = terminal.scrollHeight;
+  }
+
+  // パス解決（改良版）
+  function resolvePath(pathStr) {
+    if (!pathStr) return [...cwd];
+    let parts = pathStr.split("/").filter(p => p !== "");
+    let res = pathStr.startsWith("/") ? [] : [...cwd];
+    
+    for (let p of parts) {
+      if (p === ".") continue;
+      else if (p === "..") res.pop();
+      else res.push(p);
     }
     return res;
   }
 
-  function showTree(node,prefix=""){
-    let out="";
-    if(node.type==="dir"){
-      for(let k in node.children){
-        out+=prefix+"- "+k+(node.children[k].type==="dir"?"/":"")+"\n";
-        if(node.children[k].type==="dir")
-          out+=showTree(node.children[k],prefix+"   ");
-      }
+  // ツリー表示（改良版）
+  function showTree(node, prefix = "", name = "", path = []) {
+    let out = "";
+    if (name) {
+      const icon = getFileIcon(node);
+      out += prefix + "├── " + icon + " " + name + (node.type === "dir" ? "/" : "") + "\n";
+    }
+    
+    if (node.type === "dir") {
+      const entries = Object.entries(node.children);
+      entries.forEach(([key, child], index) => {
+        const isLast = index === entries.length - 1;
+        const newPrefix = prefix + (name ? (isLast ? "    " : "│   ") : "");
+        out += showTree(child, newPrefix, key, [...path, key]);
+      });
     }
     return out;
   }
 
-  // === HELP出力 ===
-  const helpCommands = [
-    ["help","コマンド一覧と説明を表示"],
-    ["pwd","現在のディレクトリを表示"],
-    ["ls","現在のディレクトリ内の一覧を表示"],
-    ["cd <dir>","ディレクトリを移動"],
-    ["mkdir <dir>","新しいディレクトリを作成"],
-    ["touch <file>","空のファイルを作成"],
-    ["cat <file>","ファイルの内容を表示"],
-    ["write <file> text","ファイルにテキストを書き込み（上書き）"],
-    ["append <file> text","ファイルにテキストを追記"],
-    ["rm <file/dir>","ファイルまたはディレクトリを削除"],
-    ["tree","仮想ファイルツリーを表示"],
-    ["clear","画面をクリアする"]
-  ];
-
-  function showHelp(){
-    print("利用可能なコマンド一覧 (説明付き):");
-    helpCommands.forEach(([cmd,desc])=>{
-      print(cmd+" : "+desc,"","highlight");
+  // ls -l 詳細表示用関数（改良版）
+  function listDetailedDir(node) {
+    let lines = [];
+    const entries = Object.entries(node.children).sort(([a, nodeA], [b, nodeB]) => {
+      if (nodeA.type !== nodeB.type) {
+        return nodeA.type === "dir" ? -1 : 1; // ディレクトリを先に
+      }
+      return a.localeCompare(b);
     });
+    
+    for (let [key, item] of entries) {
+      const icon = getFileIcon(item);
+      const typeChar = item.type === "dir" ? "d" : "-";
+      const size = item.type === "file" ? fmtSize(fileSize(item)) : "-";
+      const ctime = item.ctime ? fmtDate(item.ctime) : "-";
+      const mtime = item.mtime ? fmtDate(item.mtime) : "-";
+      
+      lines.push(`${typeChar}rwxrwxrwx ${size.toString().padStart(8)} ${ctime} ${key} ${icon}`);
+    }
+    return lines.join("\n");
   }
 
-  // === コマンド解釈 ===
-  function processCommand(line){
-    if(!line.trim()) return;
-    print(">"+line,"info");
-    const args=line.trim().split(/\s+/);
-    const cmd=args[0];
+  // ファイル検索
+  function findFiles(searchTerm, node = vfs, path = []) {
+    let results = [];
+    if (node.type === "dir") {
+      for (let [name, child] of Object.entries(node.children)) {
+        const fullPath = "/" + [...path, name].join("/");
+        if (name.toLowerCase().includes(searchTerm.toLowerCase())) {
+          results.push({ path: fullPath, type: child.type, node: child });
+        }
+        if (child.type === "dir") {
+          results.push(...findFiles(searchTerm, child, [...path, name]));
+        }
+      }
+    }
+    return results;
+  }
 
-    switch(cmd){
-      case "help": showHelp(); break;
-      case "pwd": print("/"+cwd.join("/")); break;
-      case "ls":{
-        const node=getNode(cwd);
-        if(!ensureDir(node)) return print("不正なディレクトリ","error");
-        print(Object.keys(node.children).map(k=> node.children[k].type==="dir"?k+"/":k).join("  "));
-        break;
+  // ディレクトリコピー（再帰）
+  function copyDir(sourceNode) {
+    if (sourceNode.type === "file") {
+      return {
+        type: "file",
+        content: sourceNode.content,
+        ctime: new Date().toISOString(),
+        mtime: sourceNode.mtime
+      };
+    } else {
+      const newDir = { type: "dir", children: {} };
+      for (let [name, child] of Object.entries(sourceNode.children)) {
+        newDir.children[name] = copyDir(child);
       }
-      case "cd":{
-        const path=resolvePath(args[1]);
-        const node=getNode(path);
-        if(ensureDir(node)){ cwd=path; print("現在: /"+cwd.join("/")); }
-        else print("cd: ディレクトリが存在しません","error");
-        break;
-      }
-      case "mkdir":{
-        if(!args) return print("mkdir: 名前が必要","error");
-        const node=getNode(cwd);
-        if(node.children[args]) return print("mkdir: 既に存在","error");
-        node.children[args]={type:"dir",children:{}}; saveVFS();
-        break;
-      }
-      case "touch":{
-        if(!args) return print("touch: ファイル名が必要","error");
-        const node=getNode(cwd);
-        node.children[args]={type:"file",content:""}; saveVFS();
-        break;
-      }
-      case "cat":{
-        if(!args) return print("cat: ファイル名が必要","error");
-        const f=getNode(cwd).children[args];
-        if(f && f.type==="file") print(f.content);
-        else print("cat: ファイルが存在しません","error");
-        break;
-      }
-      case "write":{
-        if(args.length<3) return print("write: ファイルと内容を指定","error");
-        const node=getNode(cwd);
-        if(!node.children[args[1]]) node.children[args]={type:"file",content:""};
-        if(node.children[args].type!=="file") return print("write: ディレクトリです","error");
-        node.children[args].content=args.slice(2).join(" "); saveVFS();
-        break;
-      }
-      case "append":{
-        if(args.length<3) return print("append: ファイルと内容を指定","error");
-        const node=getNode(cwd);
-        if(!node.children[args]) node.children[args]={type:"file",content:""};
-        if(node.children[args].type!=="file") return print("append: ディレクトリです","error");
-        node.children[args].content+=(node.children[args].content?"\n":"")+args.slice(2).join(" "); saveVFS();
-        break;
-      }
-      case "rm":{
-        if(!args) return print("rm: 対象指定必要","error");
-        const node=getNode(cwd);
-        if(node.children[args]) { delete node.children[args]; saveVFS();}
-        else print("rm: 見つからない","error");
-        break;
-      }
-      case "tree": print("/\n"+showTree(vfs," ")); break;
-      case "clear": terminal.innerHTML=""; break;
-      default: print("未知のコマンド: "+cmd,"error");
+      return newDir;
     }
   }
 
-  // === 入力処理 ===
-  input.addEventListener("keydown", e=>{
-    if(e.key==="Enter"){ processCommand(input.value); input.value=""; e.preventDefault(); }
+  // コマンド一覧
+  const commands = {
+    help: "コマンド一覧と説明を表示",
+    pwd: "現在のディレクトリ表示", 
+    ls: "ディレクトリ一覧。-lで詳細表示",
+    cd: "ディレクトリ移動",
+    mkdir: "ディレクトリ作成",
+    touch: "空ファイル作成",
+    cat: "ファイル内容表示",
+    write: "ファイルに上書き",
+    append: "ファイルに追記",
+    rm: "ファイル/ディレクトリ削除",
+    mv: "ファイル/ディレクトリ移動・リネーム",
+    cp: "ファイル/ディレクトリコピー",
+    find: "ファイル/ディレクトリ検索",
+    tree: "ファイルツリー表示",
+    clear: "画面クリア",
+    edit: "テキストエディタ起動",
+    history: "コマンド履歴表示",
+    export: "ファイルシステムをJSONでエクスポート",
+    import: "JSONからファイルシステムをインポート",
+    reset: "ファイルシステムをリセット"
+  };
+
+  // HELP表示（改良版）
+  function showHelp() {
+    print("🚀 Enhanced Web CLI - コマンド一覧", "info");
+    print("=" .repeat(50), "info");
+    
+    Object.entries(commands).forEach(([cmd, desc]) => {
+      print(`${cmd.padEnd(12)} : ${desc}`, "", true);
+    });
+    
+    print("\n💡 ヒント:", "info");
+    print("- Tab キーで補完", "success");
+    print("- ↑↓ キーで履歴", "success");
+    print("- Ctrl+L で画面クリア", "success");
+    print("- ファイルをダブルクリックで編集（予定）", "success");
+  }
+
+  // ファイル作成/編集時の日付付与
+  function setFileDates(file, isNew) {
+    const now = new Date().toISOString();
+    if (isNew) {
+      file.ctime = now;
+      file.mtime = now;
+    } else {
+      file.mtime = now;
+    }
+  }
+
+  // コマンド処理（大幅改良版）
+  function processCommand(line) {
+    if (!line.trim()) return;
+    
+    print(`> ${line}`, "info");
+    
+    history.push(line);
+    historyIndex = history.length;
+    saveHistory();
+    lastCommand.textContent = line.split(' ')[0];
+
+    const args = line.trim().split(/\s+/);
+    const cmd = args[0];
+    const rest = args.slice(1);
+
+    try {
+      switch (cmd) {
+        case "help":
+          showHelp();
+          updateStatus("ヘルプを表示しました");
+          break;
+
+        case "pwd":
+          print("/" + cwd.join("/"));
+          updateStatus("カレントディレクトリを表示");
+          break;
+
+        case "ls": {
+          const node = getNode(cwd);
+          if (!ensureDir(node)) {
+            print("エラー: 不正なディレクトリ", "error");
+            break;
+          }
+          
+          const isDetailed = rest.includes("-l");
+          const entries = Object.entries(node.children).sort(([a, nodeA], [b, nodeB]) => {
+            if (nodeA.type !== nodeB.type) {
+              return nodeA.type === "dir" ? -1 : 1;
+            }
+            return a.localeCompare(b);
+          });
+
+          if (isDetailed) {
+            print(listDetailedDir(node));
+          } else {
+            const formatted = entries.map(([name, child]) => {
+              const icon = getFileIcon(child);
+              return icon + " " + name + (child.type === "dir" ? "/" : "");
+            }).join("  ");
+            print(formatted || "（空のディレクトリ）");
+          }
+          updateStatus(`${entries.length} 個のアイテムを表示`);
+          break;
+        }
+
+        case "cd": {
+          if (rest.length === 0) {
+            cwd = [];
+            updatePrompt();
+            print("ホームディレクトリに移動しました");
+            break;
+          }
+          
+          const path = resolvePath(rest[0]);
+          const node = getNode(path);
+          if (ensureDir(node)) {
+            cwd = path;
+            updatePrompt();
+            print(`移動しました: /${cwd.join("/")}`);
+            updateStatus(`${rest[0]} に移動`);
+          } else {
+            print(`エラー: ディレクトリ '${rest[0]}' が存在しません`, "error");
+          }
+          break;
+        }
+
+        case "mkdir": {
+          if (rest.length === 0) {
+            print("エラー: ディレクトリ名が必要です", "error");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          if (!ensureDir(node)) {
+            print("エラー: カレントディレクトリが無効です", "error");
+            break;
+          }
+          
+          const dirName = rest[0];
+          if (node.children[dirName]) {
+            print(`エラー: '${dirName}' は既に存在します`, "error");
+            break;
+          }
+          
+          node.children[dirName] = { 
+            type: "dir", 
+            children: {},
+            ctime: new Date().toISOString(),
+            mtime: new Date().toISOString()
+          };
+          saveVFS();
+          print(`✅ ディレクトリ '${dirName}' を作成しました`, "success");
+          updateStatus("ディレクトリ作成完了");
+          break;
+        }
+
+        case "touch": {
+          if (rest.length === 0) {
+            print("エラー: ファイル名が必要です", "error");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const fileName = rest[0];
+          
+          if (node.children[fileName]) {
+            if (node.children[fileName].type === "file") {
+              setFileDates(node.children[fileName], false);
+              print(`📝 ファイル '${fileName}' のタイムスタンプを更新しました`, "success");
+            } else {
+              print(`エラー: '${fileName}' はディレクトリです`, "error");
+            }
+            break;
+          }
+          
+          const newFile = { 
+            type: "file", 
+            content: "" 
+          };
+          setFileDates(newFile, true);
+          node.children[fileName] = newFile;
+          saveVFS();
+          print(`✅ ファイル '${fileName}' を作成しました`, "success");
+          updateStatus("ファイル作成完了");
+          break;
+        }
+
+        case "cat": {
+          if (rest.length === 0) {
+            print("エラー: ファイル名が必要です", "error");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const file = node.children[rest[0]];
+          
+          if (file && file.type === "file") {
+            if (file.content.trim()) {
+              print("📄 " + file.content);
+            } else {
+              print("（空のファイル）", "warning");
+            }
+            updateStatus("ファイル内容を表示");
+          } else {
+            print(`エラー: ファイル '${rest[0]}' が存在しません`, "error");
+          }
+          break;
+        }
+
+        case "write": {
+          if (rest.length < 2) {
+            print("エラー: ファイル名と内容が必要です", "error");
+            print("使用法: write <ファイル名> <内容>", "info");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const fileName = rest[0];
+          const content = rest.slice(1).join(" ");
+          
+          let targetFile = node.children[fileName];
+          if (!targetFile) {
+            targetFile = { type: "file", content: "" };
+            setFileDates(targetFile, true);
+            node.children[fileName] = targetFile;
+          }
+          
+          if (targetFile.type !== "file") {
+            print(`エラー: '${fileName}' はディレクトリです`, "error");
+            break;
+          }
+          
+          targetFile.content = content;
+          setFileDates(targetFile, false);
+          saveVFS();
+          print(`✅ ファイル '${fileName}' に書き込みました`, "success");
+          updateStatus("ファイル書き込み完了");
+          break;
+        }
+
+        case "append": {
+          if (rest.length < 2) {
+            print("エラー: ファイル名と内容が必要です", "error");
+            print("使用法: append <ファイル名> <内容>", "info");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const fileName = rest[0];
+          const content = rest.slice(1).join(" ");
+          
+          let targetFile = node.children[fileName];
+          if (!targetFile) {
+            targetFile = { type: "file", content: "" };
+            setFileDates(targetFile, true);
+            node.children[fileName] = targetFile;
+          }
+          
+          if (targetFile.type !== "file") {
+            print(`エラー: '${fileName}' はディレクトリです`, "error");
+            break;
+          }
+          
+          targetFile.content += (targetFile.content ? "\n" : "") + content;
+          setFileDates(targetFile, false);
+          saveVFS();
+          print(`✅ ファイル '${fileName}' に追記しました`, "success");
+          updateStatus("ファイル追記完了");
+          break;
+        }
+
+        case "rm": {
+          if (rest.length === 0) {
+            print("エラー: 削除対象を指定してください", "error");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const target = rest[0];
+          
+          if (!node.children[target]) {
+            print(`エラー: '${target}' が見つかりません`, "error");
+            break;
+          }
+          
+          if (node.children[target].type === "dir") {
+            const dirNode = node.children[target];
+            const itemCount = Object.keys(dirNode.children).length;
+            if (itemCount > 0) {
+              print(`⚠️ ディレクトリ '${target}' には ${itemCount} 個のアイテムがあります`, "warning");
+              print("本当に削除しますか？ [Y/N]");
+              
+              // 簡易的な確認（実際のプロンプト）
+              const confirmed = confirm(`ディレクトリ '${target}' とその中身を削除しますか？`);
+              if (!confirmed) {
+                print("削除をキャンセルしました");
+                break;
+              }
+            }
+          }
+          
+          delete node.children[target];
+          saveVFS();
+          print(`✅ '${target}' を削除しました`, "success");
+          updateStatus("削除完了");
+          break;
+        }
+
+        case "mv": {
+          if (rest.length < 2) {
+            print("エラー: 移動元と移動先が必要です", "error");
+            print("使用法: mv <移動元> <移動先>", "info");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const from = rest[0];
+          const to = rest[1];
+          
+          if (!node.children[from]) {
+            print(`エラー: '${from}' が見つかりません`, "error");
+            break;
+          }
+          
+          if (node.children[to]) {
+            print(`エラー: '${to}' は既に存在します`, "error");
+            break;
+          }
+          
+          node.children[to] = node.children[from];
+          delete node.children[from];
+          saveVFS();
+          print(`✅ '${from}' を '${to}' に移動しました`, "success");
+          updateStatus("移動完了");
+          break;
+        }
+
+        case "cp": {
+          if (rest.length < 2) {
+            print("エラー: コピー元とコピー先が必要です", "error");
+            print("使用法: cp <コピー元> <コピー先>", "info");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const from = rest[0];
+          const to = rest[1];
+          
+          if (!node.children[from]) {
+            print(`エラー: '${from}' が見つかりません`, "error");
+            break;
+          }
+          
+          if (node.children[to]) {
+            print(`エラー: '${to}' は既に存在します`, "error");
+            break;
+          }
+          
+          node.children[to] = copyDir(node.children[from]);
+          saveVFS();
+          print(`✅ '${from}' を '${to}' にコピーしました`, "success");
+          updateStatus("コピー完了");
+          break;
+        }
+
+        case "find": {
+          if (rest.length === 0) {
+            print("エラー: 検索語が必要です", "error");
+            print("使用法: find <検索語>", "info");
+            break;
+          }
+          
+          const searchTerm = rest[0];
+          const results = findFiles(searchTerm);
+          
+          if (results.length === 0) {
+            print(`'${searchTerm}' にマッチするアイテムは見つかりませんでした`, "warning");
+          } else {
+            print(`🔍 '${searchTerm}' の検索結果 (${results.length}件):`, "info");
+            results.forEach(result => {
+              const icon = getFileIcon(result.node);
+              print(`${icon} ${result.path} (${result.type})`);
+            });
+          }
+          updateStatus(`検索完了: ${results.length}件`);
+          break;
+        }
+
+        case "tree": {
+          const path = rest[0] ? resolvePath(rest[0]) : cwd;
+          const node = getNode(path);
+          
+          if (!node) {
+            print("エラー: パスが見つかりません", "error");
+            break;
+          }
+          
+          const pathStr = "/" + path.join("/");
+          print(`📁 ${pathStr}`, "info");
+          const tree = showTree(node);
+          if (tree) {
+            print(tree);
+          } else {
+            print("└── （空）");
+          }
+          updateStatus("ツリー表示完了");
+          break;
+        }
+
+        case "clear":
+          terminal.innerHTML = "";
+          updateStatus("画面をクリア");
+          break;
+
+        case "edit": {
+          if (rest.length === 0) {
+            print("エラー: ファイル名を指定してください", "error");
+            break;
+          }
+          
+          const node = getNode(cwd);
+          const fileName = rest[0];
+          let file = node.children[fileName];
+          
+          if (!file) {
+            // 新規ファイル作成の確認
+            const create = confirm(`ファイル '${fileName}' は存在しません。新しく作成しますか？`);
+            if (!create) {
+              print("編集をキャンセルしました");
+              break;
+            }
+            file = { type: "file", content: "" };
+            setFileDates(file, true);
+            node.children[fileName] = file;
+          }
+          
+          if (file.type !== "file") {
+            print(`エラー: '${fileName}' はディレクトリです`, "error");
+            break;
+          }
+          
+          openEditor(fileName, file.content);
+          break;
+        }
+
+        case "history": {
+          if (history.length === 0) {
+            print("履歴がありません", "warning");
+          } else {
+            print("📚 コマンド履歴:", "info");
+            history.slice(-20).forEach((cmd, i) => {
+              const num = (history.length - 20 + i + 1).toString().padStart(3);
+              print(`${num}: ${cmd}`);
+            });
+          }
+          updateStatus(`履歴表示: ${history.length}件`);
+          break;
+        }
+
+        case "export": {
+          const data = JSON.stringify(vfs, null, 2);
+          const blob = new Blob([data], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "filesystem_export.json";
+          a.click();
+          URL.revokeObjectURL(url);
+          print("✅ ファイルシステムをエクスポートしました", "success");
+          updateStatus("エクスポート完了");
+          break;
+        }
+
+        case "import": {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".json";
+          input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                try {
+                  const data = JSON.parse(e.target.result);
+                  if (data.type === "dir" && data.children) {
+                    vfs = data;
+                    cwd = [];
+                    updatePrompt();
+                    saveVFS();
+                    print("✅ ファイルシステムをインポートしました", "success");
+                    updateStatus("インポート完了");
+                  } else {
+                    print("エラー: 無効なファイル形式です", "error");
+                  }
+                } catch (err) {
+                  print("エラー: JSONの解析に失敗しました", "error");
+                }
+              };
+              reader.readAsText(file);
+            }
+          };
+          input.click();
+          break;
+        }
+
+        case "reset": {
+          const confirmed = confirm("ファイルシステムを完全にリセットしますか？この操作は元に戻せません。");
+          if (confirmed) {
+            vfs = { type: "dir", children: {} };
+            cwd = [];
+            updatePrompt();
+            saveVFS();
+            localStorage.removeItem("CLI_HISTORY");
+            terminal.innerHTML = "";
+            print("🔄 ファイルシステムをリセットしました", "success");
+            print("=== Enhanced Web CLI - 新しいセッション ===", "info");
+            updateStatus("リセット完了");
+          }
+          break;
+        }
+
+        default:
+          print(`未知のコマンド: ${cmd}`, "error");
+          print("'help' でコマンド一覧を確認してください", "info");
+      }
+    } catch (error) {
+      print(`エラーが発生しました: ${error.message}`, "error");
+      console.error("Command execution error:", error);
+    }
+  }
+
+  // エディタオーバーレイ管理
+  let currentEditFile = null;
+  
+  function openEditor(filename, content) {
+    currentEditFile = filename;
+    editorText.value = content;
+    editorOverlay.classList.remove("hidden");
+    editorText.focus();
+    updateStatus(`編集中: ${filename}`);
+  }
+  
+  function closeEditor() {
+    currentEditFile = null;
+    editorOverlay.classList.add("hidden");
+    input.focus();
+    updateStatus("編集終了");
+  }
+
+  // 補完機能（改良版）
+  function getPossibleCompletions(text) {
+    const parts = text.trim().split(/\s+/);
+    const incomplete = parts[parts.length - 1];
+    
+    if (parts.length === 1) {
+      // コマンド補完
+      return Object.keys(commands).filter(c => c.startsWith(incomplete));
+    } else {
+      // ファイル・ディレクトリ補完
+      const node = getNode(cwd);
+      if (!node) return [];
+      
+      return Object.keys(node.children)
+        .filter(f => f.startsWith(incomplete))
+        .sort((a, b) => {
+          // ディレクトリを先に
+          const nodeA = node.children[a];
+          const nodeB = node.children[b];
+          if (nodeA.type !== nodeB.type) {
+            return nodeA.type === "dir" ? -1 : 1;
+          }
+          return a.localeCompare(b);
+        });
+    }
+  }
+
+  function showSuggestions(list) {
+    suggestions.innerHTML = "";
+    if (list.length === 0) {
+      suggestions.style.display = "none";
+      return;
+    }
+
+    list.slice(0, 8).forEach((item, index) => {
+      const div = document.createElement("div");
+      div.className = "suggestion";
+      if (index === selectedSuggestion) {
+        div.classList.add("selected");
+      }
+      
+      const node = getNode(cwd);
+      const icon = node && node.children[item] ? getFileIcon(node.children[item]) : "📝";
+      div.innerHTML = `${icon} ${item}`;
+      
+      div.onclick = () => {
+        applySuggestion(item);
+        suggestions.style.display = "none";
+      };
+      suggestions.appendChild(div);
+    });
+    
+    suggestions.style.display = "block";
+  }
+
+  function applySuggestion(suggestion) {
+    const parts = input.value.trim().split(/\s+/);
+    parts[parts.length - 1] = suggestion;
+    input.value = parts.join(" ") + " ";
+    input.focus();
+    completionList = [];
+    selectedSuggestion = -1;
+  }
+
+  // イベントリスナー
+  input.addEventListener("input", () => {
+    if (input.value.trim()) {
+      completionList = getPossibleCompletions(input.value);
+      showSuggestions(completionList);
+      selectedSuggestion = -1;
+    } else {
+      suggestions.style.display = "none";
+      completionList = [];
+      selectedSuggestion = -1;
+    }
   });
 
-  helpBtn.onclick=()=>overlay.classList.remove("hidden");
-  closeBtn.onclick=()=>overlay.classList.add("hidden");
-  overlay.addEventListener('click', e=>{ if(e.target===overlay) overlay.classList.add("hidden"); });
+  input.addEventListener("keydown", (e) => {
+    const suggestionsVisible = suggestions.style.display === "block";
+    
+    if (e.key === "Enter") {
+      suggestions.style.display = "none";
+      if (!editorOverlay.classList.contains("hidden")) return;
+      
+      processCommand(input.value);
+      input.value = "";
+      completionList = [];
+      selectedSuggestion = -1;
+      e.preventDefault();
+    } 
+    else if (e.key === "Tab") {
+      e.preventDefault();
+      if (completionList.length === 0) {
+        completionList = getPossibleCompletions(input.value);
+        selectedSuggestion = -1;
+      }
+      if (completionList.length > 0) {
+        selectedSuggestion = (selectedSuggestion + 1) % completionList.length;
+        applySuggestion(completionList[selectedSuggestion]);
+      }
+    }
+    else if (e.key === "ArrowUp") {
+      if (suggestionsVisible && completionList.length > 0) {
+        selectedSuggestion = selectedSuggestion <= 0 ? completionList.length - 1 : selectedSuggestion - 1;
+        showSuggestions(completionList);
+        e.preventDefault();
+      } else if (historyIndex > 0) {
+        historyIndex--;
+        input.value = history[historyIndex] || "";
+        e.preventDefault();
+      }
+    }
+    else if (e.key === "ArrowDown") {
+      if (suggestionsVisible && completionList.length > 0) {
+        selectedSuggestion = (selectedSuggestion + 1) % completionList.length;
+        showSuggestions(completionList);
+        e.preventDefault();
+      } else if (historyIndex < history.length - 1) {
+        historyIndex++;
+        input.value = history[historyIndex] || "";
+        e.preventDefault();
+      } else {
+        historyIndex = history.length;
+        input.value = "";
+        e.preventDefault();
+      }
+    }
+    else if (e.key === "Escape") {
+      suggestions.style.display = "none";
+      selectedSuggestion = -1;
+    }
+    else if (e.ctrlKey && e.key.toLowerCase() === "l") {
+      terminal.innerHTML = "";
+      e.preventDefault();
+    }
+  });
 
-  print("=== Web CLI VFS版へようこそ ===");
-  print("help でコマンド一覧(説明付き)を表示します");
+  // エディタイベント
+  btnSave.onclick = () => {
+    if (!currentEditFile) return;
+    const node = getNode(cwd);
+    let file = node.children[currentEditFile];
+    if (file && file.type === "file") {
+      file.content = editorText.value;
+      setFileDates(file, false);
+      saveVFS();
+      closeEditor();
+      print(`✅ '${currentEditFile}' を保存しました`, "success");
+    }
+  };
+
+  btnCancel.onclick = closeEditor;
+
+  // ボタンイベント
+  helpBtn.onclick = () => overlay.classList.remove("hidden");
+  closeBtn.onclick = () => overlay.classList.add("hidden");
+  clearBtn.onclick = () => {
+    terminal.innerHTML = "";
+    updateStatus("画面をクリア");
+  };
+
+  themeBtn.onclick = () => {
+    currentTheme = (currentTheme + 1) % themeKeys.length;
+    applyTheme();
+    updateStatus(`テーマ変更: ${themeKeys[currentTheme]}`);
+  };
+
+  // オーバーレイクリックで閉じる
+  [overlay, editorOverlay].forEach(ol => {
+    ol.addEventListener("click", (e) => {
+      if (e.target === ol) ol.classList.add("hidden");
+    });
+  });
+
+  // 初期化
+  updatePrompt();
+  updateFileCount();
+  applyTheme();
+  
+  print("🚀 Enhanced Web CLI v2.0 へようこそ！", "success");
+  print("多くの改良とバグ修正が施されました", "info");
+  print("'help' でコマンド一覧を確認できます", "info");
+  print("サンプルファイルが用意されています: cat welcome.txt", "warning");
+  
+  // フォーカスを入力欄に
+  setTimeout(() => input.focus(), 100);
 });
 </script>
 </body>
