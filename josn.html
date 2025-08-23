@@ -199,7 +199,7 @@
     box-shadow: 0 2px 5px rgba(0,0,0,0.3);
     z-index: 10;
   }
-  .node-controls button {
+  .node-controls button, .node-controls select {
     background: #3b3e44;
     border: none;
     color: white;
@@ -207,7 +207,7 @@
     border-radius: 3px;
     cursor: pointer;
   }
-  .node-controls button:hover {
+  .node-controls button:hover, .node-controls select:hover {
     background: #4f545c;
   }
   .node-controls.active {
@@ -400,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const isArray = Array.isArray(data);
         const entries = Object.entries(data);
 
-        entries.forEach(([key, value], index) => {
+        entries.forEach(([key, value]) => {
             const path = [...parentPath, key];
             parentEl.appendChild(createNodeElement(key, value, path, isArray));
         });
@@ -473,18 +473,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // インライン編集
         node.addEventListener('dblclick', (e) => {
             const target = e.target;
-            // キー、文字列、数値、真偽値、nullのいずれかをクリックした場合に編集
             if (target.classList.contains('key') || target.classList.contains('string') || target.classList.contains('number') || target.classList.contains('boolean') || target.classList.contains('null')) {
                 e.stopPropagation();
                 
-                // 元のノード情報を取得
                 const path = JSON.parse(node.dataset.path);
                 const parent = getNode(path.slice(0, -1));
                 const key = path.at(-1);
                 const isKey = target.classList.contains('key');
                 const originalValue = isKey ? key : parent[key];
 
-                // 入力フィールドの作成
                 const input = document.createElement('input');
                 input.value = isKey ? originalValue : originalValue;
                 input.style.width = `${target.offsetWidth}px`;
@@ -498,7 +495,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 node.insertBefore(input, target.nextSibling);
                 input.focus();
 
-                // 編集完了時の処理
                 const finishEdit = () => {
                     let newValue = input.value;
                     let parsedValue = newValue;
@@ -506,12 +502,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (!isKey) {
                         try {
                             parsedValue = JSON.parse(newValue);
-                            // JSON.parseが成功した場合
                             if (parsedValue === null && newValue.toLowerCase() !== 'null') {
                                 throw new Error('not a null');
                             }
                         } catch {
-                            // JSON.parseが失敗した場合、文字列として扱う
                             parsedValue = newValue;
                         }
                     }
@@ -545,7 +539,6 @@ document.addEventListener('DOMContentLoaded', () => {
         node.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             
-            // 既存のメニューを閉じる
             document.querySelectorAll('.node-controls').forEach(el => el.classList.remove('active'));
 
             const path = JSON.parse(node.dataset.path);
@@ -569,6 +562,22 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             newControls.appendChild(addBtn);
 
+            // 複製ボタン
+            const dupBtn = document.createElement('button');
+            dupBtn.textContent = '複製';
+            dupBtn.title = 'Duplicate';
+            dupBtn.addEventListener('click', () => {
+                const item = getNode(path);
+                if (Array.isArray(parent)) {
+                    parent.splice(parseInt(path.at(-1)) + 1, 0, JSON.parse(JSON.stringify(item)));
+                } else {
+                    parent[`${path.at(-1)}_copy`] = JSON.parse(JSON.stringify(item));
+                }
+                displayData();
+                newControls.remove();
+            });
+            newControls.appendChild(dupBtn);
+
             // 削除ボタン
             if (path.length > 0) {
                 const delBtn = document.createElement('button');
@@ -585,10 +594,47 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 newControls.appendChild(delBtn);
             }
+            
+            // 型変換メニュー
+            const currentVal = getNode(path);
+            if (typeof currentVal !== 'object' && currentVal !== null) {
+              const typeSelect = document.createElement('select');
+              typeSelect.innerHTML = `
+                <option value="string" ${typeof currentVal === 'string' ? 'selected' : ''}>String</option>
+                <option value="number" ${typeof currentVal === 'number' ? 'selected' : ''}>Number</option>
+                <option value="boolean" ${typeof currentVal === 'boolean' ? 'selected' : ''}>Boolean</option>
+                <option value="null" ${currentVal === null ? 'selected' : ''}>Null</option>
+              `;
+              typeSelect.addEventListener('change', (e) => {
+                const newType = e.target.value;
+                let convertedValue;
+                switch (newType) {
+                  case 'string':
+                    convertedValue = String(currentVal);
+                    break;
+                  case 'number':
+                    convertedValue = Number(currentVal);
+                    if (isNaN(convertedValue)) {
+                      alert('数値に変換できません。');
+                      convertedValue = currentVal;
+                    }
+                    break;
+                  case 'boolean':
+                    convertedValue = (currentVal === 'true' || currentVal === '1');
+                    break;
+                  case 'null':
+                    convertedValue = null;
+                    break;
+                }
+                parent[path.at(-1)] = convertedValue;
+                displayData();
+                newControls.remove();
+              });
+              newControls.appendChild(typeSelect);
+            }
 
             node.appendChild(newControls);
 
-            // メニュー外をクリックで非表示
             const hideMenu = (e) => {
                 if (!newControls.contains(e.target)) {
                     newControls.remove();
@@ -632,7 +678,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fromPath = JSON.parse(e.dataTransfer.getData('text/plain'));
                 const toPath = JSON.parse(e.currentTarget.dataset.path);
                 
-                // 同じ配列内での移動か確認
                 if (fromPath.slice(0, -1).toString() !== toPath.slice(0, -1).toString()) {
                     return;
                 }
@@ -658,7 +703,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let node = data;
         for (let key of path) {
             if (node === undefined || node === null) return undefined;
-            if (typeof node !== 'object') return undefined; // パスが不正な場合
+            if (typeof node !== 'object') return undefined;
             node = node[key];
         }
         return node;
@@ -680,16 +725,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const nodeEl = parentEl.querySelector(`[data-path='${JSON.stringify(currentPath)}']`);
             if (!nodeEl) return;
 
-            // キーをハイライト
             if (String(key).toLowerCase().includes(query)) {
                 nodeEl.querySelector('.key')?.classList.add('search-highlight');
             }
-            // 値をハイライト
             if (typeof value === 'string' && value.toLowerCase().includes(query)) {
                 nodeEl.querySelector('.string')?.classList.add('search-highlight');
             }
 
-            // 再帰的に子要素を検索
             if (typeof value === 'object' && value !== null) {
                 const nestedEl = nodeEl.querySelector('.nested-container');
                 if (nestedEl) findAndHighlight(query, value, nestedEl, currentPath);
