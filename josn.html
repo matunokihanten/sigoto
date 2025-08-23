@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSON Editor - 高機能JSONエディタ</title>
+<style>
+  /* ページ全体のスタイル */
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #2c2f33;
+    color: #f6f6f6;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  
+  /* ヘッダーセクション */
+  #header {
+    background-color: #23272a;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #7289da;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+  #header h1 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #7289da;
+  }
+  #controls {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* ボタンの基本スタイル */
+  .btn {
+    padding: 8px 15px;
+    background-color: #5865f2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.3s, transform 0.2s;
+  }
+  .btn:hover {
+    background-color: #4752c4;
+    transform: translateY(-2px);
+  }
+  .btn-secondary {
+    background-color: #4f545c;
+  }
+  .btn-secondary:hover {
+    background-color: #3b3e44;
+  }
+  .btn-danger {
+    background-color: #ff5555;
+  }
+  .btn-danger:hover {
+    background-color: #cc4444;
+  }
+
+  /* メインコンテンツエリア */
+  #main {
+    flex: 1;
+    display: flex;
+    padding: 20px;
+    gap: 20px;
+    overflow: hidden;
+  }
+
+  /* ファイル読み込みゾーン */
+  #file-zone {
+    width: 300px;
+    background-color: #23272a;
+    border: 2px dashed #4f545c;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+  #file-zone.dragover {
+    background-color: #3b3e44;
+    border-color: #7289da;
+  }
+
+  /* エディタ表示セクション */
+  #json-display {
+    flex: 1;
+    background-color: #23272a;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+  }
+  #editor-controls {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    gap: 10px;
+  }
+  #search-box {
+    flex: 1;
+    padding: 8px;
+    border-radius: 5px;
+    border: 1px solid #4f545c;
+    background-color: #3b3e44;
+    color: #f6f6f6;
+    font-size: 1em;
+  }
+
+  /* エディタモード切替ボタン */
+  .editor-mode-btn {
+    padding: 8px 15px;
+    border: 1px solid #4f545c;
+    border-radius: 5px;
+    background-color: #3b3e44;
+    color: #f6f6f6;
+    cursor: pointer;
+  }
+  .editor-mode-btn.active {
+    background-color: #5865f2;
+    border-color: #5865f2;
+  }
+
+  /* ツリービュー */
+  #tree-view {
+    flex: 1;
+    overflow: auto;
+    font-family: monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    white-space: nowrap;
+    user-select: none;
+    padding-left: 10px;
+  }
+  #text-editor {
+    flex: 1;
+    width: 100%;
+    background-color: #3b3e44;
+    color: #f6f6f6;
+    border: 1px solid #4f545c;
+    border-radius: 5px;
+    padding: 15px;
+    font-family: monospace;
+    font-size: 14px;
+    resize: none;
+    display: none;
+  }
+  #tree-view .node {
+    margin-left: 20px;
+    position: relative;
+  }
+  #tree-view .node .toggle {
+    display: inline-block;
+    width: 12px;
+    text-align: center;
+    margin-right: 5px;
+    color: #99aab5;
+  }
+  #tree-view .node .key {
+    color: #d1b8ff;
+  }
+  #tree-view .node .string {
+    color: #92d0ff;
+  }
+  #tree-view .node .number {
+    color: #ff91b8;
+  }
+  #tree-view .node .boolean {
+    color: #99ffb4;
+  }
+  #tree-view .node .null {
+    color: #f5da90;
+  }
+  #tree-view .node .colon {
+    color: #f6f6f6;
+  }
+
+  /* 右クリックメニュー */
+  .node-controls {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #23272a;
+    border: 1px solid #4f545c;
+    border-radius: 5px;
+    padding: 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    z-index: 10;
+  }
+  .node-controls button {
+    background: #3b3e44;
+    border: none;
+    color: white;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .node-controls button:hover {
+    background: #4f545c;
+  }
+  .node-controls.active {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  /* ドラッグ＆ドロップ関連 */
+  .draggable-item {
+    cursor: grab;
+  }
+  .draggable-item.dragging {
+    opacity: 0.5;
+  }
+  .search-highlight {
+    background-color: #ffbf00;
+    color: #333;
+    border-radius: 3px;
+  }
+  .droptarget {
+    border-top: 2px solid #5865f2;
+  }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div id="header">
+  <h1>JSON Editor</h1>
+  <div id="controls">
+    <button id="importBtn" class="btn">📂 ファイルを開く</button>
+    <button id="saveBtn" class="btn btn-secondary" disabled>💾 JSONとして保存</button>
+  </div>
+</div>
+
+<!-- メインコンテンツ -->
+<div id="main">
+  <!-- ファイルのドラッグ＆ドロップゾーン -->
+  <div id="file-zone">
+    <span>ここにJSONファイルをドラッグ＆ドロップ</span>
+    <span>または</span>
+    <button id="fileBtn" class="btn">ファイルを選択</button>
+  </div>
+
+  <!-- JSONエディタセクション (初期状態では非表示) -->
+  <div id="json-display" style="display: none;">
+    <div id="editor-controls">
+      <input type="text" id="search-box" placeholder="キーまたは値を検索...">
+      <button class="editor-mode-btn active" data-mode="tree">ツリー</button>
+      <button class="editor-mode-btn" data-mode="text">テキスト</button>
+      <button id="formatBtn" class="btn btn-secondary">📄 整形</button>
+    </div>
+    <div id="tree-view"></div>
+    <textarea id="text-editor"></textarea>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const fileZone = document.getElementById('file-zone');
+    const fileBtn = document.getElementById('fileBtn');
+    const importBtn = document.getElementById('importBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const jsonDisplay = document.getElementById('json-display');
+    const treeView = document.getElementById('tree-view');
+    const textEditor = document.getElementById('text-editor');
+    const searchBox = document.getElementById('search-box');
+    const formatBtn = document.getElementById('formatBtn');
+    const modeBtns = document.querySelectorAll('.editor-mode-btn');
+
+    let currentData = null;
+    let editorMode = 'tree';
+
+    // === ファイル処理 ===
+    // ドラッグ＆ドロップイベントリスナー
+    fileZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileZone.classList.add('dragover');
+    });
+    fileZone.addEventListener('dragleave', () => {
+        fileZone.classList.remove('dragover');
+    });
+    fileZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    });
+
+    // ファイル選択ボタンのクリックイベント
+    fileBtn.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        };
+        input.click();
+    });
+    importBtn.addEventListener('click', () => fileBtn.click());
+
+    // ファイルを読み込んで処理する関数
+    function handleFile(file) {
+        if (!file.name.endsWith('.json')) {
+            alert('JSONファイルを選択してください。');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                // JSONをパース
+                currentData = JSON.parse(e.target.result);
+                displayData();
+                fileZone.style.display = 'none';
+                jsonDisplay.style.display = 'flex';
+                updateSaveButton();
+                switchMode('tree');
+            } catch (err) {
+                alert('無効なJSONファイルです: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    // === 保存機能 ===
+    saveBtn.addEventListener('click', () => {
+        if (!currentData) return;
+        const dataToSave = editorMode === 'tree' ? currentData : JSON.parse(textEditor.value);
+        const jsonStr = JSON.stringify(dataToSave, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'edited_data.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+
+    function updateSaveButton() {
+        saveBtn.disabled = !currentData;
+        saveBtn.style.opacity = currentData ? 1 : 0.5;
+    }
+
+    // === エディタモード切替 ===
+    modeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.getAttribute('data-mode');
+            switchMode(mode);
+        });
+    });
+
+    function switchMode(mode) {
+        editorMode = mode;
+        modeBtns.forEach(btn => btn.classList.toggle('active', btn.getAttribute('data-mode') === mode));
+
+        if (mode === 'tree') {
+            try {
+                // テキストモードからツリーモードへの切り替え時に、JSONを再パース
+                const textValue = textEditor.value.trim();
+                if (textValue) {
+                    currentData = JSON.parse(textValue);
+                    displayData();
+                }
+                treeView.style.display = 'block';
+                textEditor.style.display = 'none';
+            } catch (e) {
+                alert('テキストモードのJSONが無効です。ツリーモードに切り替えられません。');
+                return;
+            }
+        } else {
+            // ツリーモードからテキストモードへの切り替え
+            treeView.style.display = 'none';
+            textEditor.style.display = 'block';
+            textEditor.value = JSON.stringify(currentData, null, 2);
+        }
+    }
+
+    // === JSONツリービューのレンダリング ===
+    function displayData(data = currentData, parentEl = treeView, parentPath = []) {
+        parentEl.innerHTML = '';
+        if (typeof data !== 'object' || data === null) {
+            parentEl.appendChild(createNodeElement(parentPath.at(-1), data, parentPath));
+            return;
+        }
+
+        const isArray = Array.isArray(data);
+        const entries = Object.entries(data);
+
+        entries.forEach(([key, value], index) => {
+            const path = [...parentPath, key];
+            parentEl.appendChild(createNodeElement(key, value, path, isArray));
+        });
+    }
+
+    function createNodeElement(key, value, path, isArray = false) {
+        const node = document.createElement('div');
+        node.className = 'node';
+        node.dataset.path = JSON.stringify(path);
+        
+        // 配列要素のみドラッグ可能にする
+        if (isArray) {
+          node.setAttribute('draggable', 'true');
+        }
+
+        let valueType = typeof value;
+        if (value === null) valueType = 'null';
+        if (Array.isArray(value)) valueType = 'array';
+        if (valueType === 'object' && value !== null) valueType = 'object';
+
+        // トグルボタンの追加
+        if (valueType === 'object' || valueType === 'array') {
+            const toggle = document.createElement('span');
+            toggle.className = 'toggle';
+            toggle.textContent = '▼';
+            node.appendChild(toggle);
+        } else {
+            const placeholder = document.createElement('span');
+            placeholder.style.width = '12px';
+            placeholder.style.display = 'inline-block';
+            node.appendChild(placeholder);
+        }
+
+        const keySpan = document.createElement('span');
+        keySpan.className = 'key';
+        keySpan.textContent = isArray ? `${key}:` : `"${key}":`;
+        node.appendChild(keySpan);
+
+        if (valueType !== 'object' && valueType !== 'array') {
+            const valueSpan = document.createElement('span');
+            valueSpan.className = valueType;
+            if (valueType === 'string') {
+                valueSpan.textContent = ` "${value}"`;
+            } else {
+                valueSpan.textContent = ` ${value}`;
+            }
+            node.appendChild(valueSpan);
+        }
+
+        // 子要素のコンテナ
+        if (valueType === 'object' || valueType === 'array') {
+            const nestedContainer = document.createElement('div');
+            nestedContainer.className = 'nested-container';
+            displayData(value, nestedContainer, path);
+            node.appendChild(nestedContainer);
+        }
+
+        // === イベントリスナーの追加 ===
+
+        // トグル機能
+        node.querySelector('.toggle')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const nested = node.querySelector('.nested-container');
+            if (nested) {
+                nested.style.display = nested.style.display === 'none' ? 'block' : 'none';
+                e.target.textContent = nested.style.display === 'none' ? '▶' : '▼';
+            }
+        });
+
+        // インライン編集
+        node.addEventListener('dblclick', (e) => {
+            const target = e.target;
+            // キー、文字列、数値、真偽値、nullのいずれかをクリックした場合に編集
+            if (target.classList.contains('key') || target.classList.contains('string') || target.classList.contains('number') || target.classList.contains('boolean') || target.classList.contains('null')) {
+                e.stopPropagation();
+                
+                // 元のノード情報を取得
+                const path = JSON.parse(node.dataset.path);
+                const parent = getNode(path.slice(0, -1));
+                const key = path.at(-1);
+                const isKey = target.classList.contains('key');
+                const originalValue = isKey ? key : parent[key];
+
+                // 入力フィールドの作成
+                const input = document.createElement('input');
+                input.value = isKey ? originalValue : originalValue;
+                input.style.width = `${target.offsetWidth}px`;
+                input.style.backgroundColor = '#3b3e44';
+                input.style.color = '#f6f6f6';
+                input.style.border = '1px solid #7289da';
+                input.style.borderRadius = '3px';
+                input.style.fontFamily = 'monospace';
+
+                target.style.display = 'none';
+                node.insertBefore(input, target.nextSibling);
+                input.focus();
+
+                // 編集完了時の処理
+                const finishEdit = () => {
+                    let newValue = input.value;
+                    let parsedValue = newValue;
+                    
+                    if (!isKey) {
+                        try {
+                            parsedValue = JSON.parse(newValue);
+                            // JSON.parseが成功した場合
+                            if (parsedValue === null && newValue.toLowerCase() !== 'null') {
+                                throw new Error('not a null');
+                            }
+                        } catch {
+                            // JSON.parseが失敗した場合、文字列として扱う
+                            parsedValue = newValue;
+                        }
+                    }
+
+                    if (isKey) {
+                        if (newValue.trim() !== key) {
+                            if (parent.hasOwnProperty(newValue)) {
+                                alert('エラー: キーは既に存在します');
+                                displayData();
+                                return;
+                            }
+                            parent[newValue] = parent[key];
+                            delete parent[key];
+                        }
+                    } else {
+                        parent[key] = parsedValue;
+                    }
+                    displayData();
+                };
+
+                input.addEventListener('blur', finishEdit);
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        finishEdit();
+                    }
+                });
+            }
+        });
+
+        // 右クリックメニュー
+        node.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            
+            // 既存のメニューを閉じる
+            document.querySelectorAll('.node-controls').forEach(el => el.classList.remove('active'));
+
+            const path = JSON.parse(node.dataset.path);
+            const parent = getNode(path.slice(0, -1));
+
+            const newControls = document.createElement('div');
+            newControls.className = 'node-controls active';
+
+            // 項目追加ボタン
+            const addBtn = document.createElement('button');
+            addBtn.textContent = '追加';
+            addBtn.title = 'Add';
+            addBtn.addEventListener('click', () => {
+                if (Array.isArray(parent)) {
+                    parent.splice(parseInt(path.at(-1)) + 1, 0, "");
+                } else {
+                    parent['new_key'] = "";
+                }
+                displayData();
+                newControls.remove();
+            });
+            newControls.appendChild(addBtn);
+
+            // 削除ボタン
+            if (path.length > 0) {
+                const delBtn = document.createElement('button');
+                delBtn.textContent = '削除';
+                delBtn.title = 'Delete';
+                delBtn.addEventListener('click', () => {
+                    if (Array.isArray(parent)) {
+                        parent.splice(parseInt(path.at(-1)), 1);
+                    } else {
+                        delete parent[path.at(-1)];
+                    }
+                    displayData();
+                    newControls.remove();
+                });
+                newControls.appendChild(delBtn);
+            }
+
+            node.appendChild(newControls);
+
+            // メニュー外をクリックで非表示
+            const hideMenu = (e) => {
+                if (!newControls.contains(e.target)) {
+                    newControls.remove();
+                    document.removeEventListener('click', hideMenu);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', hideMenu), 0);
+        });
+
+        // ドラッグ＆ドロップ（配列の並び替え）
+        if (isArray) {
+            node.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                node.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', JSON.stringify(path));
+            });
+
+            node.addEventListener('dragend', () => {
+                node.classList.remove('dragging');
+            });
+
+            node.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                const rect = node.getBoundingClientRect();
+                const dropLocation = e.clientY - rect.top;
+                node.classList.remove('droptarget');
+                if (dropLocation < rect.height / 2) {
+                    node.classList.add('droptarget');
+                }
+            });
+
+            node.addEventListener('dragleave', () => {
+                node.classList.remove('droptarget');
+            });
+
+            node.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                node.classList.remove('droptarget');
+
+                const fromPath = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const toPath = JSON.parse(e.currentTarget.dataset.path);
+                
+                // 同じ配列内での移動か確認
+                if (fromPath.slice(0, -1).toString() !== toPath.slice(0, -1).toString()) {
+                    return;
+                }
+
+                const parent = getNode(fromPath.slice(0, -1));
+                const fromIndex = parseInt(fromPath.at(-1));
+                const toIndex = parseInt(toPath.at(-1));
+
+                if (fromIndex !== toIndex) {
+                    const [item] = parent.splice(fromIndex, 1);
+                    parent.splice(toIndex, 0, item);
+                    displayData();
+                }
+            });
+            node.classList.add('draggable-item');
+        }
+
+        return node;
+    }
+
+    // === ユーティリティ関数 ===
+    function getNode(path, data = currentData) {
+        let node = data;
+        for (let key of path) {
+            if (node === undefined || node === null) return undefined;
+            if (typeof node !== 'object') return undefined; // パスが不正な場合
+            node = node[key];
+        }
+        return node;
+    }
+
+    // === 検索機能 ===
+    searchBox.addEventListener('input', () => {
+        const query = searchBox.value.toLowerCase();
+        document.querySelectorAll('.search-highlight').forEach(el => el.classList.remove('search-highlight'));
+        if (query) {
+            findAndHighlight(query, currentData, treeView, []);
+        }
+    });
+
+    function findAndHighlight(query, data, parentEl, path) {
+        if (typeof data !== 'object' || data === null) return;
+        Object.entries(data).forEach(([key, value]) => {
+            const currentPath = [...path, key];
+            const nodeEl = parentEl.querySelector(`[data-path='${JSON.stringify(currentPath)}']`);
+            if (!nodeEl) return;
+
+            // キーをハイライト
+            if (String(key).toLowerCase().includes(query)) {
+                nodeEl.querySelector('.key')?.classList.add('search-highlight');
+            }
+            // 値をハイライト
+            if (typeof value === 'string' && value.toLowerCase().includes(query)) {
+                nodeEl.querySelector('.string')?.classList.add('search-highlight');
+            }
+
+            // 再帰的に子要素を検索
+            if (typeof value === 'object' && value !== null) {
+                const nestedEl = nodeEl.querySelector('.nested-container');
+                if (nestedEl) findAndHighlight(query, value, nestedEl, currentPath);
+            }
+        });
+    }
+
+    // === 整形ボタン ===
+    formatBtn.addEventListener('click', () => {
+        try {
+            const data = editorMode === 'tree' ? currentData : JSON.parse(textEditor.value);
+            const formatted = JSON.stringify(data, null, 2);
+            textEditor.value = formatted;
+            alert('JSONを整形しました。');
+        } catch (e) {
+            alert('JSONの整形に失敗しました。');
+        }
+    });
+});
+</script>
+
+</body>
+</html>
