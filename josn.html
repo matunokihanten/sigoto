@@ -159,12 +159,39 @@
     margin-left: 20px;
     position: relative;
   }
+  #tree-view .node::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: #4f545c;
+  }
+  #tree-view .node:last-child::before {
+    height: 14px; /* Adjust this value to align with your line-height */
+  }
+  #tree-view .node::after {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 14px; /* Adjust to align with line-height */
+    width: 12px;
+    height: 1px;
+    background-color: #4f545c;
+  }
   #tree-view .node .toggle {
     display: inline-block;
-    width: 12px;
+    width: 16px;
+    height: 16px;
+    line-height: 16px;
     text-align: center;
     margin-right: 5px;
-    color: #99aab5;
+    color: #f6f6f6;
+    background: #4f545c;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
   }
   #tree-view .node .key {
     color: #d1b8ff;
@@ -423,13 +450,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // トグルボタンの追加
         if (valueType === 'object' || valueType === 'array') {
-            const toggle = document.createElement('span');
+            const toggle = document.createElement('button');
             toggle.className = 'toggle';
             toggle.textContent = '▼';
             node.appendChild(toggle);
         } else {
             const placeholder = document.createElement('span');
-            placeholder.style.width = '12px';
+            placeholder.style.width = '16px';
             placeholder.style.display = 'inline-block';
             node.appendChild(placeholder);
         }
