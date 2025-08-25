@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Enhanced Web CLI - 高機能ターミナル</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -394,8 +395,8 @@
     <div id="controls">
       <button id="helpBtn" title="ヘルプ">❓ Help</button>
       <button id="themeBtn" title="テーマ切替">🎨 Theme</button>
-      <button id="saveBtn" title="ローカルに保存">💾 Save</button>
-      <button id="loadBtn" title="ローカルから読み込み">📂 Load</button>
+      <button id="exportZipBtn" title="ZIPにまとめて保存">📥 ZIP Export</button>
+      <button id="importZipBtn" title="ZIPから読み込み">📤 ZIP Import</button>
       <button id="clearBtn" title="画面クリア">🗑️ Clear</button>
     </div>
   </div>
@@ -456,8 +457,8 @@
       const suggestions = document.getElementById("suggestions");
       const helpBtn = document.getElementById("helpBtn");
       const themeBtn = document.getElementById("themeBtn");
-      const saveBtn = document.getElementById("saveBtn");
-      const loadBtn = document.getElementById("loadBtn");
+      const exportZipBtn = document.getElementById("exportZipBtn");
+      const importZipBtn = document.getElementById("importZipBtn");
       const clearBtn = document.getElementById("clearBtn");
       const overlay = document.getElementById("cmdOverlay");
       const closeBtn = document.getElementById("closeOverlay");
@@ -898,8 +899,6 @@
         print("- Tab キーで補完", "success");
         print("- ↑↓ キーで履歴", "success");
         print("- ファイル名をダブルクリックで編集・名前変更", "success");
-        print("- '💾 Save' でファイルシステムをローカルに保存", "success");
-        print("- '📂 Load' でローカルからファイルシステムを復元", "success");
       }
 
       // ファイル作成/編集時の日付付与
@@ -1427,6 +1426,92 @@
         input.focus();
       }
 
+      // ZIP処理
+      async function exportZip() {
+        print("アーカイブを作成中...", "info");
+        const zip = new JSZip();
+
+        function addFilesToZip(node, path) {
+          if (node.type === "file") {
+            zip.file(path, node.content);
+          } else if (node.type === "dir") {
+            for (const [name, child] of Object.entries(node.children)) {
+              addFilesToZip(child, path ? `${path}/${name}` : name);
+            }
+          }
+        }
+        addFilesToZip(vfs, "");
+
+        try {
+          const content = await zip.generateAsync({ type: "blob" });
+          const url = URL.createObjectURL(content);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "webcli_filesystem.zip";
+          a.click();
+          URL.revokeObjectURL(url);
+          print("✅ ZIPファイルのエクスポートが完了しました", "success");
+          updateStatus("ZIPエクスポート完了");
+        } catch (error) {
+          print(`エラー: ZIP作成に失敗しました: ${error.message}`, "error");
+        }
+      }
+
+      async function importZip() {
+        const fileInput = document.createElement("input");
+        fileInput.type = "file";
+        fileInput.accept = ".zip";
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+
+        fileInput.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            print("ZIPファイルを読み込み中...", "info");
+            try {
+              const zip = await JSZip.loadAsync(file);
+              const newVfs = { type: "dir", children: {} };
+
+              const files = Object.keys(zip.files).filter(path => !zip.files[path].dir);
+              
+              for (const path of files) {
+                const content = await zip.files[path].async("string");
+                const parts = path.split('/');
+                let currentDir = newVfs;
+                
+                for (let i = 0; i < parts.length - 1; i++) {
+                  const dirName = parts[i];
+                  if (!currentDir.children[dirName]) {
+                    currentDir.children[dirName] = { type: "dir", children: {} };
+                  }
+                  currentDir = currentDir.children[dirName];
+                }
+                
+                const fileName = parts[parts.length - 1];
+                currentDir.children[fileName] = {
+                  type: "file",
+                  content: content,
+                  ctime: new Date().toISOString(),
+                  mtime: new Date().toISOString()
+                };
+              }
+              
+              vfs = newVfs;
+              cwd = [];
+              updatePrompt();
+              saveVFS();
+              print("✅ ZIPファイルからファイルシステムを復元しました", "success");
+              updateStatus("ZIPインポート完了");
+              
+            } catch (error) {
+              print(`エラー: ZIPファイルの読み込みに失敗しました: ${error.message}`, "error");
+            }
+          }
+          document.body.removeChild(fileInput);
+        };
+        fileInput.click();
+      }
+
       // イベントリスナー
       input.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
@@ -1535,37 +1620,10 @@
         currentTheme = (currentTheme + 1) % themeKeys.length;
         applyTheme();
       });
+      exportZipBtn.addEventListener("click", exportZip);
+      importZipBtn.addEventListener("click", importZip);
       clearBtn.addEventListener("click", () => {
         processCommand("clear");
-      });
-
-      // 新しいボタンのイベントリスナー
-      saveBtn.addEventListener("click", () => {
-        try {
-          localStorage.setItem("VFS_SAVED_STATE", JSON.stringify(vfs));
-          print("✅ ファイルシステムの状態をローカルに保存しました。", "success");
-          updateStatus("ファイルシステム保存完了");
-        } catch (e) {
-          print(`エラー: 保存に失敗しました。ストレージ容量を確認してください。`, "error");
-        }
-      });
-
-      loadBtn.addEventListener("click", () => {
-        try {
-          const savedVFS = localStorage.getItem("VFS_SAVED_STATE");
-          if (savedVFS) {
-            vfs = JSON.parse(savedVFS);
-            cwd = [];
-            updatePrompt();
-            updateFileCount();
-            print("📂 ファイルシステムの状態をローカルから復元しました。", "success");
-            updateStatus("ファイルシステム復元完了");
-          } else {
-            print("⚠️ 保存されたデータが見つかりませんでした。", "warning");
-          }
-        } catch (e) {
-          print(`エラー: 読み込みに失敗しました。データが破損している可能性があります。`, "error");
-        }
       });
 
       // エディタボタン
