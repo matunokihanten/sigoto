@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced 3D Icon Creator - 高機能アイコン作成ツール</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=M+PLUS+Rounded+1c:wght@400;700&family=Kosugi+Maru&family=Varela+Round&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #667eea;
+      --secondary: #764ba2;
+      --accent: #f093fb;
+      --surface: #ffffff;
+      --background: #f8fafc;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --border: #e2e8f0;
+      --shadow: rgba(0, 0, 0, 0.1);
+      --radius: 12px;
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      min-height: 100vh;
+      color: var(--text-primary);
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 30px;
+      min-height: 100vh;
+    }
+
+    .control-panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow);
+      height: fit-content;
+      backdrop-filter: blur(10px);
+    }
+
+    .preview-area {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    h1 {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+      letter-spacing: -0.02em;
+    }
+
+    .section {
+      margin-bottom: 25px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-inline {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+    }
+
+    label {
+      font-weight: 500;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    input, select, textarea {
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 15px;
+      transition: var(--transition);
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    input[type="range"] {
+      appearance: none;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      padding: 0;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 4px var(--shadow);
+      transition: var(--transition);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    input[type="color"] {
+      width: 60px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      padding: 2px;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .color-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    .color-box {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      box-shadow: inset 0 1px 2px var(--shadow);
+    }
+
+    .color-hex {
+      font-family: 'SF Mono', 'Monaco', monospace;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: var(--background);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .radio-group, .checkbox-group {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .radio-item, .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: var(--transition);
+    }
+
+    .radio-item:hover, .checkbox-item:hover {
+      background: var(--background);
+    }
+
+    input[type="radio"], input[type="checkbox"] {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    input[type="checkbox"] {
+      border-radius: 4px;
+    }
+
+    input[type="radio"]:checked, input[type="checkbox"]:checked {
+      border-color: var(--primary);
+      background: var(--primary);
+    }
+
+    input[type="radio"]:checked::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    input[type="checkbox"]:checked::before {
+      content: '✓';
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #f093fb, #f5576c);
+      color: white;
+      box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      color: white;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .preview-canvas-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 30px;
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      border-radius: var(--radius);
+      border: 2px dashed var(--border);
+    }
+
+    canvas, #svgPreview {
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px var(--shadow);
+      transition: var(--transition);
+    }
+
+    canvas:hover, #svgPreview:hover {
+      transform: scale(1.02);
+    }
+
+    .size-indicator {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .advanced-controls {
+      display: none;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    .advanced-controls.show {
+      display: block;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .toggle-advanced {
+      background: none;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      transition: var(--transition);
+    }
+
+    .toggle-advanced:hover {
+      background: var(--primary);
+      color: white;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .preset-btn {
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      background: var(--background);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .preset-btn:hover {
+      background: var(--primary);
+      color: white;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .export-options {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .export-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .export-btn:hover {
+      border-color: var(--primary);
+      background: rgba(102, 126, 234, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .export-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .history-panel {
+      margin-top: 30px;
+      padding: 20px;
+      background: var(--background);
+      border-radius: var(--radius);
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .history-item {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 2px solid transparent;
+    }
+
+    .history-item:hover {
+      border-color: var(--primary);
+      transform: scale(1.05);
+    }
+
+    .range-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .range-display input[type="range"] {
+      flex: 1;
+    }
+
+    .range-display output {
+      min-width: 40px;
+      text-align: center;
+      font-weight: 600;
+      color: var(--primary);
+    }
+
+    .tooltip {
+      position: relative;
+    }
+
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text-primary);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: var(--transition);
+      z-index: 1000;
+    }
+
+    .tooltip:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-5px);
+    }
+
+    @media (max-width: 1200px) {
+      .app-container {
+        grid-template-columns: 1fr;
+        max-width: 800px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        padding: 15px;
+      }
+      
+      .control-panel, .preview-area {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="control-panel">
+      <h1>🎨 Advanced 3D Icon Creator</h1>
+      
+      <div class="section">
+        <div class="section-title">📝 テキスト設定</div>
+        <div class="control">
+          <label for="iconText">表示テキスト</label>
+          <textarea id="iconText" placeholder="アイコンに表示するテキストを入力">🎯</textarea>
+        </div>
+        
+        <div class="control">
+          <label for="fontFamily">フォント</label>
+          <select id="fontFamily">
+            <option value="'Inter', sans-serif">Inter (モダン)</option>
+            <option value="'Noto Sans JP', sans-serif" selected>Noto Sans JP</option>
+            <option value="'M PLUS Rounded 1c', sans-serif">M PLUS Rounded (丸文字)</option>
+            <option value="'Kosugi Maru', sans-serif">Kosugi Maru</option>
+            <option value="'Varela Round', sans-serif">Varela Round</option>
+            <option value="system-ui, sans-serif">システムフォント</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="fontWeight">文字の太さ</label>
+          <select id="fontWeight">
+            <option value="300">Light (300)</option>
+            <option value="400">Regular (400)</option>
+            <option value="500">Medium (500)</option>
+            <option value="600" selected>SemiBold (600)</option>
+            <option value="700">Bold (700)</option>
+            <option value="800">ExtraBold (800)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🎨 カラー設定</div>
+        <div class="control">
+          <label for="textColor">文字色</label>
+          <div class="control-inline">
+            <input type="color" id="textColor" value="#ffffff">
+            <div class="color-display">
+              <div class="color-box" id="textColorBox"></div>
+              <div class="color-hex" id="textColorHex">#FFFFFF</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="gradColor1">背景グラデーション1</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor1" value="#667eea">
+            <div class="color-display">
+              <div class="color-box" id="gradColor1Box"></div>
+              <div class="color-hex" id="gradColor1Hex">#667EEA</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="gradColor2">背景グラデーション2</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor2" value="#764ba2">
+            <div class="color-display">
+              <div class="color-box" id="gradColor2Box"></div>
+              <div class="color-hex" id="gradColor2Hex">#764BA2</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preset-buttons">
+          <button class="preset-btn" data-colors="#667eea,#764ba2">Ocean</button>
+          <button class="preset-btn" data-colors="#f093fb,#f5576c">Sunset</button>
+          <button class="preset-btn" data-colors="#4facfe,#00f2fe">Sky</button>
+          <button class="preset-btn" data-colors="#43e97b,#38f9d7">Forest</button>
+          <button class="preset-btn" data-colors="#fa709a,#fee140">Warm</button>
+          <button class="preset-btn" data-colors="#a8edea,#fed6e3">Pastel</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">⚙️ 基本設定</div>
+        <div class="control">
+          <label for="iconSize">アイコンサイズ</label>
+          <select id="iconSize">
+            <option value="64">64×64 (Favicon)</option>
+            <option value="128">128×128 (App Icon)</option>
+            <option value="256" selected>256×256 (Standard)</option>
+            <option value="512">512×512 (High Res)</option>
+            <option value="1024">1024×1024 (Ultra)</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="letterSpacing">文字間隔</label>
+          <div class="range-display">
+            <input type="range" id="letterSpacing" min="-5" max="20" value="0" step="0.5">
+            <output id="letterSpacingValue">0</output>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="lineHeight">行間隔</label>
+          <div class="range-display">
+            <input type="range" id="lineHeight" min="0.8" max="2.0" value="1.2" step="0.1">
+            <output id="lineHeightValue">1.2</output>
+          </div>
+        </div>
+      </div>
+
+      <button class="toggle-advanced" onclick="toggleAdvanced()">🔧 高度な設定</button>
+
+      <div class="advanced-controls" id="advancedControls">
+        <div class="section">
+          <div class="section-title">💫 エフェクト</div>
+          <div class="control">
+            <label>ドロップシャドウ</label>
+            <div class="radio-group">
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="0" id="shadow0">
+                <label for="shadow0">なし</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="3" id="shadow3" checked>
+                <label for="shadow3">軽い</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="6" id="shadow6">
+                <label for="shadow6">標準</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="10" id="shadow10">
+                <label for="shadow10">強い</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="control">
+            <div class="checkbox-item">
+              <input type="checkbox" id="addOutline">
+              <label for="addOutline">アウトライン追加</label>
+            </div>
+          </div>
+
+          <div class="control" id="outlineControls" style="display: none;">
+            <label for="outlineColor">アウトライン色</label>
+            <div class="control-inline">
+              <input type="color" id="outlineColor" value="#000000">
+              <div class="color-display">
+                <div class="color-box" id="outlineColorBox"></div>
+                <div class="color-hex" id="outlineColorHex">#000000</div>
+              </div>
+            </div>
+            
+            <label for="outlineWidth">アウトライン幅</label>
+            <div class="range-display">
+              <input type="range" id="outlineWidth" min="1" max="10" value="3">
+              <output id="outlineWidthValue">3</output>
+            </div>
+          </div>
+
+          <div class="control">
+            <label for="cornerRadius">角丸の強さ</label>
+            <div class="range-display">
+              <input type="range" id="cornerRadius" min="0" max="50" value="15">
+              <output id="cornerRadiusValue">15</output>
+            </div>
+          </div>
+
+          <div class="control">
+            <label for="gradientAngle">グラデーション角度</label>
+            <div class="range-display">
+              <input type="range" id="gradientAngle" min="0" max="360" value="135">
+              <output id="gradientAngleValue">135°</output>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-primary" onclick="createIcon()">🚀 作成</button>
+        <button class="btn-secondary" onclick="randomizeColors()">🎲 ランダム</button>
+        <button class="btn-accent" onclick="resetToDefaults()">🔄 リセット</button>
+      </div>
+    </div>
+
+    <div class="preview-area">
+      <div class="section">
+        <div class="section-title">👁️ プレビュー</div>
+        <div class="preview-canvas-container">
+          <canvas id="iconCanvas" width="256" height="256"></canvas>
+          <div id="svgPreview" style="display: none;"></div>
+          <div class="size-indicator" id="sizeIndicator">256×256 pixels</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📤 エクスポート</div>
+        <div class="export-options">
+          <div class="export-btn" onclick="downloadIcon('png')">
+            <div class="export-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">PNG</div>
+            <span>PNG形式</span>
+            <small>透過対応・Web用</small>
+          </div>
+          <div class="export-btn" onclick="downloadIcon('jpeg')">
+            <div class="export-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">JPG</div>
+            <span>JPEG形式</span>
+            <small>高圧縮・写真用</small>
+          </div>
+          <div class="export-btn" onclick="downloadIcon('svg')">
+            <div class="export-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">SVG</div>
+            <span>SVG形式</span>
+            <small>ベクター・無劣化</small>
+          </div>
+          <div class="export-btn" onclick="downloadIcon('ico')">
+            <div class="export-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">ICO</div>
+            <span>ICO形式</span>
+            <small>Windows用</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="history-panel">
+        <div class="section-title">📚 履歴</div>
+        <div class="history-grid" id="historyGrid">
+          <!-- History items will be added here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let iconHistory = [];
+    const maxHistory = 12;
+
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', function() {
+      initializeControls();
+      createIcon();
+      loadHistory();
+    });
+
+    function initializeControls() {
+      // Color inputs
+      const colorInputs = [
+        { id: 'textColor', hexId: 'textColorHex', boxId: 'textColorBox' },
+        { id: 'gradColor1', hexId: 'gradColor1Hex', boxId: 'gradColor1Box' },
+        { id: 'gradColor2', hexId: 'gradColor2Hex', boxId: 'gradColor2Box' },
+        { id: 'outlineColor', hexId: 'outlineColorHex', boxId: 'outlineColorBox' }
+      ];
+
+      colorInputs.forEach(item => {
+        const input = document.getElementById(item.id);
+        const hex = document.getElementById(item.hexId);
+        const box = document.getElementById(item.boxId);
+
+        function updateColorDisplay() {
+          hex.textContent = input.value.toUpperCase();
+          box.style.backgroundColor = input.value;
+        }
+
+        input.addEventListener('input', updateColorDisplay);
+        updateColorDisplay();
+      });
+
+      // Range inputs
+      const rangeInputs = [
+        { id: 'letterSpacing', outputId: 'letterSpacingValue' },
+        { id: 'lineHeight', outputId: 'lineHeightValue' },
+        { id: 'outlineWidth', outputId: 'outlineWidthValue' },
+        { id: 'cornerRadius', outputId: 'cornerRadiusValue' },
+        { id: 'gradientAngle', outputId: 'gradientAngleValue', suffix: '°' }
+      ];
+
+      rangeInputs.forEach(item => {
+        const input = document.getElementById(item.id);
+        const output = document.getElementById(item.outputId);
+        
+        input.addEventListener('input', function() {
+          output.textContent = this.value + (item.suffix || '');
+        });
+      });
+
+      // Outline toggle
+      document.getElementById('addOutline').addEventListener('change', function() {
+        document.getElementById('outlineControls').style.display = 
+          this.checked ? 'block' : 'none';
+      });
+
+      // Auto-update on changes
+      document.querySelectorAll('input, select, textarea').forEach(element => {
+        element.addEventListener('input', debounce(createIcon, 300));
+      });
+
+      // Preset colors
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const colors = this.dataset.colors.split(',');
+          document.getElementById('gradColor1').value = colors[0];
+          document.getElementById('gradColor2').value = colors[1];
+          
+          // Update displays
+          document.getElementById('gradColor1Hex').textContent = colors[0].toUpperCase();
+          document.getElementById('gradColor1Box').style.backgroundColor = colors[0];
+          document.getElementById('gradColor2Hex').textContent = colors[1].toUpperCase();
+          document.getElementById('gradColor2Box').style.backgroundColor = colors[1];
+          
+          createIcon();
+        });
+      });
+    }
+
+    function getParams() {
+      return {
+        text: document.getElementById('iconText').value,
+        iconSize: parseInt(document.getElementById('iconSize').value),
+        fontFamily: document.getElementById('fontFamily').value,
+        fontWeight: document.getElementById('fontWeight').value,
+        textColor: document.getElementById('textColor').value,
+        gradColor1: document.getElementById('gradColor1').value,
+        gradColor2: document.getElementById('gradColor2').value,
+        letterSpacing: parseFloat(document.getElementById('letterSpacing').value),
+        lineHeight: parseFloat(document.getElementById('lineHeight').value),
+        dropShadow: parseInt(document.querySelector('input[name="dropShadow"]:checked').value),
+        addOutline: document.getElementById('addOutline').checked,
+        outlineColor: document.getElementById('outlineColor').value,
+        outlineWidth: parseInt(document.getElementById('outlineWidth').value),
+        cornerRadius: parseInt(document.getElementById('cornerRadius').value),
+        gradientAngle: parseInt(document.getElementById('gradientAngle').value)
+      };
+    }
+
+    function createIcon() {
+      const params = getParams();
+      const canvas = document.getElementById('iconCanvas');
+      canvas.width = params.iconSize;
+      canvas.height = params.iconSize;
+      
+      document.getElementById('sizeIndicator').textContent = `${params.iconSize}×${params.iconSize} pixels`;
+      
+      const ctx = canvas.getContext('2d');
+      drawIcon(ctx, params);
+      
+      // Add to history
+      addToHistory(canvas.toDataURL(), params);
+    }
+
+    function drawIcon(ctx, params) {
+      ctx.clearRect(0, 0, params.iconSize, params.iconSize);
+
+      // Create gradient
+      const angle = (params.gradientAngle * Math.PI) / 180;
+      const x1 = params.iconSize / 2 + Math.cos(angle) * params.iconSize / 2;
+      const y1 = params.iconSize / 2 + Math.sin(angle) * params.iconSize / 2;
+      const x2 = params.iconSize / 2 - Math.cos(angle) * params.iconSize / 2;
+      const y2 = params.iconSize / 2 - Math.sin(angle) * params.iconSize / 2;
+
+      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+      gradient.addColorStop(0, params.gradColor1);
+      gradient.addColorStop(1, params.gradColor2);
+
+      // Draw background with corner radius
+      const radius = (params.cornerRadius / 100) * params.iconSize * 0.3;
+      ctx.fillStyle = gradient;
+      roundRect(ctx, 0, 0, params.iconSize, params.iconSize, radius);
+      ctx.fill();
+
+      // Add depth effect
+      const depthGradient = ctx.createRadialGradient(
+        params.iconSize * 0.3, params.iconSize * 0.3, 0,
+        params.iconSize * 0.3, params.iconSize * 0.3, params.iconSize * 0.8
+      );
+      depthGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+      depthGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
+      
+      ctx.fillStyle = depthGradient;
+      roundRect(ctx, 0, 0, params.iconSize, params.iconSize, radius);
+      ctx.fill();
+
+      // Calculate optimal font size
+      const lines = params.text.split('\n');
+      let fontSize = params.iconSize * 0.4;
+      const padding = params.iconSize * 0.15;
+
+      ctx.font = `${params.fontWeight} ${fontSize}px ${params.fontFamily}`;
+      
+      while (fontSize > 10) {
+        let maxWidth = 0;
+        const totalHeight = lines.length * fontSize * params.lineHeight;
+
+        for (const line of lines) {
+          let lineWidth = 0;
+          for (let i = 0; i < line.length; i++) {
+            lineWidth += ctx.measureText(line[i]).width;
+            if (i < line.length - 1) {
+              lineWidth += params.letterSpacing;
+            }
+          }
+          maxWidth = Math.max(maxWidth, lineWidth);
+        }
+
+        if (maxWidth <= params.iconSize - padding * 2 && 
+            totalHeight <= params.iconSize - padding * 2) {
+          break;
+        }
+        
+        fontSize -= 2;
+        ctx.font = `${params.fontWeight} ${fontSize}px ${params.fontFamily}`;
+      }
+
+      // Set text properties
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      // Shadow
+      if (params.dropShadow > 0) {
+        ctx.shadowOffsetX = params.dropShadow;
+        ctx.shadowOffsetY = params.dropShadow;
+        ctx.shadowBlur = params.dropShadow * 2;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
+      }
+
+      // Draw text
+      const startY = params.iconSize / 2 - ((lines.length - 1) * fontSize * params.lineHeight) / 2;
+
+      lines.forEach((line, lineIndex) => {
+        const y = startY + lineIndex * fontSize * params.lineHeight;
+        
+        if (params.addOutline) {
+          ctx.lineWidth = params.outlineWidth;
+          ctx.strokeStyle = params.outlineColor;
+          ctx.strokeText(line, params.iconSize / 2, y);
+        }
+        
+        ctx.fillStyle = params.textColor;
+        ctx.fillText(line, params.iconSize / 2, y);
+      });
+
+      // Reset shadow
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.shadowBlur = 0;
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function randomizeColors() {
+      const colors = [
+        ['#667eea', '#764ba2'], ['#f093fb', '#f5576c'], ['#4facfe', '#00f2fe'],
+        ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#a8edea', '#fed6e3'],
+        ['#ffecd2', '#fcb69f'], ['#ff8a80', '#ff5722'], ['#81c784', '#4caf50'],
+        ['#64b5f6', '#2196f3'], ['#ba68c8', '#9c27b0'], ['#ffb74d', '#ff9800']
+      ];
+      
+      const randomPair = colors[Math.floor(Math.random() * colors.length)];
+      
+      document.getElementById('gradColor1').value = randomPair[0];
+      document.getElementById('gradColor2').value = randomPair[1];
+      
+      // Update displays
+      document.getElementById('gradColor1Hex').textContent = randomPair[0].toUpperCase();
+      document.getElementById('gradColor1Box').style.backgroundColor = randomPair[0];
+      document.getElementById('gradColor2Hex').textContent = randomPair[1].toUpperCase();
+      document.getElementById('gradColor2Box').style.backgroundColor = randomPair[1];
+      
+      // Random text color for contrast
+      const textColors = ['#ffffff', '#000000', '#333333', '#f0f0f0'];
+      const randomTextColor = textColors[Math.floor(Math.random() * textColors.length)];
+      document.getElementById('textColor').value = randomTextColor;
+      document.getElementById('textColorHex').textContent = randomTextColor.toUpperCase();
+      document.getElementById('textColorBox').style.backgroundColor = randomTextColor;
+      
+      createIcon();
+    }
+
+    function resetToDefaults() {
+      // Reset all controls to default values
+      document.getElementById('iconText').value = '🎯';
+      document.getElementById('iconSize').value = '256';
+      document.getElementById('fontFamily').value = "'Noto Sans JP', sans-serif";
+      document.getElementById('fontWeight').value = '600';
+      document.getElementById('textColor').value = '#ffffff';
+      document.getElementById('gradColor1').value = '#667eea';
+      document.getElementById('gradColor2').value = '#764ba2';
+      document.getElementById('letterSpacing').value = '0';
+      document.getElementById('lineHeight').value = '1.2';
+      document.getElementById('shadow3').checked = true;
+      document.getElementById('addOutline').checked = false;
+      document.getElementById('outlineWidth').value = '3';
+      document.getElementById('cornerRadius').value = '15';
+      document.getElementById('gradientAngle').value = '135';
+      
+      // Update displays
+      initializeControls();
+      createIcon();
+    }
+
+    function toggleAdvanced() {
+      const controls = document.getElementById('advancedControls');
+      const button = document.querySelector('.toggle-advanced');
+      
+      if (controls.classList.contains('show')) {
+        controls.classList.remove('show');
+        button.textContent = '🔧 高度な設定';
+      } else {
+        controls.classList.add('show');
+        button.textContent = '🔧 設定を閉じる';
+      }
+    }
+
+    function downloadIcon(format) {
+      const canvas = document.getElementById('iconCanvas');
+      const params = getParams();
+      
+      if (format === 'svg') {
+        const svgData = generateSVG(params);
+        const blob = new Blob([svgData], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
+        downloadFile(url, `icon.svg`);
+      } else if (format === 'ico') {
+        const blob = canvasToICO(canvas);
+        const url = URL.createObjectURL(blob);
+        downloadFile(url, `icon.ico`);
+      } else {
+        const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+        const dataURL = canvas.toDataURL(mimeType, 0.9);
+        downloadFile(dataURL, `icon.${format}`);
+      }
+    }
+
+    function generateSVG(params) {
+      const radius = (params.cornerRadius / 100) * params.iconSize * 0.3;
+      const lines = params.text.split('\n');
+      
+      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${params.iconSize}" height="${params.iconSize}">`;
+      svg += `<defs>
+        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%" gradientTransform="rotate(${params.gradientAngle})">
+          <stop offset="0%" stop-color="${params.gradColor1}"/>
+          <stop offset="100%" stop-color="${params.gradColor2}"/>
+        </linearGradient>`;
+      
+      if (params.dropShadow > 0) {
+        svg += `<filter id="shadow">
+          <feDropShadow dx="${params.dropShadow}" dy="${params.dropShadow}" stdDeviation="${params.dropShadow}" flood-opacity="0.4"/>
+        </filter>`;
+      }
+      
+      svg += `</defs>`;
+      svg += `<rect width="${params.iconSize}" height="${params.iconSize}" rx="${radius}" fill="url(#bg)"/>`;
+      
+      const fontSize = params.iconSize * 0.4;
+      const startY = params.iconSize / 2;
+      
+      svg += `<text x="50%" y="${startY}" text-anchor="middle" dominant-baseline="central"`;
+      svg += ` font-family="${params.fontFamily}" font-size="${fontSize}" font-weight="${params.fontWeight}"`;
+      svg += ` fill="${params.textColor}" letter-spacing="${params.letterSpacing}px"`;
+      
+      if (params.addOutline) {
+        svg += ` stroke="${params.outlineColor}" stroke-width="${params.outlineWidth}"`;
+      }
+      
+      if (params.dropShadow > 0) {
+        svg += ` filter="url(#shadow)"`;
+      }
+      
+      svg += `>${params.text}</text></svg>`;
+      
+      return svg;
+    }
+
+    function canvasToICO(canvas) {
+      const pngDataUrl = canvas.toDataURL('image/png');
+      const pngBase64 = pngDataUrl.split(',')[1];
+      const pngBytes = atob(pngBase64);
+      const pngLength = pngBytes.length;
+
+      const headerSize = 6 + 16;
+      const totalSize = headerSize + pngLength;
+      const buffer = new ArrayBuffer(totalSize);
+      const view = new DataView(buffer);
+      
+      let offset = 0;
+      
+      // ICO Header
+      view.setUint16(offset, 0, true); offset += 2; // Reserved
+      view.setUint16(offset, 1, true); offset += 2; // Type (1 = icon)
+      view.setUint16(offset, 1, true); offset += 2; // Count
+      
+      // Directory Entry
+      const size = canvas.width;
+      view.setUint8(offset, size >= 256 ? 0 : size); offset++;
+      view.setUint8(offset, size >= 256 ? 0 : size); offset++;
+      view.setUint8(offset, 0); offset++; // Colors
+      view.setUint8(offset, 0); offset++; // Reserved
+      view.setUint16(offset, 1, true); offset += 2; // Planes
+      view.setUint16(offset, 32, true); offset += 2; // Bits per pixel
+      view.setUint32(offset, pngLength, true); offset += 4; // Size
+      view.setUint32(offset, headerSize, true); offset += 4; // Offset
+      
+      // PNG Data
+      for (let i = 0; i < pngLength; i++) {
+        view.setUint8(offset + i, pngBytes.charCodeAt(i));
+      }
+      
+      return new Blob([buffer], { type: 'image/x-icon' });
+    }
+
+    function downloadFile(url, filename) {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.click();
+      
+      if (url.startsWith('blob:')) {
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    function addToHistory(dataURL, params) {
+      const historyItem = {
+        dataURL,
+        params: { ...params },
+        timestamp: Date.now()
+      };
+      
+      iconHistory.unshift(historyItem);
+      
+      if (iconHistory.length > maxHistory) {
+        iconHistory = iconHistory.slice(0, maxHistory);
+      }
+      
+      saveHistory();
+      updateHistoryDisplay();
+    }
+
+    function updateHistoryDisplay() {
+      const grid = document.getElementById('historyGrid');
+      grid.innerHTML = '';
+      
+      iconHistory.forEach((item, index) => {
+        const img = document.createElement('img');
+        img.src = item.dataURL;
+        img.className = 'history-item';
+        img.title = `${item.params.text} - ${new Date(item.timestamp).toLocaleString()}`;
+        
+        img.addEventListener('click', () => {
+          loadFromHistory(item.params);
+        });
+        
+        grid.appendChild(img);
+      });
+    }
+
+    function loadFromHistory(params) {
+      // Load parameters into UI
+      Object.keys(params).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+          if (element.type === 'radio') {
+            document.querySelector(`input[name="${key}"][value="${params[key]}"]`).checked = true;
+          } else if (element.type === 'checkbox') {
+            element.checked = params[key];
+          } else {
+            element.value = params[key];
+          }
+        }
+      });
+      
+      initializeControls();
+      createIcon();
+    }
+
+    function saveHistory() {
+      try {
+        localStorage.setItem('iconHistory', JSON.stringify(iconHistory));
+      } catch (e) {
+        console.warn('Could not save history to localStorage');
+      }
+    }
+
+    function loadHistory() {
+      try {
+        const saved = localStorage.getItem('iconHistory');
+        if (saved) {
+          iconHistory = JSON.parse(saved);
+          updateHistoryDisplay();
+        }
+      } catch (e) {
+        console.warn('Could not load history from localStorage');
+      }
+    }
+
+    function debounce(func, wait) {
+      let timeout;
+      return function executedFunction(...args) {
+        const later = () => {
+          clearTimeout(timeout);
+          func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+      };
+    }
+  </script>
+</body>
+</html>
