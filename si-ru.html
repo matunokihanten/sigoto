@@ -1,597 +1,648 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>名前入りシール印刷アプリ【進化版】</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&family=DotGothic16&family=M+PLUS+Rounded+1c&family=Noto+Sans+JP:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/svg2pdf.js/2.2.1/svg2pdf.min.js"></script>
-    <style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>名前入りシール印刷＋WiFi QRコードシール印刷</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic&family=DotGothic16&family=M+PLUS+Rounded+1c&family=Noto+Sans+JP&family=Roboto&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        background-color: #f4f7f6;
+        margin: 20px;
+        color: #333;
+    }
+    .container {
+        background-color: #ffffff;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 600px;
+        box-sizing: border-box;
+    }
+    h1 {
+        text-align: center;
+        color: #007bff;
+        margin-bottom: 30px;
+    }
+    .input-group {
+        margin-bottom: 20px;
+    }
+    .input-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+        color: #555;
+    }
+    .input-group input[type="text"],
+    .input-group input[type="number"],
+    .input-group select,
+    .input-group textarea {
+        width: calc(100% - 20px);
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 16px;
+        box-sizing: border-box;
+        background-color: #fff;
+    }
+    .input-group textarea {
+        resize: vertical;
+    }
+    .input-group input[type="range"] {
+        width: calc(100% - 140px);
+        margin-top: 5px;
+        vertical-align: middle;
+    }
+    .range-display {
+        display: inline-block;
+        width: 90px;
+        text-align: right;
+        font-size: 14px;
+        color: #777;
+        margin-left: 8px;
+        user-select: none;
+        vertical-align: middle;
+    }
+    .button-group {
+        display: flex;
+        gap: 10px;
+        margin-top: 25px;
+        flex-wrap: wrap;
+    }
+    .button-group button {
+        flex: 1;
+        padding: 15px;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        min-width: 120px;
+    }
+    #previewButton {
+        background-color: #007bff;
+    }
+    #previewButton:hover {
+        background-color: #0056b3;
+    }
+    #printButton {
+        background-color: #28a745;
+    }
+    #printButton:hover {
+        background-color: #218838;
+    }
+    #savePdfButton {
+        background-color: #dc3545;
+    }
+    #savePdfButton:hover {
+        background-color: #c82333;
+    }
+    #wifiQrButton {
+        background-color: #0066cc;
+    }
+    #wifiQrButton:hover {
+        background-color: #004999;
+    }
+    .preview-area {
+        display: none;
+        margin-top: 30px;
+        border: 1px solid #eee;
+        padding: 10px;
+        background-color: #fafafa;
+        border-radius: 8px;
+        overflow-x: auto;
+    }
+    .preview-content {
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0 auto;
+        padding: 10mm;
+        box-sizing: border-box;
+        background-color: white;
+        border: 1px solid #ccc;
+        position: relative;
+        overflow: hidden;
+    }
+    .print-only {
+        display: none;
+        width: 210mm;
+        min-height: 297mm;
+        margin: 0;
+        padding: 10mm;
+        box-sizing: border-box;
+        position: relative;
+        overflow: hidden;
+        page-break-after: always;
+    }
+    @media print {
         body {
-            font-family: 'Noto Sans JP', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            min-height: 100vh;
-            background-color: #f0f2f5;
-            margin: 20px;
-            color: #333;
+            margin: 0;
+            padding: 0;
+            background: none;
         }
-
-        .container {
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 800px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        h1 {
-            text-align: center;
-            color: #007bff;
-            margin-bottom: 10px;
-            font-size: 2em;
-        }
-
-        .input-section {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 20px;
-        }
-        
-        @media (min-width: 768px) {
-            .input-section {
-                grid-template-columns: 1fr 1fr;
-            }
-        }
-        
-        .input-group {
-            margin-bottom: 15px;
-            background-color: #fafafa;
-            padding: 20px;
-            border-radius: 8px;
-            border: 1px solid #e0e0e0;
-        }
-
-        .input-group h2 {
-            margin-top: 0;
-            color: #007bff;
-            font-size: 1.2em;
-            border-bottom: 2px solid #007bff;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #555;
-            font-size: 0.9em;
-        }
-
-        input[type="text"],
-        input[type="number"],
-        select,
-        textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 16px;
-            box-sizing: border-box;
-            background-color: #fff;
-        }
-
-        input[type="range"] {
-            width: 100%;
-            margin-top: 5px;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        .button-group button {
-            padding: 12px 20px;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.1s ease;
-            min-width: 100px;
-        }
-
-        #printButton {
-            background-color: #28a745;
-        }
-        #printButton:hover {
-            background-color: #218838;
-            transform: translateY(-2px);
-        }
-
-        #savePdfButton {
-            background-color: #dc3545;
-        }
-        #savePdfButton:hover {
-            background-color: #c82333;
-            transform: translateY(-2px);
-        }
-
-        #resetButton {
-            background-color: #6c757d;
-        }
-        #resetButton:hover {
-            background-color: #5a6268;
-            transform: translateY(-2px);
-        }
-
-        #pdf-generating-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-
-        #pdf-generating-overlay .spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #007bff;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
+        .container,
         .preview-area {
-            margin-top: 30px;
-            border: 1px solid #e0e0e0;
-            background-color: #fafafa;
-            border-radius: 8px;
-            overflow-x: auto;
-            text-align: center;
+            display: none;
         }
-
-        .preview-area h2 {
-            text-align: center;
-            color: #007bff;
+        .print-only {
+            display: block !important;
         }
-
-        .preview-page {
-            width: 210mm;
-            min-height: 297mm;
-            margin: 20px auto;
-            padding: 0;
-            box-sizing: border-box;
-            background-color: white;
-            border: 1px solid #ccc;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-wrap: wrap;
-            align-content: flex-start;
+        .sticker {
+            page-break-inside: avoid;
         }
-        
-        .sticker-wrapper {
-            box-sizing: border-box;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 0;
-        }
-        
-        .sticker-wrapper svg {
-            border: 1px solid black;
-            box-sizing: border-box;
-            overflow: visible;
-        }
-        
-        /* 印刷時のスタイル */
-        @media print {
-            body {
-                margin: 0;
-                padding: 0;
-                background: none;
-            }
-            .container, .preview-area {
-                display: none;
-            }
-            #print-area {
-                display: block !important;
-                margin: 0;
-                padding: 0;
-                width: 210mm;
-                height: 297mm;
-            }
-            .print-page {
-                width: 210mm;
-                height: 297mm;
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-                page-break-after: always;
-            }
-            .print-page:last-child {
-                page-break-after: avoid;
-            }
-        }
-    </style>
+    }
+    .sticker {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background-color: #fff;
+        border: 1px solid black;
+        box-sizing: border-box;
+        overflow: visible;
+        position: absolute;
+        text-align: center;
+        line-height: 1.2;
+        padding: 3mm 0;
+    }
+    .sticker .text-line {
+        font-weight: 900;
+        word-break: break-all;
+        padding: 0 2mm;
+        white-space: pre-wrap;
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+    }
+    .sticker .wifi-qr-canvas {
+        margin-top: 6px;
+        width: auto;
+        max-width: 100%;
+        max-height: 100%;
+        box-sizing: border-box;
+    }
+    .wifi-qr-text {
+        margin-top: 4px;
+        font-weight: normal;
+        color: #333;
+        user-select: none;
+        width: 100%;
+        box-sizing: border-box;
+        word-break: break-word;
+    }
+    .wifi-container {
+        background: #f6fbff;
+        border: 1px solid #c9e6ff;
+        padding: 20px 15px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        margin-top: 24px;
+    }
+    #wifiQR {
+        text-align: center;
+        margin-top: 16px;
+    }
+    #wifiQR canvas {
+        margin: auto;
+        display: block;
+    }
+    .radio-group {
+        margin-bottom: 25px;
+        font-weight: bold;
+        color: #555;
+    }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>名前入りシール印刷アプリ【進化版】</h1>
-        <div class="input-section">
-            <div class="input-group">
-                <h2>🖋️ 名前・フォント設定</h2>
-                <div style="margin-bottom: 15px;">
-                    <label for="nameInput">名前 (複数行にしたい場合は改行):</label>
-                    <textarea id="nameInput" rows="2">あなたの名前</textarea>
-                </div>
-                <div style="margin-bottom: 15px;">
-                    <label for="fontSelect">フォント:</label>
-                    <select id="fontSelect">
-                        <option value="Noto Sans JP">Noto Sans JP (標準)</option>
-                        <option value="BIZ UDPGothic">BIZ UDPGothic</option>
-                        <option value="DotGothic16">DotGothic16</option>
-                        <option value="M PLUS Rounded 1c">M PLUS Rounded 1c</option>
-                        <option value="Roboto">Roboto (英数字向け)</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="fontSizeRange">文字の大きさ: <span id="fontSizeValue">18</span>pt</label>
-                    <input type="range" id="fontSizeRange" min="5" max="80" value="18">
-                </div>
-            </div>
+<div class="container">
+    <h1>名前入りシール印刷＋WiFi QRコードシール印刷</h1>
 
-            <div class="input-group">
-                <h2>📏 シール・用紙サイズ設定 (mm)</h2>
-                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <div>
-                        <label for="stickerWidth">シールの横幅:</label>
-                        <input type="number" id="stickerWidth" value="95" min="10">
-                    </div>
-                    <div>
-                        <label for="stickerHeight">シールの縦幅:</label>
-                        <input type="number" id="stickerHeight" value="65" min="10">
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <div>
-                        <label for="marginTop">上余白:</label>
-                        <input type="number" id="marginTop" value="10" min="0">
-                    </div>
-                    <div>
-                        <label for="marginLeft">左余白:</label>
-                        <input type="number" id="marginLeft" value="10" min="0">
-                    </div>
-                </div>
-                <div style="display: flex; gap: 10px; margin-top: 15px;">
-                    <div>
-                        <label for="gapX">行間ギャップ:</label>
-                        <input type="number" id="gapX" value="0" min="0">
-                    </div>
-                    <div>
-                        <label for="gapY">列間ギャップ:</label>
-                        <input type="number" id="gapY" value="0" min="0">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="button-group">
-            <button id="printButton">🖨️ 印刷する</button>
-            <button id="savePdfButton">📥 PDFで保存</button>
-            <button id="resetButton">🔄 設定をリセット</button>
-        </div>
-
-        <div id="preview-area" class="preview-area">
-            <h2>プレビュー</h2>
-            <div id="preview-content"></div>
-        </div>
-    </div>
-    
-    <div id="pdf-generating-overlay">
-        <div class="spinner"></div>
+    <div class="radio-group">
+        <label><input type="radio" name="stickerType" value="name" checked> 名前シール用</label>
+        <label style="margin-left:20px;"><input type="radio" name="stickerType" value="wifi"> WiFi QR用</label>
     </div>
 
-    <div id="print-area" style="display: none;"></div>
+    <div id="wifiInputs" class="wifi-container" style="display:none;">
+        <h2>WiFi QRコード作成</h2>
+        <div class="input-group">
+            <label for="wifiSsid">SSID(ネットワーク名):</label>
+            <input type="text" id="wifiSsid" placeholder="MyWiFi" />
+        </div>
+        <div class="input-group">
+            <label for="wifiPassword">パスワード:</label>
+            <input type="text" id="wifiPassword" placeholder="パスワード" />
+        </div>
+        <div class="input-group">
+            <label for="wifiSecurity">セキュリティ種類:</label>
+            <select id="wifiSecurity">
+                <option value="WPA" selected>WPA/WPA2</option>
+                <option value="WEP">WEP</option>
+                <option value="nopass">なし（オープン）</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="qrSizeRange">QRコードの大きさ (px): <span id="qrSizeValue">80</span></label>
+            <input type="range" id="qrSizeRange" min="40" max="200" value="80" />
+        </div>
+        <div class="input-group">
+            <label for="wifiText">QRコード下の文字:</label>
+            <input type="text" id="wifiText" value="WiFiに接続してね！" />
+        </div>
+        <div class="input-group">
+            <label for="wifiTextSizeRange">QRコード下文字の大きさ (px): <span id="wifiTextSizeValue">12</span></label>
+            <input type="range" id="wifiTextSizeRange" min="8" max="30" value="12" />
+        </div>
+        <button id="wifiQrButton">QRコード生成</button>
+        <div id="wifiQR"></div>
+    </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const nameInput = document.getElementById('nameInput');
-            const fontSelect = document.getElementById('fontSelect');
-            const fontSizeRange = document.getElementById('fontSizeRange');
-            const fontSizeValue = document.getElementById('fontSizeValue');
-            const stickerWidthInput = document.getElementById('stickerWidth');
-            const stickerHeightInput = document.getElementById('stickerHeight');
-            const marginTopInput = document.getElementById('marginTop');
-            const marginLeftInput = document.getElementById('marginLeft');
-            const gapXInput = document.getElementById('gapX');
-            const gapYInput = document.getElementById('gapY');
-            const printButton = document.getElementById('printButton');
-            const savePdfButton = document.getElementById('savePdfButton');
-            const resetButton = document.getElementById('resetButton');
-            const previewContent = document.getElementById('preview-content');
-            const printArea = document.getElementById('print-area');
-            const pdfOverlay = document.getElementById('pdf-generating-overlay');
+    <div id="nameInputs">
+        <div class="input-group">
+            <label for="nameInput">名前 (2行にしたい場合は改行してください):</label>
+            <textarea id="nameInput" rows="2">あなたの名前</textarea>
+        </div>
+        <div class="input-group">
+            <label for="fontSelect">フォント:</label>
+            <select id="fontSelect">
+                <option value="Noto Sans JP">Noto Sans JP (標準)</option>
+                <option value="BIZ UDPGothic">BIZ UDPGothic</option>
+                <option value="DotGothic16">DotGothic16</option>
+                <option value="M PLUS Rounded 1c">M PLUS Rounded 1c</option>
+                <option value="Roboto">Roboto (英数字向け)</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <label for="fontSizeRange">文字の大きさ: <span id="fontSizeValue">20</span>px</label>
+            <input type="range" id="fontSizeRange" min="5" max="100" value="20" />
+        </div>
+    </div>
 
-            const A4_WIDTH_MM = 210;
-            const A4_HEIGHT_MM = 297;
+    <div class="input-group">
+        <label for="stickerWidth">シールの横幅 (mm):</label>
+        <input type="number" id="stickerWidth" value="95" min="10" />
+    </div>
+    <div class="input-group">
+        <label for="stickerHeight">シールの縦幅 (mm):</label>
+        <input type="number" id="stickerHeight" value="65" min="10" />
+    </div>
 
-            // 初期値をlocalStorageから読み込む
-            const loadSettings = () => {
-                const settings = JSON.parse(localStorage.getItem('stickerApp.settings')) || {};
-                nameInput.value = settings.name || 'あなたの名前';
-                fontSelect.value = settings.font || 'Noto Sans JP';
-                fontSizeRange.value = settings.fontSize || 18;
-                stickerWidthInput.value = settings.stickerWidth || 95;
-                stickerHeightInput.value = settings.stickerHeight || 65;
-                marginTopInput.value = settings.marginTop || 10;
-                marginLeftInput.value = settings.marginLeft || 10;
-                gapXInput.value = settings.gapX || 0;
-                gapYInput.value = settings.gapY || 0;
-            };
+    <div class="button-group">
+        <button id="previewButton">プレビューを表示</button>
+        <button id="printButton">印刷する</button>
+        <button id="savePdfButton">PDFで保存</button>
+    </div>
 
-            // 設定をlocalStorageに保存
-            const saveSettings = () => {
-                const settings = {
-                    name: nameInput.value,
-                    font: fontSelect.value,
-                    fontSize: fontSizeRange.value,
-                    stickerWidth: stickerWidthInput.value,
-                    stickerHeight: stickerHeightInput.value,
-                    marginTop: marginTopInput.value,
-                    marginLeft: marginLeftInput.value,
-                    gapX: gapXInput.value,
-                    gapY: gapYInput.value
-                };
-                localStorage.setItem('stickerApp.settings', JSON.stringify(settings));
-            };
+    <div id="previewArea" class="preview-area">
+        <h2>印刷プレビュー</h2>
+        <div id="previewContent" class="preview-content"></div>
+    </div>
+</div>
 
-            // SVGでシールを生成する関数
-            function createStickerSVG(name, font, fontSize, width, height) {
-                const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-                svg.setAttribute("width", `${width}mm`);
-                svg.setAttribute("height", `${height}mm`);
-                svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+<div id="printOnlyArea" class="print-only"></div>
 
-                const lines = name.split('\n');
-                const lineHeight = fontSize * 1.2; // 行間を考慮
-                const totalTextHeight = lines.length * lineHeight;
-                const startY = (height - totalTextHeight) / 2 + lineHeight / 2; // 中央揃え
+<script>
+    function escapeWiFiValue(val) {
+        return val.replace(/([\\;,":])/g, '\\$1');
+    }
+    function makeWiFiQRString(ssid, security, password) {
+        let qrStr = `WIFI:S:${escapeWiFiValue(ssid)};T:${security};`;
+        if (security !== 'nopass') {
+            qrStr += `P:${escapeWiFiValue(password)};`;
+        }
+        qrStr += ';';
+        return qrStr;
+    }
 
-                lines.forEach((line, index) => {
-                    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-                    text.textContent = line;
-                    text.setAttribute("x", "50%");
-                    text.setAttribute("y", `${startY + index * lineHeight}`);
-                    text.setAttribute("dominant-baseline", "middle");
-                    text.setAttribute("text-anchor", "middle");
-                    text.setAttribute("font-family", `'${font}', sans-serif`);
-                    text.setAttribute("font-size", `${fontSize}pt`);
-                    text.setAttribute("font-weight", "bold");
-                    text.setAttribute("fill", "black");
+    // WiFi QRコード生成＆画面表示
+    document.getElementById('wifiQrButton').addEventListener('click', () => {
+        const ssid = document.getElementById('wifiSsid').value.trim();
+        const password = document.getElementById('wifiPassword').value.trim();
+        const security = document.getElementById('wifiSecurity').value;
+        const textBelow = document.getElementById('wifiText').value.trim() || '';
+        const qrDiv = document.getElementById('wifiQR');
+        qrDiv.innerHTML = '';
+        if (!ssid) {
+            qrDiv.textContent = 'SSIDを入力してください。';
+            return;
+        }
+        const qrContent = makeWiFiQRString(ssid, security, password);
+        const qrSize = parseInt(document.getElementById('qrSizeRange').value, 10);
+        const textSize = parseInt(document.getElementById('wifiTextSizeRange').value, 10);
+        QRCode.toCanvas(document.createElement('canvas'), qrContent, { width: qrSize }, (err, canvas) => {
+            if (err) {
+                qrDiv.textContent = 'QRコード生成に失敗しました。';
+            } else {
+                qrDiv.appendChild(canvas);
+                if(textBelow !== '') {
+                    const info = document.createElement('div');
+                    info.className = 'wifi-qr-text';
+                    info.style.fontSize = textSize + 'px';
+                    info.textContent = textBelow;
+                    qrDiv.appendChild(info);
+                }
+            }
+        });
+    });
 
-                    // テキストが枠に収まるように調整
-                    let currentFontSize = fontSize;
-                    while (text.getBBox().width > width - 4 && currentFontSize > 5) {
-                        currentFontSize -= 1;
-                        text.setAttribute("font-size", `${currentFontSize}pt`);
-                    }
-                    svg.appendChild(text);
-                });
-                return svg;
+    document.addEventListener('DOMContentLoaded', () => {
+        const nameInput = document.getElementById('nameInput');
+        const fontSelect = document.getElementById('fontSelect');
+        const fontSizeRange = document.getElementById('fontSizeRange');
+        const fontSizeValue = document.getElementById('fontSizeValue');
+        const stickerWidthInput = document.getElementById('stickerWidth');
+        const stickerHeightInput = document.getElementById('stickerHeight');
+        const previewButton = document.getElementById('previewButton');
+        const printButton = document.getElementById('printButton');
+        const savePdfButton = document.getElementById('savePdfButton');
+        const previewArea = document.getElementById('previewArea');
+        const previewContent = document.getElementById('previewContent');
+        const printOnlyArea = document.getElementById('printOnlyArea');
+
+        const wifiInputs = document.getElementById('wifiInputs');
+        const nameInputs = document.getElementById('nameInputs');
+
+        const A4_WIDTH_MM = 210;
+        const A4_HEIGHT_MM = 297;
+        const MARGIN_MM = 10;
+
+        fontSizeValue.textContent = fontSizeRange.value;
+
+        fontSizeRange.addEventListener('input', () => {
+            fontSizeValue.textContent = fontSizeRange.value;
+        });
+
+        const radios = document.querySelectorAll('input[name="stickerType"]');
+        radios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.value === 'wifi') {
+                    wifiInputs.style.display = 'block';
+                    nameInputs.style.display = 'none';
+                } else {
+                    wifiInputs.style.display = 'none';
+                    nameInputs.style.display = 'block';
+                }
+            });
+        });
+
+        async function generateNameStickers(targetElement) {
+            targetElement.innerHTML = '';
+            targetElement.style.position = 'relative';
+            const nameText = nameInput.value.trim();
+            const selectedFont = fontSelect.value;
+            const fontSizePx = parseFloat(fontSizeRange.value);
+            const stickerWidth = parseFloat(stickerWidthInput.value);
+            const stickerHeight = parseFloat(stickerHeightInput.value);
+
+            if (!nameText) {
+                alert('名前を入力してください。');
+                return 0;
+            }
+            if (isNaN(stickerWidth) || stickerWidth <= 0 || isNaN(stickerHeight) || stickerHeight <= 0) {
+                alert('有効なシールのサイズを入力してください。');
+                return 0;
             }
 
-            // リアルタイムでプレビューを更新する関数
-            const updatePreview = () => {
-                saveSettings();
-                previewContent.innerHTML = '';
-                
-                const nameText = nameInput.value.trim();
-                if (!nameText) {
-                    previewContent.innerHTML = '<p style="text-align: center; color: #888;">名前を入力するとプレビューが表示されます。</p>';
-                    return;
+            const printableWidth = A4_WIDTH_MM - MARGIN_MM * 2;
+            const printableHeight = A4_HEIGHT_MM - MARGIN_MM * 2;
+            const maxCols = Math.floor(printableWidth / stickerWidth);
+            const maxRows = Math.floor(printableHeight / stickerHeight);
+            if (maxCols === 0 || maxRows === 0) {
+                alert('指定されたサイズではA4にシールを配置できません。小さくしてください。');
+                return 0;
+            }
+
+            const nameLines = nameText.split('\n');
+            let count = 0;
+            const startX = MARGIN_MM;
+            const startY = MARGIN_MM;
+
+            for (let row = 0; row < maxRows; row++) {
+                for (let col = 0; col < maxCols; col++) {
+                    const sticker = document.createElement('div');
+                    sticker.classList.add('sticker');
+                    sticker.style.width = `${stickerWidth}mm`;
+                    sticker.style.height = `${stickerHeight}mm`;
+                    sticker.style.fontFamily = `'${selectedFont}', sans-serif`;
+                    const posX = startX + col * stickerWidth;
+                    const posY = startY + row * stickerHeight;
+                    sticker.style.left = `${posX}mm`;
+                    sticker.style.top = `${posY}mm`;
+                    nameLines.forEach(line => {
+                        const lineElem = document.createElement('span');
+                        lineElem.classList.add('text-line');
+                        lineElem.textContent = line;
+                        lineElem.style.fontSize = `${fontSizePx}px`;
+                        sticker.appendChild(lineElem);
+                    });
+                    targetElement.appendChild(sticker);
+                    count++;
                 }
+            }
+            return count;
+        }
 
-                const font = fontSelect.value;
-                const fontSize = parseFloat(fontSizeRange.value);
-                const stickerWidth = parseFloat(stickerWidthInput.value);
-                const stickerHeight = parseFloat(stickerHeightInput.value);
-                const marginTop = parseFloat(marginTopInput.value);
-                const marginLeft = parseFloat(marginLeftInput.value);
-                const gapX = parseFloat(gapXInput.value);
-                const gapY = parseFloat(gapYInput.value);
+        async function generateWiFiQRStickers(targetElement) {
+            targetElement.innerHTML = '';
+            targetElement.style.position = 'relative';
 
-                // 計算
-                const printableWidth = A4_WIDTH_MM - (2 * marginLeft);
-                const printableHeight = A4_HEIGHT_MM - (2 * marginTop);
+            const ssid = document.getElementById('wifiSsid').value.trim();
+            const password = document.getElementById('wifiPassword').value.trim();
+            const security = document.getElementById('wifiSecurity').value;
+            const wifiText = document.getElementById('wifiText').value.trim() || '';
+            if (!ssid) {
+                alert('WiFiのSSIDを入力してください。');
+                return 0;
+            }
 
-                const countX = Math.floor((printableWidth + gapX) / (stickerWidth + gapX));
-                const countY = Math.floor((printableHeight + gapY) / (stickerHeight + gapY));
-                
-                if (countX <= 0 || countY <= 0) {
-                    previewContent.innerHTML = '<p style="text-align: center; color: #d9534f;">設定されたサイズでは用紙にシールが配置できません。設定を見直してください。</p>';
-                    return;
-                }
-                
-                const pagesNeeded = Math.ceil(1 / (countX * countY)); // ページ数は常に1以上
+            const stickerWidth = parseFloat(stickerWidthInput.value);
+            const stickerHeight = parseFloat(stickerHeightInput.value);
+            if (isNaN(stickerWidth) || stickerWidth <= 0 || isNaN(stickerHeight) || stickerHeight <= 0) {
+                alert('有効なシールのサイズを入力してください。');
+                return 0;
+            }
 
-                for (let pageNum = 0; pageNum < pagesNeeded; pageNum++) {
-                    const page = document.createElement('div');
-                    page.classList.add('preview-page');
-                    
-                    for (let row = 0; row < countY; row++) {
-                        for (let col = 0; col < countX; col++) {
-                            const wrapper = document.createElement('div');
-                            wrapper.classList.add('sticker-wrapper');
-                            wrapper.style.width = `${stickerWidth}mm`;
-                            wrapper.style.height = `${stickerHeight}mm`;
-                            wrapper.style.marginRight = `${gapX}mm`;
-                            wrapper.style.marginBottom = `${gapY}mm`;
-                            wrapper.style.marginTop = `${row === 0 ? marginTop : 0}mm`;
-                            wrapper.style.marginLeft = `${col === 0 ? marginLeft : 0}mm`;
+            const printableWidth = A4_WIDTH_MM - MARGIN_MM * 2;
+            const printableHeight = A4_HEIGHT_MM - MARGIN_MM * 2;
+            const maxCols = Math.floor(printableWidth / stickerWidth);
+            const maxRows = Math.floor(printableHeight / stickerHeight);
+            if (maxCols === 0 || maxRows === 0) {
+                alert('指定されたサイズではA4にシールを配置できません。小さくしてください。');
+                return 0;
+            }
 
-                            const svg = createStickerSVG(nameText, font, fontSize, stickerWidth, stickerHeight);
-                            wrapper.appendChild(svg);
-                            page.appendChild(wrapper);
-                        }
-                    }
-                    previewContent.appendChild(page);
-                }
-            };
+            const qrContent = makeWiFiQRString(ssid, security, password);
+            let count = 0;
+            const startX = MARGIN_MM;
+            const startY = MARGIN_MM;
+            const qrSize = parseInt(document.getElementById('qrSizeRange').value, 10);
+            const wifiTextFontSize = parseInt(document.getElementById('wifiTextSizeRange').value, 10);
 
-            // イベントリスナーの設定
-            [nameInput, fontSelect, stickerWidthInput, stickerHeightInput, marginTopInput, marginLeftInput, gapXInput, gapYInput].forEach(element => {
-                element.addEventListener('input', updatePreview);
-            });
-            fontSizeRange.addEventListener('input', () => {
-                fontSizeValue.textContent = fontSizeRange.value;
-                updatePreview();
-            });
+            for (let row = 0; row < maxRows; row++) {
+                for (let col = 0; col < maxCols; col++) {
+                    const sticker = document.createElement('div');
+                    sticker.classList.add('sticker');
+                    sticker.style.width = `${stickerWidth}mm`;
+                    sticker.style.height = `${stickerHeight}mm`;
+                    sticker.style.fontFamily = `'Noto Sans JP', sans-serif`;
+                    const posX = startX + col * stickerWidth;
+                    const posY = startY + row * stickerHeight;
+                    sticker.style.left = `${posX}mm`;
+                    sticker.style.top = `${posY}mm`;
 
-            // 印刷ボタン
-            printButton.addEventListener('click', async () => {
-                const nameText = nameInput.value.trim();
-                if (!nameText) {
-                    alert('名前を入力してください。');
-                    return;
-                }
-                
-                printArea.innerHTML = '';
-                const pages = generatePrintContent();
-                pages.forEach(page => printArea.appendChild(page));
-                
-                window.print();
-                
-                printArea.innerHTML = ''; // 印刷後クリア
-            });
+                    // SSID表示
+                    const ssidLine = document.createElement('span');
+                    ssidLine.classList.add('text-line');
+                    ssidLine.textContent = ssid;
+                    ssidLine.style.fontSize = `${wifiTextFontSize}px`;
+                    sticker.appendChild(ssidLine);
 
-            // PDF保存ボタン
-            savePdfButton.addEventListener('click', async () => {
-                const nameText = nameInput.value.trim();
-                if (!nameText) {
-                    alert('名前を入力してください。');
-                    return;
-                }
-                
-                pdfOverlay.style.display = 'flex';
-                
-                const doc = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4' });
-                const pages = generatePrintContent(false); // PDF用なので、印刷時の余計なスタイルは不要
+                    // QRコードcanvas
+                    const qrCanvas = document.createElement('canvas');
+                    qrCanvas.classList.add('wifi-qr-canvas');
+                    qrCanvas.style.maxWidth = `${qrSize}px`;
+                    qrCanvas.style.maxHeight = `${qrSize}px`;
+                    sticker.appendChild(qrCanvas);
 
-                for (let i = 0; i < pages.length; i++) {
-                    const svgElements = pages[i].querySelectorAll('svg');
-                    const x = parseFloat(marginLeftInput.value);
-                    const y = parseFloat(marginTopInput.value);
-                    const gapX = parseFloat(gapXInput.value);
-                    const gapY = parseFloat(gapYInput.value);
-                    const stickerWidth = parseFloat(stickerWidthInput.value);
-                    const stickerHeight = parseFloat(stickerHeightInput.value);
-                    const countX = Math.floor((A4_WIDTH_MM - (2 * x) + gapX) / (stickerWidth + gapX));
-
-                    if (i > 0) {
-                        doc.addPage();
+                    try {
+                        await QRCode.toCanvas(qrCanvas, qrContent, { width: qrSize });
+                    } catch (e) {
+                        console.error('QRコード生成エラー:', e);
+                        alert('QRコード生成に失敗しました');
+                        return 0;
                     }
 
-                    for (let j = 0; j < svgElements.length; j++) {
-                        const svg = svgElements[j];
-                        const col = j % countX;
-                        const row = Math.floor(j / countX);
-                        const posX = x + col * (stickerWidth + gapX);
-                        const posY = y + row * (stickerHeight + gapY);
-
-                        await window.svg2pdf(svg, doc, {
-                            x: posX,
-                            y: posY,
-                            width: stickerWidth,
-                            height: stickerHeight
-                        });
+                    // カスタムテキスト追加
+                    if (wifiText !== '') {
+                        const wifiInfoText = document.createElement('div');
+                        wifiInfoText.className = 'wifi-qr-text';
+                        wifiInfoText.style.fontSize = `${wifiTextFontSize}px`;
+                        wifiInfoText.textContent = wifiText;
+                        sticker.appendChild(wifiInfoText);
                     }
+
+                    targetElement.appendChild(sticker);
+                    count++;
                 }
-                
-                doc.save('名前入りシール.pdf');
-                pdfOverlay.style.display = 'none';
-            });
-            
-            // 印刷・PDF用のコンテンツを生成する関数
-            const generatePrintContent = (isForPrint = true) => {
-                const pages = [];
-                const nameText = nameInput.value.trim();
-                const font = fontSelect.value;
-                const fontSize = parseFloat(fontSizeRange.value);
-                const stickerWidth = parseFloat(stickerWidthInput.value);
-                const stickerHeight = parseFloat(stickerHeightInput.value);
-                const marginTop = parseFloat(marginTopInput.value);
-                const marginLeft = parseFloat(marginLeftInput.value);
-                const gapX = parseFloat(gapXInput.value);
-                const gapY = parseFloat(gapYInput.value);
+            }
+            return count;
+        }
 
-                const printableWidth = A4_WIDTH_MM - (2 * marginLeft);
-                const printableHeight = A4_HEIGHT_MM - (2 * marginTop);
-                const countX = Math.floor((printableWidth + gapX) / (stickerWidth + gapX));
-                const countY = Math.floor((printableHeight + gapY) / (stickerHeight + gapY));
-                
-                if (countX <= 0 || countY <= 0) return [];
-                const maxStickersPerPage = countX * countY;
-                const totalStickers = 100; // 印刷する枚数を仮に100枚に設定
+        function getSelectedStickerType() {
+            const checked = document.querySelector('input[name="stickerType"]:checked');
+            return checked ? checked.value : 'name';
+        }
 
-                let stickerIndex = 0;
-                while (stickerIndex < totalStickers) {
-                    const page = document.createElement('div');
-                    page.classList.add(isForPrint ? 'print-page' : 'pdf-page');
-
-                    for (let i = 0; i < maxStickersPerPage && stickerIndex < totalStickers; i++) {
-                        const col = i % countX;
-                        const row = Math.floor(i / countX);
-                        
-                        const stickerSVG = createStickerSVG(nameText, font, fontSize, stickerWidth, stickerHeight);
-                        stickerSVG.style.position = 'absolute';
-                        stickerSVG.style.left = `${marginLeft + col * (stickerWidth + gapX)}mm`;
-                        stickerSVG.style.top = `${marginTop + row * (stickerHeight + gapY)}mm`;
-                        
-                        page.appendChild(stickerSVG);
-                        stickerIndex++;
-                    }
-                    pages.push(page);
-                }
-                return pages;
-            };
-
-            // リセットボタン
-            resetButton.addEventListener('click', () => {
-                localStorage.removeItem('stickerApp.settings');
-                location.reload(); // ページをリロードして初期状態に戻す
-            });
-            
-            // 初回ロード時の処理
-            loadSettings();
-            updatePreview();
+        previewButton.addEventListener('click', async () => {
+            const previewType = getSelectedStickerType();
+            let count = 0;
+            if (previewType === 'wifi') {
+                count = await generateWiFiQRStickers(previewContent);
+            } else {
+                count = await generateNameStickers(previewContent);
+            }
+            previewArea.style.display = count > 0 ? 'block' : 'none';
         });
-    </script>
+
+        printButton.addEventListener('click', async () => {
+            const printType = getSelectedStickerType();
+            let count = 0;
+            if (printType === 'wifi') {
+                count = await generateWiFiQRStickers(printOnlyArea);
+            } else {
+                count = await generateNameStickers(printOnlyArea);
+            }
+            if (count === 0) return;
+            printOnlyArea.style.display = 'block';
+            window.print();
+            printOnlyArea.style.display = 'none';
+            printOnlyArea.innerHTML = '';
+        });
+
+        savePdfButton.addEventListener('click', async () => {
+            const pdfType = getSelectedStickerType();
+            let count = 0;
+            if (pdfType === 'wifi') {
+                count = await generateWiFiQRStickers(previewContent);
+            } else {
+                count = await generateNameStickers(previewContent);
+            }
+            if (count === 0) {
+                previewArea.style.display = 'none';
+                return;
+            }
+            previewArea.style.display = 'block';
+            try {
+                await document.fonts.ready;
+            } catch (error) {
+                console.warn('font loading failed:', error);
+                alert('フォントの読み込みに失敗しました。PDF表示に影響するかもしれません。');
+            }
+            const canvas = await html2canvas(previewContent, {
+                scale: 3,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#fff',
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new window.jspdf.jsPDF({
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait',
+            });
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const aspectRatio = canvas.width / canvas.height;
+            let imgWidth = pdfWidth;
+            let imgHeight = pdfWidth / aspectRatio;
+            if (imgHeight > pdfHeight) {
+                imgHeight = pdfHeight;
+                imgWidth = pdfHeight * aspectRatio;
+            }
+            const xOffset = (pdfWidth - imgWidth) / 2;
+            const yOffset = (pdfHeight - imgHeight) / 2;
+            pdf.addImage(imgData, 'PNG', xOffset, yOffset, imgWidth, imgHeight);
+            pdf.save('シール.pdf');
+        });
+
+        (() => {
+            const checked = document.querySelector('input[name="stickerType"]:checked');
+            const wifiInputs = document.getElementById('wifiInputs');
+            const nameInputs = document.getElementById('nameInputs');
+            if (checked && checked.value === 'wifi') {
+                wifiInputs.style.display = 'block';
+                nameInputs.style.display = 'none';
+            } else {
+                wifiInputs.style.display = 'none';
+                nameInputs.style.display = 'block';
+            }
+        })();
+
+        // QRコード大きさとテキスト大きさ表示更新
+        const qrSizeRange = document.getElementById('qrSizeRange');
+        const wifiTextSizeRange = document.getElementById('wifiTextSizeRange');
+        const qrSizeValue = document.getElementById('qrSizeValue');
+        const wifiTextSizeValue = document.getElementById('wifiTextSizeValue');
+
+        qrSizeRange.addEventListener('input', () => {
+            qrSizeValue.textContent = qrSizeRange.value;
+        });
+        wifiTextSizeRange.addEventListener('input', () => {
+            wifiTextSizeValue.textContent = wifiTextSizeRange.value;
+        });
+    });
+</script>
 </body>
 </html>
