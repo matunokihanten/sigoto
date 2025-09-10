@@ -628,4 +628,721 @@
     });
 
     document.getElementById("saveFile").addEventListener("click", () => {
-      co
+      const content = `<!DOCTYPE html>\n<html lang="ja">\n<head>\n  <meta charset="UTF-8">\n  <title>${currentFileName}</title>\n</head>\n<body>\n${editor.innerHTML}\n</body>\n</html>`;
+      downloadFile(content, currentFileName, 'text/html');
+    });
+
+    document.getElementById("exportFile").addEventListener("click", () => {
+      const formats = ['HTML', 'テキスト', 'Markdown', 'PDF'];
+      const format = prompt(`エクスポート形式を選択してください:\n${formats.map((f,i) => `${i+1}. ${f}`).join('\n')}`);
+      
+      if (format && format >= 1 && format <= 4) {
+        const selectedFormat = formats[format - 1];
+        exportFile(selectedFormat);
+      }
+    });
+
+    function exportFile(format) {
+      let content, mimeType, extension;
+      
+      switch (format) {
+        case 'HTML':
+          content = `<!DOCTYPE html>\n<html lang="ja">\n<head>\n  <meta charset="UTF-8">\n  <title>${currentFileName}</title>\n</head>\n<body>\n${editor.innerHTML}\n</body>\n</html>`;
+          mimeType = 'text/html';
+          extension = 'html';
+          downloadFile(content, `exported_document.${extension}`, mimeType);
+          break;
+        case 'テキスト':
+          content = editor.innerText;
+          mimeType = 'text/plain';
+          extension = 'txt';
+          downloadFile(content, `exported_document.${extension}`, mimeType);
+          break;
+        case 'Markdown':
+          content = convertHTMLToMarkdown(editor.innerHTML);
+          mimeType = 'text/markdown';
+          extension = 'md';
+          downloadFile(content, `exported_document.${extension}`, mimeType);
+          break;
+        case 'PDF':
+          exportAsPdf();
+          break;
+        default:
+          alert('無効な形式です。');
+          return;
+      }
+    }
+
+    function downloadFile(content, filename, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    
+    // Markdown/HTML変換
+    function convertMarkdownToHTML(markdown) {
+        let html = markdown
+            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+            .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+            .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
+            .replace(/^###### (.*$)/gim, '<h6>$1</h6>')
+            .replace(/\*\*(.*)\*\*/gim, '<b>$1</b>')
+            .replace(/__(.*)__/gim, '<b>$1</b>')
+            .replace(/\*(.*)\*/gim, '<i>$1</i>')
+            .replace(/_(.*)_/gim, '<i>$1</i>')
+            .replace(/`([^`]+)`/gim, '<code>$1</code>')
+            .replace(/\n\s*\n/g, '</p><p>');
+        return `<p>${html}</p>`;
+    }
+    
+    function convertHTMLToMarkdown(html) {
+        let markdown = html
+            .replace(/<h1>(.*?)<\/h1>/gim, '# $1\n')
+            .replace(/<h2>(.*?)<\/h2>/gim, '## $1\n')
+            .replace(/<h3>(.*?)<\/h3>/gim, '### $1\n')
+            .replace(/<p>(.*?)<\/p>/gim, '$1\n\n')
+            .replace(/<b>(.*?)<\/b>/gim, '**$1**')
+            .replace(/<i>(.*?)<\/i>/gim, '*$1*')
+            .replace(/<ul>/gim, '')
+            .replace(/<\/ul>/gim, '')
+            .replace(/<li>(.*?)<\/li>/gim, '* $1\n')
+            .replace(/<br>/gim, '\n')
+            .replace(/\n\n\n/g, '\n\n') // 複数行の改行を1つにまとめる
+            .trim();
+        return markdown;
+    }
+    
+    async function exportAsPdf() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        const content = editor.innerText;
+        const lines = doc.splitTextToSize(content, 180);
+        
+        doc.setFontSize(12);
+        doc.text(lines, 10, 10);
+        
+        doc.save(`${currentFileName.replace('.html', '')}.pdf`);
+        alert('PDFをエクスポートしました。');
+    }
+    
+    document.getElementById('importText').addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            document.execCommand('insertText', false, text);
+            pushHistory();
+            alert('クリップボードからテキストを貼り付けました。');
+        } catch (err) {
+            alert('クリップボードからの貼り付けに失敗しました。ブラウザのセキュリティ設定を確認してください。');
+        }
+    });
+
+    // --- イベントリスナー設定 ---
+    document.getElementById("undoBtn").addEventListener("click", undo);
+    document.getElementById("redoBtn").addEventListener("click", redo);
+    document.getElementById("clearAll").addEventListener("click", () => {
+      if (confirm('本当にすべて消去しますか？')) {
+        editor.innerHTML = "";
+        pushHistory();
+      }
+    });
+    
+    document.getElementById('bgColorPicker').addEventListener('change', (e) => {
+      editor.style.backgroundColor = e.target.value;
+    });
+
+    // 初期化処理
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('autoSavedContent');
+      if (saved) {
+        editor.innerHTML = saved;
+        transformLinksToButtons();
+        pushHistory();
+      }
+    });
+    editor.addEventListener("input", () => {
+      clearTimeout(inputTimeout);
+      inputTimeout = setTimeout(() => {
+        pushHistory();
+        autoSave();
+      }, 500);
+    });
+
+    // --- リンク編集モーダル ---
+    document.getElementById("editLinks").addEventListener("click", () => {
+      linkData = [];
+      const links = editor.querySelectorAll(".link-button");
+      links.forEach(link => {
+        linkData.push({
+          name: link.textContent.trim(),
+          url: link.href,
+          color: link.style.backgroundColor,
+          icon: link.textContent.replace(link.textContent.trim(), '').trim()
+        });
+      });
+      renderLinkTable();
+      linkModal.style.display = 'flex';
+    });
+
+    function renderLinkTable() {
+      linkTableBody.innerHTML = '';
+      linkData.forEach((link, index) => {
+        const row = document.createElement('tr');
+        row.setAttribute('draggable', 'true');
+        row.dataset.index = index;
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td><input type="text" value="${link.name}"></td>
+          <td><input type="url" value="${link.url}"></td>
+          <td><input type="color" value="${link.color}"></td>
+          <td>
+            <select>
+              ${Object.keys(iconMap).map(key => `<option value="${iconMap[key]}" ${iconMap[key] === link.icon ? 'selected' : ''}>${key}</option>`).join('')}
+            </select>
+          </td>
+          <td><button class="btn-danger remove-link">削除</button></td>
+        `;
+        linkTableBody.appendChild(row);
+      });
+      
+      // ドラッグ&ドロップイベント
+      const rows = linkTableBody.querySelectorAll('tr');
+      rows.forEach(row => {
+        row.addEventListener('dragstart', (e) => {
+          draggedRow = e.target;
+          setTimeout(() => draggedRow.classList.add('dragging'), 0);
+        });
+        row.addEventListener('dragend', () => {
+          draggedRow.classList.remove('dragging');
+          draggedRow = null;
+        });
+        row.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          const targetRow = e.target.closest('tr');
+          if (targetRow && targetRow !== draggedRow) {
+            const bounding = targetRow.getBoundingClientRect();
+            const offset = bounding.y + bounding.height / 2;
+            if (e.clientY < offset) {
+              linkTableBody.insertBefore(draggedRow, targetRow);
+            } else {
+              linkTableBody.insertBefore(draggedRow, targetRow.nextSibling);
+            }
+          }
+        });
+      });
+      
+      // 削除ボタン
+      linkTableBody.querySelectorAll('.remove-link').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const row = e.target.closest('tr');
+          const index = row.dataset.index;
+          linkData.splice(index, 1);
+          renderLinkTable();
+        });
+      });
+    }
+
+    document.getElementById("addNewLinkRow").addEventListener("click", () => {
+      linkData.push({ name: '新規リンク', url: '#', color: '#667eea', icon: '' });
+      renderLinkTable();
+    });
+    
+    document.getElementById("importLinks").addEventListener("click", () => {
+        const json = prompt("リンクデータをJSON形式で貼り付けてください：");
+        if (json) {
+            try {
+                const importedData = JSON.parse(json);
+                if (Array.isArray(importedData)) {
+                    linkData = importedData;
+                    renderLinkTable();
+                } else {
+                    alert('無効なJSON形式です。配列形式で入力してください。');
+                }
+            } catch (e) {
+                alert('JSONの解析に失敗しました。形式が正しいか確認してください。');
+            }
+        }
+    });
+
+    document.getElementById("exportLinks").addEventListener("click", () => {
+        const json = JSON.stringify(linkData, null, 2);
+        prompt("以下のリンクデータをコピーしてください：", json);
+    });
+
+    document.getElementById("applyLinkChanges").addEventListener("click", () => {
+      const rows = linkTableBody.querySelectorAll('tr');
+      const newLinkData = [];
+      rows.forEach(row => {
+        const name = row.querySelector('input[type="text"]').value;
+        const url = row.querySelector('input[type="url"]').value;
+        const color = row.querySelector('input[type="color"]').value;
+        const icon = row.querySelector('select').value;
+        newLinkData.push({ name, url, color, icon });
+      });
+      
+      linkData = newLinkData;
+      
+      const linkColumns = document.getElementById("linkColumns").value;
+      const linkAnimation = document.getElementById("linkAnimation").value;
+      
+      let html = `<div class="link-grid" style="grid-template-columns: repeat(${linkColumns}, 1fr);">`;
+      linkData.forEach(link => {
+        const icon = link.icon ? `${link.icon} ` : '';
+        html += `<a href="${link.url}" class="link-button" style="background-color: ${link.color};" target="_blank">${icon}${link.name}</a>`;
+      });
+      html += `</div>`;
+      
+      editor.innerHTML += html;
+      linkModal.style.display = 'none';
+      transformLinksToButtons();
+      pushHistory();
+    });
+
+    document.getElementById("cancelLinkChanges").addEventListener("click", () => {
+      linkModal.style.display = 'none';
+    });
+    
+    function transformLinksToButtons() {
+        const linkRegex = /<a href="([^"]+)"(.*?)>(.*?)<\/a>/g;
+        let originalContent = editor.innerHTML;
+        const links = [];
+        let match;
+        while ((match = linkRegex.exec(originalContent)) !== null) {
+            const href = match[1];
+            const attributes = match[2];
+            const text = match[3];
+            links.push({ href, attributes, text });
+        }
+
+        links.forEach(({ href, attributes, text }) => {
+            const isStyled = attributes.includes('class="link-button"');
+            if (!isStyled) {
+                // ここで変換ロジックを実装
+                // 簡単な例として、classを追加する
+                const newLink = `<a href="${href}"${attributes} class="link-button simple-button">${text}</a>`;
+                originalContent = originalContent.replace(match[0], newLink);
+            }
+        });
+
+        // HTMLを直接書き換えるとカーソルが消えるため、慎重に行う
+    }
+    
+    // --- スタイル付きテキストモーダル ---
+    document.getElementById("insertStyledText").addEventListener("click", () => {
+        document.getElementById("styledText").value = getSelectionText();
+        updateTextPreview();
+        textModal.style.display = 'flex';
+    });
+    
+    document.getElementById("styledText").addEventListener("input", updateTextPreview);
+    document.getElementById("fontSize").addEventListener("input", updateTextPreview);
+    document.getElementById("fontColor").addEventListener("input", updateTextPreview);
+    document.getElementById("bgTextColor").addEventListener("input", updateTextPreview);
+    document.getElementById("fontFamily").addEventListener("change", updateTextPreview);
+    document.getElementById("boldCheck").addEventListener("change", updateTextPreview);
+    document.getElementById("italicCheck").addEventListener("change", updateTextPreview);
+    document.getElementById("underlineCheck").addEventListener("change", updateTextPreview);
+    document.getElementById("textEffect").addEventListener("change", updateTextPreview);
+    document.getElementById("textAnimation").addEventListener("change", updateTextPreview);
+    
+    function updateTextPreview() {
+        const text = document.getElementById("styledText").value || 'プレビュー表示エリア';
+        const fontSize = document.getElementById("fontSize").value;
+        const fontColor = document.getElementById("fontColor").value;
+        const bgTextColor = document.getElementById("bgTextColor").value;
+        const fontFamily = document.getElementById("fontFamily").value;
+        const bold = document.getElementById("boldCheck").checked;
+        const italic = document.getElementById("italicCheck").checked;
+        const underline = document.getElementById("underlineCheck").checked;
+        const effect = document.getElementById("textEffect").value;
+        const animation = document.getElementById("textAnimation").value;
+        const preview = document.getElementById("textPreview");
+        
+        document.getElementById("fontSizeValue").textContent = `${fontSize}px`;
+        
+        let style = `font-size: ${fontSize}px; color: ${fontColor}; background-color: ${bgTextColor}; font-family: ${fontFamily};`;
+        if (bold) style += 'font-weight: bold;';
+        if (italic) style += 'font-style: italic;';
+        if (underline) style += 'text-decoration: underline;';
+        
+        let classes = '';
+        if (animation !== 'none') classes += ` ${animation}`;
+        if (effect === 'shadow') style += 'text-shadow: 2px 2px 4px rgba(0,0,0,0.5);';
+        if (effect === 'glow') style += 'text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff;';
+        if (effect === 'gradient') style += `background-image: linear-gradient(to right, #667eea, #764ba2); color: transparent; -webkit-background-clip: text;`;
+        
+        preview.innerHTML = `<span style="${style}" class="${classes}">${text}</span>`;
+    }
+    
+    document.getElementById("applyStyledText").addEventListener("click", () => {
+        const text = document.getElementById("styledText").value;
+        const fontSize = document.getElementById("fontSize").value;
+        const fontColor = document.getElementById("fontColor").value;
+        const bgTextColor = document.getElementById("bgTextColor").value;
+        const fontFamily = document.getElementById("fontFamily").value;
+        const bold = document.getElementById("boldCheck").checked;
+        const italic = document.getElementById("italicCheck").checked;
+        const underline = document.getElementById("underlineCheck").checked;
+        const effect = document.getElementById("textEffect").value;
+        const animation = document.getElementById("textAnimation").value;
+        
+        let style = `font-size: ${fontSize}px; color: ${fontColor}; background-color: ${bgTextColor}; font-family: '${fontFamily}';`;
+        if (bold) style += 'font-weight: bold;';
+        if (italic) style += 'font-style: italic;';
+        if (underline) style += 'text-decoration: underline;';
+        
+        let classes = '';
+        if (animation !== 'none') classes += ` ${animation}`;
+        if (effect === 'shadow') style += 'text-shadow: 2px 2px 4px rgba(0,0,0,0.5);';
+        if (effect === 'glow') style += 'text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff;';
+        if (effect === 'gradient') style += `background-image: linear-gradient(to right, #667eea, #764ba2); color: transparent; -webkit-background-clip: text;`;
+
+        const newHtml = `<span style="${style}" class="${classes}">${text}</span>`;
+        document.execCommand('insertHTML', false, newHtml);
+        textModal.style.display = 'none';
+        pushHistory();
+    });
+
+    document.getElementById("cancelStyledText").addEventListener("click", () => {
+      textModal.style.display = 'none';
+    });
+    
+    function getSelectionText() {
+        const selection = window.getSelection();
+        return selection.toString();
+    }
+    
+    // --- 目次生成 ---
+    document.getElementById('generateTOC').addEventListener('click', () => {
+        const headings = editor.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        if (headings.length === 0) {
+            alert('目次を生成するためには、見出し（h1, h2など）が必要です。');
+            return;
+        }
+
+        let tocHtml = '<h2>目次</h2><ul>';
+        headings.forEach((heading, index) => {
+            const id = `toc-heading-${index}`;
+            heading.setAttribute('id', id);
+            const indent = (parseInt(heading.tagName.substring(1)) - 1) * 20; // h1は0px, h2は20pxなど
+            tocHtml += `<li style="margin-left: ${indent}px;"><a href="#${id}">${heading.textContent}</a></li>`;
+        });
+        tocHtml += '</ul>';
+
+        document.execCommand('insertHTML', false, tocHtml);
+        pushHistory();
+    });
+    
+    // --- シンプル化 ---
+    document.getElementById('makeSimple').addEventListener('click', () => {
+        let cleanHtml = editor.innerHTML
+            .replace(/ style=".*?"/g, '')
+            .replace(/ class=".*?"/g, '')
+            .replace(/<span.*?>|<\/span>/g, '')
+            .replace(/<div.*?>|<\/div>/g, '');
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = cleanHtml;
+        const links = tempDiv.querySelectorAll('a');
+        links.forEach(link => {
+            link.className = 'link-button simple-button';
+        });
+        
+        editor.innerHTML = tempDiv.innerHTML;
+        pushHistory();
+        alert('コンテンツをシンプル化しました。');
+    });
+
+    // --- 定型文モーダル ---
+    document.getElementById("insertSnippet").addEventListener("click", () => {
+        renderSnippetList();
+        snippetModal.style.display = 'flex';
+    });
+    
+    function renderSnippetList() {
+        const list = document.getElementById('snippetList');
+        list.innerHTML = '';
+        snippets.forEach((snippet, index) => {
+            const item = document.createElement('div');
+            item.className = 'snippet-item';
+            item.textContent = snippet.title;
+            item.dataset.index = index;
+            item.addEventListener('click', () => {
+                selectSnippet(index);
+            });
+            list.appendChild(item);
+        });
+    }
+    
+    function selectSnippet(index) {
+        const allItems = document.querySelectorAll('.snippet-item');
+        allItems.forEach(item => item.style.backgroundColor = '');
+        allItems[index].style.backgroundColor = '#ddd';
+        
+        selectedSnippetIndex = index;
+        document.getElementById('snippetTitle').value = snippets[index].title;
+        document.getElementById('snippetContent').value = snippets[index].content;
+    }
+    
+    document.getElementById('saveSnippetBtn').addEventListener('click', () => {
+        const title = document.getElementById('snippetTitle').value;
+        const content = document.getElementById('snippetContent').value;
+        if (!title || !content) {
+            alert('タイトルと内容を入力してください。');
+            return;
+        }
+        
+        if (selectedSnippetIndex >= 0) {
+            snippets[selectedSnippetIndex] = { title, content };
+        } else {
+            snippets.push({ title, content });
+        }
+        localStorage.setItem('htmlEditorSnippets', JSON.stringify(snippets));
+        renderSnippetList();
+        document.getElementById('snippetTitle').value = '';
+        document.getElementById('snippetContent').value = '';
+        selectedSnippetIndex = -1;
+        alert('定型文を保存しました。');
+    });
+    
+    document.getElementById('insertSnippetBtn').addEventListener('click', () => {
+        if (selectedSnippetIndex >= 0) {
+            document.execCommand('insertHTML', false, snippets[selectedSnippetIndex].content);
+            snippetModal.style.display = 'none';
+            pushHistory();
+        } else {
+            alert('挿入する定型文を選択してください。');
+        }
+    });
+    
+    document.getElementById('deleteSnippetBtn').addEventListener('click', () => {
+        if (selectedSnippetIndex >= 0) {
+            if (confirm('本当にこの定型文を削除しますか？')) {
+                snippets.splice(selectedSnippetIndex, 1);
+                localStorage.setItem('htmlEditorSnippets', JSON.stringify(snippets));
+                renderSnippetList();
+                document.getElementById('snippetTitle').value = '';
+                document.getElementById('snippetContent').value = '';
+                selectedSnippetIndex = -1;
+                alert('定型文を削除しました。');
+            }
+        } else {
+            alert('削除する定型文を選択してください。');
+        }
+    });
+
+    // --- 検索・置換モーダル ---
+    document.getElementById('searchReplace').addEventListener('click', () => {
+        searchModal.style.display = 'flex';
+    });
+    
+    document.getElementById('findBtn').addEventListener('click', findNext);
+    document.getElementById('findAllBtn').addEventListener('click', findAll);
+    document.getElementById('replaceBtn').addEventListener('click', replace);
+    document.getElementById('replaceAllBtn').addEventListener('click', replaceAll);
+    document.getElementById('clearHighlights').addEventListener('click', clearHighlights);
+    
+    function findNext() {
+        const searchText = document.getElementById('searchText').value;
+        if (!searchText) return;
+        
+        clearHighlights();
+        
+        const content = editor.textContent;
+        let flags = 'g';
+        if (!document.getElementById('caseSensitive').checked) flags += 'i';
+        
+        const regex = new RegExp(searchText, flags);
+        const matches = [...content.matchAll(regex)];
+        
+        if (matches.length === 0) {
+            alert('一致する文字列は見つかりませんでした。');
+            return;
+        }
+        
+        searchIndex = (searchIndex + 1) % matches.length;
+        const match = matches[searchIndex];
+        
+        highlightText(match.index, match[0].length);
+        document.getElementById('searchStats').textContent = `検索結果: ${matches.length}件 (現在 ${searchIndex + 1}件目)`;
+    }
+    
+    function findAll() {
+        const searchText = document.getElementById('searchText').value;
+        if (!searchText) return;
+        
+        clearHighlights();
+        
+        const content = editor.textContent;
+        let flags = 'g';
+        if (!document.getElementById('caseSensitive').checked) flags += 'i';
+        
+        const regex = new RegExp(searchText, flags);
+        const matches = [...content.matchAll(regex)];
+        
+        if (matches.length === 0) {
+            alert('一致する文字列は見つかりませんでした。');
+            return;
+        }
+        
+        matches.forEach(match => {
+            highlightText(match.index, match[0].length);
+        });
+        document.getElementById('searchStats').textContent = `検索結果: ${matches.length}件`;
+    }
+    
+    function replace() {
+        const searchText = document.getElementById('searchText').value;
+        const replaceText = document.getElementById('replaceText').value;
+        if (!searchText || highlightedElements.length === 0) {
+            alert('置換する文字列を選択するか、検索を実行してください。');
+            return;
+        }
+        
+        const targetElement = highlightedElements[searchIndex];
+        if (targetElement) {
+            targetElement.outerHTML = targetElement.textContent.replace(new RegExp(searchText, 'i'), replaceText);
+        }
+        clearHighlights();
+        pushHistory();
+    }
+    
+    function replaceAll() {
+        const searchText = document.getElementById('searchText').value;
+        const replaceText = document.getElementById('replaceText').value;
+        if (!searchText) return;
+        
+        let flags = 'g';
+        if (!document.getElementById('caseSensitive').checked) flags += 'i';
+        
+        let html = editor.innerHTML;
+        html = html.replace(new RegExp(searchText, flags), replaceText);
+        editor.innerHTML = html;
+        clearHighlights();
+        pushHistory();
+        alert('すべての文字列を置換しました。');
+    }
+    
+    function clearHighlights() {
+        highlightedElements.forEach(el => {
+            const parent = el.parentNode;
+            parent.replaceChild(document.createTextNode(el.textContent), el);
+            parent.normalize();
+        });
+        highlightedElements = [];
+        searchIndex = 0;
+        document.getElementById('searchStats').textContent = '';
+    }
+    
+    function highlightText(startIndex, length) {
+        const textNode = findTextNode(editor, startIndex);
+        if (textNode) {
+            const range = document.createRange();
+            range.setStart(textNode, startIndex - findTextOffset(textNode));
+            range.setEnd(textNode, startIndex - findTextOffset(textNode) + length);
+            
+            const span = document.createElement('span');
+            span.className = 'highlight';
+            range.surroundContents(span);
+            highlightedElements.push(span);
+        }
+    }
+    
+    function findTextNode(element, targetIndex) {
+        let offset = 0;
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+        let node;
+        
+        while (node = walker.nextNode()) {
+            const nodeLength = node.textContent.length;
+            if (offset + nodeLength > targetIndex) {
+                return node;
+            }
+            offset += nodeLength;
+        }
+        return null;
+    }
+    
+    function findTextOffset(node) {
+        let offset = 0;
+        let prev = node.previousSibling;
+        while (prev) {
+            offset += prev.textContent.length;
+            prev = prev.previousSibling;
+        }
+        return offset;
+    }
+
+    // --- 統計情報モーダル ---
+    document.getElementById('wordCount').addEventListener('click', () => {
+        const content = editor.innerText;
+        const wordCount = content.split(/\s+/).filter(word => word.length > 0).length;
+        const charCount = content.length;
+        const lineCount = content.split('\n').length;
+        const htmlTagCount = (editor.innerHTML.match(/<[^>]+>/g) || []).length;
+        
+        const statsContent = `
+            <p><strong>文字数:</strong> ${charCount}</p>
+            <p><strong>単語数:</strong> ${wordCount}</p>
+            <p><strong>行数:</strong> ${lineCount}</p>
+            <p><strong>HTMLタグ数:</strong> ${htmlTagCount}</p>
+        `;
+        
+        document.getElementById('statsContent').innerHTML = statsContent;
+        statsModal.style.display = 'flex';
+    });
+    
+    // --- プレビュー機能 ---
+    document.getElementById('togglePreview').addEventListener('click', () => {
+        if (!previewWindow || previewWindow.closed) {
+            previewWindow = window.open('', 'PreviewWindow', 'width=800,height=600');
+        }
+        updatePreview();
+    });
+
+    function updatePreview() {
+        if (previewWindow && !previewWindow.closed) {
+            const content = editor.innerHTML;
+            const previewHtml = `
+                <!DOCTYPE html>
+                <html lang="ja">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>プレビュー</title>
+                    <style>${document.querySelector('style').textContent}</style>
+                </head>
+                <body>
+                    <div id="preview-content" style="margin: 20px; padding: 20px; background: white; border-radius: 10px;">
+                        ${content}
+                    </div>
+                </body>
+                </html>
+            `;
+            previewWindow.document.open();
+            previewWindow.document.write(previewHtml);
+            previewWindow.document.close();
+        }
+    }
+    
+    editor.addEventListener("input", () => {
+        updatePreview();
+    });
+    
+    // --- 全画面表示 ---
+    document.getElementById('fullscreen').addEventListener('click', () => {
+        if (document.fullscreenElement) {
+            document.exitFullscreen();
+        } else {
+            document.documentElement.requestFullscreen();
+        }
+    });
+
+  </script>
+</body>
+</html>
