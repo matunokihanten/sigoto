@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>進化版HTMLエディタ</title>
+  <style>
+    /* 基本スタイル */
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+    header { 
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 15px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .toolbar-group {
+      display: flex;
+      gap: 5px;
+      padding: 5px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+    }
+    button {
+      padding: 8px 12px;
+      border: none;
+      border-radius: 5px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 12px;
+    }
+    button:hover { background: #e0e0e0; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    .btn-primary { background: #4CAF50; color: white; }
+    .btn-primary:hover { background: #45a049; }
+    .btn-danger { background: #f44336; color: white; }
+    .btn-danger:hover { background: #da190b; }
+    
+    #editor {
+      margin: 20px;
+      padding: 20px;
+      border: 2px solid #ddd;
+      min-height: 500px;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      line-height: 1.6;
+    }
+    
+    /* 高度なエディタ機能 */
+    .format-toolbar {
+      position: sticky;
+      top: 68px; /* headerの高さ + 若干の隙間 */
+      background: #f8f9fa;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      z-index: 100;
+    }
+    
+    /* リンクボタン用スタイル */
+    .link-grid {
+      display: grid;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .link-button {
+      display: inline-block;
+      padding: 10px 15px;
+      text-decoration: none;
+      color: white;
+      border-radius: 8px;
+      margin: 5px;
+      transition: all 0.3s;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .link-button:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+    
+    .simple-button {
+      background: #f8f9fa !important;
+      color: #495057 !important;
+      border: 2px solid #6c757d !important;
+      border-radius: 4px !important;
+      box-shadow: none !important;
+    }
+    .simple-button:hover { background: #e9ecef !important; }
+    
+    /* モーダルウィンドウ */
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+    }
+    .modal-content {
+      background: white;
+      padding: 30px;
+      max-width: 800px;
+      width: 90%;
+      max-height: 80%;
+      overflow-y: auto;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #eee;
+    }
+    .close-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    
+    .modal-content input[type="text"],
+    .modal-content input[type="number"],
+    .modal-content input[type="url"],
+    .modal-content select,
+    .modal-content textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      font-size: 14px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    .modal-content input:focus,
+    .modal-content select:focus,
+    .modal-content textarea:focus {
+      border-color: #667eea;
+      outline: none;
+    }
+    
+    /* テーブルスタイル */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    table, th, td { border: 1px solid #ddd; }
+    th {
+      background: #667eea;
+      color: white;
+      padding: 12px;
+      text-align: left;
+    }
+    td { padding: 10px; }
+    td:first-child { width: 50px; text-align: center; }
+    td:last-child { width: 80px; text-align: center; }
+    .draggable { cursor: move; background: #f9f9f9; }
+    .dragging { opacity: 0.5; }
+    
+    /* グリッドレイアウト */
+    .link-grid {
+      display: grid;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    
+    /* プレビューエリア */
+    .preview-area {
+      border: 2px solid #28a745;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 10px 0;
+      background: #f8fff8;
+    }
+    
+    /* アニメーション */
+    .fade-in {
+      animation: fadeIn 0.3s ease-in;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      .toolbar { flex-direction: column; }
+      .toolbar-group { justify-content: center; }
+      #editor { margin: 10px; padding: 15px; }
+      .modal-content { width: 95%; padding: 20px; }
+    }
+    
+    /* 新機能用スタイル */
+    .snippet-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      background: white;
+    }
+    .snippet-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+    }
+    .snippet-item:hover { background: #f0f0f0; }
+    
+    /* 統計表示 */
+    .stats {
+      background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    
+    /* 検索ハイライト */
+    .highlight { background-color: yellow; padding: 2px; }
+    
+    /* 自動保存インジケーター */
+    .save-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 5px;
+      display: none;
+      z-index: 1000;
+    }
+    
+    /* 新規アニメーション */
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-10px); }
+        60% { transform: translateY(-5px); }
+    }
+    
+    @keyframes slideIn {
+        from { opacity: 0; transform: translateX(-50px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    
+    .link-button.bounce {
+        animation: bounce 1s infinite;
+    }
+    .link-button.slideIn {
+        animation: slideIn 0.5s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="save-indicator" id="saveIndicator">自動保存中...</div>
+  
+  <header>
+    <div class="toolbar">
+      <div class="toolbar-group">
+        <input type="file" id="fileInput" accept=".html,.txt,.md" style="display:none">
+        <button id="selectFile" class="btn-primary">📁 ファイル選択</button>
+        <button id="saveFile" class="btn-primary">💾 保存</button>
+        <button id="exportFile">📤 エクスポート</button>
+        <button id="importText">📥 テキスト取り込み</button>
+      </div>
+      
+      <div class="toolbar-group">
+        <button id="undoBtn">↶ 戻る</button>
+        <button id="redoBtn">↷ 進む</button>
+        <button id="clearAll" class="btn-danger">🗑 全消去</button>
+      </div>
+      
+      <div class="toolbar-group">
+        <label style="color: white;">背景色: <input type="color" id="bgColorPicker" value="#ffffff"></label>
+        <button id="togglePreview">👁 プレビュー</button>
+        <button id="fullscreen">🔳 全画面</button>
+      </div>
+      
+      <div class="toolbar-group">
+        <button id="editLinks">🔗 リンク編集</button>
+        <button id="insertStyledText">✨ スタイル文字</button>
+        <button id="generateTOC">📋 目次生成</button>
+        <button id="makeSimple">📝 シンプル化</button>
+      </div>
+      
+      <div class="toolbar-group">
+        <button id="insertSnippet">📄 定型文</button>
+        <button id="searchReplace">🔍 検索置換</button>
+        <button id="wordCount">📊 統計</button>
+        <button id="spellCheck">📖 校正</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="format-toolbar">
+    <button onclick="document.execCommand('bold')"><b>B</b></button>
+    <button onclick="document.execCommand('italic')"><i>I</i></button>
+    <button onclick="document.execCommand('underline')"><u>U</u></button>
+    <button onclick="document.execCommand('strikeThrough')"><s>S</s></button>
+    <button onclick="document.execCommand('justifyLeft')">⬅</button>
+    <button onclick="document.execCommand('justifyCenter')">⬆</button>
+    <button onclick="document.execCommand('justifyRight')">➡</button>
+    <button onclick="document.execCommand('insertOrderedList')">1.</button>
+    <button onclick="document.execCommand('insertUnorderedList')">•</button>
+    <button onclick="document.execCommand('outdent')">⬅</button>
+    <button onclick="document.execCommand('indent')">➡</button>
+    <select onchange="document.execCommand('formatBlock', false, this.value); this.selectedIndex=0;">
+      <option value="">見出し選択</option>
+      <option value="h1">見出し1</option>
+      <option value="h2">見出し2</option>
+      <option value="h3">見出し3</option>
+      <option value="p">段落</option>
+    </select>
+  </div>
+
+  <div id="editor" contenteditable="true">
+    <h1>HTMLエディタへようこそ</h1>
+    <p>このエディタは多くの高度な機能を備えています。</p>
+    <ul>
+      <li>リアルタイムプレビュー</li>
+      <li>自動保存機能</li>
+      <li>検索・置換</li>
+      <li>定型文挿入</li>
+      <li>統計情報表示</li>
+    </ul>
+  </div>
+
+  <div class="modal" id="linkModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🔗 リンク管理</h2>
+        <button class="close-btn" onclick="document.getElementById('linkModal').style.display='none'">×</button>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label>表示列数: <input type="number" id="linkColumns" value="3" min="1" max="10"></label>
+        <label style="margin-left: 20px;">アニメーション: 
+          <select id="linkAnimation">
+            <option value="none">なし</option>
+            <option value="hover">ホバー効果</option>
+            <option value="bounce">バウンス</option>
+            <option value="slideIn">スライドイン</option>
+          </select>
+        </label>
+      </div>
+      <table id="linkTable">
+        <thead>
+          <tr>
+            <th>順</th>
+            <th>リンク名</th>
+            <th>URL</th>
+            <th>色</th>
+            <th>アイコン</th>
+            <th>削除</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <br>
+      <button id="addNewLinkRow" class="btn-primary">+ 新規リンク</button>
+      <button id="importLinks">📥 一括取り込み</button>
+      <button id="exportLinks">📤 一括エクスポート</button>
+      <button id="applyLinkChanges" class="btn-primary">適用</button>
+      <button id="cancelLinkChanges">キャンセル</button>
+    </div>
+  </div>
+
+  <div class="modal" id="textModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>✨ スタイル付きテキスト</h2>
+        <button class="close-btn" onclick="document.getElementById('textModal').style.display='none'">×</button>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <label>テキスト:</label>
+          <textarea id="styledText" rows="4" placeholder="挿入するテキストを入力"></textarea>
+          
+          <label>フォントサイズ:</label>
+          <input type="range" id="fontSize" min="8" max="72" value="16">
+          <span id="fontSizeValue">16px</span>
+          
+          <label>文字色:</label>
+          <input type="color" id="fontColor" value="#000000">
+          
+          <label>背景色:</label>
+          <input type="color" id="bgTextColor" value="#ffffff">
+          
+          <label>フォント:</label>
+          <select id="fontFamily">
+            <option value="Arial, sans-serif">Arial</option>
+            <option value="Times New Roman, serif">Times New Roman</option>
+            <option value="Courier New, monospace">Courier New</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="Verdana, sans-serif">Verdana</option>
+            <option value="Comic Sans MS">Comic Sans MS</option>
+            <option value="Impact, sans-serif">Impact</option>
+          </select>
+        </div>
+        <div>
+          <div style="margin-bottom: 10px;">
+            <label><input type="checkbox" id="boldCheck"> 太字</label>
+            <label><input type="checkbox" id="italicCheck"> 斜体</label>
+            <label><input type="checkbox" id="underlineCheck"> 下線</label>
+          </div>
+          
+          <label>エフェクト:</label>
+          <select id="textEffect">
+            <option value="none">なし</option>
+            <option value="shadow">影</option>
+            <option value="glow">光彩</option>
+            <option value="gradient">グラデーション</option>
+          </select>
+          
+          <label>アニメーション:</label>
+          <select id="textAnimation">
+            <option value="none">なし</option>
+            <option value="fadeIn">フェードイン</option>
+            <option value="slideIn">スライドイン</option>
+            <option value="bounce">バウンス</option>
+          </select>
+          
+          <div class="preview-area" id="textPreview">プレビュー表示エリア</div>
+        </div>
+      </div>
+      <br>
+      <button id="applyStyledText" class="btn-primary">挿入</button>
+      <button id="cancelStyledText">キャンセル</button>
+    </div>
+  </div>
+
+  <div class="modal" id="snippetModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📄 定型文管理</h2>
+        <button class="close-btn" onclick="document.getElementById('snippetModal').style.display='none'">×</button>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <h3>定型文一覧</h3>
+          <div class="snippet-list" id="snippetList"></div>
+          <button id="insertSnippetBtn" class="btn-primary">挿入</button>
+          <button id="deleteSnippetBtn" class="btn-danger">削除</button>
+        </div>
+        <div>
+          <h3>新規作成・編集</h3>
+          <label>タイトル:</label>
+          <input type="text" id="snippetTitle" placeholder="定型文のタイトル">
+          <label>内容:</label>
+          <textarea id="snippetContent" rows="8" placeholder="定型文の内容"></textarea>
+          <button id="saveSnippetBtn" class="btn-primary">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="searchModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🔍 検索・置換</h2>
+        <button class="close-btn" onclick="document.getElementById('searchModal').style.display='none'">×</button>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div>
+          <label>検索文字列:</label>
+          <input type="text" id="searchText" placeholder="検索する文字列">
+          <label>置換文字列:</label>
+          <input type="text" id="replaceText" placeholder="置換する文字列">
+          <div>
+            <label><input type="checkbox" id="caseSensitive"> 大文字小文字区別</label>
+            <label><input type="checkbox" id="wholeWords"> 完全一致</label>
+            <label><input type="checkbox" id="useRegex"> 正規表現</label>
+          </div>
+        </div>
+        <div>
+          <button id="findBtn" class="btn-primary">検索</button>
+          <button id="findAllBtn">すべて検索</button>
+          <button id="replaceBtn" class="btn-primary">置換</button>
+          <button id="replaceAllBtn" class="btn-danger">すべて置換</button>
+          <button id="clearHighlights">ハイライト消去</button>
+          <div id="searchStats" class="stats" style="margin-top: 10px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="statsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📊 文書統計</h2>
+        <button class="close-btn" onclick="document.getElementById('statsModal').style.display='none'">×</button>
+      </div>
+      <div id="statsContent"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <script>
+    // --- グローバル変数 ---
+    let currentFileName = "document.html";
+    let historyStack = [];
+    let historyPointer = -1;
+    let inputTimeout;
+    let autoSaveTimeout;
+    let draggedRow = null;
+    let snippets = JSON.parse(localStorage.getItem('htmlEditorSnippets') || '[]');
+    let selectedSnippetIndex = -1;
+    let linkData = [];
+    let highlightedElements = [];
+    let searchIndex = 0;
+    let previewWindow = null;
+    
+    const editor = document.getElementById("editor");
+    const saveIndicator = document.getElementById("saveIndicator");
+    const linkModal = document.getElementById("linkModal");
+    const linkTableBody = document.querySelector("#linkTable tbody");
+    const textModal = document.getElementById("textModal");
+    const snippetModal = document.getElementById("snippetModal");
+    const searchModal = document.getElementById("searchModal");
+    const statsModal = document.getElementById("statsModal");
+
+    // カラーマッピング（拡張版）
+    const colorMap = {
+      "赤": "#ff4757", "青": "#3742fa", "黄": "#ffa502", "緑": "#2ed573",
+      "紫": "#a55eea", "水色": "#26d0ce", "黄緑": "#7bed9f", "黒": "#2f3542",
+      "灰色": "#747d8c", "オレンジ": "#ff6348", "ピンク": "#ff3838", "茶色": "#8b4513",
+      "濃青": "#1e3799", "濃緑": "#006266", "濃紫": "#4834d4", "金": "#ffd700"
+    };
+
+    const iconMap = {
+      "なし": "", "家": "🏠", "メール": "📧", "電話": "📞", "地図": "🗺️",
+      "検索": "🔍", "設定": "⚙️", "ヘルプ": "❓", "ユーザー": "👤", "カート": "🛒",
+      "ハート": "❤️", "星": "⭐", "チェック": "✅", "警告": "⚠️", "情報": "ℹ️"
+    };
+
+    // --- 履歴管理（改良版） ---
+    function pushHistory() {
+      const currentContent = editor.innerHTML;
+      if (historyPointer >= 0 && historyStack[historyPointer] === currentContent) return;
+      historyStack = historyStack.slice(0, historyPointer + 1);
+      historyStack.push(currentContent);
+      if (historyStack.length > 50) historyStack.shift();
+      else historyPointer++;
+      updateUndoRedoButtons();
+    }
+
+    function undo() {
+      if (historyPointer > 0) {
+        historyPointer--;
+        editor.innerHTML = historyStack[historyPointer];
+        updateUndoRedoButtons();
+      }
+    }
+
+    function redo() {
+      if (historyPointer < historyStack.length - 1) {
+        historyPointer++;
+        editor.innerHTML = historyStack[historyPointer];
+        updateUndoRedoButtons();
+      }
+    }
+
+    function updateUndoRedoButtons() {
+      document.getElementById("undoBtn").disabled = historyPointer <= 0;
+      document.getElementById("redoBtn").disabled = historyPointer >= historyStack.length - 1;
+    }
+
+    // --- 自動保存機能 ---
+    function autoSave() {
+      clearTimeout(autoSaveTimeout);
+      autoSaveTimeout = setTimeout(() => {
+        localStorage.setItem('autoSavedContent', editor.innerHTML);
+        showSaveIndicator();
+      }, 2000);
+    }
+
+    function showSaveIndicator() {
+      saveIndicator.style.display = 'block';
+      setTimeout(() => {
+        saveIndicator.style.display = 'none';
+      }, 2000);
+    }
+
+    // --- ファイル操作（改良版） ---
+    const fileInput = document.getElementById("fileInput");
+    document.getElementById("selectFile").addEventListener("click", () => fileInput.click());
+    
+    fileInput.addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) {
+        currentFileName = file.name;
+        const reader = new FileReader();
+        reader.onload = evt => {
+          let content = evt.target.result;
+          
+          if (file.name.endsWith('.md')) {
+            content = convertMarkdownToHTML(content);
+          } else if (file.name.endsWith('.txt')) {
+            content = content.replace(/\n/g, '<br>');
+          }
+          
+          editor.innerHTML = content;
+          editor.focus();
+          transformLinksToButtons();
+          pushHistory();
+        };
+        reader.readAsText(file, 'UTF-8');
+      }
+    });
+
+    document.getElementById("saveFile").addEventListener("click", () => {
+      co
