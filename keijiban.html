@@ -1,840 +1,1817 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
-<script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
-
   <meta charset="UTF-8">
-  <title>完全機能掲示板システム（フルカラー印刷対応）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>完全機能掲示板システム</title>
   <style>
-    /* --- 基本スタイル --- */
-    body {
-      font-family: Arial, sans-serif;
+    /* --- CSS Variables for Dynamic Theming --- */
+    :root {
+      --primary-color: #007acc;
+      --primary-dark: #005fa3;
+      --primary-darker: #004080;
+      --success-color: #28a745;
+      --warning-color: #ffc107;
+      --danger-color: #dc3545;
+      --info-color: #17a2b8;
+      --light-color: #f8f9fa;
+      --dark-color: #343a40;
+      --bg-color: #f4f4f4;
+      --text-color: #333;
+      --border-color: #ddd;
+      --shadow: 0 2px 4px rgba(0,0,0,0.1);
+      --shadow-hover: 0 4px 8px rgba(0,0,0,0.15);
+      --transition: all 0.3s ease;
+      --border-radius: 8px;
+      --font-size-small: 0.85rem;
+      --font-size-normal: 1rem;
+      --font-size-large: 1.2rem;
+    }
+
+    /* --- Dark Mode Variables --- */
+    .dark-mode {
+      --bg-color: #1a1a1a;
+      --text-color: #e0e0e0;
+      --border-color: #444;
+      --light-color: #2d2d2d;
+      --dark-color: #121212;
+      --primary-color: #4da6ff;
+      --primary-dark: #3b89e0;
+      --primary-darker: #2c6eb5;
+      --info-color: #20c997;
+      --success-color: #20c997;
+    }
+
+    /* --- Global Styles --- */
+    * {
+      box-sizing: border-box;
       margin: 0;
       padding: 0;
-      background: #f4f4f4;
-      color: #333;
-      transition: background 0.3s, color 0.3s;
     }
-    .dark-mode {
-      background: #333;
-      color: #eee;
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      transition: var(--transition);
+      line-height: 1.6;
     }
-    /* --- グローバル操作エリア --- */
+
+    /* --- Header Styles --- */
     header {
-      background: #007acc;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      color: #fff;
+      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+      padding: 15px;
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 0;
+      z-index: 50;
     }
+
+    .header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
     .header-row {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 5px;
-      margin-bottom: 5px;
-    }
-    .header-row.top button,
-    .header-row.top input {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      background: #005fa3;
-      color: #fff;
-      transition: transform 0.3s, background 0.3s;
-    }
-    .header-row.top button:hover {
-      background: #004080;
-    }
-    .hidden { display: none; }
-    /* --- 新規投稿エリア --- */
-    #new-post-area {
-      background: #fff;
-      padding: 15px;
-      border-bottom: 1px solid #ccc;
-      display: flex;
-      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
       align-items: center;
     }
-    #new-post-input {
-      width: 65%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      resize: vertical;
+
+    .header-row.top {
+      margin-bottom: 15px;
     }
-    #new-post-area div {
+
+    .header-btn {
+      padding: 10px 16px;
+      border: none;
+      border-radius: var(--border-radius);
+      background: var(--primary-dark);
+      color: white;
+      cursor: pointer;
+      transition: var(--transition);
+      font-size: var(--font-size-small);
+      font-weight: 500;
+      white-space: nowrap;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-btn:hover {
+      background: var(--primary-darker);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-hover);
+    }
+
+    .header-btn:active {
+      transform: translateY(0);
+    }
+
+    .header-btn.active {
+      background: var(--success-color);
+    }
+
+    .header-input {
+      padding: 8px 12px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: var(--border-radius);
+      background: rgba(255,255,255,0.1);
+      color: white;
+      font-size: var(--font-size-small);
+      transition: var(--transition);
+    }
+
+    .header-input::placeholder {
+      color: rgba(255,255,255,0.7);
+    }
+
+    .header-input:focus {
+      outline: none;
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+    }
+
+    /* --- New Post Area --- */
+    .new-post-section {
+      background: var(--light-color);
+      padding: 20px;
+      border-bottom: 1px solid var(--border-color);
+      box-shadow: var(--shadow);
+    }
+
+    .new-post-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 15px;
+      align-items: start;
+    }
+
+    .new-post-input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--border-radius);
+      resize: vertical;
+      font-family: inherit;
+      font-size: var(--font-size-normal);
+      transition: var(--transition);
+      min-height: 80px;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    .new-post-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+    }
+
+    .new-post-controls {
       display: flex;
+      flex-direction: column;
       gap: 10px;
     }
-    #new-post-area button {
-      padding: 10px 15px;
+
+    .control-btn {
+      padding: 12px 20px;
       border: none;
-      border-radius: 4px;
-      background: #28a745;
-      color: #fff;
+      border-radius: var(--border-radius);
+      font-weight: 600;
       cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
     }
-    #new-post-area button:hover {
+
+    .btn-primary {
+      background: var(--success-color);
+      color: white;
+    }
+
+    .btn-primary:hover {
       background: #218838;
+      transform: translateY(-1px);
     }
-    /* --- 投稿表示エリア --- */
-    #posts-container {
-      padding: 15px;
+
+    .btn-secondary {
+      background: var(--warning-color);
+      color: var(--dark-color);
+    }
+
+    .btn-secondary:hover {
+      background: #e0a800;
+      transform: translateY(-1px);
+    }
+
+    /* --- Posts Container --- */
+    .posts-section {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
       transform-origin: top left;
+      transition: transform 0.3s ease;
     }
+
+    /* --- Post Styles --- */
     .post {
-      border: 1px solid #ddd;
-      background: #fff;
-      margin: 10px 0;
-      padding: 10px;
-      border-radius: 4px;
-      transition: background 0.3s;
+      background: var(--light-color);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      margin: 15px 0;
+      padding: 20px;
+      transition: var(--transition);
+      position: relative;
+      cursor: pointer;
+      box-shadow: var(--shadow);
     }
-    .post:hover { box-shadow: 0 0 5px rgba(0,0,0,0.2); }
+
+    .post:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+
+    .post.pinned {
+      border-left: 5px solid var(--success-color);
+      background: linear-gradient(135deg, var(--light-color), #f0fff0);
+    }
+    
+    .dark-mode .post.pinned {
+      background: linear-gradient(135deg, var(--light-color), #2f4f4f);
+    }
+
+    .post.archived {
+      opacity: 0.7;
+      background: linear-gradient(135deg, var(--light-color), #f5f5f5);
+    }
+
+    .dark-mode .post.archived {
+      background: linear-gradient(135deg, var(--light-color), #333);
+    }
+
     .post-header {
-      font-size: 0.85em;
-      margin-bottom: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      gap: 10px;
+    }
+
+    .post-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: center;
+      font-size: var(--font-size-small);
+      color: #666;
+    }
+    
+    .dark-mode .post-meta {
+      color: #aaa;
+    }
+
+    .timestamp {
+      font-weight: 500;
+    }
+
+    .post-stats {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      font-size: var(--font-size-small);
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: rgba(0, 122, 204, 0.1);
+      border-radius: 12px;
+      color: var(--primary-color);
+      font-weight: 500;
+    }
+
+    .post-actions {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      align-items: center;
     }
-    .post-header span.timestamp { margin-right: 10px; }
-    .post-header button { padding: 3px 6px; font-size: 0.9em; cursor: pointer; }
-    .favorite-btn { font-size: 1.2em; }
-    .post-content { font-size: 1em; margin-bottom: 8px; }
-    .highlighted { background: yellow; }
-    /* --- 返信フォーム --- */
-    .reply-form textarea {
-      width: 33%;
-      padding: 8px;
-      margin-top: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      display: block;
-    }
-    .reply-form button {
-      margin-top: 5px;
-      padding: 5px 10px;
-      background: #ffc107;
+
+    .post-btn {
+      padding: 6px 12px;
       border: none;
-      border-radius: 4px;
+      border-radius: 16px;
+      font-size: 0.8rem;
       cursor: pointer;
+      transition: var(--transition);
+      font-weight: 500;
     }
-    .reply-form button:hover { background: #e0a800; }
-    /* --- タグ絞り込み --- */
-    #tag-filter {
-      background: #fff;
-      padding: 10px;
-      border-top: 1px solid #ccc;
+
+    .btn-favorite {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
     }
-    #tag-filter button {
-      padding: 5px 8px;
-      margin: 3px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background: #f0f0f0;
-      cursor: pointer;
+
+    .btn-favorite.active {
+      background: #ffc107;
+      color: white;
     }
-    #tag-filter button:hover { background: #e0e0e0; }
-    /* --- お気に入り一覧パネル --- */
-    #favorites-panel {
-      position: fixed;
-      top: 120px;
-      right: 10px;
-      background: #fff;
-      border: 1px solid #ccc;
-      padding: 10px;
-      max-width: 220px;
-      max-height: 300px;
-      overflow-y: auto;
-      border-radius: 4px;
-      display: none;
+
+    .btn-reply {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
     }
-    .fav-item {
-      padding: 5px;
-      border-bottom: 1px solid #eee;
-      cursor: pointer;
+
+    .btn-edit {
+      background: #e2e3e5;
+      color: #383d41;
+      border: 1px solid #d6d8db;
     }
-    .fav-item:hover { background: #f8f8f8; }
-    /* --- 下段のズームスライダー --- */
-    .header-row.bottom {
-      justify-content: center;
-      align-items: center;
+
+    .btn-delete {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f1b0b7;
     }
-    .header-row.bottom label { margin-right: 5px; }
-    /* --- 設定パネル＆オーバーレイ --- */
-    #overlay {
-      position: fixed;
-      top: 0; left: 0;
+
+    .post-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .post-content {
+      font-size: var(--font-size-normal);
+      line-height: 1.7;
+      margin-bottom: 15px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .post-content.collapsed {
+      max-height: 100px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .post-content.collapsed::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 40px;
       width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      display: none;
-      z-index: 99;
+      background: linear-gradient(transparent, var(--light-color));
     }
-    #settings-panel {
-      position: fixed;
-      top: 20%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 20px;
-      width: 300px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      display: none;
-      z-index: 100;
+    
+    .dark-mode .post-content.collapsed::after {
+      background: linear-gradient(transparent, var(--light-color));
     }
-    #settings-panel label {
-      display: block;
-      margin-bottom: 10px;
+
+    .highlighted {
+      background: linear-gradient(120deg, #a8e6cf 0%, #dcedc1 100%);
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* --- Tags --- */
+    .post-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 15px;
+    }
+
+    .tag {
+      padding: 4px 10px;
+      background: linear-gradient(135deg, var(--info-color), #20c997);
+      color: white;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .tag:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+    }
+
+    .tag-removable {
+      cursor: pointer;
+      margin-left: 5px;
       font-weight: bold;
     }
-    #settings-panel .button-list {
-      margin-top: 10px;
-      max-height: 150px;
-      overflow-y: auto;
+
+    /* --- Reply Form --- */
+    .reply-form {
+      background: var(--bg-color);
+      border: 2px dashed var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 15px;
+      margin-top: 15px;
+      animation: slideDown 0.3s ease;
     }
-    #settings-panel .button-list div {
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .reply-textarea {
+      width: 100%;
+      min-height: 80px;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      resize: vertical;
+      font-family: inherit;
+      margin-bottom: 10px;
+      background: var(--light-color);
+      color: var(--text-color);
+    }
+
+    .reply-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    /* --- Sidebar Panels --- */
+    .sidebar-panel {
+      position: fixed;
+      top: 120px;
+      right: 20px;
+      background: var(--light-color);
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 20px;
+      max-width: 300px;
+      max-height: 500px;
+      overflow-y: auto;
+      box-shadow: var(--shadow-hover);
+      z-index: 40;
+      transform: translateX(320px);
+      transition: transform 0.3s ease;
+    }
+
+    .sidebar-panel.visible {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      font-size: var(--font-size-large);
+      font-weight: 700;
+      margin-bottom: 15px;
+      color: var(--primary-color);
+      border-bottom: 2px solid var(--primary-color);
+      padding-bottom: 8px;
+    }
+
+    .fav-item, .archive-item {
+      padding: 10px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: var(--transition);
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+
+    .fav-item:hover, .archive-item:hover {
+      background: var(--primary-color);
+      color: white;
+      transform: translateX(5px);
+    }
+
+    /* --- Filter Tags --- */
+    .tag-filter-section {
+      background: var(--light-color);
+      padding: 15px 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .tag-filter-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .filter-tag {
+      display: inline-block;
+      padding: 8px 15px;
+      margin: 4px;
+      background: #e9ecef;
+      color: #495057;
+      border: 1px solid #ced4da;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: var(--transition);
+      font-weight: 500;
+    }
+    
+    .dark-mode .filter-tag {
+      background: #444;
+      color: #e0e0e0;
+      border-color: #555;
+    }
+
+    .filter-tag:hover, .filter-tag.active {
+      background: var(--primary-color);
+      color: white;
+      transform: scale(1.05);
+    }
+
+    /* --- Settings Panel --- */
+    .overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(5px);
+      z-index: 98;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+    }
+
+    .overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .settings-panel {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.8);
+      background: var(--light-color);
+      border-radius: var(--border-radius);
+      padding: 30px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      z-index: 99;
+      transition: var(--transition);
+      opacity: 0;
+    }
+
+    .settings-panel.visible {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+
+    .settings-section {
+      margin-bottom: 25px;
+    }
+
+    .settings-label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--primary-color);
+      font-size: var(--font-size-large);
+    }
+
+    .button-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+      padding: 10px;
+    }
+
+    .button-item {
       display: flex;
       align-items: center;
-      margin-bottom: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
     }
-    #settings-panel .button-list div span {
-      margin-left: 10px;
+
+    .button-item:last-child {
+      border-bottom: none;
+    }
+
+    .button-item input[type="checkbox"] {
+      margin-right: 10px;
+      transform: scale(1.2);
+    }
+
+    .settings-slider {
+      width: 100%;
+      margin: 15px 0;
+      height: 8px;
+      border-radius: 4px;
+      background: #ddd;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .settings-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary-color);
       cursor: pointer;
     }
-    #settings-panel input[type="range"] {
-      width: 100%;
-      margin: 10px 0;
+
+    /* --- Notification System --- */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 15px 20px;
+      border-radius: var(--border-radius);
+      color: white;
+      font-weight: 600;
+      z-index: 101;
+      transform: translateX(400px);
+      transition: var(--transition);
+      min-width: 250px;
+      box-shadow: var(--shadow-hover);
     }
-    /* --- 印刷時の設定（フルカラー印刷対応） --- */
+
+    .notification.visible {
+      transform: translateX(0);
+    }
+
+    .notification.success {
+      background: linear-gradient(135deg, var(--success-color), #20c997);
+    }
+
+    .notification.error {
+      background: linear-gradient(135deg, var(--danger-color), #e83e8c);
+    }
+
+    .notification.info {
+      background: linear-gradient(135deg, var(--info-color), var(--primary-color));
+    }
+    
+    .close-notification {
+      margin-left: 10px;
+      font-size: 1.2rem;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* --- Color Picker --- */
+    .color-picker {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--light-color);
+      border-radius: var(--border-radius);
+      padding: 20px;
+      box-shadow: var(--shadow-hover);
+      z-index: 100;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 8px;
+      max-width: 300px;
+      opacity: 0;
+      visibility: hidden;
+      transition: var(--transition);
+    }
+    
+    .color-picker.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .color-btn {
+      width: 30px;
+      height: 30px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: var(--transition);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .color-btn:hover {
+      transform: scale(1.2);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    /* --- Loading Animation --- */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* --- Responsive Design --- */
+    @media (max-width: 768px) {
+      .header-row {
+        flex-direction: column;
+        gap: 5px;
+      }
+
+      .new-post-container {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .new-post-controls {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+
+      .posts-section {
+        padding: 10px;
+      }
+
+      .post {
+        margin: 10px 0;
+        padding: 15px;
+      }
+
+      .post-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .sidebar-panel {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        max-width: none;
+        max-height: none;
+        border-radius: 0;
+        transform: translateY(100%);
+      }
+
+      .sidebar-panel.visible {
+        transform: translateY(0);
+      }
+    }
+
+    /* --- Print Styles --- */
     @media print {
       * {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
-      /* 印刷時は操作用のヘッダーおよび設定関連は非表示 */
-      header, #new-post-area, #tag-filter, #favorites-panel, #settings-panel, #overlay {
-        display: none;
+
+      header, .new-post-section, .tag-filter-section, .sidebar-panel, .settings-panel, .overlay, .post-actions, .reply-form {
+        display: none !important;
       }
+
+      .post {
+        break-inside: avoid;
+        margin: 10px 0;
+        box-shadow: none;
+        border: 1px solid #000;
+      }
+    }
+
+    /* --- Utility Classes --- */
+    .hidden { display: none !important; }
+    .visible { display: block !important; }
+    .flex { display: flex; }
+    .flex-center { display: flex; align-items: center; justify-content: center; }
+    .text-center { text-align: center; }
+    .font-bold { font-weight: 700; }
+    .text-small { font-size: var(--font-size-small); }
+    .text-large { font-size: var(--font-size-large); }
+    .mb-10 { margin-bottom: 10px; }
+    .mt-10 { margin-top: 10px; }
+    .p-10 { padding: 10px; }
+    
+    /* --- Animation Classes --- */
+    .fade-in {
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 122, 204, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(0, 122, 204, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 122, 204, 0); }
     }
   </style>
 </head>
 <body>
-  <!-- グローバル操作エリア（2段構成：上段＝各操作ボタン、下段＝ズーム） -->
-  <header id="global-ops">
-    <div class="header-row top" id="btn-container">
-      <button id="btn-dark-mode" draggable="true">ダークモード</button>
-      <button id="btn-sort-new" draggable="true">新しい順</button>
-      <button id="btn-sort-old" draggable="true">古い順</button>
-      <button id="btn-sort-alpha" draggable="true">五十音順</button>
-      <button id="btn-collapse-expand" draggable="true">全投稿/返信表示</button>
-      <button id="btn-print" draggable="true">印刷</button>
-      <button id="btn-save" draggable="true">保存</button>
-      <button id="btn-load" draggable="true">読み込み</button>
-      <button id="btn-favorites" draggable="true">お気に入り一覧</button>
-      <input type="text" id="search-input" placeholder="検索…" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-      <button id="btn-search" draggable="true">検索</button>
-      <button id="btn-search-reset" draggable="true">検索リセット</button>
-      <button id="btn-undo" draggable="true">元に戻す</button>
-      <button id="btn-recover" draggable="true">復活</button>
-      <button id="btn-settings" draggable="true">設定</button>
-    </div>
-    <div class="header-row bottom">
-      <label for="zoom-slider">ズーム:</label>
-      <input type="range" id="zoom-slider" min="50" max="150" value="100">
+  <header id="global-header">
+    <div class="header-content">
+      <div class="header-row top" id="btn-container">
+        <button id="btn-dark-mode" class="header-btn" draggable="true" title="ダークモード切替">🌙 ダークモード</button>
+        <button id="btn-sort-new" class="header-btn" draggable="true" title="新しい順でソート">📅 新しい順</button>
+        <button id="btn-sort-old" class="header-btn" draggable="true" title="古い順でソート">📆 古い順</button>
+        <button id="btn-sort-alpha" class="header-btn" draggable="true" title="五十音順でソート">🔤 五十音順</button>
+        <button id="btn-sort-popular" class="header-btn" draggable="true" title="人気順でソート">⭐ 人気順</button>
+        <button id="btn-collapse-expand" class="header-btn" draggable="true" title="全投稿の折りたたみ切替">📋 展開/折りたたみ</button>
+        <button id="btn-print" class="header-btn" draggable="true" title="印刷">🖨️ 印刷</button>
+        <button id="btn-save" class="header-btn" draggable="true" title="データ保存">💾 保存</button>
+        <button id="btn-load" class="header-btn" draggable="true" title="データ読み込み">📁 読み込み</button>
+        <button id="btn-export" class="header-btn" draggable="true" title="CSV/JSON形式で出力">📤 出力</button>
+        <button id="btn-favorites" class="header-btn" draggable="true" title="お気に入り一覧">⭐ お気に入り</button>
+        <button id="btn-archives" class="header-btn" draggable="true" title="アーカイブ一覧">📦 アーカイブ</button>
+        <button id="btn-statistics" class="header-btn" draggable="true" title="統計情報">📊 統計</button>
+        <input type="text" id="search-input" class="header-input" placeholder="🔍 投稿を検索..." title="キーワード検索">
+        <button id="btn-search" class="header-btn" draggable="true" title="検索実行">🔍 検索</button>
+        <button id="btn-search-reset" class="header-btn" draggable="true" title="検索リセット">🔄 リセット</button>
+        <button id="btn-undo" class="header-btn" draggable="true" title="元に戻す">↶ 元に戻す</button>
+        <button id="btn-redo" class="header-btn" draggable="true" title="やり直し">↷ やり直し</button>
+        <button id="btn-recover" class="header-btn" draggable="true" title="削除した投稿を復活">🔮 復活</button>
+        <button id="btn-settings" class="header-btn" draggable="true" title="設定">⚙️ 設定</button>
+      </div>
+      <div class="header-row bottom">
+        <label for="zoom-slider">🔍 ズーム:</label>
+        <input type="range" id="zoom-slider" class="settings-slider" min="50" max="200" value="100" title="表示倍率調整">
+        <span id="zoom-value">100%</span>
+      </div>
     </div>
   </header>
 
-  <!-- 新規投稿エリア（投稿ボタンはテキストエリアの右側に配置） -->
-  <section id="new-post-area">
-    <textarea id="new-post-input" placeholder="新しい投稿を入力" rows="3"></textarea>
-    <div>
-      <button id="post-btn">投稿</button>
-      <button id="local-collapse-btn">全投稿折りたたみ/展開</button>
+  <section class="new-post-section">
+    <div class="new-post-container">
+      <div>
+        <textarea id="new-post-input" class="new-post-input" placeholder="💭 新しい投稿を入力してください..." rows="3"></textarea>
+        <div class="post-tags" style="margin-top: 10px;">
+          <input type="text" id="tag-input" placeholder="タグを追加 (スペース区切り)" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; width: 200px;">
+          <button id="add-tag-btn" class="post-btn" style="margin-left: 10px;">🏷️ タグ追加</button>
+        </div>
+        <div id="current-tags" class="post-tags"></div>
+      </div>
+      <div class="new-post-controls">
+        <button id="post-btn" class="control-btn btn-primary">📝 投稿</button>
+        <button id="local-collapse-btn" class="control-btn btn-secondary">📋 全折りたたみ</button>
+        <button id="pin-mode-btn" class="control-btn btn-secondary">📌 ピンモード</button>
+      </div>
     </div>
   </section>
 
-  <!-- 投稿表示エリア -->
-  <section id="posts-container"></section>
+  <section id="posts-container" class="posts-section"></section>
 
-  <!-- タグ絞り込みエリア -->
-  <section id="tag-filter"></section>
+  <section class="tag-filter-section" id="tag-filter-section">
+    <div class="tag-filter-container">
+      <h3 style="margin-bottom: 10px; color: var(--primary-color);">🏷️ タグでフィルター</h3>
+      <div id="tag-filter"></div>
+    </div>
+  </section>
 
-  <!-- お気に入り一覧パネル -->
-  <aside id="favorites-panel">
-    <h3>お気に入り一覧</h3>
+  <aside id="favorites-panel" class="sidebar-panel">
+    <div class="panel-header">⭐ お気に入り一覧</div>
+    <div id="favorites-list"></div>
   </aside>
 
-  <!-- 読み込み用ファイル入力（非表示） -->
-  <input type="file" id="load-file-input" style="display:none;">
+  <aside id="archives-panel" class="sidebar-panel">
+    <div class="panel-header">📦 アーカイブ一覧</div>
+    <div id="archives-list"></div>
+  </aside>
 
-  <!-- 設定パネル＆オーバーレイ（ボタンの表示・順序・大きさ変更用） -->
-  <div id="overlay"></div>
-  <div id="settings-panel">
-    <label>ボタンの表示切替:</label>
-    <div class="button-list">
-      <div><input type="checkbox" data-target="btn-dark-mode" checked><span>ダークモード</span></div>
-      <div><input type="checkbox" data-target="btn-sort-new" checked><span>新しい順</span></div>
-      <div><input type="checkbox" data-target="btn-sort-old" checked><span>古い順</span></div>
-      <div><input type="checkbox" data-target="btn-sort-alpha" checked><span>五十音順</span></div>
-      <div><input type="checkbox" data-target="btn-collapse-expand" checked><span>全投稿/返信表示</span></div>
-      <div><input type="checkbox" data-target="btn-print" checked><span>印刷</span></div>
-      <div><input type="checkbox" data-target="btn-save" checked><span>保存</span></div>
-      <div><input type="checkbox" data-target="btn-load" checked><span>読み込み</span></div>
-      <div><input type="checkbox" data-target="btn-favorites" checked><span>お気に入り一覧</span></div>
-      <div><input type="checkbox" data-target="btn-search" checked><span>検索</span></div>
-      <div><input type="checkbox" data-target="btn-search-reset" checked><span>検索リセット</span></div>
-      <div><input type="checkbox" data-target="btn-undo" checked><span>元に戻す</span></div>
-      <div><input type="checkbox" data-target="btn-recover" checked><span>復活</span></div>
+  <aside id="statistics-panel" class="sidebar-panel">
+    <div class="panel-header">📊 統計情報</div>
+    <div id="statistics-content"></div>
+  </aside>
+
+  <input type="file" id="load-file-input" style="display:none;" accept=".json,.csv">
+
+  <div id="overlay" class="overlay"></div>
+  <div id="settings-panel" class="settings-panel">
+    <div class="settings-section">
+      <label class="settings-label">🎨 テーマカラー変更</label>
+      <div id="theme-color-palette" class="color-picker"></div>
     </div>
-    <label>ボタンの大きさ:</label>
-    <input type="range" id="button-size-slider" min="5" max="50" value="10">
-    <button id="btn-close-settings">閉じる</button>
+    <div class="settings-section">
+      <label class="settings-label">🔧 ボタンの表示設定</label>
+      <div class="button-list" id="button-visibility-list"></div>
+    </div>
+    <div class="settings-section">
+      <label class="settings-label">📏 ボタンサイズ</label>
+      <input type="range" id="button-size-slider" class="settings-slider" min="0.8" max="1.4" step="0.1" value="1.0">
+      <span id="button-size-value">1.0x</span>
+    </div>
+    <div class="settings-section">
+      <label class="settings-label">📝 デフォルトの投稿テンプレート</label>
+      <textarea id="template-textarea" style="width:100%; height:100px; padding:10px; border:1px solid var(--border-color);"></textarea>
+      <button id="save-template-btn" class="control-btn btn-primary" style="margin-top:10px;">テンプレート保存</button>
+    </div>
   </div>
+  
+  <div id="notification-area"></div>
 
   <script>
-    /********** グローバル変数 **********/
-    let posts = []; // 各投稿は { id, parentId, content, timestamp, favorite, color, tags, children, collapsed }
-    let postIdCounter = 0;
-    let undoStack = [];
-    let deletedPostsStack = [];
+    // JavaScript Code
+    document.addEventListener('DOMContentLoaded', () => {
+      // --- DOM Elements ---
+      const postsContainer = document.getElementById('posts-container');
+      const newPostInput = document.getElementById('new-post-input');
+      const postBtn = document.getElementById('post-btn');
+      const searchInput = document.getElementById('search-input');
+      const searchBtn = document.getElementById('btn-search');
+      const searchResetBtn = document.getElementById('btn-search-reset');
+      const tagInput = document.getElementById('tag-input');
+      const addTagBtn = document.getElementById('add-tag-btn');
+      const currentTagsContainer = document.getElementById('current-tags');
+      const tagFilterContainer = document.getElementById('tag-filter');
+      const darkModeBtn = document.getElementById('btn-dark-mode');
+      const sortNewBtn = document.getElementById('btn-sort-new');
+      const sortOldBtn = document.getElementById('btn-sort-old');
+      const sortAlphaBtn = document.getElementById('btn-sort-alpha');
+      const sortPopularBtn = document.getElementById('btn-sort-popular');
+      const collapseExpandBtn = document.getElementById('btn-collapse-expand');
+      const localCollapseBtn = document.getElementById('local-collapse-btn');
+      const pinModeBtn = document.getElementById('pin-mode-btn');
+      const favoritesBtn = document.getElementById('btn-favorites');
+      const archivesBtn = document.getElementById('btn-archives');
+      const statisticsBtn = document.getElementById('btn-statistics');
+      const favoritesPanel = document.getElementById('favorites-panel');
+      const archivesPanel = document.getElementById('archives-panel');
+      const statisticsPanel = document.getElementById('statistics-panel');
+      const settingsBtn = document.getElementById('btn-settings');
+      const settingsPanel = document.getElementById('settings-panel');
+      const overlay = document.getElementById('overlay');
+      const zoomSlider = document.getElementById('zoom-slider');
+      const zoomValueSpan = document.getElementById('zoom-value');
+      const buttonVisibilityList = document.getElementById('button-visibility-list');
+      const buttonSizeSlider = document.getElementById('button-size-slider');
+      const buttonSizeValueSpan = document.getElementById('button-size-value');
+      const undoBtn = document.getElementById('btn-undo');
+      const redoBtn = document.getElementById('btn-redo');
+      const recoverBtn = document.getElementById('btn-recover');
+      const saveBtn = document.getElementById('btn-save');
+      const loadBtn = document.getElementById('btn-load');
+      const loadFileInput = document.getElementById('load-file-input');
+      const exportBtn = document.getElementById('btn-export');
+      const themeColorPalette = document.getElementById('theme-color-palette');
+      const templateTextarea = document.getElementById('template-textarea');
+      const saveTemplateBtn = document.getElementById('save-template-btn');
+      const notificationArea = document.getElementById('notification-area');
+      const printBtn = document.getElementById('btn-print');
 
-    /********** Undo／状態管理 **********/
-    function pushState() {
-      undoStack.push(JSON.stringify(posts));
-      if (undoStack.length > 20) { undoStack.shift(); }
-    }
-    function undo() {
-      if (undoStack.length > 0) {
-        posts = JSON.parse(undoStack.pop());
-        renderPosts();
-      }
-    }
+      // --- Global State ---
+      let posts = [];
+      let currentTags = [];
+      let historyStack = [];
+      let historyIndex = -1;
+      let deletedPosts = [];
+      let isCollapsed = false;
+      let isPinMode = false;
+      let currentSort = 'new';
+      let currentFilterTag = null;
+      let currentSearchQuery = '';
 
-    /********** 復活機能 **********/
-    function recoverLastDeleted() {
-      if (deletedPostsStack.length > 0) {
-        let recovered = deletedPostsStack.pop();
-        pushState();
-        if (recovered.parentId) {
-          let parent = findPostById(recovered.parentId, posts);
-          if (parent) {
-            parent.children.push(recovered.post);
-            recovered.post.parentId = parent.id;
-          } else {
-            posts.push(recovered.post);
-            recovered.post.parentId = null;
-          }
-        } else {
-          posts.push(recovered.post);
+      // --- Data Structure (Post Class) ---
+      class Post {
+        constructor(content, tags = [], parentId = null) {
+          this.id = Date.now();
+          this.content = content;
+          this.timestamp = new Date().toISOString();
+          this.tags = tags;
+          this.replies = [];
+          this.parentId = parentId;
+          this.favorites = 0;
+          this.isPinned = false;
+          this.isArchived = false;
         }
-        renderPosts();
-      } else {
-        alert("復活できる投稿がありません");
       }
-    }
 
-    /********** 投稿操作 **********/
-    function addPost(content, parentId = null) {
-      pushState();
-      const newPost = {
-        id: 'post-' + (postIdCounter++),
-        parentId: parentId,
-        content: content,
-        timestamp: Date.now(),
-        favorite: false,
-        color: randomColor(),
-        tags: [],
-        children: [],
-        collapsed: false
+      // --- Persistence (localStorage) ---
+      const saveState = () => {
+        try {
+          localStorage.setItem('boardPosts', JSON.stringify(posts));
+          localStorage.setItem('deletedPosts', JSON.stringify(deletedPosts));
+        } catch (e) {
+          showNotification('データの保存に失敗しました。', 'error');
+          console.error('Failed to save state to localStorage:', e);
+        }
       };
-      if (parentId === null) {
-        posts.push(newPost);
-      } else {
-        let parentPost = findPostById(parentId, posts);
-        if (parentPost) { parentPost.children.push(newPost); }
-      }
-      renderPosts();
-    }
-    function findPostById(id, list) {
-      for (let p of list) {
-        if (p.id === id) return p;
-        if (p.children && p.children.length > 0) {
-          let found = findPostById(id, p.children);
-          if (found) return found;
+
+      const loadState = () => {
+        try {
+          const storedPosts = localStorage.getItem('boardPosts');
+          const storedDeleted = localStorage.getItem('deletedPosts');
+          if (storedPosts) {
+            posts = JSON.parse(storedPosts);
+          }
+          if (storedDeleted) {
+            deletedPosts = JSON.parse(storedDeleted);
+          }
+        } catch (e) {
+          showNotification('データの読み込みに失敗しました。', 'error');
+          console.error('Failed to load state from localStorage:', e);
         }
-      }
-      return null;
-    }
-    function deletePost(id, list = posts, parent = null) {
-      for (let i = 0; i < list.length; i++) {
-        if (list[i].id === id) {
-          pushState();
-          let deleted = list.splice(i, 1)[0];
-          deletedPostsStack.push({ post: deleted, parentId: parent ? parent.id : null });
+      };
+
+      // --- History (Undo/Redo) ---
+      const saveHistory = () => {
+        historyStack = historyStack.slice(0, historyIndex + 1);
+        historyStack.push(JSON.stringify({ posts, deletedPosts }));
+        historyIndex = historyStack.length - 1;
+        updateHistoryButtons();
+      };
+
+      const undo = () => {
+        if (historyIndex > 0) {
+          historyIndex--;
+          const prevState = JSON.parse(historyStack[historyIndex]);
+          posts = prevState.posts;
+          deletedPosts = prevState.deletedPosts;
           renderPosts();
-          return true;
-        } else if (list[i].children && list[i].children.length > 0) {
-          if (deletePost(id, list[i].children, list[i])) return true;
+          showNotification('元に戻しました。', 'info');
+          updateHistoryButtons();
         }
-      }
-      return false;
-    }
-    function extractPost(id, list) {
-      for (let i = 0; i < list.length; i++) {
-        if (list[i].id === id) {
-          return list.splice(i, 1)[0];
-        } else if (list[i].children && list[i].children.length > 0) {
-          let result = extractPost(id, list[i].children);
-          if (result) return result;
-        }
-      }
-      return null;
-    }
+      };
 
-    /********** 描画処理 **********/
-    let currentSearchKeyword = "";
-    function renderPosts() {
-      const container = document.getElementById("posts-container");
-      container.innerHTML = "";
-      function renderPost(post, level = 0) {
-        const postDiv = document.createElement("div");
-        postDiv.className = "post";
-        postDiv.dataset.postId = post.id;
-        postDiv.style.marginLeft = (level * 20) + "px";
-        postDiv.style.backgroundColor = post.color || randomColor();
-
-        // ヘッダー
-        const headerDiv = document.createElement("div");
-        headerDiv.className = "post-header";
-        headerDiv.innerHTML = `<span class="timestamp">${new Date(post.timestamp).toLocaleString()}</span>`;
-
-        // お気に入りボタン
-        const favoriteBtn = document.createElement("button");
-        favoriteBtn.className = "favorite-btn";
-        favoriteBtn.textContent = post.favorite ? "★" : "☆";
-        favoriteBtn.addEventListener("click", function(e) {
-          e.stopPropagation();
-          pushState();
-          post.favorite = !post.favorite;
+      const redo = () => {
+        if (historyIndex < historyStack.length - 1) {
+          historyIndex++;
+          const nextState = JSON.parse(historyStack[historyIndex]);
+          posts = nextState.posts;
+          deletedPosts = nextState.deletedPosts;
           renderPosts();
+          showNotification('やり直しました。', 'info');
+          updateHistoryButtons();
+        }
+      };
+
+      const updateHistoryButtons = () => {
+        undoBtn.disabled = historyIndex <= 0;
+        redoBtn.disabled = historyIndex >= historyStack.length - 1;
+      };
+
+      // --- UI Rendering ---
+      const renderPosts = () => {
+        postsContainer.innerHTML = '';
+        const sortedPosts = sortPosts(filterPosts(posts));
+        
+        sortedPosts.forEach(post => {
+          if (!post.isArchived) {
+            postsContainer.appendChild(createPostElement(post));
+          }
         });
-        headerDiv.appendChild(favoriteBtn);
+        
+        renderTagFilters();
+        renderSidebarPanels();
+        saveState();
+      };
+      
+      const createPostElement = (post, isReply = false) => {
+        const postElement = document.createElement('div');
+        postElement.className = 'post fade-in';
+        postElement.dataset.id = post.id;
+        
+        if (post.isPinned) {
+          postElement.classList.add('pinned');
+        }
 
-        // 削除ボタン
-        const deleteBtn = document.createElement("button");
-        deleteBtn.textContent = "削除";
-        deleteBtn.addEventListener("click", function(e) {
+        const tagsHtml = post.tags.map(tag => `<span class="tag" data-tag="${tag}">${tag}</span>`).join('');
+        const repliesCount = post.replies ? post.replies.length : 0;
+
+        let contentHtml = post.content;
+        if (currentSearchQuery) {
+          const regex = new RegExp(`(${currentSearchQuery})`, 'gi');
+          contentHtml = post.content.replace(regex, `<span class="highlighted">$1</span>`);
+        }
+
+        postElement.innerHTML = `
+          <div class="post-header">
+            <div class="post-meta">
+              <span class="timestamp">${new Date(post.timestamp).toLocaleString()}</span>
+              ${post.isPinned ? `<span class="stat-item">📌 ピン留め</span>` : ''}
+            </div>
+            <div class="post-stats">
+              <span class="stat-item">💬 ${repliesCount}</span>
+              <span class="stat-item">⭐ ${post.favorites}</span>
+            </div>
+          </div>
+          <div class="post-tags">${tagsHtml}</div>
+          <div class="post-content">${contentHtml}</div>
+          <div class="post-actions">
+            <button class="post-btn btn-reply">💬 返信</button>
+            <button class="post-btn btn-favorite ${post.isFavorite ? 'active' : ''}">⭐ お気に入り</button>
+            <button class="post-btn btn-edit">✍️ 編集</button>
+            <button class="post-btn btn-delete">🗑️ 削除</button>
+            <button class="post-btn btn-archive">📦 アーカイブ</button>
+            <button class="post-btn btn-pin">${post.isPinned ? '📌 ピン解除' : '📌 ピン留め'}</button>
+          </div>
+        `;
+        
+        if (post.replies && post.replies.length > 0) {
+          const repliesContainer = document.createElement('div');
+          repliesContainer.className = 'replies-container';
+          post.replies.forEach(reply => {
+            repliesContainer.appendChild(createPostElement(reply, true));
+          });
+          postElement.appendChild(repliesContainer);
+        }
+        
+        // Add event listeners to new buttons
+        const replyBtn = postElement.querySelector('.btn-reply');
+        replyBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleReplyForm(postElement, post.id);
+        });
+        
+        const favoriteBtn = postElement.querySelector('.btn-favorite');
+        favoriteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          toggleFavorite(post.id);
+        });
+        
+        const editBtn = postElement.querySelector('.btn-edit');
+        editBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          editPost(post.id, postElement);
+        });
+        
+        const deleteBtn = postElement.querySelector('.btn-delete');
+        deleteBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           deletePost(post.id);
         });
-        headerDiv.appendChild(deleteBtn);
-
-        // 色変更ボタン
-        const colorBtn = document.createElement("button");
-        colorBtn.textContent = "色変更";
-        colorBtn.addEventListener("click", function(e) {
+        
+        const archiveBtn = postElement.querySelector('.btn-archive');
+        archiveBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          showColorPicker(post);
+          archivePost(post.id);
         });
-        headerDiv.appendChild(colorBtn);
-
-        // 返信ボタン
-        const replyBtn = document.createElement("button");
-        replyBtn.textContent = "返信";
-        replyBtn.addEventListener("click", function(e) {
+        
+        const pinBtn = postElement.querySelector('.btn-pin');
+        pinBtn.addEventListener('click', (e) => {
           e.stopPropagation();
-          showReplyForm(post.id, postDiv, level + 1);
+          togglePin(post.id);
         });
-        headerDiv.appendChild(replyBtn);
-
-        // 全投稿折りたたみ/展開ボタン（返信がある場合）
-        if (post.children && post.children.length > 0) {
-          const toggleBtn = document.createElement("button");
-          toggleBtn.textContent = post.collapsed ? "展開" : "折りたたみ";
-          toggleBtn.addEventListener("click", function(e) {
+        
+        const tags = postElement.querySelectorAll('.tag');
+        tags.forEach(tag => {
+          tag.addEventListener('click', (e) => {
             e.stopPropagation();
-            pushState();
-            post.collapsed = !post.collapsed;
+            filterByTag(tag.dataset.tag);
+          });
+        });
+        
+        return postElement;
+      };
+
+      const renderTagFilters = () => {
+        tagFilterContainer.innerHTML = '';
+        const allTags = new Set();
+        posts.forEach(post => {
+          post.tags.forEach(tag => allTags.add(tag));
+          if (post.replies) {
+            post.replies.forEach(reply => {
+              reply.tags.forEach(tag => allTags.add(tag));
+            });
+          }
+        });
+        
+        allTags.forEach(tag => {
+          const tagBtn = document.createElement('span');
+          tagBtn.className = 'filter-tag';
+          tagBtn.textContent = tag;
+          tagBtn.dataset.tag = tag;
+          if (tag === currentFilterTag) {
+            tagBtn.classList.add('active');
+          }
+          tagBtn.addEventListener('click', () => {
+            if (currentFilterTag === tag) {
+              currentFilterTag = null;
+            } else {
+              currentFilterTag = tag;
+            }
             renderPosts();
           });
-          headerDiv.appendChild(toggleBtn);
+          tagFilterContainer.appendChild(tagBtn);
+        });
+      };
+      
+      const renderSidebarPanels = () => {
+        favoritesList.innerHTML = '';
+        archivesList.innerHTML = '';
+        
+        posts.forEach(post => {
+          if (post.isFavorite) {
+            const favItem = document.createElement('div');
+            favItem.className = 'fav-item';
+            favItem.textContent = post.content.substring(0, 30) + '...';
+            favItem.dataset.id = post.id;
+            favItem.addEventListener('click', () => {
+              document.querySelector(`[data-id="${post.id}"]`).scrollIntoView({ behavior: 'smooth' });
+              showNotification('投稿にジャンプしました。', 'info');
+            });
+            favoritesList.appendChild(favItem);
+          }
+          if (post.isArchived) {
+            const archiveItem = document.createElement('div');
+            archiveItem.className = 'archive-item';
+            archiveItem.textContent = post.content.substring(0, 30) + '...';
+            archiveItem.dataset.id = post.id;
+            archiveItem.addEventListener('click', () => {
+              showNotification('アーカイブされた投稿は閲覧できません。', 'info');
+            });
+            archivesList.appendChild(archiveItem);
+          }
+        });
+        
+        updateStatistics();
+      };
+      
+      const updateStatistics = () => {
+        const totalPosts = posts.length;
+        const totalReplies = posts.reduce((sum, post) => sum + (post.replies ? post.replies.length : 0), 0);
+        const totalFavorites = posts.reduce((sum, post) => sum + post.favorites, 0);
+        const uniqueTags = new Set(posts.flatMap(post => post.tags));
+        
+        statisticsContent.innerHTML = `
+          <p>📝 総投稿数: ${totalPosts}</p>
+          <p>💬 総返信数: ${totalReplies}</p>
+          <p>⭐ 総お気に入り数: ${totalFavorites}</p>
+          <p>🏷️ 総タグ数: ${uniqueTags.size}</p>
+        `;
+      };
+      
+      // --- Functional Logic ---
+      const addPost = (content, tags, parentId = null) => {
+        if (!content.trim()) {
+          showNotification('投稿内容を入力してください。', 'warning');
+          return;
         }
-        postDiv.appendChild(headerDiv);
-
-        // 投稿内容（ハイライト付き）
-        const contentDiv = document.createElement("div");
-        contentDiv.className = "post-content";
-        contentDiv.innerHTML = highlightText(post.content);
-        postDiv.appendChild(contentDiv);
-
-        // タグ表示（オプション）
-        const tagsDiv = document.createElement("div");
-        tagsDiv.className = "post-tags";
-        if (post.tags && post.tags.length > 0) {
-          tagsDiv.textContent = "タグ: " + post.tags.join(", ");
+        
+        const newPost = new Post(content, tags, parentId);
+        
+        if (parentId) {
+          const parentPost = findPostById(posts, parentId);
+          if (parentPost) {
+            if (!parentPost.replies) parentPost.replies = [];
+            parentPost.replies.push(newPost);
+            showNotification('返信が投稿されました。', 'success');
+          }
+        } else {
+          posts.push(newPost);
+          showNotification('新しい投稿が作成されました。', 'success');
         }
-        postDiv.appendChild(tagsDiv);
-
-        // 子投稿の再帰描画
-        if (post.children && post.children.length > 0 && !post.collapsed) {
-          post.children.forEach(child => {
-            const childElem = renderPost(child, level + 1);
-            postDiv.appendChild(childElem);
+        
+        saveHistory();
+        renderPosts();
+        clearNewPostForm();
+      };
+      
+      const findPostById = (arr, id) => {
+        for (let i = 0; i < arr.length; i++) {
+          if (arr[i].id === id) {
+            return arr[i];
+          }
+          if (arr[i].replies) {
+            const reply = findPostById(arr[i].replies, id);
+            if (reply) return reply;
+          }
+        }
+        return null;
+      };
+      
+      const toggleReplyForm = (postElement, postId) => {
+        const existingForm = postElement.querySelector('.reply-form');
+        if (existingForm) {
+          existingForm.remove();
+          return;
+        }
+        
+        const replyForm = document.createElement('div');
+        replyForm.className = 'reply-form';
+        replyForm.innerHTML = `
+          <textarea class="reply-textarea" placeholder="返信を入力..."></textarea>
+          <div class="reply-actions">
+            <button class="post-btn btn-primary reply-submit">返信</button>
+            <button class="post-btn btn-secondary reply-cancel">キャンセル</button>
+          </div>
+        `;
+        
+        postElement.appendChild(replyForm);
+        
+        const submitBtn = replyForm.querySelector('.reply-submit');
+        const cancelBtn = replyForm.querySelector('.reply-cancel');
+        const textarea = replyForm.querySelector('.reply-textarea');
+        
+        submitBtn.addEventListener('click', () => {
+          addPost(textarea.value, [], postId);
+          replyForm.remove();
+        });
+        
+        cancelBtn.addEventListener('click', () => {
+          replyForm.remove();
+        });
+      };
+      
+      const editPost = (postId, postElement) => {
+        const post = findPostById(posts, postId);
+        if (!post) return;
+        
+        const contentDiv = postElement.querySelector('.post-content');
+        const originalContent = post.content;
+        
+        contentDiv.innerHTML = `<textarea class="edit-textarea" style="width:100%; min-height:100px;">${originalContent}</textarea>`;
+        contentDiv.style.cursor = 'auto';
+        
+        const textarea = contentDiv.querySelector('.edit-textarea');
+        const actionsDiv = postElement.querySelector('.post-actions');
+        
+        actionsDiv.innerHTML = `
+          <button class="post-btn btn-primary save-edit">保存</button>
+          <button class="post-btn btn-secondary cancel-edit">キャンセル</button>
+        `;
+        
+        postElement.querySelector('.save-edit').addEventListener('click', () => {
+          post.content = textarea.value;
+          post.timestamp = new Date().toISOString();
+          saveHistory();
+          renderPosts();
+          showNotification('投稿を編集しました。', 'success');
+        });
+        
+        postElement.querySelector('.cancel-edit').addEventListener('click', () => {
+          renderPosts(); // Simply re-render to revert
+          showNotification('編集をキャンセルしました。', 'info');
+        });
+      };
+      
+      const deletePost = (postId) => {
+        const postIndex = posts.findIndex(post => post.id === postId);
+        if (postIndex > -1) {
+          const deleted = posts.splice(postIndex, 1)[0];
+          deletedPosts.push(deleted);
+          saveHistory();
+          renderPosts();
+          showNotification('投稿を削除しました。復活ボタンで元に戻せます。', 'info');
+        } else {
+          // Check for replies
+          posts.forEach(post => {
+            if (post.replies) {
+              const replyIndex = post.replies.findIndex(reply => reply.id === postId);
+              if (replyIndex > -1) {
+                const deleted = post.replies.splice(replyIndex, 1)[0];
+                deletedPosts.push(deleted);
+                saveHistory();
+                renderPosts();
+                showNotification('返信を削除しました。', 'info');
+              }
+            }
           });
         }
-
-        // ドラッグ＆ドロップ設定
-        postDiv.draggable = true;
-        postDiv.addEventListener("dragstart", dragStart);
-        postDiv.addEventListener("dragover", dragOver);
-        postDiv.addEventListener("drop", drop);
-
-        // ダブルクリックで編集
-        postDiv.addEventListener("dblclick", function(e) {
-          e.stopPropagation();
-          showEditForm(post, postDiv);
-        });
-
-        return postDiv;
-      }
-      posts.filter(p => p.parentId === null).forEach(post => {
-        container.appendChild(renderPost(post, 0));
-      });
-      renderFavoritesPanel();
-      renderTagButtons();
-    }
-    function highlightText(text) {
-      if (!currentSearchKeyword) return text;
-      const regex = new RegExp("(" + currentSearchKeyword + ")", "gi");
-      return text.replace(regex, '<span class="highlighted">$1</span>');
-    }
-    function randomColor() {
-      const colors = ['#FFFFFF', '#FFCCCC', '#CCFFCC', '#CCCCFF', '#FFFFCC', '#CCFFFF', '#FFCCFF'];
-      return colors[Math.floor(Math.random() * colors.length)];
-    }
-
-    /********** 編集／返信／色ピッカー **********/
-    function showReplyForm(parentId, container, level) {
-      if (container.querySelector(".reply-form")) return;
-      const form = document.createElement("div");
-      form.className = "reply-form";
-      form.style.marginLeft = (level * 20) + "px";
-      const textarea = document.createElement("textarea");
-      textarea.placeholder = "返信を入力";
-      textarea.rows = 3;
-      textarea.style.width = "33%";
-      form.appendChild(textarea);
-      const sendBtn = document.createElement("button");
-      sendBtn.textContent = "送信";
-      sendBtn.addEventListener("click", function() {
-        const replyContent = textarea.value.trim();
-        if (replyContent) {
-          addPost(replyContent, parentId);
-          container.removeChild(form);
-        }
-      });
-      form.appendChild(sendBtn);
-      container.appendChild(form);
-    }
-    function showEditForm(post, postDiv) {
-      const contentDiv = postDiv.querySelector(".post-content");
-      const textarea = document.createElement("textarea");
-      textarea.value = post.content;
-      textarea.rows = 3;
-      textarea.style.width = "100%";
-      contentDiv.innerHTML = "";
-      contentDiv.appendChild(textarea);
-      textarea.focus();
-      textarea.addEventListener("blur", function() {
-        pushState();
-        post.content = textarea.value;
-        renderPosts();
-      });
-      textarea.addEventListener("keydown", function(e) {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          textarea.blur();
-        }
-      });
-    }
-    function showColorPicker(post) {
-      const picker = document.createElement("div");
-      picker.className = "color-picker";
-      const colors = ['#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
-                      '#800000', '#008000', '#000080', '#808000', '#800080', '#008080', 
-                      '#C0C0C0', '#808080', '#9999FF', '#993366', '#FFFFCC', '#CCFFFF', '#660066'];
-      colors.forEach(color => {
-        const btn = document.createElement("button");
-        btn.style.backgroundColor = color;
-        btn.style.width = "20px";
-        btn.style.height = "20px";
-        btn.style.margin = "2px";
-        btn.addEventListener("click", function() {
-          pushState();
-          post.color = color;
+      };
+      
+      const toggleFavorite = (postId) => {
+        const post = findPostById(posts, postId);
+        if (post) {
+          post.isFavorite = !post.isFavorite;
+          if (post.isFavorite) {
+            post.favorites++;
+            showNotification('お気に入りに追加しました。', 'success');
+          } else {
+            post.favorites--;
+            showNotification('お気に入りから削除しました。', 'info');
+          }
           renderPosts();
-        });
-        picker.appendChild(btn);
-      });
-      picker.style.position = "fixed";
-      picker.style.top = "50%";
-      picker.style.left = "50%";
-      picker.style.transform = "translate(-50%, -50%)";
-      picker.style.padding = "10px";
-      picker.style.backgroundColor = "#fff";
-      picker.style.border = "1px solid #ccc";
-      document.body.appendChild(picker);
-      picker.addEventListener("mouseleave", function() { picker.remove(); });
-    }
-
-    /********** ドラッグ＆ドロップ **********/
-    let draggedPostId = null;
-    function dragStart(e) {
-      draggedPostId = this.dataset.postId;
-      e.dataTransfer.effectAllowed = "move";
-    }
-    function dragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-    }
-    function drop(e) {
-      e.stopPropagation();
-      const targetPostId = this.dataset.postId;
-      if (draggedPostId && draggedPostId !== targetPostId) {
-        pushState();
-        const draggedPost = extractPost(draggedPostId, posts);
-        const targetPost = findPostById(targetPostId, posts);
-        if (draggedPost && targetPost) {
-          targetPost.children.push(draggedPost);
-          draggedPost.parentId = targetPostId;
-          renderPosts();
-        }
-      }
-      draggedPostId = null;
-    }
-
-    /********** 保存／読み込み／印刷 **********/
-    function savePosts() {
-      const json = JSON.stringify(posts, null, 2);
-      const blob = new Blob([json], { type: "application/json" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "マインドマップ掲示板_" + new Date().toISOString() + ".json";
-      a.click();
-    }
-    function loadPosts(file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          pushState();
-          posts = JSON.parse(e.target.result);
-          renderPosts();
-        } catch (err) {
-          alert("ファイルの読み込みに失敗しました。");
         }
       };
-      reader.readAsText(file);
-    }
-    function printBoard() {
-      window.print();
-    }
+      
+      const archivePost = (postId) => {
+        const post = findPostById(posts, postId);
+        if (post) {
+          post.isArchived = !post.isArchived;
+          if (post.isArchived) {
+            showNotification('投稿をアーカイブしました。', 'success');
+          } else {
+            showNotification('投稿をアーカイブから復元しました。', 'info');
+          }
+          renderPosts();
+        }
+      };
+      
+      const togglePin = (postId) => {
+        const post = findPostById(posts, postId);
+        if (post) {
+          post.isPinned = !post.isPinned;
+          renderPosts();
+          showNotification(`投稿を${post.isPinned ? 'ピン留め' : 'ピン解除'}しました。`, 'info');
+        }
+      };
+      
+      const filterPosts = (postsArray) => {
+        let filtered = postsArray;
+        
+        if (currentSearchQuery) {
+          filtered = filtered.filter(post => 
+            post.content.toLowerCase().includes(currentSearchQuery.toLowerCase()) ||
+            post.tags.some(tag => tag.toLowerCase().includes(currentSearchQuery.toLowerCase()))
+          );
+        }
+        
+        if (currentFilterTag) {
+          filtered = filtered.filter(post => post.tags.includes(currentFilterTag));
+        }
+        
+        return filtered;
+      };
+      
+      const sortPosts = (postsArray) => {
+        const pinnedPosts = postsArray.filter(post => post.isPinned);
+        const nonPinnedPosts = postsArray.filter(post => !post.isPinned);
+        
+        let sorted = [...nonPinnedPosts];
+        
+        switch(currentSort) {
+          case 'new':
+            sorted.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            break;
+          case 'old':
+            sorted.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            break;
+          case 'alpha':
+            sorted.sort((a, b) => a.content.localeCompare(b.content, 'ja'));
+            break;
+          case 'popular':
+            sorted.sort((a, b) => b.favorites - a.favorites);
+            break;
+        }
+        
+        return [...pinnedPosts, ...sorted];
+      };
+      
+      const searchPosts = () => {
+        currentSearchQuery = searchInput.value.trim();
+        renderPosts();
+        showNotification(`${posts.length}件の投稿を検索しました。`, 'info');
+      };
+      
+      const resetSearch = () => {
+        searchInput.value = '';
+        currentSearchQuery = '';
+        renderPosts();
+        showNotification('検索がリセットされました。', 'info');
+      };
 
-    /********** ソート／折りたたみ **********/
-    function sortPosts(criteria) {
-      pushState();
-      function sortRecursively(list) {
-        list.sort((a, b) => {
-          if (criteria === "new") {
-            return b.timestamp - a.timestamp;
-          } else if (criteria === "old") {
-            return a.timestamp - b.timestamp;
-          } else if (criteria === "alpha") {
-            return a.content.localeCompare(b.content, "ja");
+      const clearNewPostForm = () => {
+        newPostInput.value = '';
+        tagInput.value = '';
+        currentTags = [];
+        updateCurrentTagsUI();
+      };
+      
+      const updateCurrentTagsUI = () => {
+        currentTagsContainer.innerHTML = '';
+        currentTags.forEach(tag => {
+          const tagSpan = document.createElement('span');
+          tagSpan.className = 'tag';
+          tagSpan.textContent = tag;
+          const removeBtn = document.createElement('span');
+          removeBtn.className = 'tag-removable';
+          removeBtn.textContent = 'x';
+          removeBtn.addEventListener('click', () => {
+            currentTags = currentTags.filter(t => t !== tag);
+            updateCurrentTagsUI();
+          });
+          tagSpan.appendChild(removeBtn);
+          currentTagsContainer.appendChild(tagSpan);
+        });
+      };
+      
+      const toggleSidebarPanel = (panel) => {
+        [favoritesPanel, archivesPanel, statisticsPanel].forEach(p => {
+          if (p !== panel) {
+            p.classList.remove('visible');
           }
         });
-        list.forEach(post => {
-          if (post.children && post.children.length > 0) {
-            sortRecursively(post.children);
+        panel.classList.toggle('visible');
+      };
+
+      const closeSidebarPanels = () => {
+        [favoritesPanel, archivesPanel, statisticsPanel].forEach(p => p.classList.remove('visible'));
+      };
+
+      const toggleSettingsPanel = () => {
+        settingsPanel.classList.toggle('visible');
+        overlay.classList.toggle('visible');
+      };
+
+      const showNotification = (message, type = 'info', duration = 3000) => {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `<span>${message}</span><span class="close-notification">&times;</span>`;
+        
+        notificationArea.prepend(notification); // Add to top
+        
+        // Show the notification
+        setTimeout(() => {
+          notification.classList.add('visible');
+        }, 10);
+        
+        // Hide after duration
+        setTimeout(() => {
+          notification.classList.remove('visible');
+          notification.addEventListener('transitionend', () => notification.remove());
+        }, duration);
+        
+        // Close on click
+        notification.querySelector('.close-notification').addEventListener('click', () => {
+          notification.classList.remove('visible');
+          notification.addEventListener('transitionend', () => notification.remove());
+        });
+      };
+
+      const initializeSettingsPanel = () => {
+        // Button visibility
+        const allButtons = document.querySelectorAll('.header-btn:not(#btn-settings)');
+        allButtons.forEach(btn => {
+          const itemId = btn.id;
+          const itemName = btn.title || btn.textContent.trim();
+          const item = document.createElement('div');
+          item.className = 'button-item';
+          item.innerHTML = `
+            <input type="checkbox" id="btn-vis-${itemId}" checked>
+            <label for="btn-vis-${itemId}">${itemName}</label>
+          `;
+          buttonVisibilityList.appendChild(item);
+          
+          item.querySelector('input').addEventListener('change', (e) => {
+            btn.style.display = e.target.checked ? 'block' : 'none';
+          });
+        });
+
+        // Theme color picker
+        const colors = [
+          '#007acc', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+          '#6f42c1', '#fd7e14', '#e83e8c', '#6c757d', '#343a40'
+        ];
+        colors.forEach(color => {
+          const colorBtn = document.createElement('div');
+          colorBtn.className = 'color-btn';
+          colorBtn.style.backgroundColor = color;
+          colorBtn.addEventListener('click', () => {
+            document.documentElement.style.setProperty('--primary-color', color);
+            document.documentElement.style.setProperty('--primary-dark', color);
+            document.documentElement.style.setProperty('--primary-darker', color);
+            localStorage.setItem('themeColor', color);
+          });
+          themeColorPalette.appendChild(colorBtn);
+        });
+
+        const savedColor = localStorage.getItem('themeColor');
+        if (savedColor) {
+          document.documentElement.style.setProperty('--primary-color', savedColor);
+          document.documentElement.style.setProperty('--primary-dark', savedColor);
+          document.documentElement.style.setProperty('--primary-darker', savedColor);
+        }
+      };
+
+      const loadDefaultTemplate = () => {
+        const savedTemplate = localStorage.getItem('defaultTemplate');
+        if (savedTemplate) {
+          newPostInput.value = savedTemplate;
+        }
+      };
+
+      // --- Event Listeners ---
+      postBtn.addEventListener('click', () => {
+        addPost(newPostInput.value, currentTags);
+      });
+
+      addTagBtn.addEventListener('click', () => {
+        const tagsToAdd = tagInput.value.split(/\s+/).filter(t => t.trim() !== '');
+        currentTags.push(...tagsToAdd);
+        tagInput.value = '';
+        updateCurrentTagsUI();
+      });
+
+      newPostInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.shiftKey) {
+          e.preventDefault();
+          postBtn.click();
+        }
+      });
+
+      searchInput.addEventListener('input', () => {
+        currentSearchQuery = searchInput.value.trim();
+        renderPosts();
+      });
+      
+      searchBtn.addEventListener('click', searchPosts);
+      searchResetBtn.addEventListener('click', resetSearch);
+      
+      darkModeBtn.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+      });
+      
+      sortNewBtn.addEventListener('click', () => {
+        currentSort = 'new';
+        document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
+        sortNewBtn.classList.add('active');
+        renderPosts();
+      });
+      
+      sortOldBtn.addEventListener('click', () => {
+        currentSort = 'old';
+        document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
+        sortOldBtn.classList.add('active');
+        renderPosts();
+      });
+      
+      sortAlphaBtn.addEventListener('click', () => {
+        currentSort = 'alpha';
+        document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
+        sortAlphaBtn.classList.add('active');
+        renderPosts();
+      });
+      
+      sortPopularBtn.addEventListener('click', () => {
+        currentSort = 'popular';
+        document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
+        sortPopularBtn.classList.add('active');
+        renderPosts();
+      });
+      
+      collapseExpandBtn.addEventListener('click', () => {
+        isCollapsed = !isCollapsed;
+        document.querySelectorAll('.post-content').forEach(content => {
+          content.classList.toggle('collapsed', isCollapsed);
+        });
+        showNotification(`全投稿を${isCollapsed ? '折りたたみ' : '展開'}ました。`, 'info');
+      });
+
+      localCollapseBtn.addEventListener('click', () => {
+        const postElements = document.querySelectorAll('.post');
+        postElements.forEach(postEl => {
+          const content = postEl.querySelector('.post-content');
+          if (content) {
+            content.classList.toggle('collapsed');
           }
         });
-      }
-      sortRecursively(posts);
-      renderPosts();
-    }
-    function toggleCollapseAll() {
-      pushState();
-      function toggleRecursively(list, collapse) {
-        list.forEach(post => {
-          post.collapsed = collapse;
-          if (post.children) { toggleRecursively(post.children, collapse); }
-        });
-      }
-      let anyExpanded = false;
-      function checkRecursively(list) {
-        for (let post of list) {
-          if (!post.collapsed) { anyExpanded = true; break; }
-          if (post.children && post.children.length > 0) { checkRecursively(post.children); }
+      });
+      
+      pinModeBtn.addEventListener('click', () => {
+        isPinMode = !isPinMode;
+        if (isPinMode) {
+          pinModeBtn.classList.add('active');
+          showNotification('ピンモードが有効になりました。', 'info');
+        } else {
+          pinModeBtn.classList.remove('active');
+          showNotification('ピンモードが無効になりました。', 'info');
         }
-      }
-      checkRecursively(posts);
-      toggleRecursively(posts, anyExpanded);
-      renderPosts();
-    }
+      });
+      
+      favoritesBtn.addEventListener('click', () => toggleSidebarPanel(favoritesPanel));
+      archivesBtn.addEventListener('click', () => toggleSidebarPanel(archivesPanel));
+      statisticsBtn.addEventListener('click', () => toggleSidebarPanel(statisticsPanel));
+      
+      settingsBtn.addEventListener('click', toggleSettingsPanel);
+      overlay.addEventListener('click', () => {
+        toggleSettingsPanel();
+        closeSidebarPanels();
+      });
+      
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && (settingsPanel.classList.contains('visible') || favoritesPanel.classList.contains('visible') || archivesPanel.classList.contains('visible') || statisticsPanel.classList.contains('visible'))) {
+          toggleSettingsPanel();
+          closeSidebarPanels();
+        }
+      });
+      
+      zoomSlider.addEventListener('input', (e) => {
+        const zoomValue = e.target.value;
+        document.body.style.zoom = `${zoomValue}%`;
+        zoomValueSpan.textContent = `${zoomValue}%`;
+      });
+      
+      buttonSizeSlider.addEventListener('input', (e) => {
+        const sizeValue = e.target.value;
+        document.documentElement.style.setProperty('--font-size-small', `${sizeValue * 0.85}rem`);
+        document.documentElement.style.setProperty('--font-size-normal', `${sizeValue}rem`);
+        document.documentElement.style.setProperty('--font-size-large', `${sizeValue * 1.2}rem`);
+        buttonSizeValueSpan.textContent = `${sizeValue}x`;
+      });
+      
+      undoBtn.addEventListener('click', undo);
+      redoBtn.addEventListener('click', redo);
+      
+      recoverBtn.addEventListener('click', () => {
+        if (deletedPosts.length > 0) {
+          const recovered = deletedPosts.pop();
+          posts.push(recovered);
+          saveHistory();
+          renderPosts();
+          showNotification('最近削除した投稿を復活させました。', 'success');
+        } else {
+          showNotification('復活できる投稿はありません。', 'warning');
+        }
+      });
 
-    /********** 検索＆タグ絞り込み **********/
-    function searchPosts(keyword) {
-      currentSearchKeyword = keyword;
-      renderPosts();
-    }
-    function resetSearch() {
-      currentSearchKeyword = "";
-      renderPosts();
-    }
-    function renderTagButtons() {
-      const tagContainer = document.getElementById("tag-filter");
-      tagContainer.innerHTML = "";
-      let tagSet = new Set();
-      function collectTags(list) {
-        list.forEach(post => {
-          if (post.tags && post.tags.length > 0) {
-            post.tags.forEach(tag => tagSet.add(tag));
+      saveBtn.addEventListener('click', () => {
+        saveState();
+        showNotification('データを保存しました！', 'success');
+      });
+
+      loadBtn.addEventListener('click', () => {
+        loadFileInput.click();
+      });
+
+      loadFileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data.posts) {
+              posts = data.posts;
+              deletedPosts = data.deletedPosts || [];
+              renderPosts();
+              saveHistory();
+              showNotification('データを読み込みました。', 'success');
+            } else {
+              showNotification('無効なファイル形式です。', 'error');
+            }
+          } catch (error) {
+            showNotification('ファイルの解析に失敗しました。', 'error');
+            console.error('File load error:', error);
           }
-          if (post.children && post.children.length > 0) { collectTags(post.children); }
-        });
-      }
-      collectTags(posts);
-      tagSet.forEach(tag => {
-        const btn = document.createElement("button");
-        btn.textContent = tag;
-        btn.addEventListener("click", function() {
-          if (currentSearchKeyword !== tag) { searchPosts(tag); }
-          else { resetSearch(); }
-        });
-        tagContainer.appendChild(btn);
+        };
+        reader.readAsText(file);
       });
-    }
 
-    /********** お気に入りパネル **********/
-    function renderFavoritesPanel() {
-      const panel = document.getElementById("favorites-panel");
-      panel.innerHTML = "<h3>お気に入り一覧</h3>";
-      let favs = [];
-      function searchFavs(list) {
-        list.forEach(post => {
-          if (post.favorite) favs.push(post);
-          if (post.children && post.children.length > 0) { searchFavs(post.children); }
-        });
-      }
-      searchFavs(posts);
-      favs.forEach(post => {
-        const favItem = document.createElement("div");
-        favItem.className = "fav-item";
-        favItem.textContent = post.content.substring(0, 20) + "...";
-        favItem.addEventListener("click", function() {
-          const postElem = document.querySelector("[data-post-id='" + post.id + "']");
-          if (postElem) postElem.scrollIntoView({ behavior: "smooth" });
-        });
-        panel.appendChild(favItem);
+      exportBtn.addEventListener('click', () => {
+        const data = { posts, deletedPosts };
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'board_data.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('JSONファイルとしてエクスポートしました。', 'info');
       });
-    }
 
-    /********** グローバルイベント登録 **********/
-    document.addEventListener("DOMContentLoaded", function() {
-      // グローバル操作
-      document.getElementById("btn-dark-mode").addEventListener("click", function() {
-        document.body.classList.toggle("dark-mode");
+      saveTemplateBtn.addEventListener('click', () => {
+        const templateContent = templateTextarea.value;
+        localStorage.setItem('defaultTemplate', templateContent);
+        showNotification('テンプレートを保存しました。', 'success');
       });
-      document.getElementById("btn-sort-new").addEventListener("click", function() { sortPosts("new"); });
-      document.getElementById("btn-sort-old").addEventListener("click", function() { sortPosts("old"); });
-      document.getElementById("btn-sort-alpha").addEventListener("click", function() { sortPosts("alpha"); });
-      document.getElementById("btn-collapse-expand").addEventListener("click", toggleCollapseAll);
-      document.getElementById("btn-print").addEventListener("click", printBoard);
-      document.getElementById("btn-save").addEventListener("click", savePosts);
-      document.getElementById("btn-load").addEventListener("click", function() {
-        document.getElementById("load-file-input").click();
+      
+      printBtn.addEventListener('click', () => {
+        window.print();
       });
-      document.getElementById("load-file-input").addEventListener("change", function() {
-        if (this.files && this.files[0]) { loadPosts(this.files[0]); }
-      });
-      document.getElementById("btn-favorites").addEventListener("click", function() {
-        const panel = document.getElementById("favorites-panel");
-        panel.style.display = (panel.style.display === "none" || panel.style.display === "") ? "block" : "none";
-      });
-      document.getElementById("btn-search").addEventListener("click", function() {
-        const keyword = document.getElementById("search-input").value;
-        searchPosts(keyword);
-      });
-      document.getElementById("btn-search-reset").addEventListener("click", resetSearch);
-      document.getElementById("btn-undo").addEventListener("click", undo);
-      document.getElementById("btn-recover").addEventListener("click", recoverLastDeleted);
-      document.getElementById("btn-settings").addEventListener("click", function() {
-        document.getElementById("settings-panel").style.display = "block";
-        document.getElementById("overlay").style.display = "block";
-      });
-      document.getElementById("post-btn").addEventListener("click", function() {
-        const content = document.getElementById("new-post-input").value.trim();
-        if (content) {
-          addPost(content);
-          document.getElementById("new-post-input").value = "";
+
+      // --- Initialization ---
+      const init = () => {
+        loadState();
+        // Add sample posts if none exist
+        if (posts.length === 0) {
+          posts.push(new Post('今日の出来事について話しましょう！\n皆さんの一日はいかがでしたか？', ['日常', '雑談']));
+          posts.push(new Post('JavaScriptの非同期処理について質問です。Promiseとasync/awaitの違いを教えてください。', ['JavaScript', 'プログラミング']));
+          posts[0].replies.push(new Post('私は今日は家でゆっくりしていました。とても良い一日でした！', ['休日', 'リラックス']));
         }
-      });
-      document.getElementById("local-collapse-btn").addEventListener("click", toggleCollapseAll);
-      document.getElementById("zoom-slider").addEventListener("input", function() {
-        const zoom = this.value;
-        document.getElementById("posts-container").style.transform = "scale(" + (zoom / 100) + ")";
-      });
-
-      // ヘッダーのボタン：ドラッグ＆ドロップ順序変更
-      const btnContainer = document.getElementById("btn-container");
-      btnContainer.addEventListener("dragstart", function(e) {
-        if (e.target.tagName === "BUTTON" && e.target.id !== "btn-settings") {
-          e.dataTransfer.setData("text/plain", e.target.id);
-        }
-      });
-      btnContainer.addEventListener("dragover", function(e) { e.preventDefault(); });
-      btnContainer.addEventListener("drop", function(e) {
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData("text/plain");
-        const draggedElem = document.getElementById(draggedId);
-        if (e.target.tagName === "BUTTON" && draggedElem) {
-          btnContainer.insertBefore(draggedElem, e.target.nextSibling);
-        }
-      });
-
-      // 設定パネル：チェックボックスでボタン表示切替
-      const checkboxes = document.querySelectorAll('#settings-panel input[type="checkbox"]');
-      checkboxes.forEach(checkbox => {
-        checkbox.addEventListener("change", (e) => {
-          const targetId = e.target.dataset.target;
-          const button = document.getElementById(targetId);
-          if (button) { button.classList.toggle("hidden", !e.target.checked); }
-        });
-      });
-      // 設定パネル：スライダーでボタンの大きさ変更
-      const sizeSlider = document.getElementById("button-size-slider");
-      sizeSlider.addEventListener("input", (e) => {
-        const newSize = e.target.value + "px";
-        const buttons = btnContainer.querySelectorAll("button");
-        buttons.forEach(button => { button.style.padding = newSize; });
-      });
-      // 設定パネル：閉じる
-      document.getElementById("btn-close-settings").addEventListener("click", function() {
-        document.getElementById("settings-panel").style.display = "none";
-        document.getElementById("overlay").style.display = "none";
-      });
-      // オーバーレイクリックで設定パネル閉じる
-      document.getElementById("overlay").addEventListener("click", function() {
-        document.getElementById("settings-panel").style.display = "none";
-        document.getElementById("overlay").style.display = "none";
-      });
+        renderPosts();
+        updateHistoryButtons();
+        initializeSettingsPanel();
+        loadDefaultTemplate();
+        // Set initial sort button state
+        sortNewBtn.classList.add('active');
+        saveHistory();
+      };
+      
+      init();
     });
   </script>
 </body>
