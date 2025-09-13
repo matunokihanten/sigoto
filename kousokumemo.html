@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <script type="text/javascript" src="//rot0.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>高速メモ</title>
+  <title>高速メモ v2.0</title>
   <style>
     /* 全体レイアウト */
     body {
@@ -49,7 +48,7 @@
       margin-bottom: 10px;
       display: none;
     }
-    /* メモグリッド（初期は5列表示） */
+    /* メモグリッド */
     #memoGrid {
       display: grid;
       grid-template-columns: repeat(5, 1fr);
@@ -61,30 +60,36 @@
     .memoCard {
       background-color: white;
       border: 1px solid #ccc;
-      padding: 5px;
+      padding: 10px;
       font-size: 14px;
       word-break: break-all;
       position: relative;
+      transition: box-shadow 0.2s;
+    }
+    .memoCard:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
     .memoCard img {
       max-width: 100%;
       display: block;
-      margin-top: 5px;
+      margin-top: 10px;
     }
     .memoCard small {
       display: block;
-      margin-top: 5px;
+      margin-top: 10px;
       color: #666;
     }
     .memoCard button {
+      margin-top: 10px;
       margin-right: 5px;
       font-size: 12px;
       cursor: pointer;
     }
     .memo-content {
-      cursor: pointer; /* 編集可能であることを示すカーソル */
-      min-height: 20px; /* タップしやすくするため */
-      padding: 2px; /* タップしやすくするため */
+      cursor: pointer;
+      min-height: 20px;
+      padding: 2px;
+      white-space: pre-wrap;
     }
     .highlight {
       background-color: yellow;
@@ -101,6 +106,13 @@
     .dark-mode .memoCard {
       background-color: #444;
       border-color: #666;
+    }
+    .dark-mode .memoCard small {
+      color: #ccc;
+    }
+    .dark-mode .highlight {
+      background-color: #6a6a00;
+      color: #fff;
     }
     /* 印刷時：操作パネル、入力欄、プレビュー画像を非表示 */
     @media print {
@@ -119,8 +131,8 @@
     <button id="uploadImageButton">画像選択</button>
     <input type="file" id="fileInput" accept="image/*" hidden>
     <button id="capturePhotoButton">写真撮影</button>
-    <div id="cameraArea" style="display: none;">
-      <video id="videoPreview" autoplay playsinline style="width:100px;"></video>
+    <div id="cameraArea" style="display: none; flex-direction: column; align-items: center; gap: 10px;">
+      <video id="videoPreview" autoplay playsinline style="width: 100%; max-width: 300px;"></video>
       <button id="captureBtn">キャプチャ</button>
     </div>
     <button id="importMemoButton">インポート</button>
@@ -142,29 +154,54 @@
   </div>
   <script>
     let currentImage = null;
+    let draggedMemo = null;
 
-    /* ユーティリティ関数 */
+    /* -------------------- ユーティリティ関数 -------------------- */
     function generateUniqueId() {
       return "_" + Math.random().toString(36).substr(2, 9);
     }
+
     function escapeHtml(string) {
       return String(string).replace(/[&<>"']/g, function(s) {
         const entityMap = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
         return entityMap[s];
       });
     }
+
     function escapeRegExp(string) {
       return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
+
     function highlightText(text, query) {
+      if (!query) return escapeHtml(text);
       const regex = new RegExp('(' + escapeRegExp(query) + ')', 'gi');
-      return text.replace(regex, '<span class="highlight">$1</span>');
+      return escapeHtml(text).replace(regex, '<span class="highlight">$1</span>');
     }
 
-    /* メモ管理 */
+    /* -------------------- 画像処理 -------------------- */
+    function convertImageToGrayscale(image, callback) {
+      // 非同期処理としてグレースケール変換を実行
+      setTimeout(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          data[i] = data[i + 1] = data[i + 2] = gray;
+        }
+        ctx.putImageData(imageData, 0, 0);
+        callback(canvas.toDataURL());
+      }, 0);
+    }
+
+    /* -------------------- メモ管理 -------------------- */
     function saveMemo() {
-      let memoText = document.getElementById("memoInput").value.trim();
-      if (memoText === "" && !currentImage) { // メモ内容も画像もない場合は保存しない
+      const memoText = document.getElementById("memoInput").value.trim();
+      if (memoText === "" && !currentImage) {
         alert("メモ内容または画像を添付してください。");
         return;
       }
@@ -177,11 +214,7 @@
       };
       memos.push(newMemo);
       localStorage.setItem("memos", JSON.stringify(memos));
-      document.getElementById("memoInput").value = "";
-      currentImage = null;
-      const preview = document.getElementById("currentImagePreview");
-      preview.src = "";
-      preview.style.display = "none";
+      clearInputArea();
       displayMemos();
     }
 
@@ -192,176 +225,91 @@
       displayMemos();
     }
 
-    // 編集機能の強化 (インライン編集)
     function editMemo(id) {
       const memoCard = document.querySelector(`.memoCard[data-id="${id}"]`);
       if (!memoCard) return;
 
       const contentDiv = memoCard.querySelector('.memo-content');
-      // 既に編集モードの場合は何もしない
-      if (contentDiv.querySelector('textarea')) {
-        return;
-      }
+      if (contentDiv.querySelector('textarea')) return;
 
       const currentContent = contentDiv.innerText;
+      const currentImageElement = memoCard.querySelector('.memo-image');
+      const buttonsContainer = document.createElement('div');
+      buttonsContainer.style.marginTop = '10px';
 
-      // テキストエリアに変換
       const textarea = document.createElement('textarea');
       textarea.value = currentContent;
       textarea.style.width = '100%';
       textarea.style.height = 'auto';
       textarea.style.minHeight = '50px';
       textarea.style.boxSizing = 'border-box';
-      textarea.style.marginBottom = '5px';
+      textarea.style.marginBottom = '10px';
       contentDiv.replaceWith(textarea);
 
-      // 画像編集ボタン (既存の画像があれば表示)
-      let imageEditButton = null;
-      let currentImageElement = memoCard.querySelector('.memo-image');
-      const existingButtonsContainer = document.createElement('div'); // ボタンをまとめるコンテナ
-      existingButtonsContainer.style.marginTop = '5px';
-
-      if (currentImageElement) {
-        imageEditButton = document.createElement('button');
-        imageEditButton.innerText = '画像を更新';
-        imageEditButton.style.fontSize = '12px';
-        imageEditButton.style.marginRight = '5px';
-        imageEditButton.onclick = () => {
-          const imageInput = document.createElement('input');
-          imageInput.type = 'file';
-          imageInput.accept = 'image/*';
-          imageInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                  const updatedImage = convertImageToGrayscale(img);
-                  currentImageElement.src = updatedImage;
-                  memoCard.dataset.newImage = updatedImage;
-                };
-                img.src = event.target.result;
-              };
-              reader.readAsDataURL(file);
-            }
-          };
-          imageInput.click();
-        };
-
-        const removeImageButton = document.createElement('button');
-        removeImageButton.innerText = '画像を削除';
-        removeImageButton.style.fontSize = '12px';
-        removeImageButton.onclick = () => {
-          if (confirm('この画像を削除しますか？')) {
-            currentImageElement.remove();
-            currentImageElement = null;
-            memoCard.dataset.newImage = 'REMOVE';
-            imageEditButton.remove();
-            removeImageButton.remove();
-            // 画像追加ボタンを再表示するロジックが必要であればここに追加
-            const addImageBtn = document.createElement('button');
-            addImageBtn.innerText = '画像を追加';
-            addImageBtn.style.fontSize = '12px';
-            addImageBtn.style.marginRight = '5px';
-            addImageBtn.onclick = imageEditButton.onclick; // 画像更新と同じロジックを再利用
-            existingButtonsContainer.insertBefore(addImageBtn, existingButtonsContainer.firstChild);
-          }
-        };
-        existingButtonsContainer.appendChild(imageEditButton);
-        existingButtonsContainer.appendChild(removeImageButton);
-
-      } else {
-        // 画像がない場合でも画像追加ボタンを表示
-        imageEditButton = document.createElement('button');
-        imageEditButton.innerText = '画像を追加';
-        imageEditButton.style.fontSize = '12px';
-        imageEditButton.style.marginRight = '5px';
-        imageEditButton.onclick = () => {
-          const imageInput = document.createElement('input');
-          imageInput.type = 'file';
-          imageInput.accept = 'image/*';
-          imageInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                  const newImageSrc = convertImageToGrayscale(img);
-                  if (currentImageElement) { // 既に画像要素がある場合（追加後に再度追加を試みた場合など）
+      const addImageBtn = document.createElement('button');
+      addImageBtn.innerText = currentImageElement ? '画像を更新' : '画像を追加';
+      addImageBtn.style.fontSize = '12px';
+      addImageBtn.onclick = () => {
+        const imageInput = document.createElement('input');
+        imageInput.type = 'file';
+        imageInput.accept = 'image/*';
+        imageInput.onchange = (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                convertImageToGrayscale(img, (newImageSrc) => {
+                  if (currentImageElement) {
                     currentImageElement.src = newImageSrc;
-                  } else { // 新しく画像要素を作成する場合
-                    currentImageElement = document.createElement('img');
-                    currentImageElement.className = 'memo-image';
-                    currentImageElement.style.maxWidth = '100%';
-                    currentImageElement.style.marginTop = '5px';
-                    currentImageElement.src = newImageSrc;
-                    textarea.after(currentImageElement); // テキストエリアの後に画像を追加
+                  } else {
+                    const newImgElem = document.createElement('img');
+                    newImgElem.className = 'memo-image';
+                    newImgElem.src = newImageSrc;
+                    textarea.after(newImgElem);
                   }
                   memoCard.dataset.newImage = newImageSrc;
-                  // 画像を追加したら、ボタンを「更新/削除」に切り替える
-                  imageEditButton.innerText = '画像を更新';
-                  const removeBtn = document.createElement('button');
-                  removeBtn.innerText = '画像を削除';
-                  removeBtn.style.fontSize = '12px';
-                  removeBtn.onclick = () => {
-                    if (confirm('この画像を削除しますか？')) {
-                      currentImageElement.remove();
-                      currentImageElement = null;
-                      memoCard.dataset.newImage = 'REMOVE';
-                      imageEditButton.remove();
-                      removeBtn.remove();
-                      // 再度「画像を追加」ボタンを表示
-                      const addImageBtn = document.createElement('button');
-                      addImageBtn.innerText = '画像を追加';
-                      addImageBtn.style.fontSize = '12px';
-                      addImageBtn.style.marginRight = '5px';
-                      addImageBtn.onclick = imageEditButton.onclick;
-                      existingButtonsContainer.insertBefore(addImageBtn, existingButtonsContainer.firstChild);
-                    }
-                  };
-                  existingButtonsContainer.appendChild(removeBtn);
-                };
-                img.src = event.target.result;
+                  addImageBtn.innerText = '画像を更新';
+                });
               };
-              reader.readAsDataURL(file);
-            }
-          };
-          imageInput.click();
+              img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+          }
         };
-        existingButtonsContainer.appendChild(imageEditButton);
+        imageInput.click();
+      };
+      buttonsContainer.appendChild(addImageBtn);
+
+      if (currentImageElement) {
+        const removeImageBtn = document.createElement('button');
+        removeImageBtn.innerText = '画像を削除';
+        removeImageBtn.style.fontSize = '12px';
+        removeImageBtn.onclick = () => {
+          if (confirm('この画像を削除しますか？')) {
+            currentImageElement.remove();
+            memoCard.dataset.newImage = 'REMOVE';
+            addImageBtn.innerText = '画像を追加';
+            removeImageBtn.remove();
+          }
+        };
+        buttonsContainer.appendChild(removeImageBtn);
       }
-      textarea.after(existingButtonsContainer); // テキストエリアの後にボタンコンテナを追加
 
-
-      // 保存・キャンセルボタン
       const saveButton = document.createElement('button');
       saveButton.innerText = '保存';
       saveButton.style.fontSize = '12px';
-      saveButton.style.marginRight = '5px';
       saveButton.onclick = () => {
         let memos = JSON.parse(localStorage.getItem("memos")) || [];
         const index = memos.findIndex(memo => memo.id === id);
         if (index !== -1) {
           memos[index].content = textarea.value;
-
-          // 画像の更新処理
           if (memoCard.dataset.newImage) {
-            if (memoCard.dataset.newImage === 'REMOVE') {
-              memos[index].image = null;
-            } else {
-              memos[index].image = memoCard.dataset.newImage;
-            }
-            delete memoCard.dataset.newImage; // 一時データを削除
-          } else if (!currentImageElement && memos[index].image) {
-             // 編集中に画像が削除されたが、dataset.newImageが設定されていない場合
-             memos[index].image = null;
+            memos[index].image = memoCard.dataset.newImage === 'REMOVE' ? null : memoCard.dataset.newImage;
           }
-
-
           localStorage.setItem("memos", JSON.stringify(memos));
-          displayMemos(); // メモを再表示して更新を反映
+          displayMemos();
         }
       };
 
@@ -369,41 +317,27 @@
       cancelButton.innerText = 'キャンセル';
       cancelButton.style.fontSize = '12px';
       cancelButton.onclick = () => {
-        displayMemos(); // 変更を破棄してメモを再表示
+        displayMemos();
       };
 
-      // 既存の編集・削除ボタンを非表示にし、新しいボタンを追加
-      const oldEditButton = memoCard.querySelector('button[onclick^="editMemo"]');
-      const oldDeleteButton = memoCard.querySelector('button[onclick^="deleteMemo"]');
-      if (oldEditButton) oldEditButton.style.display = 'none';
-      if (oldDeleteButton) oldDeleteButton.style.display = 'none';
+      buttonsContainer.appendChild(saveButton);
+      buttonsContainer.appendChild(cancelButton);
 
-      existingButtonsContainer.appendChild(saveButton);
-      existingButtonsContainer.appendChild(cancelButton);
+      memoCard.appendChild(buttonsContainer);
+      memoCard.querySelector('button[onclick^="editMemo"]').style.display = 'none';
+      memoCard.querySelector('button[onclick^="deleteMemo"]').style.display = 'none';
     }
-
 
     function createMemoCard(memo, query) {
       const card = document.createElement("div");
       card.className = "memoCard";
       card.setAttribute("draggable", "true");
-      card.setAttribute("data-id", memo.id); // IDをデータ属性として追加
-      card.addEventListener("dragstart", function(e) {
-        e.dataTransfer.setData("text/plain", memo.id);
-        e.dataTransfer.effectAllowed = "move";
-      });
-
-      let contentHtml = escapeHtml(memo.content);
-      if (query) {
-        contentHtml = highlightText(contentHtml, query);
-      }
-
+      card.setAttribute("data-id", memo.id);
+      
       const contentDiv = document.createElement('div');
       contentDiv.className = 'memo-content';
-      contentDiv.style.whiteSpace = 'pre-wrap';
-      contentDiv.innerHTML = contentHtml;
-      contentDiv.addEventListener('click', () => editMemo(memo.id)); // ここでクリックイベントを追加
-
+      contentDiv.innerHTML = highlightText(memo.content, query);
+      contentDiv.addEventListener('click', () => editMemo(memo.id));
       card.appendChild(contentDiv);
 
       if (memo.image) {
@@ -411,8 +345,6 @@
         img.className = 'memo-image';
         img.src = memo.image;
         img.alt = '添付画像';
-        img.style.maxWidth = '100%';
-        img.style.marginTop = '5px';
         card.appendChild(img);
       }
 
@@ -422,7 +354,7 @@
 
       const editBtn = document.createElement('button');
       editBtn.innerText = '編集';
-      editBtn.onclick = () => editMemo(memo.id); // ボタンからも編集を呼び出す
+      editBtn.onclick = () => editMemo(memo.id);
       card.appendChild(editBtn);
 
       const deleteBtn = document.createElement('button');
@@ -435,7 +367,7 @@
 
     function displayMemos() {
       let memos = JSON.parse(localStorage.getItem("memos")) || [];
-      let query = document.getElementById("searchInput").value.trim();
+      const query = document.getElementById("searchInput").value.trim();
       if (query) {
         const regex = new RegExp(escapeRegExp(query), "gi");
         memos = memos.filter(memo => memo.content.match(regex));
@@ -444,6 +376,7 @@
       memos.sort((a, b) =>
         sortOrder === "new" ? new Date(b.timestamp) - new Date(a.timestamp) : new Date(a.timestamp) - new Date(b.timestamp)
       );
+
       const memoGrid = document.getElementById("memoGrid");
       memoGrid.innerHTML = "";
       memos.forEach(memo => {
@@ -451,45 +384,48 @@
         memoGrid.appendChild(card);
       });
     }
+    
+    function clearInputArea() {
+      document.getElementById("memoInput").value = "";
+      currentImage = null;
+      const preview = document.getElementById("currentImagePreview");
+      preview.src = "";
+      preview.style.display = "none";
+    }
 
-    /* 画像アップロード＆グレースケール変換 */
-    document.getElementById("uploadImageButton").addEventListener("click", () => {
-      document.getElementById("fileInput").click();
+    /* -------------------- イベントリスナー設定 -------------------- */
+
+    // メモ保存
+    document.addEventListener("dblclick", function(e) {
+      if (e.target.closest("#controlPanel") || e.target.closest("#mainArea textarea") || e.target.closest(".memoCard")) {
+        return;
+      }
+      saveMemo();
     });
+
+    // 画像アップロード
+    document.getElementById("uploadImageButton").addEventListener("click", () => document.getElementById("fileInput").click());
     document.getElementById("fileInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = function(event) {
+        reader.onload = (event) => {
           const img = new Image();
-          img.onload = function() {
-            currentImage = convertImageToGrayscale(img);
-            const preview = document.getElementById("currentImagePreview");
-            preview.src = currentImage;
-            preview.style.display = "block";
+          img.onload = () => {
+            convertImageToGrayscale(img, (dataUrl) => {
+              currentImage = dataUrl;
+              const preview = document.getElementById("currentImagePreview");
+              preview.src = currentImage;
+              preview.style.display = "block";
+            });
           };
           img.src = event.target.result;
         };
         reader.readAsDataURL(file);
       }
     });
-    function convertImageToGrayscale(image) {
-      const canvas = document.createElement("canvas");
-      canvas.width = image.width;
-      canvas.height = image.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(image, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        data[i] = data[i + 1] = data[i + 2] = gray;
-      }
-      ctx.putImageData(imageData, 0, 0);
-      return canvas.toDataURL();
-    }
 
-    /* 写真撮影（カメラ利用） */
+    // 写真撮影
     document.getElementById("capturePhotoButton").addEventListener("click", () => {
       const cameraArea = document.getElementById("cameraArea");
       cameraArea.style.display = "flex";
@@ -500,7 +436,10 @@
           video.play();
           window.currentStream = stream;
         })
-        .catch(err => alert("カメラにアクセスできませんでした: " + err));
+        .catch(err => {
+          alert("カメラにアクセスできませんでした: " + err.message);
+          cameraArea.style.display = "none";
+        });
     });
     document.getElementById("captureBtn").addEventListener("click", () => {
       const video = document.getElementById("videoPreview");
@@ -509,24 +448,23 @@
       canvas.height = video.videoHeight;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        data[i] = data[i + 1] = data[i + 2] = gray;
-      }
-      ctx.putImageData(imageData, 0, 0);
-      currentImage = canvas.toDataURL();
-      const preview = document.getElementById("currentImagePreview");
-      preview.src = currentImage;
-      preview.style.display = "block";
-      if (window.currentStream) {
-        window.currentStream.getTracks().forEach(track => track.stop());
-      }
-      document.getElementById("cameraArea").style.display = "none";
+      const img = new Image();
+      img.onload = () => {
+        convertImageToGrayscale(img, (dataUrl) => {
+          currentImage = dataUrl;
+          const preview = document.getElementById("currentImagePreview");
+          preview.src = currentImage;
+          preview.style.display = "block";
+          if (window.currentStream) {
+            window.currentStream.getTracks().forEach(track => track.stop());
+          }
+          document.getElementById("cameraArea").style.display = "none";
+        });
+      };
+      img.src = canvas.toDataURL();
     });
 
-    /* インポート／エクスポート (JSON形式) */
+    // インポート／エクスポート
     document.getElementById("exportMemoButton").addEventListener("click", () => {
       const memosData = localStorage.getItem("memos") || "[]";
       const blob = new Blob([memosData], { type: "application/json" });
@@ -535,14 +473,12 @@
       link.download = "高速メモ.json";
       link.click();
     });
-    document.getElementById("importMemoButton").addEventListener("click", () => {
-      document.getElementById("importFileInput").click();
-    });
+    document.getElementById("importMemoButton").addEventListener("click", () => document.getElementById("importFileInput").click());
     document.getElementById("importFileInput").addEventListener("change", function(e) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = function(event) {
+        reader.onload = (event) => {
           const content = event.target.result;
           try {
             const parsedMemos = JSON.parse(content);
@@ -561,21 +497,17 @@
       }
     });
 
-    /* 印刷／PDF */
-    document.getElementById("printMemoButton").addEventListener("click", () => {
-      window.print();
-    });
+    // 印刷
+    document.getElementById("printMemoButton").addEventListener("click", () => window.print());
 
-    /* ダークモード切替 */
-    document.getElementById("darkModeToggleButton").addEventListener("click", () => {
-      document.body.classList.toggle("dark-mode");
-    });
+    // ダークモード切替
+    document.getElementById("darkModeToggleButton").addEventListener("click", () => document.body.classList.toggle("dark-mode"));
 
-    /* ソート／検索更新 */
+    // ソート／検索
     document.getElementById("sortSelector").addEventListener("change", displayMemos);
     document.getElementById("searchInput").addEventListener("input", displayMemos);
 
-    /* 全削除 */
+    // 全削除
     document.getElementById("deleteAllButton").addEventListener("click", () => {
       if (confirm("すべてのメモを削除してもよろしいですか？")) {
         localStorage.removeItem("memos");
@@ -583,27 +515,44 @@
       }
     });
 
-    /* ダブルクリックで保存（操作部以外を対象） */
-    document.addEventListener("dblclick", function(e) {
-      if (e.target.closest("#controlPanel") ||
-          e.target.closest("textarea") ||
-          e.target.closest("input") ||
-          e.target.closest("button") ||
-          e.target.closest("video") ||
-          e.target.closest('.memoCard')) { // メモカード内でのダブルクリックは保存しない
-        return;
-      }
-      saveMemo();
-    });
-
-    /* 列数選択：グリッドの列数更新 */
+    // 列数選択
     document.getElementById("columnSelector").addEventListener("change", function () {
       const columnCount = parseInt(this.value, 10);
       document.getElementById("memoGrid").style.gridTemplateColumns =
         `repeat(${Math.min(Math.max(columnCount, 1), 100)}, 1fr)`;
     });
+    
+    // ドラッグ＆ドロップによる並べ替え
+    const memoGrid = document.getElementById("memoGrid");
+    memoGrid.addEventListener("dragstart", (e) => {
+      if (e.target.classList.contains("memoCard")) {
+        draggedMemo = e.target;
+        e.dataTransfer.effectAllowed = "move";
+        e.target.style.opacity = '0.4';
+      }
+    });
+    memoGrid.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      const target = e.target.closest(".memoCard");
+      if (target && target !== draggedMemo) {
+        const rect = target.getBoundingClientRect();
+        const next = (e.clientY - rect.top) / rect.height > 0.5;
+        memoGrid.insertBefore(draggedMemo, next && target.nextSibling || target);
+      }
+    });
+    memoGrid.addEventListener("dragend", (e) => {
+      e.target.style.opacity = '1';
+      const memos = [];
+      memoGrid.querySelectorAll(".memoCard").forEach(card => {
+        const id = card.getAttribute("data-id");
+        const memo = JSON.parse(localStorage.getItem("memos")).find(m => m.id === id);
+        if (memo) memos.push(memo);
+      });
+      localStorage.setItem("memos", JSON.stringify(memos));
+      draggedMemo = null;
+    });
 
-    /* 初期表示 */
+    // 初期表示
     displayMemos();
   </script>
 </body>
