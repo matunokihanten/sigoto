@@ -302,11 +302,20 @@
             color: var(--text-primary);
             padding: 10px 18px;
             border-radius: 25px;
-            cursor: pointer;
+            cursor: grab; /* ドラッグ可能であることを示す */
             transition: all 0.3s ease;
             font-weight: 500;
             position: relative;
             overflow: hidden;
+        }
+        
+        .monthly-data-list li:active {
+            cursor: grabbing;
+        }
+
+        .monthly-data-list li.drag-over {
+            border-bottom: 3px solid var(--accent-color);
+            transform: scale(1.08);
         }
 
         .monthly-data-list li::before {
@@ -345,6 +354,7 @@
             gap: 10px;
             margin-bottom: 20px;
             border-bottom: 2px solid var(--border-color);
+            flex-wrap: wrap; /* スマホ表示で折り返す */
         }
 
         .chart-tab {
@@ -382,6 +392,11 @@
             cursor: pointer;
         }
 
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* iOSでのスムーズスクロール */
+        }
+
         .data-table {
             width: 100%;
             border-collapse: collapse;
@@ -390,6 +405,7 @@
             border-radius: 8px;
             overflow: hidden;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-width: 600px; /* テーブルの最小幅を指定して、スマホでの表示崩れを防ぐ */
         }
 
         .data-table th,
@@ -669,7 +685,7 @@
             <div class="card">
                 <div class="card-header">
                     <h2>📈 読み込み済みデータ一覧</h2>
-                    <p>分析対象の月を選択してください。（<span id="loaded-data-count">0</span>件）</p>
+                    <p>分析対象の月を選択してください。（<span id="loaded-data-count">0</span>件）ドラッグ＆ドロップで並べ替えできます。</p>
                 </div>
                 <div class="card-content">
                     <ul class="monthly-data-list" id="monthly-data-list"></ul>
@@ -795,18 +811,18 @@
                         <button class="btn success" id="calculate-btn">🧮 計算実行</button>
                         <button class="btn warning" id="export-btn">📤 Excelで保存</button>
                     </div>
-
-                    <table class="data-table hidden" id="daily-summary-table">
-                        <thead>
-                            <tr id="table-headers-row"></tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+                    <div class="table-wrapper">
+                        <table class="data-table hidden" id="daily-summary-table">
+                            <thead>
+                                <tr id="table-headers-row"></tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- データ検証モーダル -->
         <div id="validation-modal" class="modal">
             <div class="modal-content">
                 <button class="modal-close" onclick="closeModal('validation-modal')">&times;</button>
@@ -826,6 +842,8 @@
         let mainChart = null;
         let lastCalculatedTotals = {};
         let currentChartType = 'time';
+        let monthOrder = []; // 月の順序を保持
+        let draggedMonth = null; // ドラッグ中の月を保持
 
         // DOM要素の取得
         const elements = {
@@ -876,7 +894,7 @@
             elements.dataValidationBtn.addEventListener('click', showDataValidation);
         }
 
-        // ドラッグ&ドロップハンドラー
+        // ドラッグ&ドロップハンドラー (ファイルアップロード用)
         function handleDragOver(e) {
             e.preventDefault();
             elements.dragDropArea.classList.add('active');
@@ -892,6 +910,42 @@
             const file = e.dataTransfer.files[0];
             if (file) handleExcelFile(file);
         }
+
+        // ドラッグ&ドロップハンドラー (月リスト並べ替え用)
+        function handleDragStart(e) {
+            draggedMonth = e.target.dataset.month;
+            setTimeout(() => e.target.style.opacity = '0.5', 0);
+        }
+
+        function handleDragOverListItem(e) {
+            e.preventDefault();
+            if (e.target.dataset.month && e.target.dataset.month !== draggedMonth) {
+                e.target.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeaveListItem(e) {
+            e.target.classList.remove('drag-over');
+        }
+
+        function handleDropListItem(e) {
+            e.preventDefault();
+            const droppedOnMonth = e.target.dataset.month;
+            if (droppedOnMonth && draggedMonth !== droppedOnMonth) {
+                const fromIndex = monthOrder.indexOf(draggedMonth);
+                const toIndex = monthOrder.indexOf(droppedOnMonth);
+                const item = monthOrder.splice(fromIndex, 1)[0];
+                monthOrder.splice(toIndex, 0, item);
+                populateMonthlyList();
+            }
+        }
+        
+        function handleDragEnd(e) {
+            e.target.style.opacity = '1';
+            draggedMonth = null;
+            document.querySelectorAll('.monthly-data-list li.drag-over').forEach(li => li.classList.remove('drag-over'));
+        }
+
 
         function handleFileSelect(e) {
             const file = e.target.files[0];
@@ -941,8 +995,9 @@
                     const loadedData = JSON.parse(e.target.result);
                     allMonthlyData = loadedData.allMonthlyData || [];
                     timeLabels = loadedData.timeLabels || [];
+                    monthOrder = loadedData.monthOrder || [...new Set(allMonthlyData.map(d => d.month))].sort();
                     
-                    if (elements.startHourSelect1.options.length === 0) {
+                    if (elements.startHourSelect1.options.length === 0 && timeLabels.length > 0) {
                         populateHourSelects(timeLabels);
                     }
                     
@@ -975,7 +1030,21 @@
 
             const newMonthlyData = data.slice(1)
                 .map(row => createDailyEntry(row, indices))
-                .filter(entry => entry.date);
+                .filter(entry => entry && entry.date);
+
+            const wasMonthOrderEmpty = monthOrder.length === 0;
+            const existingMonths = new Set(monthOrder);
+            const newMonths = [...new Set(newMonthlyData.map(d => d.month))];
+            
+            newMonths.forEach(month => {
+                if (!existingMonths.has(month)) {
+                    monthOrder.push(month);
+                }
+            });
+
+            if (wasMonthOrderEmpty) {
+                monthOrder.sort();
+            }
 
             allMonthlyData.push(...newMonthlyData);
             populateMonthlyList();
@@ -1000,8 +1069,11 @@
         }
 
         function createDailyEntry(row, indices) {
+            const date = parseDate(row[indices.date]);
+            if (!date) return null;
+
             return {
-                date: parseDate(row[indices.date]),
+                date: date,
                 month: parseMonth(row[indices.date]),
                 dayOfWeek: row[indices.dayOfWeek] || '',
                 sales: Object.fromEntries(
@@ -1020,24 +1092,32 @@
         // UI更新
         function populateMonthlyList() {
             elements.monthlyDataList.innerHTML = '';
-            const months = [...new Set(allMonthlyData.map(d => d.month))].sort();
+            const months = monthOrder;
             elements.loadedDataCount.textContent = months.length;
 
             months.forEach(month => {
                 const li = document.createElement('li');
                 li.textContent = month;
                 li.dataset.month = month;
+                li.draggable = true;
                 
                 if (selectedMonths.has(month)) {
                     li.classList.add('selected');
                 }
                 
                 li.addEventListener('click', () => toggleMonthSelection(month, li));
+                
+                li.addEventListener('dragstart', handleDragStart);
+                li.addEventListener('dragover', handleDragOverListItem);
+                li.addEventListener('dragleave', handleDragLeaveListItem);
+                li.addEventListener('drop', handleDropListItem);
+                li.addEventListener('dragend', handleDragEnd);
+
                 elements.monthlyDataList.appendChild(li);
             });
 
-            // 初回は全て選択
-            if (selectedMonths.size === 0 && months.length > 0) {
+            // 初回データロード時は全て選択
+            if (selectedMonths.size === 0 && months.length > 0 && allMonthlyData.length > 0) {
                 months.forEach(month => selectedMonths.add(month));
                 populateMonthlyList();
             }
@@ -1055,9 +1135,7 @@
         }
 
         function selectAllMonths() {
-            const months = [...new Set(allMonthlyData.map(d => d.month))];
-            selectedMonths.clear();
-            months.forEach(month => selectedMonths.add(month));
+            monthOrder.forEach(month => selectedMonths.add(month));
             populateMonthlyList();
             updateDashboard();
         }
@@ -1110,7 +1188,14 @@
         }
 
         function updateStatistics(filteredData) {
-            if (filteredData.length === 0) return;
+            if (filteredData.length === 0) {
+                 // 統計情報をクリア
+                document.getElementById('max-sales-day').textContent = '--';
+                document.getElementById('min-sales-day').textContent = '--';
+                document.getElementById('max-customers-day').textContent = '--';
+                document.getElementById('avg-daily-sales').textContent = '¥0';
+                return;
+            }
 
             const dailyTotals = filteredData.map(day => {
                 const dailySales = Object.values(day.sales).reduce((sum, val) => sum + val, 0);
@@ -1240,7 +1325,7 @@
         }
 
         function renderDailyChart(ctx, filteredData) {
-            const sortedData = filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
+            const sortedData = filteredData.sort((a, b) => new Date(a.date.replace(/年|月|日/g, '/')) - new Date(b.date.replace(/年|月|日/g, '/')));
             const labels = sortedData.map(d => d.date);
             const salesData = sortedData.map(d => 
                 Object.values(d.sales).reduce((sum, val) => sum + val, 0)
@@ -1335,7 +1420,6 @@
         }
 
         function renderComparisonChart(ctx, filteredData) {
-            // 簡単な月別比較
             const monthlyData = {};
             
             filteredData.forEach(day => {
@@ -1402,7 +1486,7 @@
 
         // 日別集計とエクスポート
         function calculateAndDisplayDailyTotals() {
-            if (allMonthlyData.length === 0) {
+            if (selectedMonths.size === 0) {
                 elements.dailySummaryTable.classList.add('hidden');
                 return;
             }
@@ -1436,27 +1520,35 @@
                 
                 Object.keys(day.sales).forEach(label => {
                     const hour = parseInt(label.replace('時', ''));
-                    const currentHour = hour === 0 ? 24 : hour;
-                    const start = startHour === 0 ? 24 : startHour;
-                    const end = endHour === 0 ? 24 : endHour;
-                    
-                    if ((start <= end && currentHour >= start && currentHour <= end) ||
-                        (start > end && (currentHour >= start || currentHour <= end))) {
+                    if (isHourInRange(hour, startHour, endHour)) {
                         dailySales += day.sales[label] || 0;
                         dailyCustomers += day.customers[label] || 0;
                     }
                 });
                 
-                if (!totalsMap.has(day.date)) {
-                    totalsMap.set(day.date, { date: day.date, totalSales: 0, totalCustomers: 0 });
+                let dayEntry = totalsMap.get(day.date);
+                if (!dayEntry) {
+                    dayEntry = { date: day.date, dayOfWeek: day.dayOfWeek, totalSales: 0, totalCustomers: 0 };
+                    totalsMap.set(day.date, dayEntry);
                 }
                 
-                const entry = totalsMap.get(day.date);
-                entry.totalSales += dailySales;
-                entry.totalCustomers += dailyCustomers;
+                dayEntry.totalSales += dailySales;
+                dayEntry.totalCustomers += dailyCustomers;
             });
             
             return Array.from(totalsMap.values());
+        }
+        
+        function isHourInRange(hour, start, end) {
+            const current = (hour === 0) ? 24 : hour;
+            const s = (start === 0) ? 24 : start;
+            const e = (end === 0) ? 24 : end;
+            
+            if (s <= e) {
+                return current >= s && current <= e;
+            } else { // 6時から0時 (翌朝) などの夜間をまたぐ場合
+                return current >= s || current <= e;
+            }
         }
 
         function populateDailySummaryTable(data) {
@@ -1465,13 +1557,15 @@
             
             headerRow.innerHTML = `
                 <th>日付</th>
+                <th>曜日</th>
                 <th colspan="2">集計範囲1 (${data.range1})</th>
                 <th colspan="2">集計範囲2 (${data.range2})</th>
             `;
             
             tbody.innerHTML = `
                 <tr>
-                    <th></th>
+                    <td></td>
+                    <td></td>
                     <th>売上高</th>
                     <th>客数</th>
                     <th>売上高</th>
@@ -1480,7 +1574,7 @@
             `;
 
             const combinedData = new Map();
-            data.totals1.forEach(item => combinedData.set(item.date, { ...item }));
+            data.totals1.forEach(item => combinedData.set(item.date, { ...item, totalSales: item.totalSales, totalCustomers: item.totalCustomers }));
             data.totals2.forEach(item => {
                 const entry = combinedData.get(item.date);
                 if (entry) {
@@ -1489,6 +1583,7 @@
                 } else {
                     combinedData.set(item.date, {
                         date: item.date,
+                        dayOfWeek: item.dayOfWeek,
                         totalSales: 0,
                         totalCustomers: 0,
                         totalSales2: item.totalSales,
@@ -1498,12 +1593,13 @@
             });
 
             const sortedData = Array.from(combinedData.values())
-                .sort((a, b) => a.date.localeCompare(b.date));
+                .sort((a, b) => new Date(a.date.replace(/年|月|日/g, '/')) - new Date(b.date.replace(/年|月|日/g, '/')));
 
             sortedData.forEach(day => {
                 const row = tbody.insertRow();
                 row.innerHTML = `
                     <td>${day.date}</td>
+                    <td>${day.dayOfWeek}</td>
                     <td>¥${(day.totalSales || 0).toLocaleString()}</td>
                     <td>${Math.round(day.totalCustomers || 0).toLocaleString()}人</td>
                     <td>¥${(day.totalSales2 || 0).toLocaleString()}</td>
@@ -1523,10 +1619,11 @@
             const tbody = elements.dailySummaryTable.querySelector('tbody');
             const dataToExport = Array.from(tbody.rows).slice(1).map(row => ({
                 '日付': row.cells[0].textContent,
-                [`集計範囲1 売上高 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[1].textContent),
-                [`集計範囲1 客数 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[2].textContent),
-                [`集計範囲2 売上高 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[3].textContent),
-                [`集計範囲2 客数 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[4].textContent)
+                '曜日': row.cells[1].textContent,
+                [`集計範囲1 売上高 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[2].textContent),
+                [`集計範囲1 客数 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[3].textContent),
+                [`集計範囲2 売上高 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[4].textContent),
+                [`集計範囲2 客数 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[5].textContent)
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -1559,23 +1656,20 @@
             const dateSet = new Set();
             
             allMonthlyData.forEach((day, index) => {
-                // 日付の重複チェック
                 if (dateSet.has(day.date)) {
                     results.duplicateDates.push(day.date);
                 } else {
                     dateSet.add(day.date);
                 }
 
-                // 売上データの妥当性チェック
                 Object.entries(day.sales).forEach(([time, value]) => {
-                    if (isNaN(value) || value < 0) {
+                    if (typeof value !== 'number' || isNaN(value) || value < 0) {
                         results.invalidSales.push(`${day.date} ${time}: ${value}`);
                     }
                 });
 
-                // 客数データの妥当性チェック
                 Object.entries(day.customers).forEach(([time, value]) => {
-                    if (isNaN(value) || value < 0) {
+                    if (typeof value !== 'number' || isNaN(value) || value < 0) {
                         results.invalidCustomers.push(`${day.date} ${time}: ${value}`);
                     }
                 });
@@ -1654,8 +1748,9 @@
                 const dataToSave = {
                     allMonthlyData,
                     timeLabels,
+                    monthOrder,
                     savedAt: new Date().toISOString(),
-                    version: '2.0'
+                    version: '2.1'
                 };
                 
                 const json = JSON.stringify(dataToSave, null, 2);
@@ -1686,6 +1781,7 @@
             timeLabels = [];
             selectedMonths.clear();
             lastCalculatedTotals = {};
+            monthOrder = [];
             
             populateMonthlyList();
             clearMainContentUI();
@@ -1736,7 +1832,6 @@
                 });
             });
             
-            // デフォルト値設定
             elements.startHourSelect1.value = 10;
             elements.endHourSelect1.value = 15;
             elements.startHourSelect2.value = 6;
@@ -1755,23 +1850,33 @@
 
         function parseDate(excelDate) {
             if (typeof excelDate === 'number') {
-                const date = new Date((excelDate - 25569) * 86400 * 1000);
-                return date.toLocaleDateString('ja-JP');
+                const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
+                return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+            }
+            if (typeof excelDate === 'string') {
+                try {
+                    const date = new Date(excelDate);
+                    if (!isNaN(date)) {
+                        return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+                    }
+                } catch(e) {}
             }
             return excelDate;
         }
 
         function parseMonth(excelDate) {
+            let date;
             if (typeof excelDate === 'number') {
-                const date = new Date((excelDate - 25569) * 86400 * 1000);
-                return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+                date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
             } else if (typeof excelDate === 'string') {
-                const dateParts = excelDate.split('/');
-                if (dateParts.length === 3) {
-                    return `${dateParts[0]}年${dateParts[1]}月`;
-                }
+                try {
+                     date = new Date(excelDate.replace(/年|月|日/g, '/'));
+                     if (isNaN(date)) return '不明な月';
+                } catch (e) { return '不明な月'; }
+            } else {
+                return '不明な月';
             }
-            return '不明な月';
+            return `${date.getFullYear()}年${date.getMonth() + 1}月`;
         }
 
         function updateProgress(percent) {
@@ -1814,13 +1919,11 @@
         function init() {
             initializeEventListeners();
             
-            // 保存されたテーマを適用
             const savedTheme = localStorage.getItem('theme');
             if (savedTheme) {
                 document.body.setAttribute('data-theme', savedTheme);
             }
             
-            // モーダルクリック時の背景クローズ
             document.querySelectorAll('.modal').forEach(modal => {
                 modal.addEventListener('click', (e) => {
                     if (e.target === modal) {
