@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>売上データ分析ダッシュボード</title>
     <style>
         body {
@@ -14,8 +14,6 @@
             flex-direction: column;
             align-items: center;
             line-height: 1.6;
-            margin: 0;
-            min-height: 100vh;
         }
         .app-container {
             max-width: 1200px;
@@ -24,17 +22,12 @@
             padding: 30px;
             border-radius: 12px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-            box-sizing: border-box;
         }
         h1, h2, h3 {
             text-align: center;
             color: #1a237e;
-            margin-top: 0.3em;
-            margin-bottom: 0.5em;
         }
-        h2 {
-            margin-top: 1.8em;
-        }
+        h2 { margin-top: 30px; }
         .info-box {
             background-color: #fff3cd;
             border: 1px solid #ffeeba;
@@ -44,7 +37,6 @@
             margin-bottom: 20px;
             font-size: 0.9em;
             text-align: center;
-            user-select: none;
         }
         .drag-drop-area {
             border: 3px dashed #ced4da;
@@ -54,9 +46,8 @@
             transition: border-color 0.3s, background-color 0.3s;
             cursor: pointer;
             margin-bottom: 25px;
-            user-select: none;
         }
-        .drag-drop-area:hover, .drag-drop-area.active {
+        .drag-drop-area:hover {
             border-color: #007bff;
             background-color: #eef4ff;
         }
@@ -66,7 +57,6 @@
             padding: 15px;
             background-color: #f8f9fa;
             border-radius: 8px;
-            user-select: none;
         }
         .controls-panel button, .controls-panel select {
             padding: 8px 15px;
@@ -76,21 +66,14 @@
             margin: 5px;
             cursor: pointer;
             transition: background-color 0.3s;
-            user-select: none;
         }
         .controls-panel button {
             background-color: #007bff;
             color: white;
             border: none;
         }
-        .controls-panel button:hover:not(:disabled) {
+        .controls-panel button:hover {
             background-color: #0056b3;
-        }
-        .controls-panel button:disabled {
-            background-color: #a0a5aa;
-            cursor: not-allowed;
-            border: none;
-            color: #e1e5e8;
         }
         .summary-panel {
             background-color: #e9ecef;
@@ -100,7 +83,6 @@
             justify-content: space-around;
             text-align: center;
             margin-bottom: 20px;
-            user-select: none;
         }
         .summary-item h3 {
             margin: 0;
@@ -120,10 +102,8 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             margin-bottom: 20px;
         }
-        canvas {
-            max-height: 400px;
-            width: 100% !important;
-        }
+        canvas { max-height: 400px; }
+        
         #monthly-data-list {
             list-style: none;
             padding: 0;
@@ -132,7 +112,6 @@
             justify-content: center;
             gap: 10px;
             margin-top: 10px;
-            user-select: none;
         }
         #monthly-data-list li {
             background-color: #e2e6ea;
@@ -141,7 +120,6 @@
             border-radius: 20px;
             cursor: pointer;
             transition: background-color 0.3s;
-            user-select: none;
         }
         #monthly-data-list li.selected {
             background-color: #007bff;
@@ -151,11 +129,11 @@
         #monthly-data-list li:hover {
             opacity: 0.8;
         }
+        
         #daily-summary-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 0.9em;
-            user-select: none;
         }
         #daily-summary-table th, #daily-summary-table td {
             border: 1px solid #dee2e6;
@@ -172,721 +150,618 @@
         #daily-summary-table tbody tr:hover {
             background-color: #e9f0ff;
         }
-        #daily-summary-table tbody tr.highlighted {
-            background-color: #cce5ff !important;
-        }
-        .hidden {
-            display: none;
-        }
-        /* To improve focus styles */
-        button:focus, select:focus, li:focus {
-            outline: 2px solid #0056b3;
-            outline-offset: 1px;
-        }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <div class="app-container">
-        <h1>売上データ分析ダッシュボード</h1>
-        <div class="info-box">
-            🚨 このファイルを直接開くと動作しません。Webサーバー経由で開いてください。<br />
-            分析中のデータはJSONファイルとして保存・読み込みが可能です。
+
+<div class="app-container">
+    <h1>売上データ分析ダッシュボード</h1>
+
+    <div class="info-box">
+        🚨 このファイルを直接開くと動作しません。Webサーバー経由で開いてください。<br>
+        分析中のデータはJSONファイルとして保存・読み込みが可能です。
+    </div>
+
+    <div id="data-management-panel" class="controls-panel">
+        <h3>データ管理</h3>
+        <button id="load-excel-btn">新しいExcelを読み込む</button>
+        <button id="clear-data-btn">データを全てクリア</button>
+        <button id="save-session-btn">セッションを保存（JSON）</button>
+        <label for="session-file-input" style="display:inline-block;">
+            <button id="load-session-btn" style="pointer-events: none;">セッションを読み込む（JSON）</button>
+            <input type="file" id="session-file-input" accept=".json" style="display:none;">
+        </label>
+        <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display:none;">
+    </div>
+
+    <div class="drag-drop-area" id="drag-drop-area">
+        <p><strong>Excel（.xlsx）またはCSVファイルをここにドラッグ＆ドロップ</strong></p>
+        <p>または、「新しいExcelを読み込む」ボタンをクリック</p>
+    </div>
+
+    <div id="main-content" class="hidden">
+        <div class="controls-panel">
+            <h3>読み込み済みデータ一覧</h3>
+            <p>分析対象の月を選択してください。（<span id="loaded-data-count">0</span>件）</p>
+            <ul id="monthly-data-list"></ul>
+            <button id="select-all-btn">全て選択</button>
+            <button id="deselect-all-btn">全て解除</button>
         </div>
-        <div id="data-management-panel" class="controls-panel">
-            <h3>データ管理</h3>
-            <button id="load-excel-btn" type="button" aria-label="新しいExcelファイルを読み込む">新しいExcelを読み込む</button>
-            <button id="clear-data-btn" type="button" aria-label="読み込んだ全データをクリアする" disabled>データを全てクリア</button>
-            <button id="save-session-btn" type="button" aria-label="現在のセッションをJSONファイルに保存する" disabled>セッションを保存（JSON）</button>
-            <label for="session-file-input" style="display:inline-block;">
-                <button id="load-session-btn" type="button" aria-label="保存したセッションJSONファイルを読み込む">セッションを読み込む（JSON）</button>
-                <input type="file" id="session-file-input" accept=".json" style="display:none;" aria-hidden="true" />
-            </label>
-            <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" style="display:none;" aria-hidden="true" />
+    
+        <div class="summary-panel">
+            <div class="summary-item"><h3>総売上高</h3><p id="total-sales-sum"></p></div>
+            <div class="summary-item"><h3>総客数</h3><p id="total-customers-sum"></p></div>
+            <div class="summary-item"><h3>平均客単価</h3><p id="avg-customer-spend"></p></div>
         </div>
-        <div class="drag-drop-area" id="drag-drop-area" tabindex="0" aria-label="ExcelまたはCSVファイルのドラッグアンドドロップ領域">
-            <p><strong>Excel（.xlsx）またはCSVファイルをここにドラッグ＆ドロップ</strong></p>
-            <p>または、「新しいExcelを読み込む」ボタンをクリック</p>
+
+        <h2>時間帯別分析</h2>
+        <div class="controls-panel filter-controls">
+            <p><strong>曜日で絞り込み:</strong></p>
+            <label><input type="checkbox" name="day-filter" value="日" checked> 日</label>
+            <label><input type="checkbox" name="day-filter" value="月" checked> 月</label>
+            <label><input type="checkbox" name="day-filter" value="火" checked> 火</label>
+            <label><input type="checkbox" name="day-filter" value="水" checked> 水</label>
+            <label><input type="checkbox" name="day-filter" value="木" checked> 木</label>
+            <label><input type="checkbox" name="day-filter" value="金" checked> 金</label>
+            <label><input type="checkbox" name="day-filter" value="土" checked> 土</label>
+            <button id="filter-btn">適用</button>
         </div>
-        <div id="main-content" class="hidden" aria-live="polite">
-            <div class="controls-panel">
-                <h3>読み込み済みデータ一覧</h3>
-                <p>分析対象の月を選択してください。（<span id="loaded-data-count">0</span>件）</p>
-                <ul id="monthly-data-list" role="list"></ul>
-                <button id="select-all-btn" type="button" aria-label="全ての月を選択">全て選択</button>
-                <button id="deselect-all-btn" type="button" aria-label="全ての選択を解除">全て解除</button>
-            </div>
-            <div class="summary-panel" aria-label="売上の概要">
-                <div class="summary-item"><h3>総売上高</h3><p id="total-sales-sum"></p></div>
-                <div class="summary-item"><h3>総客数</h3><p id="total-customers-sum"></p></div>
-                <div class="summary-item"><h3>平均客単価</h3><p id="avg-customer-spend"></p></div>
-            </div>
-            <h2>時間帯別分析</h2>
-            <div class="controls-panel filter-controls" aria-label="曜日で絞り込み">
-                <p><strong>曜日で絞り込み:</strong></p>
-                <label><input type="checkbox" name="day-filter" value="日" checked> 日</label>
-                <label><input type="checkbox" name="day-filter" value="月" checked> 月</label>
-                <label><input type="checkbox" name="day-filter" value="火" checked> 火</label>
-                <label><input type="checkbox" name="day-filter" value="水" checked> 水</label>
-                <label><input type="checkbox" name="day-filter" value="木" checked> 木</label>
-                <label><input type="checkbox" name="day-filter" value="金" checked> 金</label>
-                <label><input type="checkbox" name="day-filter" value="土" checked> 土</label>
-                <button id="filter-btn" type="button" aria-label="曜日フィルターの適用">適用</button>
-            </div>
-            <div class="chart-container" aria-label="時間帯別売上と客数のグラフ">
-                <canvas id="time-chart" role="img" aria-label="時間帯別平均売上高と平均客数の棒グラフ"></canvas>
-            </div>
-            <h2>日別集計</h2>
-            <div class="controls-panel total-controls" aria-label="日別集計の時間帯指定">
-                <div class="daily-table-container" style="display:flex; justify-content:center; gap:1.8em; flex-wrap:wrap;">
-                    <div>
-                        <h3>集計範囲1</h3>
-                        <label for="start-hour-1">開始時刻</label>
-                        <select id="start-hour-1" aria-label="集計範囲1の開始時間"></select>
-                        時 から
-                        <label for="end-hour-1">終了時刻</label>
-                        <select id="end-hour-1" aria-label="集計範囲1の終了時間"></select>
-                        時まで
-                    </div>
-                    <div>
-                        <h3>集計範囲2</h3>
-                        <label for="start-hour-2">開始時刻</label>
-                        <select id="start-hour-2" aria-label="集計範囲2の開始時間"></select>
-                        時 から
-                        <label for="end-hour-2">終了時刻</label>
-                        <select id="end-hour-2" aria-label="集計範囲2の終了時間"></select>
-                        時まで
-                    </div>
+        <div class="chart-container">
+            <canvas id="time-chart"></canvas>
+        </div>
+
+        <h2>日別集計</h2>
+        <div class="controls-panel total-controls">
+            <div class="daily-table-container">
+                <div>
+                    <h3>集計範囲1</h3>
+                    <select id="start-hour-1"></select>
+                    時 から
+                    <select id="end-hour-1"></select>
+                    時まで
                 </div>
-                <button id="calculate-btn" type="button" aria-label="選択した集計時間帯で計算">計算</button>
+                <div>
+                    <h3>集計範囲2</h3>
+                    <select id="start-hour-2"></select>
+                    時 から
+                    <select id="end-hour-2"></select>
+                    時まで
+                </div>
             </div>
-            <div class="table-container" aria-label="日別集計結果テーブル">
-                <table id="daily-summary-table" class="hidden" role="grid" aria-readonly="true">
-                    <thead>
-                        <tr id="table-headers-row"></tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-            <div class="controls-panel export-controls">
-                <button id="export-btn" type="button" aria-label="集計結果をExcelファイルに保存">集計結果をExcelで保存</button>
-            </div>
+            <button id="calculate-btn">計算</button>
+        </div>
+
+        <div class="table-container">
+            <table id="daily-summary-table" class="hidden">
+                <thead>
+                    <tr id="table-headers-row"></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        
+        <div class="controls-panel export-controls">
+            <button id="export-btn">集計結果をExcelで保存</button>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const excelFileInput = document.getElementById('excel-file-input');
-            const sessionFileInput = document.getElementById('session-file-input');
-            const dragDropArea = document.getElementById('drag-drop-area');
-            const mainContent = document.getElementById('main-content');
-            const loadExcelBtn = document.getElementById('load-excel-btn');
-            const loadedDataCount = document.getElementById('loaded-data-count');
-            const monthlyDataList = document.getElementById('monthly-data-list');
-            const selectAllBtn = document.getElementById('select-all-btn');
-            const deselectAllBtn = document.getElementById('deselect-all-btn');
-            const clearDataBtn = document.getElementById('clear-data-btn');
-            const saveSessionBtn = document.getElementById('save-session-btn');
-            const loadSessionBtn = document.getElementById('load-session-btn');
-            const startHourSelect1 = document.getElementById('start-hour-1');
-            const endHourSelect1 = document.getElementById('end-hour-1');
-            const startHourSelect2 = document.getElementById('start-hour-2');
-            const endHourSelect2 = document.getElementById('end-hour-2');
-            const calculateBtn = document.getElementById('calculate-btn');
-            const dailySummaryTable = document.getElementById('daily-summary-table');
-            const dailySummaryTableBody = dailySummaryTable.querySelector('tbody');
-            const dailySummaryTableHeaderRow = document.getElementById('table-headers-row');
-            const exportBtn = document.getElementById('export-btn');
-            const totalSalesSum = document.getElementById('total-sales-sum');
-            const totalCustomersSum = document.getElementById('total-customers-sum');
-            const avgCustomerSpend = document.getElementById('avg-customer-spend');
-            const dayFilterCheckboxes = document.querySelectorAll('input[name="day-filter"]');
-            const filterBtn = document.getElementById('filter-btn');
+</div>
 
-            let allMonthlyData = [];
-            let timeLabels = [];
-            let selectedMonths = new Set();
-            let timeChart = null;
-            let lastCalculatedTotals = {};
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const excelFileInput = document.getElementById('excel-file-input');
+        const sessionFileInput = document.getElementById('session-file-input');
+        const dragDropArea = document.getElementById('drag-drop-area');
+        const mainContent = document.getElementById('main-content');
+        const loadExcelBtn = document.getElementById('load-excel-btn');
+        const loadedDataCount = document.getElementById('loaded-data-count');
+        const monthlyDataList = document.getElementById('monthly-data-list');
+        const selectAllBtn = document.getElementById('select-all-btn');
+        const deselectAllBtn = document.getElementById('deselect-all-btn');
+        const clearDataBtn = document.getElementById('clear-data-btn');
+        const saveSessionBtn = document.getElementById('save-session-btn');
+        const loadSessionBtn = document.getElementById('load-session-btn');
+        const startHourSelect1 = document.getElementById('start-hour-1');
+        const endHourSelect1 = document.getElementById('end-hour-1');
+        const startHourSelect2 = document.getElementById('start-hour-2');
+        const endHourSelect2 = document.getElementById('end-hour-2');
+        const calculateBtn = document.getElementById('calculate-btn');
+        const dailySummaryTable = document.getElementById('daily-summary-table');
+        const dailySummaryTableBody = dailySummaryTable.querySelector('tbody');
+        const dailySummaryTableHeaderRow = document.getElementById('table-headers-row');
+        const exportBtn = document.getElementById('export-btn');
+        const totalSalesSum = document.getElementById('total-sales-sum');
+        const totalCustomersSum = document.getElementById('total-customers-sum');
+        const avgCustomerSpend = document.getElementById('avg-customer-spend');
+        const dayFilterCheckboxes = document.querySelectorAll('input[name="day-filter"]');
+        const filterBtn = document.getElementById('filter-btn');
 
-            // UIの活性・非活性切り替え（データ状態による制御）
-            function updateControlButtons() {
-                const hasData = allMonthlyData.length > 0;
-                clearDataBtn.disabled = !hasData;
-                saveSessionBtn.disabled = !hasData;
-                exportBtn.disabled = Object.keys(lastCalculatedTotals).length === 0;
-                calculateBtn.disabled = !hasData;
-                selectAllBtn.disabled = !hasData;
-                deselectAllBtn.disabled = !hasData;
-                filterBtn.disabled = !hasData;
-            }
+        let allMonthlyData = [];
+        let timeLabels = [];
+        let selectedMonths = new Set();
+        let timeChart = null;
+        let lastCalculatedTotals = {};
 
-            // --- UIイベントリスナー ---
-            loadExcelBtn.addEventListener('click', () => excelFileInput.click());
-            dragDropArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                dragDropArea.classList.add('active');
-            });
-            dragDropArea.addEventListener('dragleave', () => dragDropArea.classList.remove('active'));
-            dragDropArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                dragDropArea.classList.remove('active');
-                const file = e.dataTransfer.files[0];
-                if (file) handleExcelFile(file);
-            });
-            // dragDropArea押下でファイル選択も可能に
-            dragDropArea.addEventListener('click', () => excelFileInput.click());
-            dragDropArea.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    excelFileInput.click();
+        // --- UIイベントリスナー ---
+        loadExcelBtn.addEventListener('click', () => excelFileInput.click());
+        dragDropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragDropArea.classList.add('active');
+        });
+        dragDropArea.addEventListener('dragleave', () => dragDropArea.classList.remove('active'));
+        dragDropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragDropArea.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file) handleExcelFile(file);
+        });
+        excelFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleExcelFile(file);
+            e.target.value = null; // リセット
+        });
+        loadSessionBtn.addEventListener('click', () => sessionFileInput.click());
+        sessionFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleJsonFile(file);
+            e.target.value = null; // リセット
+        });
+        selectAllBtn.addEventListener('click', selectAllMonths);
+        deselectAllBtn.addEventListener('click', deselectAllMonths);
+        
+        calculateBtn.addEventListener('click', calculateAndDisplayDailyTotals);
+        exportBtn.addEventListener('click', exportDataToExcel);
+        filterBtn.addEventListener('click', filterDataAndRefreshDashboard);
+        clearDataBtn.addEventListener('click', clearAllData);
+        saveSessionBtn.addEventListener('click', saveSession);
+
+        // --- データ処理と表示のコアロジック ---
+        function handleExcelFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    processNewData(json);
+                } catch (error) {
+                    alert('ファイルの読み込みに失敗しました。ファイル形式が正しいか確認してください。');
+                    console.error(error);
                 }
-            });
-            excelFileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) handleExcelFile(file);
-                e.target.value = null; // リセット
-            });
-            loadSessionBtn.addEventListener('click', () => sessionFileInput.click());
-            sessionFileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (file) handleJsonFile(file);
-                e.target.value = null; // リセット
-            });
-            selectAllBtn.addEventListener('click', selectAllMonths);
-            deselectAllBtn.addEventListener('click', deselectAllMonths);
-            calculateBtn.addEventListener('click', calculateAndDisplayDailyTotals);
-            exportBtn.addEventListener('click', exportDataToExcel);
-            filterBtn.addEventListener('click', filterDataAndRefreshDashboard);
-            clearDataBtn.addEventListener('click', clearAllData);
+            };
+            reader.readAsArrayBuffer(file);
+        }
 
-            // --- Excelファイル読み込み処理 ---
-            function handleExcelFile(file) {
-                const reader = new FileReader();
-                reader.onloadstart = () => {
-                    loadExcelBtn.textContent = '読み込み中...';
-                    loadExcelBtn.disabled = true;
-                };
-                reader.onload = (e) => {
-                    try {
-                        const data = new Uint8Array(e.target.result);
-                        const workbook = XLSX.read(data, { type: 'array' });
-                        // 最初のシート
-                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-                        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                        processNewData(json);
-                        alert('Excelファイルが正常に読み込まれました。');
-                    } catch (error) {
-                        alert('ファイルの読み込みに失敗しました。ファイル形式が正しいか確認してください。');
-                        console.error(error);
-                    } finally {
-                        loadExcelBtn.textContent = '新しいExcelを読み込む';
-                        loadExcelBtn.disabled = false;
+        function handleJsonFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const loadedData = JSON.parse(e.target.result);
+                    allMonthlyData = loadedData.allMonthlyData;
+                    timeLabels = loadedData.timeLabels;
+                    if (startHourSelect1.options.length === 0) {
+                        populateHourSelects(timeLabels);
                     }
-                };
-                reader.onerror = () => {
-                    alert('ファイルの読み込み中にエラーが発生しました。');
-                    loadExcelBtn.textContent = '新しいExcelを読み込む';
-                    loadExcelBtn.disabled = false;
-                };
-                reader.readAsArrayBuffer(file);
-            }
-
-            // --- JSONセッションファイル読み込み処理 ---
-            function handleJsonFile(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const loadedData = JSON.parse(e.target.result);
-                        if (!loadedData || !loadedData.allMonthlyData || !loadedData.timeLabels) {
-                            alert('セッションファイルの形式が正しくありません。');
-                            return;
-                        }
-                        allMonthlyData = loadedData.allMonthlyData;
-                        timeLabels = loadedData.timeLabels;
-
-                        // selectedMonthsがあれば復元
-                        if (loadedData.selectedMonths && Array.isArray(loadedData.selectedMonths)) {
-                            selectedMonths = new Set(loadedData.selectedMonths);
-                        } else {
-                            selectedMonths.clear();
-                        }
-
-                        if (startHourSelect1.options.length === 0) {
-                            populateHourSelects(timeLabels);
-                        }
-                        populateMonthlyList();
-                        updateDashboard();
-                        alert('セッションが読み込まれました。');
-                    } catch (error) {
-                        alert('セッションファイルの読み込みに失敗しました。ファイルが破損しているか、形式が正しくありません。');
-                        console.error(error);
-                    }
-                };
-                reader.readAsText(file);
-            }
-
-            // --- 新しいデータを処理して格納・UI更新 ---
-            function processNewData(data) {
-                if (!Array.isArray(data) || data.length < 2) {
-                    alert('データが空か形式が不正です。');
-                    return;
-                }
-                const headers = data[0];
-                const dateIndex = headers.indexOf('日付');
-                const dayOfWeekIndex = headers.indexOf('曜日');
-                const salesStartIndex = headers.indexOf('4時売上高');
-                const customersStartIndex = headers.indexOf('4時客数');
-                const salesEndIndex = headers.indexOf('3時売上高');
-
-                if (dateIndex === -1 || salesStartIndex === -1 || salesEndIndex === -1 || customersStartIndex === -1) {
-                    alert('エラー：必要な列（日付、曜日、時間帯別データ）が見つかりません。');
-                    return;
-                }
-                if (timeLabels.length === 0) {
-                    timeLabels = headers.slice(salesStartIndex, salesEndIndex + 1).map(h => h.replace('売上高', ''));
-                    populateHourSelects(timeLabels);
-                }
-                const newMonthlyData = data.slice(1).map(row => {
-                    const dailyEntry = {
-                        date: parseDate(row[dateIndex]),
-                        month: parseMonth(row[dateIndex]),
-                        dayOfWeek: row[dayOfWeekIndex] || '',
-                        sales: Object.fromEntries(timeLabels.map((label, i) => [label, parseNumber(row[salesStartIndex + i])])),
-                        customers: Object.fromEntries(timeLabels.map((label, i) => [label, parseNumber(row[customersStartIndex + i])])),
-                    };
-                    return dailyEntry;
-                }).filter(entry => entry.date);
-                allMonthlyData.push(...newMonthlyData);
-
-                // 新規データ取り込み後は選択月を再設定し直す
-                selectedMonths.clear();
-                const months = [...new Set(allMonthlyData.map(d => d.month))];
-                months.forEach(month => selectedMonths.add(month));
-
-                populateMonthlyList();
-                updateDashboard();
-            }
-
-            // --- 月リストの表示更新 ---
-            function populateMonthlyList() {
-                monthlyDataList.innerHTML = '';
-                const months = [...new Set(allMonthlyData.map(d => d.month))].sort();
-                loadedDataCount.textContent = months.length;
-                months.forEach(month => {
-                    const li = document.createElement('li');
-                    li.textContent = month;
-                    li.dataset.month = month;
-                    if (selectedMonths.has(month)) {
-                        li.classList.add('selected');
-                        li.setAttribute('aria-selected', 'true');
-                    } else {
-                        li.setAttribute('aria-selected', 'false');
-                    }
-                    li.setAttribute('role', 'option');
-                    li.tabIndex = 0;
-
-                    // クリック/キーボード操作で選択状態トグル
-                    li.addEventListener('click', () => toggleMonthSelection(month, li));
-                    li.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            toggleMonthSelection(month, li);
-                        }
-                    });
-                    monthlyDataList.appendChild(li);
-                });
-                if (selectedMonths.size === 0 && months.length > 0) {
-                    months.forEach(month => selectedMonths.add(month));
                     populateMonthlyList();
+                    updateDashboard();
+                    alert('セッションが読み込まれました。');
+                } catch (error) {
+                    alert('セッションファイルの読み込みに失敗しました。ファイルが破損しているか、形式が正しくありません。');
+                    console.error(error);
                 }
-                updateControlButtons();
-            }
-            function toggleMonthSelection(month, li) {
-                if (selectedMonths.has(month)) {
-                    selectedMonths.delete(month);
-                    li.classList.remove('selected');
-                    li.setAttribute('aria-selected', 'false');
-                } else {
-                    selectedMonths.add(month);
-                    li.classList.add('selected');
-                    li.setAttribute('aria-selected', 'true');
-                }
-                updateDashboard();
+            };
+            reader.readAsText(file);
+        }
+
+        function processNewData(data) {
+            const headers = data[0];
+            const dateIndex = headers.indexOf('日付');
+            const dayOfWeekIndex = headers.indexOf('曜日');
+            const salesStartIndex = headers.indexOf('4時売上高');
+            const customersStartIndex = headers.indexOf('4時客数');
+            const salesEndIndex = headers.indexOf('3時売上高');
+            
+            if (dateIndex === -1 || salesStartIndex === -1 || salesEndIndex === -1 || customersStartIndex === -1) {
+                alert('エラー：必要な列（日付、曜日、時間帯別データ）が見つかりません。');
+                return;
             }
 
-            function selectAllMonths() {
-                const months = [...new Set(allMonthlyData.map(d => d.month))];
-                selectedMonths.clear();
+            if (timeLabels.length === 0) {
+                timeLabels = headers.slice(salesStartIndex, salesEndIndex + 1).map(h => h.replace('売上高', ''));
+                populateHourSelects(timeLabels);
+            }
+
+            const newMonthlyData = data.slice(1).map(row => {
+                const dailyEntry = {
+                    date: parseDate(row[dateIndex]),
+                    month: parseMonth(row[dateIndex]),
+                    dayOfWeek: row[dayOfWeekIndex] || '',
+                    sales: Object.fromEntries(timeLabels.map((label, i) => [label, parseNumber(row[salesStartIndex + i])])),
+                    customers: Object.fromEntries(timeLabels.map((label, i) => [label, parseNumber(row[customersStartIndex + i])])),
+                };
+                return dailyEntry;
+            }).filter(entry => entry.date);
+
+            allMonthlyData.push(...newMonthlyData);
+            populateMonthlyList();
+            updateDashboard();
+        }
+
+        function populateMonthlyList() {
+            monthlyDataList.innerHTML = '';
+            const months = [...new Set(allMonthlyData.map(d => d.month))].sort();
+            loadedDataCount.textContent = months.length;
+
+            months.forEach(month => {
+                const li = document.createElement('li');
+                li.textContent = month;
+                li.dataset.month = month;
+                if (selectedMonths.has(month)) {
+                    li.classList.add('selected');
+                }
+                li.addEventListener('click', () => {
+                    if (selectedMonths.has(month)) {
+                        selectedMonths.delete(month);
+                    } else {
+                        selectedMonths.add(month);
+                    }
+                    li.classList.toggle('selected');
+                    updateDashboard();
+                });
+                monthlyDataList.appendChild(li);
+            });
+            if (selectedMonths.size === 0 && months.length > 0) {
                 months.forEach(month => selectedMonths.add(month));
                 populateMonthlyList();
-                updateDashboard();
             }
-            function deselectAllMonths() {
-                selectedMonths.clear();
-                populateMonthlyList();
-                updateDashboard();
-            }
+        }
 
-            // --- ダッシュボードの更新（集計・グラフ描画） ---
-            function updateDashboard() {
-                if (allMonthlyData.length === 0 || selectedMonths.size === 0) {
-                    clearMainContentUI();
-                    return;
+        function selectAllMonths() {
+            const months = [...new Set(allMonthlyData.map(d => d.month))];
+            selectedMonths.clear();
+            months.forEach(month => selectedMonths.add(month));
+            populateMonthlyList();
+            updateDashboard();
+        }
+        
+        function deselectAllMonths() {
+            selectedMonths.clear();
+            populateMonthlyList();
+            updateDashboard();
+        }
+
+        function updateDashboard() {
+            if (allMonthlyData.length === 0 || selectedMonths.size === 0) {
+                clearMainContentUI();
+                return;
+            }
+            
+            const filteredByMonth = allMonthlyData.filter(day => selectedMonths.has(day.month));
+            const filteredByDay = filteredByMonth.filter(day => getSelectedDays().includes(day.dayOfWeek));
+            
+            let totalSales = 0;
+            let totalCustomers = 0;
+            filteredByDay.forEach(day => {
+                totalSales += Object.values(day.sales).reduce((sum, val) => sum + val, 0);
+                totalCustomers += Object.values(day.customers).reduce((sum, val) => sum + val, 0);
+            });
+            const avgSpend = totalCustomers > 0 ? totalSales / totalCustomers : 0;
+            totalSalesSum.textContent = `¥${totalSales.toLocaleString()}`;
+            totalCustomersSum.textContent = `${totalCustomers.toLocaleString()} 人`;
+            avgCustomerSpend.textContent = `¥${Math.round(avgSpend).toLocaleString()}`;
+            
+            const salesAverages = timeLabels.map(label => {
+                const total = filteredByDay.reduce((sum, entry) => sum + (entry.sales[label] || 0), 0);
+                return filteredByDay.length > 0 ? total / filteredByDay.length : 0;
+            });
+            const customerAverages = timeLabels.map(label => {
+                const total = filteredByDay.reduce((sum, entry) => sum + (entry.customers[label] || 0), 0);
+                return filteredByDay.length > 0 ? total / filteredByDay.length : 0;
+            });
+
+            renderTimeChart(salesAverages, customerAverages);
+            
+            dragDropArea.classList.add('hidden');
+            mainContent.classList.remove('hidden');
+            
+            calculateAndDisplayDailyTotals();
+        }
+
+        function getSelectedDays() {
+            const selectedDays = [];
+            dayFilterCheckboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    selectedDays.push(checkbox.value);
                 }
+            });
+            return selectedDays;
+        }
 
-                const filteredByMonth = allMonthlyData.filter(day => selectedMonths.has(day.month));
-                const filteredByDay = filteredByMonth.filter(day => getSelectedDays().includes(day.dayOfWeek));
-
-                let totalSales = 0;
-                let totalCustomers = 0;
-                filteredByDay.forEach(day => {
-                    totalSales += Object.values(day.sales).reduce((sum, val) => sum + val, 0);
-                    totalCustomers += Object.values(day.customers).reduce((sum, val) => sum + val, 0);
-                });
-                const avgSpend = totalCustomers > 0 ? totalSales / totalCustomers : 0;
-                totalSalesSum.textContent = `¥${totalSales.toLocaleString()}`;
-                totalCustomersSum.textContent = `${totalCustomers.toLocaleString()} 人`;
-                avgCustomerSpend.textContent = `¥${Math.round(avgSpend).toLocaleString()}`;
-
-                const salesAverages = timeLabels.map(label => {
-                    const total = filteredByDay.reduce((sum, entry) => sum + (entry.sales[label] || 0), 0);
-                    return filteredByDay.length > 0 ? total / filteredByDay.length : 0;
-                });
-                const customerAverages = timeLabels.map(label => {
-                    const total = filteredByDay.reduce((sum, entry) => sum + (entry.customers[label] || 0), 0);
-                    return filteredByDay.length > 0 ? total / filteredByDay.length : 0;
-                });
-                renderTimeChart(salesAverages, customerAverages);
-
-                dragDropArea.classList.add('hidden');
-                mainContent.classList.remove('hidden');
-
-                calculateAndDisplayDailyTotals();
-                updateControlButtons();
-            }
-
-            function getSelectedDays() {
-                const selectedDays = [];
-                dayFilterCheckboxes.forEach(checkbox => {
-                    if (checkbox.checked) {
-                        selectedDays.push(checkbox.value);
-                    }
-                });
-                return selectedDays;
-            }
-            function filterDataAndRefreshDashboard() {
-                updateDashboard();
-            }
-
-            // --- Chart.jsで時間帯別棒グラフ表示 ---
-            function renderTimeChart(salesData, customersData) {
-                if (timeChart) timeChart.destroy();
-
-                const ctx = document.getElementById('time-chart').getContext('2d');
-                timeChart = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: timeLabels,
-                        datasets: [
-                            {
-                                label: '平均売上高',
-                                data: salesData,
-                                backgroundColor: 'rgba(75, 192, 192, 0.8)',
-                                yAxisID: 'y',
-                            },
-                            {
-                                label: '平均客数',
-                                data: customersData,
-                                backgroundColor: 'rgba(153, 102, 255, 0.8)',
-                                yAxisID: 'y1',
-                            }
-                        ]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                type: 'linear',
-                                display: true,
-                                position: 'left',
-                                title: { display: true, text: '平均売上高 (円)' }
-                            },
-                            y1: {
-                                type: 'linear',
-                                display: true,
-                                position: 'right',
-                                title: { display: true, text: '平均客数 (人)' },
-                                grid: { drawOnChartArea: false }
-                            }
+        function filterDataAndRefreshDashboard() {
+            updateDashboard();
+        }
+        
+        function renderTimeChart(salesData, customersData) {
+            if (timeChart) timeChart.destroy();
+            
+            const ctx = document.getElementById('time-chart').getContext('2d');
+            timeChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: timeLabels,
+                    datasets: [
+                        {
+                            label: '平均売上高',
+                            data: salesData,
+                            backgroundColor: 'rgba(75, 192, 192, 0.8)',
+                            yAxisID: 'y',
                         },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        let label = context.dataset.label || '';
-                                        if (context.dataset.yAxisID === 'y') {
-                                            return `${label}: ¥${Math.round(context.parsed.y).toLocaleString()}`;
-                                        } else {
-                                            return `${label}: ${Math.round(context.parsed.y).toLocaleString()} 人`;
-                                        }
+                        {
+                            label: '平均客数',
+                            data: customersData,
+                            backgroundColor: 'rgba(153, 102, 255, 0.8)',
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: '平均売上高 (円)' },
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: { display: true, text: '平均客数 (人)' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (context.dataset.yAxisID === 'y') {
+                                        return `${label}: ¥${Math.round(context.parsed.y).toLocaleString()}`;
+                                    } else {
+                                        return `${label}: ${Math.round(context.parsed.y).toLocaleString()} 人`;
                                     }
                                 }
                             }
                         }
                     }
-                });
-            }
-
-            // --- 日別集計とテーブルの表示 ---
-            function calculateAndDisplayDailyTotals() {
-                if (allMonthlyData.length === 0) {
-                    dailySummaryTable.classList.add('hidden');
-                    updateControlButtons();
-                    return;
                 }
-                const startHour1 = parseInt(startHourSelect1.value);
-                const endHour1 = parseInt(endHourSelect1.value);
-                const startHour2 = parseInt(startHourSelect2.value);
-                const endHour2 = parseInt(endHourSelect2.value);
-                const filteredData = allMonthlyData.filter(day => selectedMonths.has(day.month));
-                const calculateTotalsForRange = (data, startHour, endHour) => {
-                    const totalsMap = new Map();
-                    data.forEach(day => {
-                        let dailySales = 0;
-                        let dailyCustomers = 0;
-                        const timeLabelsHours = Object.keys(day.sales);
-                        timeLabelsHours.forEach(label => {
-                            const hour = parseInt(label.replace('時', ''));
-                            // 0時は24時として扱い判定の簡略化
-                            const currentHour = (hour === 0) ? 24 : hour;
-                            const start = (startHour === 0) ? 24 : startHour;
-                            const end = (endHour === 0) ? 24 : endHour;
-                            if ((start <= end && currentHour >= start && currentHour <= end) ||
-                                (start > end && (currentHour >= start || currentHour <= end))) {
-                                dailySales += day.sales[label] || 0;
-                                dailyCustomers += day.customers[label] || 0;
-                            }
-                        });
-                        if (!totalsMap.has(day.date)) {
-                            totalsMap.set(day.date, { date: day.date, totalSales: 0, totalCustomers: 0 });
-                        }
-                        const entry = totalsMap.get(day.date);
-                        entry.totalSales += dailySales;
-                        entry.totalCustomers += dailyCustomers;
-                    });
-                    return Array.from(totalsMap.values());
-                };
-                const calculatedTotals1 = calculateTotalsForRange(filteredData, startHour1, endHour1);
-                const calculatedTotals2 = calculateTotalsForRange(filteredData, startHour2, endHour2);
+            });
+        }
 
-                lastCalculatedTotals = {
-                    totals1: calculatedTotals1,
-                    totals2: calculatedTotals2,
-                    range1: `${startHour1}時 - ${endHour1}時`,
-                    range2: `${startHour2}時 - ${endHour2}時`
-                };
-                populateDailySummaryTable(lastCalculatedTotals);
-                updateControlButtons();
+        // --- 日別集計とエクスポート機能 ---
+        function calculateAndDisplayDailyTotals() {
+            if (allMonthlyData.length === 0) {
+                dailySummaryTable.classList.add('hidden');
+                return;
             }
 
-            function populateDailySummaryTable(data) {
-                dailySummaryTableHeaderRow.innerHTML = '';
-                dailySummaryTableBody.innerHTML = '';
+            const startHour1 = parseInt(startHourSelect1.value);
+            const endHour1 = parseInt(endHourSelect1.value);
+            const startHour2 = parseInt(startHourSelect2.value);
+            const endHour2 = parseInt(endHourSelect2.value);
 
-                // 親ヘッダー
-                const header1 = document.createElement('th');
-                header1.textContent = `日付`;
-                dailySummaryTableHeaderRow.appendChild(header1);
-                const header2 = document.createElement('th');
-                header2.colSpan = 2;
-                header2.textContent = `集計範囲1 (${data.range1})`;
-                dailySummaryTableHeaderRow.appendChild(header2);
-                const header3 = document.createElement('th');
-                header3.colSpan = 2;
-                header3.textContent = `集計範囲2 (${data.range2})`;
-                dailySummaryTableHeaderRow.appendChild(header3);
+            const filteredData = allMonthlyData.filter(day => selectedMonths.has(day.month));
 
-                // サブヘッダー（売上高・客数）
-                const subHeaderRow = document.createElement('tr');
-                subHeaderRow.innerHTML = `<th></th><th>売上高</th><th>客数</th><th>売上高</th><th>客数</th>`;
-                dailySummaryTableBody.appendChild(subHeaderRow);
-
-                // データ結合
-                const combinedData = new Map();
-                data.totals1.forEach(item => combinedData.set(item.date, { ...item }));
-                data.totals2.forEach(item => {
-                    const entry = combinedData.get(item.date);
-                    if (entry) {
-                        entry.totalSales2 = item.totalSales;
-                        entry.totalCustomers2 = item.totalCustomers;
-                    } else {
-                        combinedData.set(item.date, { date: item.date, totalSales: 0, totalCustomers: 0, totalSales2: item.totalSales, totalCustomers2: item.totalCustomers });
+            const calculateTotalsForRange = (data, startHour, endHour) => {
+                const totalsMap = new Map();
+                data.forEach(day => {
+                    let dailySales = 0;
+                    let dailyCustomers = 0;
+                    const timeLabels = Object.keys(day.sales);
+                    timeLabels.forEach(label => {
+                        const hour = parseInt(label.replace('時', ''));
+                        const currentHour = (hour === 0) ? 24 : hour;
+                        const start = (startHour === 0) ? 24 : startHour;
+                        const end = (endHour === 0) ? 24 : endHour;
+                        if ((start <= end && currentHour >= start && currentHour <= end) ||
+                            (start > end && (currentHour >= start || currentHour <= end))) {
+                            dailySales += day.sales[label] || 0;
+                            dailyCustomers += day.customers[label] || 0;
+                        }
+                    });
+                    if (!totalsMap.has(day.date)) {
+                        totalsMap.set(day.date, { date: day.date, totalSales: 0, totalCustomers: 0 });
                     }
+                    const entry = totalsMap.get(day.date);
+                    entry.totalSales += dailySales;
+                    entry.totalCustomers += dailyCustomers;
                 });
+                return Array.from(totalsMap.values());
+            };
 
-                const sortedData = Array.from(combinedData.values()).sort((a, b) => a.date.localeCompare(b.date));
+            const calculatedTotals1 = calculateTotalsForRange(filteredData, startHour1, endHour1);
+            const calculatedTotals2 = calculateTotalsForRange(filteredData, startHour2, endHour2);
+            
+            lastCalculatedTotals = {
+                totals1: calculatedTotals1,
+                totals2: calculatedTotals2,
+                range1: `${startHour1}時 - ${endHour1}時`,
+                range2: `${startHour2}時 - ${endHour2}時`
+            };
 
-                sortedData.forEach(day => {
-                    const row = dailySummaryTableBody.insertRow();
-                    row.tabIndex = 0;
-                    row.insertCell(0).textContent = day.date;
-                    row.insertCell(1).textContent = `¥${(day.totalSales || 0).toLocaleString()}`;
-                    row.insertCell(2).textContent = `${Math.round(day.totalCustomers || 0).toLocaleString()}人`;
-                    row.insertCell(3).textContent = `¥${(day.totalSales2 || 0).toLocaleString()}`;
-                    row.insertCell(4).textContent = `${Math.round(day.totalCustomers2 || 0).toLocaleString()}人`;
+            populateDailySummaryTable(lastCalculatedTotals);
+        }
 
-                    // 日付セルクリックで行ハイライト切替
-                    row.addEventListener('click', () => {
-                        row.classList.toggle('highlighted');
-                    });
-                    row.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            row.classList.toggle('highlighted');
-                        }
-                    });
-                });
+        function populateDailySummaryTable(data) {
+            dailySummaryTableHeaderRow.innerHTML = '';
+            dailySummaryTableBody.innerHTML = '';
 
-                dailySummaryTable.classList.remove('hidden');
+            const header1 = document.createElement('th');
+            header1.textContent = `日付`;
+            dailySummaryTableHeaderRow.appendChild(header1);
+            const header2 = document.createElement('th');
+            header2.colSpan = 2;
+            header2.textContent = `集計範囲1 (${data.range1})`;
+            dailySummaryTableHeaderRow.appendChild(header2);
+            const header3 = document.createElement('th');
+            header3.colSpan = 2;
+            header3.textContent = `集計範囲2 (${data.range2})`;
+            dailySummaryTableHeaderRow.appendChild(header3);
+
+            const subHeaderRow = document.createElement('tr');
+            subHeaderRow.innerHTML = `<th></th><th>売上高</th><th>客数</th><th>売上高</th><th>客数</th>`;
+            dailySummaryTableBody.appendChild(subHeaderRow);
+
+            const combinedData = new Map();
+            data.totals1.forEach(item => combinedData.set(item.date, { ...item }));
+            data.totals2.forEach(item => {
+                const entry = combinedData.get(item.date);
+                if (entry) {
+                    entry.totalSales2 = item.totalSales;
+                    entry.totalCustomers2 = item.totalCustomers;
+                } else {
+                    combinedData.set(item.date, { date: item.date, totalSales: 0, totalCustomers: 0, totalSales2: item.totalSales, totalCustomers2: item.totalCustomers });
+                }
+            });
+
+            const sortedData = Array.from(combinedData.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+            sortedData.forEach(day => {
+                const row = dailySummaryTableBody.insertRow();
+                row.insertCell(0).textContent = day.date;
+                row.insertCell(1).textContent = `¥${(day.totalSales || 0).toLocaleString()}`;
+                row.insertCell(2).textContent = `${Math.round(day.totalCustomers || 0).toLocaleString()}人`;
+                row.insertCell(3).textContent = `¥${(day.totalSales2 || 0).toLocaleString()}`;
+                row.insertCell(4).textContent = `${Math.round(day.totalCustomers2 || 0).toLocaleString()}人`;
+            });
+            dailySummaryTable.classList.remove('hidden');
+        }
+
+        function exportDataToExcel() {
+            if (Object.keys(lastCalculatedTotals).length === 0) {
+                alert('先に集計範囲を設定し、「計算」ボタンを押してください。');
+                return;
             }
 
-            // --- 集計結果のExcel出力 ---
-            function exportDataToExcel() {
-                if (Object.keys(lastCalculatedTotals).length === 0) {
-                    alert('先に集計範囲を設定し、「計算」ボタンを押してください。');
-                    return;
-                }
-                const dataToExport = Array.from(dailySummaryTableBody.rows).slice(1).map(row => ({
-                    '日付': row.cells[0].textContent,
-                    [`集計範囲1 売上高 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[1].textContent),
-                    [`集計範囲1 客数 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[2].textContent),
-                    [`集計範囲2 売上高 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[3].textContent),
-                    [`集計範囲2 客数 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[4].textContent)
-                }));
-                const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, `集計結果`);
-                XLSX.writeFile(workbook, `集計データ.xlsx`);
-            }
+            const dataToExport = Array.from(dailySummaryTableBody.rows).slice(1).map(row => ({
+                '日付': row.cells[0].textContent,
+                [`集計範囲1 売上高 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[1].textContent),
+                [`集計範囲1 客数 (${lastCalculatedTotals.range1})`]: parseNumber(row.cells[2].textContent),
+                [`集計範囲2 売上高 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[3].textContent),
+                [`集計範囲2 客数 (${lastCalculatedTotals.range2})`]: parseNumber(row.cells[4].textContent)
+            }));
 
-            // --- セッション保存 ---
-            function saveSession() {
-                if (allMonthlyData.length === 0) {
-                    alert('保存するデータがありません。');
-                    return;
-                }
-                try {
-                    const dataToSave = {
-                        allMonthlyData,
-                        timeLabels,
-                        selectedMonths: Array.from(selectedMonths)
-                    };
-                    const json = JSON.stringify(dataToSave);
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'analysis_session.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    alert('セッションがJSONファイルとして保存されました。');
-                } catch (e) {
-                    alert('セッションの保存に失敗しました。');
-                }
-            }
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, `集計結果`);
+            XLSX.writeFile(workbook, `集計データ.xlsx`);
+        }
 
-            // --- データ全クリア ---
-            function clearAllData() {
-                if (!confirm('すべての読み込み済みデータをクリアしますか？')) {
-                    return;
-                }
+        // --- セッション保存/読み込み機能 ---
+        function saveSession() {
+            if (allMonthlyData.length === 0) {
+                alert('保存するデータがありません。');
+                return;
+            }
+            try {
+                const dataToSave = {
+                    allMonthlyData,
+                    timeLabels
+                };
+                const json = JSON.stringify(dataToSave);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'analysis_session.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert('セッションがJSONファイルとして保存されました。');
+            } catch (e) {
+                alert('セッションの保存に失敗しました。');
+            }
+        }
+
+        function clearAllData() {
+            if (confirm('すべての読み込み済みデータをクリアしますか？')) {
                 allMonthlyData = [];
                 timeLabels = [];
                 selectedMonths.clear();
                 populateMonthlyList();
                 clearMainContentUI();
                 alert('データがクリアされました。');
-                updateControlButtons();
             }
-            // --- UI初期化 ---
-            function clearMainContentUI() {
-                if (timeChart) {
-                    timeChart.destroy();
-                    timeChart = null;
-                }
-                dailySummaryTable.classList.add('hidden');
-                mainContent.classList.add('hidden');
-                dragDropArea.classList.remove('hidden');
-                totalSalesSum.textContent = '';
-                totalCustomersSum.textContent = '';
-                avgCustomerSpend.textContent = '';
-                lastCalculatedTotals = {};
-                loadedDataCount.textContent = 0;
-                monthlyDataList.innerHTML = '';
-            }
+        }
 
-            // --- セレクトボックスに時間帯をセット ---
-            function populateHourSelects(labels) {
-                const selects = [startHourSelect1, endHourSelect1, startHourSelect2, endHourSelect2];
-                selects.forEach(select => {
-                    select.innerHTML = '';
-                    labels.forEach(label => {
-                        const value = parseInt(label.replace('時', ''));
-                        const option = document.createElement('option');
-                        option.value = value;
-                        option.textContent = label;
-                        select.appendChild(option);
-                    });
+        function clearMainContentUI() {
+            if (timeChart) timeChart.destroy();
+            dailySummaryTable.classList.add('hidden');
+            mainContent.classList.add('hidden');
+            dragDropArea.classList.remove('hidden');
+            totalSalesSum.textContent = '';
+            totalCustomersSum.textContent = '';
+            avgCustomerSpend.textContent = '';
+            lastCalculatedTotals = {};
+            loadedDataCount.textContent = 0;
+            monthlyDataList.innerHTML = '';
+        }
+
+        // --- ヘルパー関数 ---
+        function populateHourSelects(labels) {
+            const selects = [startHourSelect1, endHourSelect1, startHourSelect2, endHourSelect2];
+            selects.forEach(select => {
+                select.innerHTML = '';
+                labels.forEach(label => {
+                    const value = parseInt(label.replace('時', ''));
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = label;
+                    select.appendChild(option);
                 });
-                // 適切な初期値セット (存在確認も兼ねる)
-                if ([...startHourSelect1.options].some(o => o.value === '10')) startHourSelect1.value = 10;
-                else startHourSelect1.selectedIndex = 0;
-                if ([...endHourSelect1.options].some(o => o.value === '15')) endHourSelect1.value = 15;
-                else endHourSelect1.selectedIndex = labels.length - 1;
+            });
+            startHourSelect1.value = 10;
+            endHourSelect1.value = 15;
+            startHourSelect2.value = 6;
+            endHourSelect2.value = 0;
+        }
 
-                if ([...startHourSelect2.options].some(o => o.value === '6')) startHourSelect2.value = 6;
-                else startHourSelect2.selectedIndex = 0;
-                if ([...endHourSelect2.options].some(o => o.value === '0')) endHourSelect2.value = 0;
-                else endHourSelect2.selectedIndex = labels.length - 1;
+        function parseNumber(value) {
+            if (typeof value === 'number') return value;
+            if (typeof value === 'string') {
+                const parsed = parseFloat(value.replace(/[^0-9.-]+/g, ""));
+                return isNaN(parsed) ? 0 : parsed;
             }
+            return 0;
+        }
 
-            // --- ヘルパー ---
-            function parseNumber(value) {
-                if (typeof value === 'number') return value;
-                if (typeof value === 'string') {
-                    const parsed = parseFloat(value.replace(/[^0-9.-]+/g, ""));
-                    return isNaN(parsed) ? 0 : parsed;
-                }
-                return 0;
+        function parseDate(excelDate) {
+            if (typeof excelDate === 'number') {
+                const date = new Date((excelDate - 25569) * 86400 * 1000);
+                return date.toLocaleDateString('ja-JP');
             }
-            function parseDate(excelDate) {
-                if (typeof excelDate === 'number') {
-                    // Excelの日付シリアル値を変換
-                    const date = new Date((excelDate - 25569) * 86400 * 1000);
-                    return date.toLocaleDateString('ja-JP');
+            return excelDate;
+        }
+        function parseMonth(excelDate) {
+            if (typeof excelDate === 'number') {
+                const date = new Date((excelDate - 25569) * 86400 * 1000);
+                return `${date.getFullYear()}年${date.getMonth() + 1}月`;
+            } else if (typeof excelDate === 'string') {
+                const dateParts = excelDate.split('/');
+                if (dateParts.length === 3) {
+                    return `${dateParts[0]}年${dateParts[1]}月`;
                 }
-                return excelDate;
             }
-            function parseMonth(excelDate) {
-                if (typeof excelDate === 'number') {
-                    const date = new Date((excelDate - 25569) * 86400 * 1000);
-                    return `${date.getFullYear()}年${date.getMonth() + 1}月`;
-                } else if (typeof excelDate === 'string') {
-                    const dateParts = excelDate.split('/');
-                    if (dateParts.length === 3) {
-                        return `${dateParts[0]}年${dateParts[1]}月`;
-                    }
-                }
-                return '不明な月';
-            }
+            return '不明な月';
+        }
+    });
+</script>
 
-            // 初期ボタン活性状態更新
-            updateControlButtons();
-        });
-    </script>
 </body>
 </html>
