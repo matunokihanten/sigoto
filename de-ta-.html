@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>時間帯別データ分析アプリ - 最終版</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background-color: #e9ecef;
+            color: #495057;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.6;
+        }
+        .app-container {
+            max-width: 900px;
+            width: 100%;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #1a237e;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        .info-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+            text-align: center;
+        }
+        .drag-drop-area {
+            border: 3px dashed #ced4da;
+            padding: 40px;
+            border-radius: 10px;
+            text-align: center;
+            transition: border-color 0.3s, background-color 0.3s;
+            cursor: pointer;
+            margin-bottom: 25px;
+        }
+        .drag-drop-area:hover {
+            border-color: #007bff;
+            background-color: #eef4ff;
+        }
+        .drag-drop-area.active {
+            border-color: #007bff;
+            background-color: #e9f0ff;
+        }
+        #file-input {
+            display: none;
+        }
+        .status-message {
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+            margin-bottom: 20px;
+        }
+        .chart-controls, .total-controls, .export-controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .total-controls input, .total-controls select, .total-controls button {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            font-size: 1em;
+            margin: 5px;
+        }
+        .total-controls button, .chart-controls button, .export-controls button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .total-controls button:hover, .chart-controls button:hover, .export-controls button:hover {
+            background-color: #0056b3;
+        }
+        .total-results {
+            text-align: center;
+            font-size: 1.2em;
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .chart-container {
+            display: none;
+            height: 50vh;
+            margin-top: 20px;
+            position: relative;
+        }
+        #daily-summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        #daily-summary-table th, #daily-summary-table td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: center;
+        }
+        #daily-summary-table th {
+            background-color: #f1f3f5;
+            color: #495057;
+        }
+        #daily-summary-table tbody tr:nth-child(odd) {
+            background-color: #f8f9fa;
+        }
+        #daily-summary-table tbody tr:hover {
+            background-color: #e9f0ff;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>時間帯別データ分析ツール</h1>
+
+    <div class="info-box">
+        🚨 このファイルをブラウザで直接開くと動作しません。<br>
+        Webサーバー（例：Pythonの `python -m http.server`）経由で開いてください。
+    </div>
+
+    <div class="drag-drop-area" id="drag-drop-area">
+        <p><strong>Excel（.xlsx）またはCSVファイルをここにドラッグ＆ドロップ</strong></p>
+        <p>または、クリックしてファイルを選択</p>
+        <input type="file" id="file-input" accept=".xlsx, .xls, .csv">
+    </div>
+
+    <div class="status-message" id="status-message" style="display: none;">ファイルを処理中...</div>
+    
+    <div id="main-content" style="display: none;">
+        <h2>グラフ分析</h2>
+        <div class="chart-controls">
+            <button id="show-sales-btn">売上高グラフを表示</button>
+            <button id="show-customers-btn">客数グラフを表示</button>
+        </div>
+        <div class="chart-container" id="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
+
+        <h2>日別集計</h2>
+        <div class="total-controls">
+            <label for="start-hour">集計範囲:</label>
+            <select id="start-hour"></select>
+            時 から
+            <select id="end-hour"></select>
+            時まで
+            <button id="calculate-btn">計算</button>
+        </div>
+        <div class="total-results" id="total-results" style="display: none;">
+            <p id="total-sales-display"></p>
+            <p id="total-customers-display"></p>
+        </div>
+
+        <table id="daily-summary-table" style="display:none;">
+            <thead>
+                <tr>
+                    <th>日付</th>
+                    <th>合計売上高</th>
+                    <th>合計客数</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+
+        <h2>データ保存</h2>
+        <div class="export-controls">
+            <button id="export-btn">計算結果をExcelで保存</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const fileInput = document.getElementById('file-input');
+        const dragDropArea = document.getElementById('drag-drop-area');
+        const statusMessage = document.getElementById('status-message');
+        const mainContent = document.getElementById('main-content');
+        const showSalesBtn = document.getElementById('show-sales-btn');
+        const showCustomersBtn = document.getElementById('show-customers-btn');
+        const startHourSelect = document.getElementById('start-hour');
+        const endHourSelect = document.getElementById('end-hour');
+        const calculateBtn = document.getElementById('calculate-btn');
+        const totalResults = document.getElementById('total-results');
+        const totalSalesDisplay = document.getElementById('total-sales-display');
+        const totalCustomersDisplay = document.getElementById('total-customers-display');
+        const dailySummaryTable = document.getElementById('daily-summary-table');
+        const dailySummaryTableBody = dailySummaryTable.querySelector('tbody');
+        const exportBtn = document.getElementById('export-btn');
+
+        let myChart = null;
+        let processedChartData = null;
+        let rawDailyData = [];
+        let calculatedDailyTotals = [];
+
+        // UIイベントリスナー
+        dragDropArea.addEventListener('click', () => fileInput.click());
+        dragDropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dragDropArea.classList.add('active');
+        });
+        dragDropArea.addEventListener('dragleave', () => {
+            dragDropArea.classList.remove('active');
+        });
+        dragDropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragDropArea.classList.remove('active');
+            const file = e.dataTransfer.files[0];
+            if (file) handleFile(file);
+        });
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+        calculateBtn.addEventListener('click', calculateAndDisplayTotals);
+        exportBtn.addEventListener('click', exportDataToExcel);
+        showSalesBtn.addEventListener('click', () => renderChart('sales'));
+        showCustomersBtn.addEventListener('click', () => renderChart('customers'));
+
+        // ファイル処理のメイン関数
+        function handleFile(file) {
+            resetUI();
+            statusMessage.style.display = 'block';
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                processExcelData(json);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Excel/CSVデータを分析し、UIを更新する関数
+        function processExcelData(data) {
+            const headers = data[0];
+            const dateIndex = headers.indexOf('日付');
+            const salesStartIndex = headers.indexOf('4時売上高');
+            const customersStartIndex = headers.indexOf('4時客数');
+            const endHourLabel = '3時売上高';
+            const salesEndIndex = headers.indexOf(endHourLabel);
+
+            if (dateIndex === -1 || salesStartIndex === -1 || salesEndIndex === -1 || customersStartIndex === -1) {
+                alert('エラー：必要な列が見つかりません。');
+                resetUI();
+                return;
+            }
+
+            const timeLabels = headers.slice(salesStartIndex, salesEndIndex + 1).map(h => h.replace('売上高', ''));
+            populateHourSelects(timeLabels);
+
+            rawDailyData = data.slice(1).map(row => {
+                const dailyEntry = {
+                    date: parseDate(row[dateIndex]),
+                    sales: {},
+                    customers: {}
+                };
+                timeLabels.forEach((label, i) => {
+                    dailyEntry.sales[label] = parseNumber(row[salesStartIndex + i]);
+                    dailyEntry.customers[label] = parseNumber(row[customersStartIndex + i]);
+                });
+                return dailyEntry;
+            }).filter(entry => entry.date);
+
+            // グラフ用の平均データを計算
+            const salesAverages = timeLabels.map(label => {
+                const total = rawDailyData.reduce((sum, entry) => sum + (entry.sales[label] || 0), 0);
+                return rawDailyData.length > 0 ? total / rawDailyData.length : 0;
+            });
+            const customerAverages = timeLabels.map(label => {
+                const total = rawDailyData.reduce((sum, entry) => sum + (entry.customers[label] || 0), 0);
+                return rawDailyData.length > 0 ? total / rawDailyData.length : 0;
+            });
+
+            processedChartData = { labels: timeLabels, salesData: salesAverages, customerData: customerAverages };
+
+            statusMessage.style.display = 'none';
+            mainContent.style.display = 'block';
+            
+            // 初回は売上高チャートを表示
+            renderChart('sales');
+        }
+
+        // 時間帯のドロップダウンを生成
+        function populateHourSelects(labels) {
+            startHourSelect.innerHTML = '';
+            endHourSelect.innerHTML = '';
+            labels.forEach(label => {
+                const value = parseInt(label.replace('時', ''));
+                const optionStart = document.createElement('option');
+                optionStart.value = value;
+                optionStart.textContent = label;
+                startHourSelect.appendChild(optionStart);
+                const optionEnd = document.createElement('option');
+                optionEnd.value = value;
+                optionEnd.textContent = label;
+                endHourSelect.appendChild(optionEnd);
+            });
+        }
+        
+        // 日別サマリーテーブルにデータを追加
+        function populateDailySummaryTable(data) {
+            dailySummaryTableBody.innerHTML = '';
+            data.forEach(day => {
+                const row = dailySummaryTableBody.insertRow();
+                row.insertCell(0).textContent = day.date;
+                row.insertCell(1).textContent = new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(day.totalSales);
+                row.insertCell(2).textContent = `${Math.round(day.totalCustomers)}人`;
+            });
+            dailySummaryTable.style.display = 'table';
+        }
+
+        // 指定時間帯の合計値を計算し表示する関数
+        function calculateAndDisplayTotals() {
+            if (!rawDailyData.length) {
+                alert('先にExcelファイルをアップロードしてください。');
+                return;
+            }
+
+            const startHour = parseInt(startHourSelect.value);
+            const endHour = parseInt(endHourSelect.value);
+
+            let totalSalesForAllDays = 0;
+            let totalCustomersForAllDays = 0;
+            
+            calculatedDailyTotals = rawDailyData.map(day => {
+                let dailySales = 0;
+                let dailyCustomers = 0;
+                const timeLabels = Object.keys(day.sales);
+                timeLabels.forEach(label => {
+                    const hour = parseInt(label.replace('時', ''));
+                    const currentHour = (hour === 0) ? 24 : hour;
+                    const start = (startHour === 0) ? 24 : startHour;
+                    const end = (endHour === 0) ? 24 : endHour;
+
+                    if ((start <= end && currentHour >= start && currentHour <= end) ||
+                        (start > end && (currentHour >= start || currentHour <= end))) {
+                        dailySales += day.sales[label] || 0;
+                        dailyCustomers += day.customers[label] || 0;
+                    }
+                });
+                totalSalesForAllDays += dailySales;
+                totalCustomersForAllDays += dailyCustomers;
+                return { date: day.date, totalSales: dailySales, totalCustomers: dailyCustomers };
+            });
+
+            totalSalesDisplay.textContent = `合計売上高: ${new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(totalSalesForAllDays)}`;
+            totalCustomersDisplay.textContent = `合計客数: ${Math.round(totalCustomersForAllDays)} 人`;
+            totalResults.style.display = 'block';
+
+            populateDailySummaryTable(calculatedDailyTotals);
+        }
+
+        // データをExcelファイルとして保存する関数
+        function exportDataToExcel() {
+            if (!calculatedDailyTotals.length) {
+                alert('先に合計範囲を設定し、「計算」ボタンを押してください。');
+                return;
+            }
+            const worksheet = XLSX.utils.json_to_sheet(calculatedDailyTotals);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, '日別集計データ');
+            XLSX.writeFile(workbook, '日別集計データ.xlsx');
+        }
+
+        // Chart.jsでグラフを描画する関数
+        function renderChart(type) {
+            if (!processedChartData) return;
+            if (myChart) {
+                myChart.destroy();
+            }
+            const isSales = type === 'sales';
+            const dataToShow = isSales ? processedChartData.salesData : processedChartData.customerData;
+            const yAxisTitle = isSales ? '平均売上高 (円)' : '平均客数 (人)';
+            const label = isSales ? '時間帯別平均売上高' : '時間帯別平均客数';
+            const barColor = isSales ? 'rgba(75, 192, 192, 0.7)' : 'rgba(153, 102, 255, 0.7)';
+            const ctx = document.getElementById('myChart').getContext('2d');
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: processedChartData.labels,
+                    datasets: [{
+                        label: label,
+                        data: dataToShow,
+                        backgroundColor: barColor,
+                        borderColor: barColor.replace('0.7', '1'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let value = context.parsed.y;
+                                    if (isSales) {
+                                        return `${context.dataset.label}: ${new Intl.NumberFormat('ja-JP', { style: 'currency', currency: 'JPY' }).format(value)}`;
+                                    } else {
+                                        return `${context.dataset.label}: ${Math.round(value)} 人`;
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: yAxisTitle
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '時間帯'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        function parseNumber(value) {
+            if (typeof value === 'number') return value;
+            if (typeof value === 'string') {
+                const parsed = parseFloat(value.replace(/[^0-9.-]+/g, ""));
+                return isNaN(parsed) ? 0 : parsed;
+            }
+            return 0;
+        }
+        function parseDate(excelDate) {
+            // Excelシリアル値、または文字列を日付に変換
+            if (typeof excelDate === 'number') {
+                const date = new Date((excelDate - 25569) * 86400 * 1000);
+                return date.toLocaleDateString('ja-JP');
+            }
+            return excelDate;
+        }
+        function resetUI() {
+            statusMessage.style.display = 'none';
+            mainContent.style.display = 'none';
+            dragDropArea.style.display = 'block';
+            totalResults.style.display = 'none';
+            dailySummaryTable.style.display = 'none';
+            dailySummaryTableBody.innerHTML = '';
+            calculatedDailyTotals = [];
+            if (myChart) {
+                myChart.destroy();
+                myChart = null;
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
