@@ -1,1221 +1,448 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>飲食店向け高機能電卓</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh; /* 画面の高さ全体を占める */
-            padding: 20px;
-            color: #333;
-            display: flex;
-            flex-direction: column; /* 縦方向に要素を並べる */
-            justify-content: flex-start; /* 上部に寄せる */
-            align-items: center; /* 横方向の中央揃え */
-        }
-
-        .calculator-container {
-            max-width: 1200px;
-            width: 100%; /* 親要素の幅に合わせて広がる */
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: 1fr 300px; /* 電卓と履歴パネルの比率 */
-            gap: 20px;
-            align-items: flex-start;
-        }
-
-        .calculator {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            position: relative;
-        }
-
-        .display {
-            background: #000;
-            color: #00ff00;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            font-family: 'Courier New', monospace;
-            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.3);
-            position: relative;
-        }
-
-        .main-display {
-            font-size: 2.5em;
-            text-align: right;
-            margin-bottom: 10px;
-            min-height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            word-break: break-all;
-            overflow-x: auto;
-        }
-
-        .sub-display {
-            font-size: 1em;
-            text-align: right;
-            color: #90EE90;
-            min-height: 20px;
-        }
-
-        .error-message {
-            position: absolute;
-            top: 5px;
-            left: 20px;
-            color: #ff0000;
-            font-size: 0.8em;
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 2px 5px;
-            border-radius: 3px;
-            display: none;
-            z-index: 10; /* 他の要素より手前に表示 */
-        }
-
-        .buttons {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-        }
-
-        button {
-            height: 60px;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.2em;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        }
-
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .number {
-            background: linear-gradient(145deg, #f0f0f0, #d0d0d0);
-            color: #333;
-        }
-
-        .operator {
-            background: linear-gradient(145deg, #ff6b6b, #ee5a52);
-            color: white;
-        }
-
-        .special {
-            background: linear-gradient(145deg, #4ecdc4, #44a08d);
-            color: white;
-            font-size: 0.9em;
-        }
-
-        .equals {
-            background: linear-gradient(145deg, #45b7d1, #3498db);
-            color: white;
-            grid-column: span 1;
-        }
-
-        .wide {
-            grid-column: span 2;
-        }
-
-        .restaurant-functions {
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 2px solid #e0e0e0;
-        }
-
-        .restaurant-title {
-            font-size: 1.2em;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #555;
-            text-align: center;
-        }
-
-        .restaurant-buttons {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-        }
-
-        .restaurant-btn {
-            background: linear-gradient(145deg, #f39c12, #e67e22);
-            color: white;
-            font-size: 0.9em;
-            height: 50px;
-        }
-
-        .history-panel {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            max-height: 100vh;
-            overflow-y: auto;
-        }
-
-        .history-title {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #555;
-            text-align: center;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-
-        .history-item {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-left: 4px solid #4ecdc4;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative; /* For delete button positioning */
-        }
-
-        .history-item:hover {
-            background: #e3f2fd;
-            transform: translateX(5px);
-        }
-
-        .history-expression {
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .history-result {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .delete-history-item {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #e74c3c;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 20px;
-            height: 20px;
-            font-size: 0.8em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background 0.2s ease;
-            opacity: 0.7;
-        }
-
-        .delete-history-item:hover {
-            background: #c0392b;
-            opacity: 1;
-        }
-
-
-        .clear-history {
-            width: 100%;
-            background: linear-gradient(145deg, #e74c3c, #c0392b);
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .clear-history:hover {
-            background: linear-gradient(145deg, #c0392b, #a93226);
-        }
-
-        .sum-history {
-            width: 100%;
-            background: linear-gradient(145deg, #3498db, #2980b9);
-            color: white;
-            padding: 10px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .sum-history:hover {
-            background: linear-gradient(145deg, #2980b9, #2471a3);
-        }
-
-        .tax-display {
-            background: #e8f5e8;
-            padding: 10px;
-            border-radius: 8px;
-            margin: 10px 0;
-            border-left: 4px solid #4caf50;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .tax-info {
-            flex-grow: 1;
-        }
-
-        .tax-rate-label {
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 5px;
-        }
-
-        .tax-amount {
-            font-size: 1.1em;
-            font-weight: bold;
-            color: #2e7d32;
-        }
-
-        .tax-rate-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .tax-rate-btn {
-            background: linear-gradient(145deg, #bbdefb, #90CAF9);
-            color: #333;
-            padding: 5px 10px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.8em;
-            transition: all 0.2s ease;
-        }
-
-        .tax-rate-btn.active {
-            background: linear-gradient(145deg, #2196f3, #1976d2);
-            color: white;
-        }
-
-        .tax-rate-btn:hover:not(.active) {
-            background: linear-gradient(145deg, #90CAF9, #64B5F6);
-        }
-
-        .tab-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 2px solid #e0e0e0;
-        }
-
-        .tab-buttons {
-            display: flex;
-            gap: 5px;
-            flex-wrap: wrap;
-        }
-
-        .tab-btn {
-            background: linear-gradient(145deg, #a7b7ed, #8a96d1);
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-            min-width: 60px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .tab-btn.active {
-            background: linear-gradient(145deg, #45b7d1, #3498db);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            transform: translateY(-1px);
-        }
-
-        .tab-btn:hover:not(.active) {
-            background: linear-gradient(145deg, #c1cff0, #acb9db);
-        }
-
-        .add-tab-btn, .delete-tab-btn {
-            background: linear-gradient(145deg, #4ecdc4, #44a08d);
-            color: white;
-            padding: 8px 15px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9em;
-            margin-left: 10px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: all 0.2s ease;
-        }
-        .delete-tab-btn {
-             background: linear-gradient(145deg, #e74c3c, #c0392b);
-        }
-        .add-tab-btn:hover {
-            background: linear-gradient(145deg, #3bb2aa, #398e7e);
-        }
-        .delete-tab-btn:hover {
-             background: linear-gradient(145deg, #c0392b, #a93226);
-        }
-
-        #currentTabName {
-            font-weight: bold;
-            color: #555;
-            margin-right: 10px;
-        }
-
-        /* レスポンシブデザインの調整 */
-        @media (max-width: 768px) {
-            .calculator-container {
-                grid-template-columns: 1fr; /* 縦1列に配置 */
-                gap: 20px; /* 縦方向の隙間 */
-                width: 95%; /* 画面幅いっぱいに広げる */
-                max-width: none; /* 最大幅の制限を解除 */
-            }
-            
-            .calculator, .history-panel {
-                width: 100%; /* 親要素の幅いっぱいに広げる */
-                max-width: 500px; /* スマートフォンでの読みやすさのために最大幅を設定 */
-                margin: 0 auto; /* 中央揃え */
-            }
-
-            .main-display {
-                font-size: 2em;
-            }
-
-            .tab-controls {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-
-            .tab-buttons {
-                width: 100%;
-                justify-content: flex-start;
-            }
-
-            .add-tab-btn, .delete-tab-btn {
-                width: 100%;
-                margin-left: 0;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>飲食店向け多機能電卓</title>
+  <style>
+    body {
+      background: #f2f2f2;
+      margin: 0;
+      color: #111;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    .calc-app {
+      max-width: 370px;
+      margin: 30px auto;
+      background: #fff;
+      box-shadow: 0 4px 16px #0002;
+      border-radius: 14px;
+      padding: 19px 15px 14px;
+    }
+    .calc-tabs {
+      display: flex;
+      margin-bottom: 14px;
+    }
+    .calc-tab {
+      flex: 1;
+      padding: 5px 10px;
+      background: #eee;
+      border: 1px solid #ccc;
+      border-right: none;
+      cursor: pointer;
+      text-align: center;
+      font-weight: bold;
+      color: #222;
+      border-radius: 10px 10px 0 0;
+    }
+    .calc-tab.active {
+      background: #222;
+      color: #fff;
+    }
+    .calc-tab-del-btn {
+      color: #f55;
+      margin-left: 4px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .calc-tab:last-child {
+      border-right: 1px solid #ccc;
+    }
+    .calc-btns {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .calc-display {
+      background: #111;
+      color: #fff;
+      font-size: 2em;
+      text-align: right;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      min-height: 43px;
+      letter-spacing: 1px;
+      user-select: all;
+    }
+    button,
+    .calc-special-btn {
+      font-size: 1.2em;
+      padding: 15px 0;
+      border-radius: 8px;
+      border: none;
+      background: #fff;
+      color: #111;
+      box-shadow: 0 1px 2px #0001;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.14s;
+    }
+    .op {
+      background: #111;
+      color: #fff;
+    }
+    .ctrl {
+      background: #e7e7e7;
+      color: #c33;
+    }
+    .equal {
+      background: #333;
+      color: #fff;
+    }
+    .calc-special-btn {
+      background: #fafafa;
+      padding: 8px 11px;
+      margin: 2px;
+    }
+    .calc-tax-group input[type='radio'] {
+      margin-right: 2px;
+    }
+    .calc-tax-group {
+      margin: 7px 0;
+    }
+    .history-title {
+      margin: 13px 0 6px;
+      font-size: 1em;
+      color: #666;
+    }
+    /* 横並び＋折返し対応 */
+    .calc-hist {
+      background: #f8f8f8;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      max-height: 110px;
+      overflow-y: auto;
+      font-size: 1em;
+      padding: 8px 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 8px;
+    }
+    .calc-hist .hist-line {
+      background: #2222;
+      color: #222;
+      font-family: monospace;
+      cursor: pointer;
+      border-radius: 3px;
+      padding: 2px 5px;
+      user-select: none;
+      white-space: nowrap;
+      position: relative;
+      transition: background 0.1s;
+    }
+    .calc-hist .hist-line:active {
+      background: #f55;
+      color: white;
+    }
+    .hist-btns {
+      text-align: right;
+      margin-bottom: 5px;
+    }
+    .hist-btns button {
+      margin-left: 4px;
+      font-size: 0.9em;
+    }
+    @media (max-width: 410px) {
+      .calc-app {
+        max-width: 99vw;
+        padding: 7px 2vw 6vw;
+      }
+      .calc-btns button,
+      .calc-special-btn {
+        font-size: 1.03em;
+        padding: 11px 0;
+      }
+      .calc-display {
+        font-size: 1.1em;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="calculator-container">
-        <div class="calculator" id="calculator">
-            <div class="display">
-                <div class="error-message" id="errorMessage"></div>
-                <div class="main-display" id="mainDisplay">0</div>
-                <div class="sub-display" id="subDisplay"></div>
-            </div>
-
-            <div class="tax-display" id="taxDisplay" style="display: none;">
-                <div class="tax-info">
-                    <div class="tax-rate-label">消費税率: <span id="taxRateDisplay">10%</span></div>
-                    <div class="tax-amount">税込金額: ¥<span id="taxAmountDisplay">0</span></div>
-                </div>
-                <div class="tax-rate-buttons">
-                    <button class="tax-rate-btn" id="taxRate8Btn" onclick="setTaxRate(0.08)">8%</button>
-                    <button class="tax-rate-btn active" id="taxRate10Btn" onclick="setTaxRate(0.1)">10%</button>
-                </div>
-            </div>
-
-            <div class="buttons">
-                <button class="special" onclick="clearAll()">AC</button>
-                <button class="special" onclick="clearEntry()">CE</button>
-                <button class="special" onclick="backspace()">⌫</button>
-                <button class="operator" onclick="inputOperator('/')">/</button>
-                <button class="special" onclick="inputOperator('√')">√</button>
-
-                <button class="number" onclick="inputNumber('7')">7</button>
-                <button class="number" onclick="inputNumber('8')">8</button>
-                <button class="number" onclick="inputNumber('9')">9</button>
-                <button class="operator" onclick="inputOperator('*')">×</button>
-                <button class="special" onclick="inputOperator('%')">%</button>
-
-                <button class="number" onclick="inputNumber('4')">4</button>
-                <button class="number" onclick="inputNumber('5')">5</button>
-                <button class="number" onclick="inputNumber('6')">6</button>
-                <button class="operator" onclick="inputOperator('-')">-</button>
-                <button class="special" onclick="inputOperator('^')">x²</button>
-
-                <button class="number" onclick="inputNumber('1')">1</button>
-                <button class="number" onclick="inputNumber('2')">2</button>
-                <button class="number" onclick="inputNumber('3')">3</button>
-                <button class="operator" onclick="inputOperator('+')">+</button>
-                <button class="special" onclick="memoryStore()">MS</button>
-
-                <button class="number wide" onclick="inputNumber('0')">0</button>
-                <button class="number" onclick="inputNumber('.')">.</button>
-                <button class="equals" onclick="calculate()">=</button>
-                <button class="special" onclick="memoryRecall()">MR</button>
-            </div>
-
-            <div class="restaurant-functions">
-                <div class="restaurant-title">🍽️ 飲食店機能</div>
-                <div class="restaurant-buttons">
-                    <button class="restaurant-btn" onclick="calculateTax()">税込計算</button>
-                    <button class="restaurant-btn" onclick="calculateTaxExcluding()">税抜計算</button>
-                    <button class="restaurant-btn" onclick="calculateMarkup()">割増計算</button>
-                    <button class="restaurant-btn" onclick="showDiscount()">割引計算</button>
-                </div>
-            </div>
-
-            <div class="tab-controls">
-                <span id="currentTabName">タブ1</span>
-                <div class="tab-buttons" id="tabButtons">
-                    </div>
-                <button class="add-tab-btn" onclick="addTab()">タブ追加</button>
-                <button class="delete-tab-btn" onclick="deleteTab()">タブ削除</button>
-            </div>
-        </div>
-
-        <div class="history-panel">
-            <div class="history-title">📋 計算履歴</div>
-            <div id="historyList"></div>
-            <button class="sum-history" onclick="sumHistoryResults()">履歴合計</button>
-            <button class="clear-history" onclick="clearHistory()">履歴をクリア</button>
-        </div>
+  <div class="calc-app" id="app">
+    <div class="calc-tabs" id="tabs"></div>
+    <div class="calc-display" id="display">0</div>
+    <div class="calc-tax-group">
+      <label><input type="radio" name="taxRate" value="0.08" />8%</label>
+      <label><input type="radio" name="taxRate" value="0.10" checked />10%</label>
+      <button class="calc-special-btn" onclick="applyTaxIn()">税込</button>
+      <button class="calc-special-btn" onclick="applyTaxOut()">税抜</button>
+      <button class="calc-special-btn" onclick="applyDiscount()">割引</button>
+      <button class="calc-special-btn" onclick="applyUp()">割増</button>
     </div>
+    <div class="calc-btns">
+      <button onclick="inputNum('7')">7</button>
+      <button onclick="inputNum('8')">8</button>
+      <button onclick="inputNum('9')">9</button>
+      <button class="op" onclick="inputOp('/')">÷</button>
 
-    <script>
-        // 電卓の状態変数
-        let currentInput = '0';
-        let previousInput = '';
-        let operator = '';
-        let shouldResetDisplay = false;
-        let memory = 0;
-        let history = []; // 各要素に一意のIDを持たせる
-        let taxRate = 0.1; // 消費税率 10% (初期値)
-        let historyItemIdCounter = 0; // 履歴アイテムのユニークIDカウンター
+      <button onclick="inputNum('4')">4</button>
+      <button onclick="inputNum('5')">5</button>
+      <button onclick="inputNum('6')">6</button>
+      <button class="op" onclick="inputOp('*')">×</button>
 
-        // タブ機能関連
-        let tabs = {}; // 各タブの状態を保存するオブジェクト
-        let currentTabId = 1; // 現在選択されているタブのID
-        let nextTabId = 1; // 次に追加されるタブのID
+      <button onclick="inputNum('1')">1</button>
+      <button onclick="inputNum('2')">2</button>
+      <button onclick="inputNum('3')">3</button>
+      <button class="op" onclick="inputOp('-')">−</button>
 
-        // DOM要素のキャッシュ
-        const mainDisplay = document.getElementById('mainDisplay');
-        const subDisplay = document.getElementById('subDisplay');
-        const errorMessageDiv = document.getElementById('errorMessage');
-        const currentTabName = document.getElementById('currentTabName');
-        const historyList = document.getElementById('historyList');
-        const taxDisplay = document.getElementById('taxDisplay');
-        const taxRateDisplay = document.getElementById('taxRateDisplay');
-        const taxAmountDisplay = document.getElementById('taxAmountDisplay');
-        const taxRate8Btn = document.getElementById('taxRate8Btn');
-        const taxRate10Btn = document.getElementById('taxRate10Btn');
-        const tabButtonsContainer = document.getElementById('tabButtons');
+      <button onclick="inputNum('0')">0</button>
+      <button onclick="inputNum('.')">.</button>
+      <button class="equal" onclick="calcEqual()">=</button>
+      <button class="op" onclick="inputOp('+')">＋</button>
 
+      <button class="ctrl" onclick="allClear()">AC</button>
+      <button class="ctrl" onclick="clearEntry()">CE</button>
+      <button class="ctrl" onclick="backspace()">⌫</button>
+      <button onclick="addTab()">タブ+ </button>
+    </div>
+    <div class="history-title">計算履歴</div>
+    <div class="calc-hist" id="history"></div>
+    <div class="hist-btns">
+      <button onclick="historySum()">履歴合計</button>
+      <button onclick="clearHistory()">履歴クリア</button>
+    </div>
+  </div>
+  <script>
+    let tabs = [{ name: 'タブ1', expr: '', display: '0', hist: [] }];
+    let activeTab = 0;
+    let inputting = true;
 
-        /**
-         * ディスプレイを更新します。
-         */
-        function updateDisplay() {
-            mainDisplay.textContent = formatNumber(currentInput);
-            subDisplay.textContent = previousInput + ' ' + operator;
-            currentTabName.textContent = `タブ${currentTabId}`; // 現在のタブ名を表示
+    function renderTabs() {
+      const tabEl = document.getElementById('tabs');
+      tabEl.innerHTML = '';
+      tabs.forEach((tab, i) => {
+        const t = document.createElement('div');
+        t.className = 'calc-tab' + (i === activeTab ? ' active' : '');
+        t.textContent = tab.name;
+        t.onclick = () => switchTab(i);
+        if (tabs.length > 1) {
+          const d = document.createElement('span');
+          d.className = 'calc-tab-del-btn';
+          d.textContent = '✕';
+          d.onclick = (e) => {
+            e.stopPropagation();
+            removeTab(i);
+          };
+          t.appendChild(d);
         }
+        tabEl.appendChild(t);
+      });
+    }
+    function switchTab(i) {
+      saveTabState();
+      activeTab = i;
+      loadTabState();
+      renderTabs();
+    }
+    function addTab() {
+      saveTabState();
+      tabs.push({ name: 'タブ' + (tabs.length + 1), expr: '', display: '0', hist: [] });
+      switchTab(tabs.length - 1);
+    }
+    function removeTab(idx) {
+      if (tabs.length === 1) return;
+      tabs.splice(idx, 1);
+      if (activeTab >= tabs.length) activeTab = tabs.length - 1;
+      loadTabState();
+      renderTabs();
+    }
+    function saveTabState() {
+      tabs[activeTab].expr = window.expr || '';
+      tabs[activeTab].display = document.getElementById('display').textContent;
+      tabs[activeTab].hist = JSON.parse(JSON.stringify(window.calcHistory || []));
+    }
+    function loadTabState() {
+      window.expr = tabs[activeTab].expr || '';
+      document.getElementById('display').textContent = tabs[activeTab].display || '0';
+      window.calcHistory = JSON.parse(JSON.stringify(tabs[activeTab].hist || []));
+      renderHistory();
+    }
 
-        /**
-         * 一時的なエラーメッセージを表示します。
-         * @param {string} message - 表示するエラーメッセージ。
-         */
-        function showErrorMessage(message) {
-            errorMessageDiv.textContent = message;
-            errorMessageDiv.style.display = 'block';
-            setTimeout(() => {
-                errorMessageDiv.style.display = 'none';
-            }, 3000); // 3秒後に非表示
+    let expr = '';
+    function updateDisplay(val) {
+      document.getElementById('display').textContent = val;
+      tabs[activeTab].display = val;
+    }
+    function inputNum(n) {
+      if (!inputting) {
+        expr = '';
+        inputting = true;
+      }
+      if (expr.length > 25) return;
+      expr += n;
+      updateDisplay(expr);
+    }
+    function inputOp(o) {
+      if (expr === '') return;
+      if ('+-*/'.indexOf(expr[expr.length - 1]) !== -1) return;
+      expr += o;
+      inputting = true;
+      updateDisplay(expr);
+    }
+    function backspace() {
+      expr = expr.slice(0, -1);
+      updateDisplay(expr == '' ? '0' : expr);
+    }
+    function allClear() {
+      expr = '';
+      updateDisplay('0');
+    }
+    function clearEntry() {
+      if (/[+\-*/]/.test(expr)) expr = expr.replace(/([+\-*/])[^+\-*/]*$/, '$1');
+      else expr = '';
+      updateDisplay(expr == '' ? '0' : expr);
+    }
+    function calcEqual() {
+      try {
+        if (expr === '') return;
+        let result = eval(expr);
+        result = +result.toFixed(6);
+        addHistory(expr + '=' + result);
+        expr = '' + result;
+        inputting = false;
+        updateDisplay(expr);
+      } catch (e) {
+        updateDisplay('ERR');
+        expr = '';
+        inputting = false;
+      }
+    }
+
+    let calcHistory = [];
+    let longPressTimer = null;
+    const longPressDuration = 700; // 700ms長押し判定
+
+    function addHistory(str) {
+      calcHistory.unshift(str);
+      renderHistory();
+      tabs[activeTab].hist = JSON.parse(JSON.stringify(calcHistory));
+    }
+    function renderHistory() {
+      const h = document.getElementById('history');
+      h.innerHTML = '';
+      (calcHistory || []).forEach((item, i) => {
+        const s = document.createElement('div');
+        s.className = 'hist-line';
+        s.textContent = item; // 数式も必ず表示
+        s.title = item;
+        s.tabIndex = 0; // フォーカス可にして keyboard操作許可
+        s.onmousedown = s.ontouchstart = () => {
+          longPressTimer = setTimeout(() => {
+            // 長押しで履歴アイテム削除
+            calcHistory.splice(i, 1);
+            tabs[activeTab].hist = JSON.parse(JSON.stringify(calcHistory));
+            renderHistory();
+          }, longPressDuration);
+        };
+        s.onmouseup = s.onmouseleave = s.ontouchend = s.ontouchcancel = () => {
+          if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+        };
+        s.onclick = () => {
+          if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+          }
+          // "="が含まれる場合は結果部分のみを返す
+          if (item.includes('=')) {
+            expr = item.split('=')[1];
+          } else {
+            expr = item;
+          }
+          inputting = true;
+          updateDisplay(expr);
+        };
+        h.appendChild(s);
+      });
+    }
+    function clearHistory() {
+      calcHistory = [];
+      renderHistory();
+      tabs[activeTab].hist = [];
+    }
+    function historySum() {
+      let sum = 0;
+      for (const c of calcHistory) {
+        let value = c.split('=')[1];
+        if (typeof value === 'string') {
+          value = value.replace(/[^\d.-]/g, '');
+          if (value !== '' && !isNaN(value)) sum += parseFloat(value);
         }
+      }
+      updateDisplay('合計: ' + sum);
+    }
 
-        /**
-         * 数値を3桁区切りでフォーマットします。
-         * @param {string} num - フォーマットする数値の文字列。
-         * @returns {string} フォーマットされた数値の文字列。
-         */
-        function formatNumber(num) {
-            if (num === '' || num === 'エラー' || num === undefined || num === null) return num;
-            const numStr = String(num); // Ensure it's a string
-            const parts = numStr.split('.');
-            if (parts[0]) {
-                parts[0] = parseFloat(parts[0]).toLocaleString('ja-JP');
-            }
-            return parts.join('.');
-        }
+    function getTaxRate() {
+      const radios = document.getElementsByName('taxRate');
+      for (let r of radios) if (r.checked) return parseFloat(r.value);
+      return 0.1;
+    }
+    function applyTaxIn() {
+      if (!expr) return;
+      let v = eval(expr);
+      let tax = getTaxRate();
+      let result = Math.round(v * (1 + tax));
+      addHistory(expr + '（税込' + Math.round(tax * 100) + '%）=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
+    function applyTaxOut() {
+      if (!expr) return;
+      let tax = getTaxRate();
+      let v = eval(expr);
+      let result = Math.round(v / (1 + tax));
+      addHistory(expr + '（税抜' + Math.round(tax * 100) + '%）=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
+    function applyDiscount() {
+      let v = eval(expr);
+      let rate = prompt('割引率（％）を入力:', '10');
+      if (rate === null) return;
+      let r = parseFloat(rate) / 100;
+      let result = Math.round(v * (1 - r));
+      addHistory(expr + '−' + rate + '%=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
+    function applyUp() {
+      let v = eval(expr);
+      let rate = prompt('割増率（％）を入力:', '10');
+      if (rate === null) return;
+      let r = parseFloat(rate) / 100;
+      let result = Math.round(v * (1 + r));
+      addHistory(expr + '＋' + rate + '%=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
 
-        /**
-         * 数字ボタンが押されたときの処理。
-         * @param {string} num - 入力された数字または小数点。
-         */
-        function inputNumber(num) {
-            hideErrorMessage(); // エラーメッセージを隠す
-            hideTaxDisplay(); // 税金表示を非表示にする
+    document.addEventListener('keydown', (e) => {
+      const key = e.key;
+      if ('0123456789'.includes(key)) inputNum(key);
+      if (key === '+' || key === '-' || key === '*' || key === '/') inputOp(key);
+      if (key === 'Enter' || key === '=') calcEqual();
+      if (key === 'Backspace') backspace();
+      if (key === 'Delete') clearEntry();
+      if (key === 'Escape') allClear();
+      if (key === 'Tab') {
+        addTab();
+        e.preventDefault();
+      }
+      if (key === '.') inputNum('.');
+    });
 
-            if (shouldResetDisplay) {
-                currentInput = num; // 新しい数字で開始
-                shouldResetDisplay = false;
-                // previousInput と operator はそのままにする（計算の途中である可能性を考慮）
-            } else {
-                if (currentInput === '0' && num !== '.') {
-                    currentInput = num;
-                } else {
-                    // 小数点が既に存在する場合に再度入力させない
-                    if (num === '.' && currentInput.includes('.')) {
-                        return;
-                    }
-                    currentInput += num;
-                }
-            }
-            saveCurrentTabState(); // タブの状態を保存
-            updateDisplay();
-        }
-
-        /**
-         * 演算子ボタンが押されたときの処理。
-         * @param {string} op - 入力された演算子。
-         */
-        function inputOperator(op) {
-            hideErrorMessage();
-            hideTaxDisplay();
-
-            const num = parseFloat(currentInput);
-
-            if (op === '√') {
-                if (num >= 0) {
-                    const result = Math.sqrt(num);
-                    addToHistory(currentInput, '√', '', result);
-                    currentInput = result.toString();
-                    shouldResetDisplay = true;
-                    previousInput = ''; // 次の計算に備えてクリア
-                    operator = ''; // オペレーターもクリア
-                } else {
-                    currentInput = 'エラー'; // 負の数の平方根
-                    showErrorMessage('負の数の平方根は計算できません');
-                    shouldResetDisplay = true;
-                }
-                saveCurrentTabState();
-                updateDisplay();
-                return;
-            }
-
-            if (op === '^') { // x²
-                const result = Math.pow(num, 2);
-                addToHistory(currentInput, '^2', '', result);
-                currentInput = result.toString();
-                shouldResetDisplay = true;
-                previousInput = ''; // 次の計算に備えてクリア
-                operator = ''; // オペレーターもクリア
-                saveCurrentTabState();
-                updateDisplay();
-                return;
-            }
-
-            if (op === '%') {
-                const result = num / 100;
-                addToHistory(currentInput, '%', '', result);
-                currentInput = result.toString();
-                shouldResetDisplay = true;
-                previousInput = ''; // 次の計算に備えてクリア
-                operator = ''; // オペレーターもクリア
-                saveCurrentTabState();
-                updateDisplay();
-                return;
-            }
-
-            // ここでcalculate()を呼び出さないように変更
-            // ユーザーが明示的に'='を押すまで計算は行わない
-
-            previousInput = currentInput;
-            operator = op;
-            shouldResetDisplay = true;
-            saveCurrentTabState();
-            updateDisplay();
-        }
-
-        /**
-         * 計算を実行します。
-         */
-        function calculate() {
-            hideErrorMessage();
-            hideTaxDisplay();
-
-            // previousInputとoperatorが設定されていない場合（例: 5= のように入力された場合）
-            if (!previousInput || !operator) {
-                // currentInputが数字であれば、それをそのまま結果として表示
-                const num = parseFloat(currentInput);
-                if (!isNaN(num)) {
-                    // historyには追加しないが、ディスプレイは更新
-                    currentInput = num.toString();
-                    shouldResetDisplay = true;
-                } else {
-                    // currentInputがエラーなど無効な場合は何もしないか、エラー表示
-                    if (currentInput !== 'エラー') { // 既にエラーなら何もしない
-                         showErrorMessage('不正な操作です');
-                    }
-                }
-                previousInput = '';
-                operator = '';
-                saveCurrentTabState();
-                updateDisplay();
-                return;
-            }
-            
-            const prev = parseFloat(previousInput);
-            const current = parseFloat(currentInput);
-            let result;
-            
-            switch (operator) {
-                case '+':
-                    result = prev + current;
-                    break;
-                case '-':
-                    result = prev - current;
-                    break;
-                case '*':
-                    result = prev * current;
-                    break;
-                case '/':
-                    if (current === 0) {
-                        showErrorMessage('0で割ることはできません');
-                        currentInput = 'エラー';
-                        shouldResetDisplay = true;
-                        saveCurrentTabState();
-                        updateDisplay();
-                        return;
-                    }
-                    result = prev / current;
-                    break;
-                default:
-                    // 不明なオペレーターの場合、何もしないかエラー
-                    showErrorMessage('不明な演算子です');
-                    return;
-            }
-            
-            addToHistory(previousInput, operator, currentInput, result);
-            currentInput = result.toString();
-            previousInput = '';
-            operator = '';
-            shouldResetDisplay = true;
-            saveCurrentTabState();
-            updateDisplay();
-        }
-
-        /**
-         * 全ての入力と状態をクリアします。
-         */
-        function clearAll() {
-            currentInput = '0';
-            previousInput = '';
-            operator = '';
-            shouldResetDisplay = false;
-            memory = 0; // メモリもクリア
-            saveCurrentTabState();
-            updateDisplay();
-            hideTaxDisplay();
-            hideErrorMessage();
-        }
-
-        /**
-         * 現在の入力をクリアします。
-         */
-        function clearEntry() {
-            currentInput = '0';
-            saveCurrentTabState();
-            updateDisplay();
-            hideTaxDisplay();
-            hideErrorMessage();
-        }
-
-        /**
-         * 最後の文字を削除します。
-         */
-        function backspace() {
-            hideErrorMessage();
-            hideTaxDisplay();
-
-            if (currentInput === 'エラー') {
-                currentInput = '0';
-            } else if (currentInput.length > 1 && currentInput !== '0') {
-                currentInput = currentInput.slice(0, -1);
-            } else {
-                currentInput = '0';
-            }
-            saveCurrentTabState();
-            updateDisplay();
-        }
-
-        /**
-         * 現在の表示値をメモリーに保存します。
-         */
-        function memoryStore() {
-            hideErrorMessage();
-            memory = parseFloat(currentInput);
-            saveCurrentTabState();
-            hideTaxDisplay();
-        }
-
-        /**
-         * メモリーに保存された値を呼び出します。
-         */
-        function memoryRecall() {
-            hideErrorMessage();
-            currentInput = memory.toString();
-            shouldResetDisplay = true; // メモリー呼び出し後も次の入力でリセット
-            saveCurrentTabState();
-            updateDisplay();
-            hideTaxDisplay();
-        }
-
-        /**
-         * 計算履歴に項目を追加します。
-         * @param {string} prev - 以前の入力値。
-         * @param {string} op - 演算子。
-         * @param {string} curr - 現在の入力値。
-         * @param {number} result - 計算結果。
-         */
-        function addToHistory(prev, op, curr, result) {
-            const expression = curr ? `${formatNumber(prev)} ${op} ${formatNumber(curr)}` : `${op}${formatNumber(prev)}`;
-            history.unshift({
-                id: historyItemIdCounter++, // 一意のIDを付与
-                expression: expression,
-                result: result,
-                timestamp: new Date().toLocaleTimeString('ja-JP')
-            });
-            
-            if (history.length > 50) { // 履歴の最大数を50に制限
-                history = history.slice(0, 50);
-            }
-            
-            updateHistoryDisplay();
-        }
-
-        /**
-         * 計算履歴の表示を更新します。
-         */
-        function updateHistoryDisplay() {
-            historyList.innerHTML = '';
-            
-            history.forEach((item) => {
-                const div = document.createElement('div');
-                div.className = 'history-item';
-                div.innerHTML = `
-                    <div class="history-expression">${item.expression}</div>
-                    <div class="history-result">= ${formatNumber(item.result.toString())} <small>(${item.timestamp})</small></div>
-                    <button class="delete-history-item" data-id="${item.id}">x</button>
-                `;
-                // 結果クリックで再利用
-                div.querySelector('.history-result').onclick = () => useHistoryResult(item.result);
-                // 削除ボタンイベントリスナー
-                div.querySelector('.delete-history-item').onclick = (e) => {
-                    e.stopPropagation(); // 親要素のクリックイベントが発火しないようにする
-                    deleteHistoryItem(item.id);
-                };
-                historyList.appendChild(div);
-            });
-        }
-
-        /**
-         * 履歴から特定の項目を削除します。
-         * @param {number} id - 削除する履歴項目のID。
-         */
-        function deleteHistoryItem(id) {
-            history = history.filter(item => item.id !== id);
-            saveCurrentTabState(); // 削除後にタブの状態を保存
-            updateHistoryDisplay();
-        }
-
-
-        /**
-         * 履歴の計算結果を現在の入力値として使用します。
-         * @param {number} result - 履歴から選択された計算結果。
-         */
-        function useHistoryResult(result) {
-            hideErrorMessage();
-            currentInput = result.toString();
-            previousInput = ''; // 新しい計算の開始
-            operator = ''; // オペレーターもクリア
-            shouldResetDisplay = true; // 次の入力でリセット
-            saveCurrentTabState();
-            updateDisplay();
-            hideTaxDisplay();
-        }
-
-        /**
-         * 計算履歴を全てクリアします。
-         */
-        function clearHistory() {
-            history = [];
-            saveCurrentTabState(); // 履歴クリア後にタブの状態を保存
-            updateHistoryDisplay();
-        }
-
-        /**
-         * 履歴内の全ての計算結果を合計します。
-         */
-        function sumHistoryResults() {
-            if (history.length === 0) {
-                alert('履歴に計算結果がありません。');
-                return;
-            }
-            let total = 0;
-            let invalidEntries = 0;
-            history.forEach(item => {
-                const resultNum = parseFloat(item.result);
-                if (!isNaN(resultNum)) {
-                    total += resultNum;
-                } else {
-                    invalidEntries++;
-                }
-            });
-
-            let message = `履歴の合計金額: ¥${formatNumber(total.toFixed(2))}`; // 2桁に丸めて表示
-            if (invalidEntries > 0) {
-                message += `\n(無効な履歴エントリが ${invalidEntries} 件ありました)`;
-            }
-            alert(message);
-        }
-
-        // 飲食店向け機能
-        /**
-         * 消費税率を設定し、UIを更新します。
-         * @param {number} rate - 設定する消費税率 (例: 0.08 for 8%, 0.1 for 10%)
-         */
-        function setTaxRate(rate) {
-            taxRate = rate;
-            // ボタンのアクティブ状態を更新
-            if (taxRate === 0.08) {
-                taxRate8Btn.classList.add('active');
-                taxRate10Btn.classList.remove('active');
-            } else {
-                taxRate8Btn.classList.remove('active');
-                taxRate10Btn.classList.add('active');
-            }
-            taxRateDisplay.textContent = (taxRate * 100) + '%';
-            hideErrorMessage();
-        }
-
-        /**
-         * 税込金額を計算します。
-         */
-        function calculateTax() {
-            hideErrorMessage();
-            const amount = parseFloat(currentInput);
-            if (isNaN(amount)) {
-                showErrorMessage('有効な金額を入力してください');
-                return;
-            }
-            
-            const taxIncludedAmount = amount * (1 + taxRate);
-            const taxAmountValue = taxIncludedAmount - amount; // 税額を計算
-            
-            taxRateDisplay.textContent = (taxRate * 100) + '%';
-            taxAmountDisplay.textContent = taxIncludedAmount.toLocaleString('ja-JP');
-            taxDisplay.style.display = 'block';
-            
-            addToHistory(amount.toString(), `税込(${taxRate * 100}%)`, '', taxIncludedAmount);
-            currentInput = taxIncludedAmount.toString();
-            previousInput = ''; // ここでクリア
-            operator = ''; // ここでクリア
-            shouldResetDisplay = true; // 次の入力でリセット
-            saveCurrentTabState();
-            updateDisplay();
-
-            alert(`元の金額: ¥${formatNumber(amount)}\n消費税(${taxRate * 100}%): ¥${formatNumber(taxAmountValue.toFixed(2))}\n税込金額: ¥${formatNumber(taxIncludedAmount.toFixed(2))}`);
-        }
-
-        /**
-         * 税抜き金額を計算します。
-         */
-        function calculateTaxExcluding() {
-            hideErrorMessage();
-            const amount = parseFloat(currentInput);
-            if (isNaN(amount)) {
-                showErrorMessage('有効な金額を入力してください');
-                return;
-            }
-
-            const taxExcludedAmount = amount / (1 + taxRate);
-            const taxAmountValue = amount - taxExcludedAmount; // 税額を計算
-            
-            taxRateDisplay.textContent = (taxRate * 100) + '%';
-            taxAmountDisplay.textContent = taxExcludedAmount.toLocaleString('ja-JP');
-            taxDisplay.style.display = 'block';
-
-            addToHistory(amount.toString(), `税抜(${taxRate * 100}%)`, '', taxExcludedAmount);
-            currentInput = taxExcludedAmount.toString();
-            previousInput = ''; // ここでクリア
-            operator = ''; // ここでクリア
-            shouldResetDisplay = true; // 次の入力でリセット
-            saveCurrentTabState();
-            updateDisplay();
-
-            alert(`元の金額: ¥${formatNumber(amount)}\n税額(${taxRate * 100}%): ¥${formatNumber(taxAmountValue.toFixed(2))}\n税抜金額: ¥${formatNumber(taxExcludedAmount.toFixed(2))}`);
-        }
-
-        /**
-         * 割増計算を行います。
-         */
-        function calculateMarkup() {
-            hideErrorMessage();
-            const amount = parseFloat(currentInput);
-            if (isNaN(amount)) {
-                showErrorMessage('有効な金額を入力してください');
-                return;
-            }
-            
-            const markupRateStr = prompt('割増率を入力してください（例：10 で10%割増）', '10');
-            if (markupRateStr === null) return; // キャンセルされた場合
-            
-            const markupRate = parseFloat(markupRateStr);
-            if (!isNaN(markupRate) && markupRate >= 0) {
-                const markupAmount = amount * (markupRate / 100);
-                const finalAmount = amount + markupAmount;
-                addToHistory(amount.toString(), `${markupRate}%割増`, '', finalAmount);
-                currentInput = finalAmount.toString();
-                previousInput = ''; // ここでクリア
-                operator = ''; // ここでクリア
-                shouldResetDisplay = true; // 次の入力でリセット
-                saveCurrentTabState();
-                updateDisplay();
-                alert(`元の金額: ¥${formatNumber(amount)}\n割増額: ¥${formatNumber(markupAmount.toFixed(2))}\n最終金額: ¥${formatNumber(finalAmount.toFixed(2))}`);
-            } else {
-                 showErrorMessage('有効な割増率を入力してください。');
-            }
-        }
-
-        /**
-         * 割引計算を行います。
-         */
-        function showDiscount() {
-            hideErrorMessage();
-            const amount = parseFloat(currentInput);
-            if (isNaN(amount)) {
-                showErrorMessage('有効な金額を入力してください');
-                return;
-            }
-            
-            const discountStr = prompt('割引率を入力してください（例：10 で10%off）', '10');
-            if (discountStr === null) return; // キャンセルされた場合
-
-            const discount = parseFloat(discountStr);
-            if (!isNaN(discount) && discount >= 0 && discount <= 100) {
-                const discountAmount = amount * (discount / 100);
-                const finalAmount = amount - discountAmount;
-                addToHistory(amount.toString(), `${discount}%OFF`, '', finalAmount);
-                currentInput = finalAmount.toString();
-                previousInput = ''; // ここでクリア
-                operator = ''; // ここでクリア
-                shouldResetDisplay = true; // 次の入力でリセット
-                saveCurrentTabState();
-                updateDisplay();
-                alert(`元の金額: ¥${formatNumber(amount)}\n割引額: ¥${formatNumber(discountAmount.toFixed(2))}\n最終金額: ¥${formatNumber(finalAmount.toFixed(2))}`);
-            } else {
-                showErrorMessage('有効な割引率を入力してください（0から100の範囲）。');
-            }
-        }
-
-        /**
-         * 税金表示を非表示にします。
-         */
-        function hideTaxDisplay() {
-            taxDisplay.style.display = 'none';
-        }
-
-        /**
-         * エラーメッセージを非表示にします。
-         */
-        function hideErrorMessage() {
-            errorMessageDiv.style.display = 'none';
-        }
-
-        // --- タブ機能のロジック ---
-
-        /**
-         * 現在のタブの状態を保存します。
-         */
-        function saveCurrentTabState() {
-            tabs[currentTabId] = {
-                currentInput: currentInput,
-                previousInput: previousInput,
-                operator: operator,
-                shouldResetDisplay: shouldResetDisplay,
-                memory: memory,
-                history: [...history], // 履歴をディープコピーして保存
-                historyItemIdCounter: historyItemIdCounter // カウンターも保存
-            };
-        }
-
-        /**
-         * 指定されたタブの状態をロードします。
-         * @param {number} tabId - ロードするタブのID。
-         */
-        function loadTabState(tabId) {
-            const state = tabs[tabId];
-            if (state) {
-                currentInput = state.currentInput;
-                previousInput = state.previousInput;
-                operator = state.operator;
-                shouldResetDisplay = state.shouldResetDisplay;
-                memory = state.memory;
-                history = [...(state.history || [])]; // 履歴がない場合は空の配列
-                historyItemIdCounter = state.historyItemIdCounter || 0; // カウンターがない場合は0
-            } else {
-                // 存在しないタブの場合、初期状態にリセット
-                currentInput = '0';
-                previousInput = '';
-                operator = '';
-                shouldResetDisplay = false;
-                memory = 0;
-                history = [];
-                historyItemIdCounter = 0;
-            }
-            updateDisplay();
-            updateHistoryDisplay(); // 履歴表示も更新
-            hideTaxDisplay();
-            hideErrorMessage();
-        }
-
-        /**
-         * タブボタンを生成し、表示を更新します。
-         */
-        function renderTabButtons() {
-            tabButtonsContainer.innerHTML = ''; // 一度クリア
-
-            Object.keys(tabs).sort((a, b) => a - b).forEach(tabId => {
-                const button = document.createElement('button');
-                button.className = `tab-btn ${parseInt(tabId) === currentTabId ? 'active' : ''}`;
-                button.textContent = `タブ${tabId}`;
-                button.onclick = () => switchTab(parseInt(tabId));
-                tabButtonsContainer.appendChild(button);
-            });
-        }
-
-        /**
-         * 新しいタブを追加します。
-         */
-        function addTab() {
-            const newTabId = nextTabId++;
-            tabs[newTabId] = {
-                currentInput: '0',
-                previousInput: '',
-                operator: '',
-                shouldResetDisplay: false,
-                memory: 0,
-                history: [],
-                historyItemIdCounter: 0
-            };
-            switchTab(newTabId); // 新しいタブに切り替える
-            renderTabButtons();
-        }
-
-        /**
-         * タブを切り替えます。
-         * @param {number} tabId - 切り替えるタブのID。
-         */
-        function switchTab(tabId) {
-            saveCurrentTabState(); // 現在のタブの状態を保存
-            currentTabId = tabId; // 現在のタブIDを更新
-            loadTabState(currentTabId); // 新しいタブの状態をロード
-            renderTabButtons(); // タブボタンの表示を更新（アクティブなボタンを変えるため）
-        }
-
-        /**
-         * 現在のタブを削除します。
-         */
-        function deleteTab() {
-            const tabIds = Object.keys(tabs).map(Number).sort((a, b) => a - b);
-            if (tabIds.length <= 1) {
-                showErrorMessage('最後のタブは削除できません。');
-                return;
-            }
-
-            if (confirm(`タブ${currentTabId}を削除しますか？`)) {
-                delete tabs[currentTabId];
-
-                // 削除後、残っているタブの中から次のアクティブなタブを選択
-                const remainingTabIds = Object.keys(tabs).map(Number).sort((a, b) => a - b);
-                if (remainingTabIds.length > 0) {
-                    currentTabId = remainingTabIds[0]; // 最小のIDを持つタブに切り替え
-                } else {
-                    // 全てのタブが削除された場合（実際には最後のタブは削除できないので発生しないはずだが念のため）
-                    addTab(); // 新しいタブを作成
-                }
-                loadTabState(currentTabId);
-                renderTabButtons();
-            }
-        }
-
-        // キーボードサポート
-        document.addEventListener('keydown', function(e) {
-            if (e.key >= '0' && e.key <= '9') {
-                inputNumber(e.key);
-            } else if (e.key === '.') {
-                inputNumber('.');
-            } else if (e.key === '+') {
-                inputOperator('+');
-            } else if (e.key === '-') {
-                inputOperator('-');
-            } else if (e.key === '*' || e.key === 'x' || e.key === 'X') {
-                inputOperator('*');
-            } else if (e.key === '/') {
-                e.preventDefault(); // スラッシュで検索バーが開くのを防ぐ
-                inputOperator('/');
-            } else if (e.key === 'Enter' || e.key === '=') {
-                calculate();
-            } else if (e.key === 'Escape') {
-                clearAll();
-            } else if (e.key === 'Backspace') {
-                backspace();
-            } else if (e.key === 'm' || e.key === 'M') { // Mキーでメモリー関連
-                if (e.shiftKey) { // Shift + M で MR (メモリー呼び出し)
-                    memoryRecall();
-                } else { // M で MS (メモリー保存)
-                    memoryStore();
-                }
-            }
-        });
-
-        // 初期化
-        function initializeCalculator() {
-            nextTabId = 1; // 念のためここで初期化
-            tabs[1] = { // 最初のタブを初期化
-                currentInput: '0',
-                previousInput: '',
-                operator: '',
-                shouldResetDisplay: false,
-                memory: 0,
-                history: [],
-                historyItemIdCounter: 0
-            };
-            switchTab(1); // 初期表示はタブ1
-            setTaxRate(0.1); // 初期税率を10%に設定し、UIを更新
-            updateDisplay();
-        }
-
-        initializeCalculator();
-    </script>
+    renderTabs();
+    loadTabState();
+    document.getElementsByName('taxRate')[1].checked = true;
+  </script>
 </body>
 </html>
