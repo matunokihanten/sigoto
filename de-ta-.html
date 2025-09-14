@@ -644,6 +644,7 @@
             <strong>🚨 重要な注意事項</strong><br>
             このファイルを直接開くと動作しません。Webサーバー経由で開いてください。<br>
             分析中のデータはJSONファイルとして保存・読み込みが可能です。
+            データはブラウザに自動保存されます。
         </div>
 
         <div class="card">
@@ -714,7 +715,7 @@
                     <div class="change" id="avg-spend-change">--</div>
                 </div>
                 <div class="summary-card" data-icon="📊">
-                    <h3>分析期間</h3>
+                    <h3>分析期間(営業日数)</h3>
                     <div class="value" id="analysis-period">0 日</div>
                     <div class="change" id="period-info">--</div>
                 </div>
@@ -845,6 +846,8 @@
         let monthOrder = []; // 月の順序を保持
         let draggedMonth = null; // ドラッグ中の月を保持
 
+        const LOCAL_STORAGE_KEY = 'salesDashboardData';
+
         // DOM要素の取得
         const elements = {
             excelFileInput: document.getElementById('excel-file-input'),
@@ -894,6 +897,46 @@
             elements.dataValidationBtn.addEventListener('click', showDataValidation);
         }
 
+        // --- ローカルストレージ関連 ---
+        function saveDataToLocalStorage() {
+            try {
+                const dataToSave = {
+                    allMonthlyData,
+                    timeLabels,
+                    monthOrder,
+                };
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
+            } catch (error) {
+                console.error("ローカルストレージへの保存に失敗しました:", error);
+                showAlert('error', 'データの自動保存に失敗しました。');
+            }
+        }
+
+        function loadDataFromLocalStorage() {
+            const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (savedData) {
+                try {
+                    const loadedData = JSON.parse(savedData);
+                    allMonthlyData = loadedData.allMonthlyData || [];
+                    timeLabels = loadedData.timeLabels || [];
+                    monthOrder = loadedData.monthOrder || [...new Set(allMonthlyData.map(d => d.month))].sort();
+
+                    if (allMonthlyData.length > 0) {
+                        if (elements.startHourSelect1.options.length === 0 && timeLabels.length > 0) {
+                            populateHourSelects(timeLabels);
+                        }
+                        populateMonthlyList();
+                        updateDashboard();
+                        showAlert('success', '前回のセッションを復元しました。');
+                    }
+                } catch (error) {
+                    console.error("ローカルストレージからの読み込みに失敗しました:", error);
+                    showAlert('error', '保存されたデータの復元に失敗しました。');
+                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+                }
+            }
+        }
+        
         // ドラッグ&ドロップハンドラー (ファイルアップロード用)
         function handleDragOver(e) {
             e.preventDefault();
@@ -930,6 +973,7 @@
 
         function handleDropListItem(e) {
             e.preventDefault();
+            e.target.classList.remove('drag-over');
             const droppedOnMonth = e.target.dataset.month;
             if (droppedOnMonth && draggedMonth !== droppedOnMonth) {
                 const fromIndex = monthOrder.indexOf(draggedMonth);
@@ -937,6 +981,7 @@
                 const item = monthOrder.splice(fromIndex, 1)[0];
                 monthOrder.splice(toIndex, 0, item);
                 populateMonthlyList();
+                saveDataToLocalStorage(); // 並べ替えを保存
             }
         }
         
@@ -945,7 +990,6 @@
             draggedMonth = null;
             document.querySelectorAll('.monthly-data-list li.drag-over').forEach(li => li.classList.remove('drag-over'));
         }
-
 
         function handleFileSelect(e) {
             const file = e.target.files[0];
@@ -1003,6 +1047,7 @@
                     
                     populateMonthlyList();
                     updateDashboard();
+                    saveDataToLocalStorage();
                     showAlert('success', 'セッションが正常に読み込まれました！');
                 } catch (error) {
                     showAlert('error', 'セッションファイルの読み込みに失敗しました。');
@@ -1049,6 +1094,7 @@
             allMonthlyData.push(...newMonthlyData);
             populateMonthlyList();
             updateDashboard();
+            saveDataToLocalStorage();
         }
 
         function findDataIndices(headers) {
@@ -1089,7 +1135,13 @@
             };
         }
 
-        // UI更新
+        // --- データ分析・表示関連 ---
+
+        // 1日の総売上を計算するヘルパー関数
+        function getDayTotalSales(day) {
+            return Object.values(day.sales).reduce((sum, val) => sum + val, 0);
+        }
+
         function populateMonthlyList() {
             elements.monthlyDataList.innerHTML = '';
             const months = monthOrder;
@@ -1116,7 +1168,6 @@
                 elements.monthlyDataList.appendChild(li);
             });
 
-            // 初回データロード時は全て選択
             if (selectedMonths.size === 0 && months.length > 0 && allMonthlyData.length > 0) {
                 months.forEach(month => selectedMonths.add(month));
                 populateMonthlyList();
@@ -1146,7 +1197,6 @@
             updateDashboard();
         }
 
-        // ダッシュボード更新
         function updateDashboard() {
             if (allMonthlyData.length === 0 || selectedMonths.size === 0) {
                 clearMainContentUI();
@@ -1167,7 +1217,11 @@
         function getFilteredData() {
             const filteredByMonth = allMonthlyData.filter(day => selectedMonths.has(day.month));
             const selectedDays = getSelectedDays();
-            return filteredByMonth.filter(day => selectedDays.includes(day.dayOfWeek));
+            
+            // ★メイン分析では売上0円の日（定休日）を除外し、曜日でフィルター
+            return filteredByMonth
+                .filter(day => getDayTotalSales(day) > 0)
+                .filter(day => selectedDays.includes(day.dayOfWeek));
         }
 
         function updateSummaryCards(filteredData) {
@@ -1175,7 +1229,7 @@
             let totalCustomers = 0;
 
             filteredData.forEach(day => {
-                totalSales += Object.values(day.sales).reduce((sum, val) => sum + val, 0);
+                totalSales += getDayTotalSales(day);
                 totalCustomers += Object.values(day.customers).reduce((sum, val) => sum + val, 0);
             });
 
@@ -1189,7 +1243,6 @@
 
         function updateStatistics(filteredData) {
             if (filteredData.length === 0) {
-                 // 統計情報をクリア
                 document.getElementById('max-sales-day').textContent = '--';
                 document.getElementById('min-sales-day').textContent = '--';
                 document.getElementById('max-customers-day').textContent = '--';
@@ -1198,33 +1251,20 @@
             }
 
             const dailyTotals = filteredData.map(day => {
-                const dailySales = Object.values(day.sales).reduce((sum, val) => sum + val, 0);
+                const dailySales = getDayTotalSales(day);
                 const dailyCustomers = Object.values(day.customers).reduce((sum, val) => sum + val, 0);
                 return { date: day.date, sales: dailySales, customers: dailyCustomers };
             });
 
-            const maxSalesDay = dailyTotals.reduce((max, day) => 
-                day.sales > max.sales ? day : max
-            );
-            
-            const minSalesDay = dailyTotals.reduce((min, day) => 
-                day.sales < min.sales ? day : min
-            );
-            
-            const maxCustomersDay = dailyTotals.reduce((max, day) => 
-                day.customers > max.customers ? day : max
-            );
-            
+            const maxSalesDay = dailyTotals.reduce((max, day) => day.sales > max.sales ? day : max);
+            const minSalesDay = dailyTotals.reduce((min, day) => day.sales < min.sales ? day : min);
+            const maxCustomersDay = dailyTotals.reduce((max, day) => day.customers > max.customers ? day : max);
             const avgDailySales = dailyTotals.reduce((sum, day) => sum + day.sales, 0) / dailyTotals.length;
 
-            document.getElementById('max-sales-day').textContent = 
-                `${maxSalesDay.date}\n¥${maxSalesDay.sales.toLocaleString()}`;
-            document.getElementById('min-sales-day').textContent = 
-                `${minSalesDay.date}\n¥${minSalesDay.sales.toLocaleString()}`;
-            document.getElementById('max-customers-day').textContent = 
-                `${maxCustomersDay.date}\n${maxCustomersDay.customers.toLocaleString()}人`;
-            document.getElementById('avg-daily-sales').textContent = 
-                `¥${Math.round(avgDailySales).toLocaleString()}`;
+            document.getElementById('max-sales-day').textContent = `${maxSalesDay.date}\n¥${maxSalesDay.sales.toLocaleString()}`;
+            document.getElementById('min-sales-day').textContent = `${minSalesDay.date}\n¥${minSalesDay.sales.toLocaleString()}`;
+            document.getElementById('max-customers-day').textContent = `${maxCustomersDay.date}\n${maxCustomersDay.customers.toLocaleString()}人`;
+            document.getElementById('avg-daily-sales').textContent = `¥${Math.round(avgDailySales).toLocaleString()}`;
         }
 
         // チャート表示
@@ -1243,18 +1283,10 @@
             const ctx = document.getElementById('main-chart').getContext('2d');
             
             switch (currentChartType) {
-                case 'time':
-                    renderTimeChart(ctx, filteredData);
-                    break;
-                case 'daily':
-                    renderDailyChart(ctx, filteredData);
-                    break;
-                case 'weekly':
-                    renderWeeklyChart(ctx, filteredData);
-                    break;
-                case 'comparison':
-                    renderComparisonChart(ctx, filteredData);
-                    break;
+                case 'time': renderTimeChart(ctx, filteredData); break;
+                case 'daily': renderDailyChart(ctx, filteredData); break;
+                case 'weekly': renderWeeklyChart(ctx, filteredData); break;
+                case 'comparison': renderComparisonChart(ctx, filteredData); break;
             }
         }
 
@@ -1274,51 +1306,16 @@
                 data: {
                     labels: timeLabels,
                     datasets: [
-                        {
-                            label: '平均売上高',
-                            data: salesAverages,
-                            backgroundColor: 'rgba(63, 81, 181, 0.8)',
-                            borderColor: 'rgba(63, 81, 181, 1)',
-                            borderWidth: 2,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: '平均客数',
-                            data: customerAverages,
-                            backgroundColor: 'rgba(255, 87, 34, 0.8)',
-                            borderColor: 'rgba(255, 87, 34, 1)',
-                            borderWidth: 2,
-                            yAxisID: 'y1'
-                        }
+                        { label: '平均売上高', data: salesAverages, backgroundColor: 'rgba(63, 81, 181, 0.8)', yAxisID: 'y' },
+                        { label: '平均客数', data: customerAverages, backgroundColor: 'rgba(255, 87, 34, 0.8)', yAxisID: 'y1' }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: '時間帯別平均売上高・客数',
-                            font: { size: 16, weight: 'bold' }
-                        },
-                        legend: {
-                            position: 'top'
-                        }
-                    },
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '時間帯別平均売上高・客数', font: { size: 16, weight: 'bold' } } },
                     scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: { display: true, text: '平均売上高 (円)' }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: { display: true, text: '平均客数 (人)' },
-                            grid: { drawOnChartArea: false }
-                        }
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: '平均売上高 (円)' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: '平均客数 (人)' }, grid: { drawOnChartArea: false } }
                     }
                 }
             });
@@ -1327,40 +1324,18 @@
         function renderDailyChart(ctx, filteredData) {
             const sortedData = filteredData.sort((a, b) => new Date(a.date.replace(/年|月|日/g, '/')) - new Date(b.date.replace(/年|月|日/g, '/')));
             const labels = sortedData.map(d => d.date);
-            const salesData = sortedData.map(d => 
-                Object.values(d.sales).reduce((sum, val) => sum + val, 0)
-            );
+            const salesData = sortedData.map(d => getDayTotalSales(d));
 
             mainChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [{
-                        label: '日別売上高',
-                        data: salesData,
-                        borderColor: 'rgba(63, 81, 181, 1)',
-                        backgroundColor: 'rgba(63, 81, 181, 0.1)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4
-                    }]
+                    datasets: [{ label: '日別売上高', data: salesData, borderColor: 'rgba(63, 81, 181, 1)', backgroundColor: 'rgba(63, 81, 181, 0.1)', fill: true, tension: 0.4 }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: '日別売上高推移',
-                            font: { size: 16, weight: 'bold' }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: '売上高 (円)' }
-                        }
-                    }
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '日別売上高推移', font: { size: 16, weight: 'bold' } } },
+                    scales: { y: { beginAtZero: true, title: { display: true, text: '売上高 (円)' } } }
                 }
             });
         }
@@ -1368,54 +1343,24 @@
         function renderWeeklyChart(ctx, filteredData) {
             const dayOrder = ['日', '月', '火', '水', '木', '金', '土'];
             const weeklyData = {};
-            
-            dayOrder.forEach(day => {
-                weeklyData[day] = { sales: 0, customers: 0, count: 0 };
-            });
+            dayOrder.forEach(day => { weeklyData[day] = { sales: 0, count: 0 }; });
 
             filteredData.forEach(day => {
                 if (weeklyData[day.dayOfWeek]) {
-                    weeklyData[day.dayOfWeek].sales += 
-                        Object.values(day.sales).reduce((sum, val) => sum + val, 0);
-                    weeklyData[day.dayOfWeek].customers += 
-                        Object.values(day.customers).reduce((sum, val) => sum + val, 0);
+                    weeklyData[day.dayOfWeek].sales += getDayTotalSales(day);
                     weeklyData[day.dayOfWeek].count++;
                 }
             });
 
-            const salesAverages = dayOrder.map(day => 
-                weeklyData[day].count > 0 ? weeklyData[day].sales / weeklyData[day].count : 0
-            );
+            const salesAverages = dayOrder.map(day => weeklyData[day].count > 0 ? weeklyData[day].sales / weeklyData[day].count : 0);
 
             mainChart = new Chart(ctx, {
                 type: 'polarArea',
                 data: {
                     labels: dayOrder,
-                    datasets: [{
-                        label: '曜日別平均売上高',
-                        data: salesAverages,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.6)',
-                            'rgba(54, 162, 235, 0.6)',
-                            'rgba(255, 205, 86, 0.6)',
-                            'rgba(75, 192, 192, 0.6)',
-                            'rgba(153, 102, 255, 0.6)',
-                            'rgba(255, 159, 64, 0.6)',
-                            'rgba(199, 199, 199, 0.6)'
-                        ]
-                    }]
+                    datasets: [{ label: '曜日別平均売上高', data: salesAverages, backgroundColor: ['rgba(255, 99, 132, 0.6)','rgba(54, 162, 235, 0.6)','rgba(255, 205, 86, 0.6)','rgba(75, 192, 192, 0.6)','rgba(153, 102, 255, 0.6)','rgba(255, 159, 64, 0.6)','rgba(199, 199, 199, 0.6)'] }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: '曜日別平均売上高',
-                            font: { size: 16, weight: 'bold' }
-                        }
-                    }
-                }
+                options: { responsive: true, maintainAspectRatio: false, plugins: { title: { display: true, text: '曜日別平均売上高', font: { size: 16, weight: 'bold' } } } }
             });
         }
 
@@ -1426,10 +1371,8 @@
                 if (!monthlyData[day.month]) {
                     monthlyData[day.month] = { sales: 0, customers: 0 };
                 }
-                monthlyData[day.month].sales += 
-                    Object.values(day.sales).reduce((sum, val) => sum + val, 0);
-                monthlyData[day.month].customers += 
-                    Object.values(day.customers).reduce((sum, val) => sum + val, 0);
+                monthlyData[day.month].sales += getDayTotalSales(day);
+                monthlyData[day.month].customers += Object.values(day.customers).reduce((sum, val) => sum + val, 0);
             });
 
             const months = Object.keys(monthlyData).sort();
@@ -1441,44 +1384,16 @@
                 data: {
                     labels: months,
                     datasets: [
-                        {
-                            label: '月別売上高',
-                            data: salesData,
-                            backgroundColor: 'rgba(63, 81, 181, 0.8)',
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: '月別客数',
-                            data: customersData,
-                            backgroundColor: 'rgba(255, 87, 34, 0.8)',
-                            yAxisID: 'y1'
-                        }
+                        { label: '月別売上高', data: salesData, backgroundColor: 'rgba(63, 81, 181, 0.8)', yAxisID: 'y' },
+                        { label: '月別客数', data: customersData, backgroundColor: 'rgba(255, 87, 34, 0.8)', yAxisID: 'y1' }
                     ]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: '月別比較',
-                            font: { size: 16, weight: 'bold' }
-                        }
-                    },
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { title: { display: true, text: '月別比較', font: { size: 16, weight: 'bold' } } },
                     scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: { display: true, text: '売上高 (円)' }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            title: { display: true, text: '客数 (人)' },
-                            grid: { drawOnChartArea: false }
-                        }
+                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: '売上高 (円)' } },
+                        y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: '客数 (人)' }, grid: { drawOnChartArea: false } }
                     }
                 }
             });
@@ -1495,11 +1410,12 @@
             const endHour1 = parseInt(elements.endHourSelect1.value);
             const startHour2 = parseInt(elements.startHourSelect2.value);
             const endHour2 = parseInt(elements.endHourSelect2.value);
+            
+            // ★日別集計テーブルでは売上0円の日も表示するため、ここではフィルターしない
+            const dataForTable = allMonthlyData.filter(day => selectedMonths.has(day.month));
 
-            const filteredData = allMonthlyData.filter(day => selectedMonths.has(day.month));
-
-            const totals1 = calculateTotalsForRange(filteredData, startHour1, endHour1);
-            const totals2 = calculateTotalsForRange(filteredData, startHour2, endHour2);
+            const totals1 = calculateTotalsForRange(dataForTable, startHour1, endHour1);
+            const totals2 = calculateTotalsForRange(dataForTable, startHour2, endHour2);
 
             lastCalculatedTotals = {
                 totals1,
@@ -1544,67 +1460,34 @@
             const s = (start === 0) ? 24 : start;
             const e = (end === 0) ? 24 : end;
             
-            if (s <= e) {
-                return current >= s && current <= e;
-            } else { // 6時から0時 (翌朝) などの夜間をまたぐ場合
-                return current >= s || current <= e;
-            }
+            if (s <= e) return current >= s && current <= e;
+            else return current >= s || current <= e;
         }
 
         function populateDailySummaryTable(data) {
             const headerRow = elements.dailySummaryTable.querySelector('#table-headers-row');
             const tbody = elements.dailySummaryTable.querySelector('tbody');
             
-            headerRow.innerHTML = `
-                <th>日付</th>
-                <th>曜日</th>
-                <th colspan="2">集計範囲1 (${data.range1})</th>
-                <th colspan="2">集計範囲2 (${data.range2})</th>
-            `;
-            
-            tbody.innerHTML = `
-                <tr>
-                    <td></td>
-                    <td></td>
-                    <th>売上高</th>
-                    <th>客数</th>
-                    <th>売上高</th>
-                    <th>客数</th>
-                </tr>
-            `;
+            headerRow.innerHTML = `<th>日付</th><th>曜日</th><th colspan="2">集計範囲1 (${data.range1})</th><th colspan="2">集計範囲2 (${data.range2})</th>`;
+            tbody.innerHTML = `<tr><td></td><td></td><th>売上高</th><th>客数</th><th>売上高</th><th>客数</th></tr>`;
 
             const combinedData = new Map();
-            data.totals1.forEach(item => combinedData.set(item.date, { ...item, totalSales: item.totalSales, totalCustomers: item.totalCustomers }));
+            data.totals1.forEach(item => combinedData.set(item.date, { ...item }));
             data.totals2.forEach(item => {
                 const entry = combinedData.get(item.date);
                 if (entry) {
                     entry.totalSales2 = item.totalSales;
                     entry.totalCustomers2 = item.totalCustomers;
                 } else {
-                    combinedData.set(item.date, {
-                        date: item.date,
-                        dayOfWeek: item.dayOfWeek,
-                        totalSales: 0,
-                        totalCustomers: 0,
-                        totalSales2: item.totalSales,
-                        totalCustomers2: item.totalCustomers
-                    });
+                    combinedData.set(item.date, { date: item.date, dayOfWeek: item.dayOfWeek, totalSales: 0, totalCustomers: 0, totalSales2: item.totalSales, totalCustomers2: item.totalCustomers });
                 }
             });
 
-            const sortedData = Array.from(combinedData.values())
-                .sort((a, b) => new Date(a.date.replace(/年|月|日/g, '/')) - new Date(b.date.replace(/年|月|日/g, '/')));
+            const sortedData = Array.from(combinedData.values()).sort((a, b) => new Date(a.date.replace(/年|月|日/g, '/')) - new Date(b.date.replace(/年|月|日/g, '/')));
 
             sortedData.forEach(day => {
                 const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${day.date}</td>
-                    <td>${day.dayOfWeek}</td>
-                    <td>¥${(day.totalSales || 0).toLocaleString()}</td>
-                    <td>${Math.round(day.totalCustomers || 0).toLocaleString()}人</td>
-                    <td>¥${(day.totalSales2 || 0).toLocaleString()}</td>
-                    <td>${Math.round(day.totalCustomers2 || 0).toLocaleString()}人</td>
-                `;
+                row.innerHTML = `<td>${day.date}</td><td>${day.dayOfWeek}</td><td>¥${(day.totalSales || 0).toLocaleString()}</td><td>${Math.round(day.totalCustomers || 0).toLocaleString()}人</td><td>¥${(day.totalSales2 || 0).toLocaleString()}</td><td>${Math.round(day.totalCustomers2 || 0).toLocaleString()}人</td>`;
             });
             
             elements.dailySummaryTable.classList.remove('hidden');
@@ -1644,148 +1527,56 @@
         }
 
         function validateAllData() {
-            const results = {
-                totalRecords: allMonthlyData.length,
-                missingDates: [],
-                invalidSales: [],
-                invalidCustomers: [],
-                duplicateDates: [],
-                summary: {}
-            };
-
+            const results = { totalRecords: allMonthlyData.length, invalidSales: [], invalidCustomers: [], duplicateDates: [], summary: {} };
             const dateSet = new Set();
             
-            allMonthlyData.forEach((day, index) => {
-                if (dateSet.has(day.date)) {
-                    results.duplicateDates.push(day.date);
-                } else {
-                    dateSet.add(day.date);
-                }
+            allMonthlyData.forEach((day) => {
+                if (dateSet.has(day.date)) results.duplicateDates.push(day.date);
+                else dateSet.add(day.date);
 
-                Object.entries(day.sales).forEach(([time, value]) => {
-                    if (typeof value !== 'number' || isNaN(value) || value < 0) {
-                        results.invalidSales.push(`${day.date} ${time}: ${value}`);
-                    }
-                });
-
-                Object.entries(day.customers).forEach(([time, value]) => {
-                    if (typeof value !== 'number' || isNaN(value) || value < 0) {
-                        results.invalidCustomers.push(`${day.date} ${time}: ${value}`);
-                    }
-                });
+                Object.entries(day.sales).forEach(([time, value]) => { if (typeof value !== 'number' || isNaN(value) || value < 0) results.invalidSales.push(`${day.date} ${time}: ${value}`); });
+                Object.entries(day.customers).forEach(([time, value]) => { if (typeof value !== 'number' || isNaN(value) || value < 0) results.invalidCustomers.push(`${day.date} ${time}: ${value}`); });
             });
 
             results.summary = {
-                isValid: results.invalidSales.length === 0 && 
-                        results.invalidCustomers.length === 0 && 
-                        results.duplicateDates.length === 0,
-                totalIssues: results.invalidSales.length + 
-                           results.invalidCustomers.length + 
-                           results.duplicateDates.length
+                isValid: results.invalidSales.length === 0 && results.invalidCustomers.length === 0 && results.duplicateDates.length === 0,
+                totalIssues: results.invalidSales.length + results.invalidCustomers.length + results.duplicateDates.length
             };
-
             return results;
         }
 
         function displayValidationResults(results) {
             const container = document.getElementById('validation-results');
-            
-            let html = `
-                <div class="alert ${results.summary.isValid ? 'success' : 'warning'}">
-                    <h3>${results.summary.isValid ? '✅ データは正常です' : '⚠️ データに問題があります'}</h3>
-                    <p>総レコード数: ${results.totalRecords}</p>
-                    <p>問題の総数: ${results.summary.totalIssues}</p>
-                </div>
-            `;
-
-            if (results.duplicateDates.length > 0) {
-                html += `
-                    <div class="alert error">
-                        <h4>🔄 重複する日付 (${results.duplicateDates.length}件)</h4>
-                        <ul>
-                            ${results.duplicateDates.slice(0, 10).map(date => `<li>${date}</li>`).join('')}
-                        </ul>
-                        ${results.duplicateDates.length > 10 ? '<p>...他にもあります</p>' : ''}
-                    </div>
-                `;
-            }
-
-            if (results.invalidSales.length > 0) {
-                html += `
-                    <div class="alert error">
-                        <h4>💰 無効な売上データ (${results.invalidSales.length}件)</h4>
-                        <ul>
-                            ${results.invalidSales.slice(0, 10).map(item => `<li>${item}</li>`).join('')}
-                        </ul>
-                        ${results.invalidSales.length > 10 ? '<p>...他にもあります</p>' : ''}
-                    </div>
-                `;
-            }
-
-            if (results.invalidCustomers.length > 0) {
-                html += `
-                    <div class="alert error">
-                        <h4>👥 無効な客数データ (${results.invalidCustomers.length}件)</h4>
-                        <ul>
-                            ${results.invalidCustomers.slice(0, 10).map(item => `<li>${item}</li>`).join('')}
-                        </ul>
-                        ${results.invalidCustomers.length > 10 ? '<p>...他にもあります</p>' : ''}
-                    </div>
-                `;
-            }
-
+            let html = `<div class="alert ${results.summary.isValid ? 'success' : 'warning'}"><h3>${results.summary.isValid ? '✅ データは正常です' : '⚠️ データに問題があります'}</h3><p>総レコード数: ${results.totalRecords}</p><p>問題の総数: ${results.summary.totalIssues}</p></div>`;
+            if (results.duplicateDates.length > 0) html += `<div class="alert error"><h4>🔄 重複する日付 (${results.duplicateDates.length}件)</h4><ul>${results.duplicateDates.slice(0, 10).map(date => `<li>${date}</li>`).join('')}</ul>${results.duplicateDates.length > 10 ? '<p>...他にもあります</p>' : ''}</div>`;
+            if (results.invalidSales.length > 0) html += `<div class="alert error"><h4>💰 無効な売上データ (${results.invalidSales.length}件)</h4><ul>${results.invalidSales.slice(0, 10).map(item => `<li>${item}</li>`).join('')}</ul>${results.invalidSales.length > 10 ? '<p>...他にもあります</p>' : ''}</div>`;
+            if (results.invalidCustomers.length > 0) html += `<div class="alert error"><h4>👥 無効な客数データ (${results.invalidCustomers.length}件)</h4><ul>${results.invalidCustomers.slice(0, 10).map(item => `<li>${item}</li>`).join('')}</ul>${results.invalidCustomers.length > 10 ? '<p>...他にもあります</p>' : ''}</div>`;
             container.innerHTML = html;
         }
 
         // セッション管理
         function saveSession() {
-            if (allMonthlyData.length === 0) {
-                showAlert('warning', '保存するデータがありません。');
-                return;
-            }
-
+            if (allMonthlyData.length === 0) { showAlert('warning', '保存するデータがありません。'); return; }
             try {
-                const dataToSave = {
-                    allMonthlyData,
-                    timeLabels,
-                    monthOrder,
-                    savedAt: new Date().toISOString(),
-                    version: '2.1'
-                };
-                
+                const dataToSave = { allMonthlyData, timeLabels, monthOrder, savedAt: new Date().toISOString(), version: '2.2' };
                 const json = JSON.stringify(dataToSave, null, 2);
                 const blob = new Blob([json], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
-                
                 const a = document.createElement('a');
-                a.href = url;
-                a.download = `売上分析セッション_${new Date().toISOString().slice(0, 10)}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                a.href = url; a.download = `売上分析セッション_${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                
                 showAlert('success', 'セッションがJSONファイルとして保存されました。');
-            } catch (error) {
-                showAlert('error', 'セッションの保存に失敗しました。');
-                console.error(error);
-            }
+            } catch (error) { showAlert('error', 'セッションの保存に失敗しました。'); console.error(error); }
         }
 
         function clearAllData() {
-            if (!confirm('すべての読み込み済みデータをクリアしますか？この操作は元に戻せません。')) {
-                return;
-            }
-
-            allMonthlyData = [];
-            timeLabels = [];
-            selectedMonths.clear();
-            lastCalculatedTotals = {};
-            monthOrder = [];
-            
+            if (!confirm('すべての読み込み済みデータをクリアしますか？この操作は元に戻せません。')) return;
+            allMonthlyData = []; timeLabels = []; selectedMonths.clear();
+            lastCalculatedTotals = {}; monthOrder = [];
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
             populateMonthlyList();
             clearMainContentUI();
-            
             showAlert('success', 'すべてのデータがクリアされました。');
         }
 
@@ -1795,19 +1586,16 @@
             elements.dailySummaryTable.classList.add('hidden');
             elements.mainContent.classList.add('hidden');
             elements.dragDropArea.classList.remove('hidden');
-            
             document.getElementById('total-sales-sum').textContent = '¥0';
             document.getElementById('total-customers-sum').textContent = '0 人';
             document.getElementById('avg-customer-spend').textContent = '¥0';
             document.getElementById('analysis-period').textContent = '0 日';
-            
             elements.loadedDataCount.textContent = '0';
             elements.monthlyDataList.innerHTML = '';
         }
 
         function getSelectedDays() {
-            return Array.from(document.querySelectorAll('input[name="day-filter"]:checked'))
-                .map(checkbox => checkbox.value);
+            return Array.from(document.querySelectorAll('input[name="day-filter"]:checked')).map(checkbox => checkbox.value);
         }
 
         function filterDataAndRefreshDashboard() {
@@ -1816,121 +1604,67 @@
         }
 
         function populateHourSelects(labels) {
-            const selects = [
-                elements.startHourSelect1, elements.endHourSelect1,
-                elements.startHourSelect2, elements.endHourSelect2
-            ];
-            
+            const selects = [elements.startHourSelect1, elements.endHourSelect1, elements.startHourSelect2, elements.endHourSelect2];
             selects.forEach(select => {
                 select.innerHTML = '';
                 labels.forEach(label => {
                     const value = parseInt(label.replace('時', ''));
                     const option = document.createElement('option');
-                    option.value = value;
-                    option.textContent = label;
+                    option.value = value; option.textContent = label;
                     select.appendChild(option);
                 });
             });
-            
-            elements.startHourSelect1.value = 10;
-            elements.endHourSelect1.value = 15;
-            elements.startHourSelect2.value = 6;
-            elements.endHourSelect2.value = 0;
+            elements.startHourSelect1.value = 10; elements.endHourSelect1.value = 15;
+            elements.startHourSelect2.value = 6; elements.endHourSelect2.value = 0;
         }
 
         // ユーティリティ関数
         function parseNumber(value) {
             if (typeof value === 'number') return value;
-            if (typeof value === 'string') {
-                const parsed = parseFloat(value.replace(/[^0-9.-]+/g, ""));
-                return isNaN(parsed) ? 0 : parsed;
-            }
+            if (typeof value === 'string') { const parsed = parseFloat(value.replace(/[^0-9.-]+/g, "")); return isNaN(parsed) ? 0 : parsed; }
             return 0;
         }
 
         function parseDate(excelDate) {
-            if (typeof excelDate === 'number') {
-                const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
-                return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-            }
-            if (typeof excelDate === 'string') {
-                try {
-                    const date = new Date(excelDate);
-                    if (!isNaN(date)) {
-                        return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
-                    }
-                } catch(e) {}
-            }
+            if (typeof excelDate === 'number') { const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000)); return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`; }
+            if (typeof excelDate === 'string') { try { const date = new Date(excelDate); if (!isNaN(date)) return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`; } catch(e) {} }
             return excelDate;
         }
 
         function parseMonth(excelDate) {
             let date;
-            if (typeof excelDate === 'number') {
-                date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
-            } else if (typeof excelDate === 'string') {
-                try {
-                     date = new Date(excelDate.replace(/年|月|日/g, '/'));
-                     if (isNaN(date)) return '不明な月';
-                } catch (e) { return '不明な月'; }
-            } else {
-                return '不明な月';
-            }
+            if (typeof excelDate === 'number') date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
+            else if (typeof excelDate === 'string') { try { date = new Date(excelDate.replace(/年|月|日/g, '/')); if (isNaN(date)) return '不明な月'; } catch (e) { return '不明な月'; } }
+            else return '不明な月';
             return `${date.getFullYear()}年${date.getMonth() + 1}月`;
         }
 
-        function updateProgress(percent) {
-            elements.uploadProgress.style.width = `${percent}%`;
-        }
+        function updateProgress(percent) { elements.uploadProgress.style.width = `${percent}%`; }
 
         function showAlert(type, message) {
             const alert = document.createElement('div');
-            alert.className = `alert ${type}`;
-            alert.textContent = message;
-            
+            alert.className = `alert ${type}`; alert.textContent = message;
             elements.alertsContainer.appendChild(alert);
-            
-            setTimeout(() => {
-                alert.style.opacity = '0';
-                setTimeout(() => {
-                    if (alert.parentNode) {
-                        alert.parentNode.removeChild(alert);
-                    }
-                }, 300);
-            }, 5000);
+            setTimeout(() => { alert.style.opacity = '0'; setTimeout(() => { if (alert.parentNode) alert.parentNode.removeChild(alert); }, 300); }, 5000);
         }
 
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
-        }
+        function closeModal(modalId) { document.getElementById(modalId).classList.remove('active'); }
 
         function toggleTheme() {
             const body = document.body;
-            const currentTheme = body.getAttribute('data-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            
+            const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
             body.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
-            
             showAlert('info', `${newTheme === 'dark' ? 'ダーク' : 'ライト'}テーマに切り替えました。`);
         }
 
         // 初期化
         function init() {
             initializeEventListeners();
-            
             const savedTheme = localStorage.getItem('theme');
-            if (savedTheme) {
-                document.body.setAttribute('data-theme', savedTheme);
-            }
-            
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        modal.classList.remove('active');
-                    }
-                });
-            });
+            if (savedTheme) document.body.setAttribute('data-theme', savedTheme);
+            document.querySelectorAll('.modal').forEach(modal => { modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('active'); }); });
+            loadDataFromLocalStorage();
         }
 
         // アプリケーション開始
