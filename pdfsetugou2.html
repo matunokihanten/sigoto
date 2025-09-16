@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF・画像結合ツール</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        #app {
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 700px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        #drop-area {
+            border: 3px dashed #a8d0e6;
+            border-radius: 10px;
+            padding: 40px 20px;
+            margin-bottom: 30px;
+            background-color: #e8f5fd;
+            cursor: pointer;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        #drop-area.highlight {
+            background-color: #d0efff;
+            border-color: #5cb3e6;
+        }
+
+        #drop-area p {
+            margin: 0;
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        #drop-area label {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        #drop-area label:hover {
+            color: #0056b3;
+        }
+
+        #file-list-container {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+
+        #file-list-container h2 {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        #file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            max-height: 250px; /* ここを調整してスマホでもスクロールしないように */
+            overflow-y: auto;
+            background-color: #fdfdfd;
+        }
+        
+        #file-list li {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95em;
+            color: #444;
+        }
+
+        #file-list li:last-child {
+            border-bottom: none;
+        }
+
+        #file-list li.placeholder {
+            color: #888;
+            font-style: italic;
+        }
+
+        .remove-file {
+            background: none;
+            border: none;
+            color: #dc3545;
+            font-size: 1.2em;
+            cursor: pointer;
+            padding: 0 5px;
+            transition: color 0.2s ease;
+        }
+
+        .remove-file:hover {
+            color: #c82333;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            margin-top: 10px;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #clear-files {
+            background-color: #6c757d;
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 0.9em;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #clear-files:hover:not(:disabled) {
+            background-color: #5a6268;
+        }
+
+        #status-message {
+            margin-top: 25px;
+            font-size: 1.1em;
+            color: #007bff;
+            min-height: 25px; /* Ensure space even if empty */
+        }
+
+        #status-message.error {
+            color: #dc3545;
+        }
+
+        #download-area {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        #download-area h2 {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        #download-link {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.1em;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+        }
+
+        #download-link:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>PDF・画像結合ツール</h1>
+
+        <div id="drop-area">
+            <p>PDFファイルや画像ファイル（JPG, PNG）をここにドラッグ＆ドロップするか、<label for="file-input">クリックして選択</label>してください。</p>
+            <input type="file" id="file-input" accept=".pdf, .jpg, .jpeg, .png" multiple style="display: none;">
+        </div>
+
+        <div id="file-list-container">
+            <h2>選択中のファイル</h2>
+            <ul id="file-list">
+                <li class="placeholder">ファイルが選択されていません。</li>
+            </ul>
+            <button id="clear-files" style="display: none;">選択ファイルをクリア</button>
+        </div>
+
+        <button id="merge-button" disabled>PDFを結合</button>
+
+        <div id="status-message"></div>
+
+        <div id="download-area" style="display: none;">
+            <h2>結合済みPDF</h2>
+            <a id="download-link" download="combined.pdf">ダウンロード</a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script>
+        // pdf-libライブラリのPDFDocumentオブジェクトをグローバルスコープから取得
+        const { PDFDocument } = PDFLib;
+
+        // DOM要素の取得
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('file-input');
+        const fileListUl = document.getElementById('file-list');
+        const mergeButton = document.getElementById('merge-button');
+        const statusMessage = document.getElementById('status-message');
+        const downloadArea = document.getElementById('download-area');
+        const downloadLink = document.getElementById('download-link');
+        const clearFilesButton = document.getElementById('clear-files');
+
+        // 選択されたファイル（Fileオブジェクト）を格納する配列
+        let selectedFiles = [];
+
+        // UIを初期状態にリセットする関数
+        function resetUI() {
+            selectedFiles = [];
+            updateFileListUI();
+            mergeButton.disabled = true;
+            statusMessage.textContent = '';
+            statusMessage.className = ''; // Remove error class if present
+            downloadArea.style.display = 'none';
+            downloadLink.href = '#';
+            clearFilesButton.style.display = 'none';
+        }
+
+        // ファイルリストのUIを更新する関数
+        function updateFileListUI() {
+            fileListUl.innerHTML = ''; // リストをクリア
+
+            if (selectedFiles.length === 0) {
+                const li = document.createElement('li');
+                li.className = 'placeholder';
+                li.textContent = 'ファイルが選択されていません。';
+                fileListUl.appendChild(li);
+                mergeButton.disabled = true;
+                clearFilesButton.style.display = 'none';
+            } else {
+                selectedFiles.forEach((file, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = file.name;
+
+                    const removeButton = document.createElement('button');
+                    removeButton.className = 'remove-file';
+                    removeButton.textContent = '×';
+                    removeButton.title = `${file.name} を削除`;
+                    removeButton.onclick = (e) => {
+                        e.stopPropagation(); // Prevent li click if any
+                        removeFile(index);
+                    };
+
+                    li.appendChild(removeButton);
+                    fileListUl.appendChild(li);
+                });
+                mergeButton.disabled = false;
+                clearFilesButton.style.display = 'block';
+            }
+        }
+
+        // ファイルをリストから削除する関数
+        function removeFile(index) {
+            selectedFiles.splice(index, 1); // 指定されたインデックスのファイルを削除
+            updateFileListUI(); // UIを更新
+            showStatus(''); // ステータスをクリア
+            downloadArea.style.display = 'none'; // ダウンロードエリアを非表示
+        }
+
+        // ステータスメッセージを表示する関数
+        function showStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = isError ? 'error' : '';
+        }
+
+        // ファイルを処理する関数 (ドラッグ＆ドロップまたはファイル選択)
+        function handleFiles(files) {
+            showStatus(''); // Clear previous status
+            downloadArea.style.display = 'none'; // Hide download area
+
+            const supportedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif']; // GIFも受け入れるが、pdf-libで直接埋め込むのはJPG/PNGのみ
+
+            const newFiles = Array.from(files).filter(file => {
+                if (supportedTypes.includes(file.type)) {
+                    return true;
+                } else {
+                    showStatus(`"${file.name}" はサポートされていないファイル形式です。PDF、JPG、PNGファイルのみ選択してください。`, true);
+                    return false;
+                }
+            });
+
+            // 既存のファイルと重複しないように追加
+            newFiles.forEach(newFile => {
+                const exists = selectedFiles.some(existingFile => 
+                    existingFile.name === newFile.name && existingFile.size === newFile.size
+                );
+                if (!exists) {
+                    selectedFiles.push(newFile);
+                }
+            });
+
+            updateFileListUI();
+        }
+
+        // --- イベントリスナーの設定 ---
+
+        // ドラッグオーバー時の処理 (ドロップを許可するために必要)
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault(); // デフォルトの動作（ファイルを開く）を抑制
+            dropArea.classList.add('highlight'); // ハイライト表示
+            showStatus('ここにファイルをドロップしてください。');
+        });
+
+        // ドラッグエリアから離れた時の処理
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.classList.remove('highlight'); // ハイライト解除
+            showStatus(''); // ステータスをクリア
+        });
+
+        // ドロップ時の処理
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault(); // デフォルトの動作を抑制
+            dropArea.classList.remove('highlight'); // ハイライト解除
+
+            const files = e.dataTransfer.files; // ドロップされたファイルを取得
+            handleFiles(files);
+        });
+
+        // ファイル入力が変更された時の処理 (クリックして選択)
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files; // 選択されたファイルを取得
+            handleFiles(files);
+            fileInput.value = ''; // 同じファイルを再度選択できるようにクリア
+        });
+
+        // ドロップエリアクリックでファイル選択ダイアログを開く
+        dropArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 選択ファイルをクリアボタン
+        clearFilesButton.addEventListener('click', resetUI);
+
+        // PDF結合ボタンクリック時の処理
+        mergeButton.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) {
+                showStatus('結合するファイルが選択されていません。', true);
+                return;
+            }
+
+            mergeButton.disabled = true; // 結合中はボタンを無効化
+            showStatus('PDFを結合しています...しばらくお待ちください。');
+            downloadArea.style.display = 'none'; // ダウンロードエリアを非表示
+
+            try {
+                const mergedPdf = await PDFDocument.create(); // 新しいPDFドキュメントを作成
+
+                for (const file of selectedFiles) {
+                    const arrayBuffer = await file.arrayBuffer(); // ファイルをArrayBufferとして読み込む
+
+                    if (file.type === 'application/pdf') {
+                        const pdfDoc = await PDFDocument.load(arrayBuffer); // 既存のPDFを読み込む
+                        // 既存のPDFの全ページを新しいPDFにコピー
+                        const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
+                        copiedPages.forEach((page) => mergedPdf.addPage(page)); // コピーしたページを追加
+                    } else if (file.type === 'image/jpeg' || file.type === 'image/png') {
+                        let image;
+                        if (file.type === 'image/jpeg') {
+                            image = await mergedPdf.embedJpg(arrayBuffer);
+                        } else { // image/png
+                            image = await mergedPdf.embedPng(arrayBuffer);
+                        }
+
+                        // 画像の元のサイズを取得
+                        const imageDims = image.scale(1); 
+                        // 画像のサイズに合わせた新しいページを追加
+                        const page = mergedPdf.addPage([imageDims.width, imageDims.height]); 
+                        // ページ全体に画像を配置
+                        page.drawImage(image, {
+                            x: 0,
+                            y: 0,
+                            width: imageDims.width,
+                            height: imageDims.height,
+                        });
+                    } else {
+                        // ここには到達しないはずだが、念のため
+                        console.warn(`サポートされていないファイル形式が選択されました: ${file.name} (${file.type})`);
+                        showStatus(`"${file.name}" はサポートされていないファイル形式のためスキップされました。`, true);
+                    }
+                }
+
+                const mergedPdfBytes = await mergedPdf.save(); // 結合されたPDFをバイトデータとして取得
+                const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' }); // Blobを作成
+                const url = URL.createObjectURL(blob); // オブジェクトURLを生成
+
+                downloadLink.href = url; // ダウンロードリンクのURLを設定
+                downloadLink.download = '結合済みPDF.pdf'; // ダウンロード時のファイル名を設定
+                downloadArea.style.display = 'block'; // ダウンロードエリアを表示
+
+                showStatus('PDFの結合が完了しました！');
+            } catch (error) {
+                console.error('ファイル結合エラー:', error);
+                showStatus(`ファイルの結合中にエラーが発生しました: ${error.message}`, true);
+            } finally {
+                mergeButton.disabled = false; // 処理完了後にボタンを有効化
+            }
+        });
+
+        // 初期UIの更新
+        updateFileListUI();
+    </script>
+</body>
+</html>
