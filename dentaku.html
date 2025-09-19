@@ -37,11 +37,11 @@
       margin-bottom: 18px;
       border-radius: 10px;
       overflow: hidden;
-      overflow-x: auto;
-      white-space: nowrap;
+      overflow-x: auto; /* 水平スクロールを追加 */
+      white-space: nowrap; /* タブが改行しないように */
     }
     .calc-tab {
-      flex-shrink: 0;
+      flex-shrink: 0; /* タブが縮まないように */
       padding: 8px 12px;
       background: #444;
       border: none;
@@ -52,7 +52,7 @@
       transition: background 0.2s ease-in-out, color 0.2s ease-in-out;
       overflow: hidden;
       text-overflow: ellipsis;
-      position: relative;
+      position: relative; /* 削除ボタンの配置のため */
     }
     .calc-tab.active {
       background: #666;
@@ -63,7 +63,7 @@
       margin-left: 6px;
       cursor: pointer;
       font-weight: bold;
-      position: absolute;
+      position: absolute; /* 削除ボタンを絶対位置に配置 */
       right: 2px;
       top: 2px;
       font-size: 0.8em;
@@ -157,10 +157,10 @@
     .calc-tax-group {
       margin: 15px 0;
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: nowrap; /* 1行配置 */
       justify-content: space-around;
       gap: 8px;
-      overflow-x: auto;
+      overflow-x: auto; /* 水平スクロールを追加 */
     }
     .calc-tax-group label {
       white-space: nowrap;
@@ -168,41 +168,12 @@
       align-items: center;
       color: #ccc;
       font-size: 0.9em;
-      flex-shrink: 0;
+      flex-shrink: 0; /* 縮まないように */
     }
     .calc-tax-group input[type='radio'] {
       margin-right: 5px;
       transform: scale(1.2);
     }
-    .calc-tax-add-btn {
-      background: #5c6bc0;
-      color: #fff;
-      font-size: 1em;
-      padding: 10px 15px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    /* 追加：特殊ボタンの削除ボタンのスタイル */
-    .special-btn-del-btn {
-        position: absolute;
-        top: 2px;
-        right: 2px;
-        color: #f55;
-        cursor: pointer;
-        font-weight: bold;
-        font-size: 0.8em;
-        line-height: 1;
-        background-color: #444;
-        border-radius: 50%;
-        padding: 1px 3px;
-        display: none; /* 初期状態では非表示 */
-    }
-
     .history-title {
       margin: 18px 0 8px;
       font-size: 1.1em;
@@ -257,17 +228,10 @@
     }
 
     @media (max-width: 410px) {
-      body {
-        padding: 0;
-      }
       .calc-app {
-        max-width: 100%;
+        max-width: 98vw;
         padding: 15px 3vw 15px;
-        border-radius: 0;
-        min-height: 100vh;
-      }
-      .calc-btns {
-        gap: 8px;
+        margin: 10px auto;
       }
       .calc-btns button,
       .calc-special-btn {
@@ -277,12 +241,8 @@
       .calc-display {
         font-size: 2em;
         min-height: auto;
-        padding: 15px;
       }
-      .calc-tax-group {
-        gap: 6px;
-      }
-      .calc-special-btn {
+      .calc-tax-group .calc-special-btn {
         padding: 8px 10px;
         font-size: 1em;
       }
@@ -299,18 +259,10 @@
     <div class="calc-tax-group" id="taxGroup">
       <label><input type="radio" name="taxRate" value="0.08" />8%</label>
       <label><input type="radio" name="taxRate" value="0.10" checked />10%</label>
-      <button class="calc-special-btn" onclick="applyTaxIn()">
-        <span class="material-icons">receipt_long</span>税込
-      </button>
-      <button class="calc-special-btn" onclick="applyTaxOut()">
-        <span class="material-icons">receipt_long</span>税抜
-      </button>
-      <button class="calc-special-btn" onclick="applyDiscount()">
-        <span class="material-icons">local_offer</span>割引
-      </button>
-      <button class="calc-special-btn" onclick="applyUp()">
-        <span class="material-icons">add_shopping_cart</span>割増
-      </button>
+      <button class="calc-special-btn" onclick="applyTaxIn()"><span class="material-icons">receipt_long</span>税込</button>
+      <button class="calc-special-btn" onclick="applyTaxOut()"><span class="material-icons">receipt_long</span>税抜</button>
+      <button class="calc-special-btn" onclick="applyDiscount()"><span class="material-icons">local_offer</span>割引</button>
+      <button class="calc-special-btn" onclick="applyUp()"><span class="material-icons">add_shopping_cart</span>割増</button>
     </div>
     <div class="calc-btns">
       <button onclick="inputNum('7')">7</button>
@@ -404,7 +356,7 @@
         tabEl.appendChild(t);
       });
     }
-    
+
     function switchTab(i) {
       saveTabState();
       activeTab = i;
