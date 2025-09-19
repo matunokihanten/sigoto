@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -177,6 +176,14 @@
         .tag-remove:hover {
             color: #ffdddd;
         }
+        .tag-rename {
+            cursor: pointer;
+            margin-left: 5px;
+            font-size: 0.9em;
+        }
+        .tag-rename:hover {
+            color: #ffdddd;
+        }
         .links-area {
             margin-top: 20px;
             padding: 15px;
@@ -319,7 +326,7 @@
     <div class="container">
         <h1>リンク抽出ツール</h1>
         <div id="messageArea" class="message-area"></div>
-        
+
         <div class="radio-group">
             <label>
                 <input type="radio" name="extractionMode" value="auto" checked>
@@ -330,26 +337,26 @@
                 CSSセレクタで指定
             </label>
         </div>
-        
+
         <div id="selectorContainer" style="display:none;">
             <input type="text" id="cssSelector" class="selector-input" placeholder="例: ul.list li a">
         </div>
-        
+
         <textarea id="htmlInput" placeholder="ここにHTML断片を貼り付けてください..."></textarea>
-        
+
         <div class="button-group">
             <button id="pasteBtn" class="btn btn-secondary"><i class="fas fa-paste"></i> 貼り付け</button>
             <button id="clearBtn" class="btn btn-secondary"><i class="fas fa-trash"></i> クリア</button>
             <button id="extractBtn" class="btn"><i class="fas fa-search"></i> リンクを抽出</button>
             <button id="generateBtn" class="btn btn-success"><i class="fas fa-file-code"></i> HTML生成</button>
         </div>
-        
+
         <div class="button-group">
             <button id="saveExcelBtn" class="btn"><i class="fas fa-file-excel"></i> Excelで保存</button>
             <input type="file" id="loadExcelInput" class="file-input" accept=".xlsx,.xls">
             <button id="loadExcelBtn" class="btn"><i class="fas fa-folder-open"></i> Excelから読込</button>
         </div>
-        
+
         <div class="tag-management">
             <h2>タグの管理</h2>
             <div class="tag-input-group">
@@ -358,7 +365,7 @@
             </div>
             <div id="tagsList" class="tags-list"></div>
         </div>
-        
+
         <div id="linksArea" class="links-area" style="display:none;">
             <h2>リンクの選択</h2>
             <div style="margin-bottom: 10px;">
@@ -368,7 +375,7 @@
             <div id="linksContainer"></div>
         </div>
     </div>
-    
+
     <div id="tagModal" class="modal">
         <div class="modal-content">
             <span class="modal-close">&times;</span>
@@ -380,7 +387,6 @@
             </div>
         </div>
     </div>
-
     <script>
     (function() {
         const config = {
@@ -498,7 +504,7 @@
             anchorElements.forEach(aTag => {
                 const url = aTag.href;
                 const name = aTag.textContent.trim();
-                
+
                 if (!name || url.includes('a8.net')) return;
 
                 // 自動タグの抽出
@@ -535,7 +541,7 @@
                     tags: uniqueTags.length > 0 ? uniqueTags : ['未分類'],
                     checked: true
                 };
-                
+
                 extracted.push(linkData);
                 linkData.tags.forEach(tag => availableTags.add(tag));
             });
@@ -563,7 +569,7 @@
                         </div>
                     </div>
                 `;
-                
+
                 const checkbox = linkItem.querySelector('input[type="checkbox"]');
                 checkbox.addEventListener('change', (e) => {
                     link.checked = e.target.checked;
@@ -596,14 +602,45 @@
             showMessage(`タグ「${newTag}」を追加しました。`);
         });
 
+        // タグ名変更
+        function renameTag(oldTag) {
+            const newTag = prompt(`「${oldTag}」を新しいタグ名に変更してください：`);
+            if (newTag === null || newTag.trim() === '') {
+                showMessage('タグ名の変更をキャンセルしました。', true);
+                return;
+            }
+            const trimmedNewTag = newTag.trim();
+            if (availableTags.has(trimmedNewTag)) {
+                showMessage('そのタグ名は既に存在します。', true);
+                return;
+            }
+
+            // 全てのリンクのタグを更新
+            extractedLinks.forEach(link => {
+                link.tags = link.tags.map(tag => tag === oldTag ? trimmedNewTag : tag);
+            });
+
+            // availableTagsセットを更新
+            availableTags.delete(oldTag);
+            availableTags.add(trimmedNewTag);
+
+            renderTags();
+            displayLinks();
+            showMessage(`タグ「${oldTag}」を「${trimmedNewTag}」に変更しました。`);
+        }
+
         // タグ表示
         function renderTags() {
             tagsList.innerHTML = '';
             Array.from(availableTags).sort().forEach(tag => {
                 const tagItem = document.createElement('div');
                 tagItem.classList.add('tag-item');
-                tagItem.innerHTML = `<span>${tag}</span><span class="tag-remove" data-tag="${tag}">&times;</span>`;
-                
+                tagItem.innerHTML = `
+                    <span>${tag}</span>
+                    <i class="fas fa-pen tag-rename" data-tag="${tag}"></i>
+                    <span class="tag-remove" data-tag="${tag}">&times;</span>
+                `;
+
                 const removeBtn = tagItem.querySelector('.tag-remove');
                 removeBtn.addEventListener('click', () => {
                     if (confirm(`タグ「${tag}」を削除しますか？`)) {
@@ -617,7 +654,12 @@
                         showMessage(`タグ「${tag}」を削除しました。`);
                     }
                 });
-                
+
+                const renameBtn = tagItem.querySelector('.tag-rename');
+                renameBtn.addEventListener('click', () => {
+                    renameTag(tag);
+                });
+
                 tagsList.appendChild(tagItem);
             });
         }
@@ -701,8 +743,8 @@
                     const prefix = link.name.substring(0, 3);
                     const [color1, color2] = getButtonColors(prefix);
                     linkHtml += `
-                        <a href="${link.url}" target="_blank" class="button-link" 
-                           style="background: linear-gradient(145deg, ${color1}, ${color2});">
+                        <a href="${link.url}" target="_blank" class="button-link"
+                            style="background: linear-gradient(145deg, ${color1}, ${color2});">
                             ${link.name}
                         </a>
                     `;
@@ -755,7 +797,7 @@
             }
 
             const wb = XLSX.utils.book_new();
-            
+
             // リンクデータシート
             const linksData = extractedLinks.map(link => ({
                 'ID': link.id,
@@ -790,16 +832,16 @@
                 try {
                     const data = new Uint8Array(event.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    
+
                     // リンク一覧シートの読み込み
                     const linksSheetName = 'リンク一覧';
                     if (!workbook.SheetNames.includes(linksSheetName)) {
                         throw new Error('リンク一覧シートが見つかりません。');
                     }
-                    
+
                     const linksSheet = workbook.Sheets[linksSheetName];
                     const linksJson = XLSX.utils.sheet_to_json(linksSheet);
-                    
+
                     // データの復元
                     extractedLinks = linksJson.map(row => ({
                         id: row['ID'] || `link-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -837,17 +879,7 @@
             };
             reader.readAsArrayBuffer(file);
         });
-
     })();
     </script>
 </body>
-
-
-
-<a href="https://px.a8.net/svt/ejp?a8mat=35UE1S+6V2WTU+CO4+6L9O1" rel="nofollow">
-<img border="0" width="728" height="90" alt="" src="https://www25.a8.net/svt/bgt?aid=191214496415&wid=001&eno=01&mid=s00000001642001107000&mc=1"></a>
-<img border="0" width="1" height="1" src="https://www14.a8.net/0.gif?a8mat=35UE1S+6V2WTU+CO
-4+6L9O1" alt="">
-
-
 </html>
