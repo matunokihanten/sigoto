@@ -1,283 +1,645 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-
-<script type="text/javascript" src="//rot7.a8.net/jsa/2fb96cb08061f55473999ba83d3a5430/c6f057b86584942e415435ffb1fa93d4.js"></script>
-
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>電卓＆期間計算機</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>飲食店向け多機能電卓</title>
+  <link rel="manifest" href="manifest.json">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
   <style>
-    /* 共通スタイル */
     body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background-color: #f2f2f2;
-      text-align: center;
-      margin: 0 auto;
-    }
-    .container {
-      max-width: 400px;
-      margin: 20px auto;
-      padding: 20px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-    }
-    .hidden {
-      display: none;
-    }
-    .toggle-buttons {
-      margin-bottom: 20px;
-    }
-    .toggle-buttons button {
-      padding: 10px 20px;
-      margin: 0 10px;
-      font-size: 1.2rem;
-      cursor: pointer;
-    }
-    /* 電卓ディスプレイ部分 */
-    .calc-container {
-      margin-bottom: 10px;
-    }
-    .calc-display {
-      width: 100%;
-      font-size: 2.5rem;
-      padding: 15px 20px;
-      /* 右側は装飾画像分の余白（40px + わずかな余裕） */
-      padding-right: 45px;
-      background: #222 url('calc-right.png') no-repeat right center;
-      background-size: 40px 100%;
-      color: #eee;
-      border: none;
-      border-radius: 7px;
-      text-align: right;
-      box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+      background: #1e1e1e;
+      margin: 0;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      justify-content: center;
+      padding: 10px;
       box-sizing: border-box;
     }
-    .history-total {
-      font-size: 1rem;
-      color: #333;
-      margin-top: 5px;
-      margin-bottom: 10px;
-      cursor: pointer;
+    .calc-app {
+      width: 100%;
+      max-width: 370px;
+      background: #2a2a2a;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+      border-radius: 20px;
+      padding: 25px 20px 20px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
     }
-    .button-grid {
+    .calc-tabs {
+      display: flex;
+      margin-bottom: 18px;
+      border-radius: 10px;
+      overflow: hidden;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .calc-tab {
+      flex-shrink: 0;
+      padding: 8px 12px;
+      background: #444;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      font-weight: bold;
+      color: #ccc;
+      transition: background 0.2s ease-in-out, color 0.2s ease-in-out;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+    }
+    .calc-tab.active {
+      background: #666;
+      color: #fff;
+    }
+    .calc-tab-del-btn {
+      color: #f55;
+      margin-left: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      position: absolute;
+      right: 2px;
+      top: 2px;
+      font-size: 0.8em;
+      line-height: 1;
+      background-color: #444;
+      border-radius: 50%;
+      padding: 1px 3px;
+    }
+    .calc-tab:not(:last-child) {
+      border-right: 1px solid #333;
+    }
+
+    .calc-btns {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      grid-gap: 10px;
-      margin-top: 10px;
+      gap: 12px;
+      margin-top: auto;
     }
-    .button-grid button {
-      padding: 20px;
-      font-size: 1.5rem;
-      background: #4caf50;
-      color: white;
+    .calc-display {
+      background: #1c1c1c;
+      color: #ffffff;
+      font-size: 2.8em;
+      text-align: right;
+      padding: 20px 15px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+      min-height: 60px;
+      letter-spacing: 1px;
+      user-select: all;
+      font-weight: 300;
+      overflow-x: auto;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    button,
+    .calc-special-btn {
+      font-size: 1.5em;
+      padding: 18px 0;
+      border-radius: 15px;
       border: none;
-      border-radius: 5px;
+      background: #505050;
+      color: #ffffff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      font-weight: normal;
       cursor: pointer;
+      transition: background 0.2s ease-in-out, transform 0.1s ease;
+      box-sizing: border-box;
     }
-    .button-grid button:hover {
-      background: #45a049;
+    button:active,
+    .calc-special-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     }
-    .history {
-      max-height: 200px;
+    .op {
+      background: #ff9500;
+      color: #ffffff;
+    }
+    .op:active {
+      background: #e08500;
+    }
+    .ctrl {
+      background: #d4d4d2;
+      color: #1c1c1c;
+    }
+    .ctrl:active {
+      background: #bbbbaa;
+    }
+    .equal {
+      background: #ff9500;
+      color: #ffffff;
+    }
+    .equal:active {
+      background: #e08500;
+    }
+    .calc-special-btn {
+      background: #444444;
+      padding: 10px 15px;
+      margin: 3px;
+      font-size: 1.1em;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    .calc-special-btn .material-icons {
+      font-size: 1.8em;
+      margin-bottom: 2px;
+    }
+    .calc-tax-group {
+      margin: 15px 0;
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: space-around;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .calc-tax-group label {
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      color: #ccc;
+      font-size: 0.9em;
+      flex-shrink: 0;
+    }
+    .calc-tax-group input[type='radio'] {
+      margin-right: 5px;
+      transform: scale(1.2);
+    }
+    .calc-tax-add-btn {
+      background: #5c6bc0;
+      color: #fff;
+      font-size: 1em;
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    /* 追加：特殊ボタンの削除ボタンのスタイル */
+    .special-btn-del-btn {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        color: #f55;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 0.8em;
+        line-height: 1;
+        background-color: #444;
+        border-radius: 50%;
+        padding: 1px 3px;
+        display: none; /* 初期状態では非表示 */
+    }
+
+    .history-title {
+      margin: 18px 0 8px;
+      font-size: 1.1em;
+      color: #aaa;
+      flex-shrink: 0;
+    }
+    .calc-hist {
+      background: #3a3a3a;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      max-height: 120px;
       overflow-y: auto;
-      background: #f9f9f9;
-      margin-top: 10px;
-      padding: 10px;
-      border-radius: 5px;
-      text-align: left;
+      font-size: 1em;
+      padding: 10px 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 10px;
+      flex-shrink: 0;
     }
-    .history div {
-      padding: 10px;
-      font-size: 1.2rem;
+    .calc-hist .hist-line {
+      background: #555;
+      color: #e0e0e0;
+      font-family: 'SF Mono', monospace;
       cursor: pointer;
+      border-radius: 6px;
+      padding: 4px 8px;
+      user-select: none;
+      white-space: nowrap;
+      position: relative;
+      transition: background 0.1s ease-in-out;
     }
-    .history div:hover {
-      background-color: #e0e0e0;
+    .calc-hist .hist-line:active {
+      background: #f55;
+      color: white;
     }
-    /* 期間計算機 */
-    .date-input {
-      font-size: 1.5rem;
-      padding: 10px;
-      margin: 10px auto;
-      display: block;
-      width: 90%;
+    .hist-btns {
+      text-align: right;
+      margin-bottom: 10px;
+      flex-shrink: 0;
     }
-    .result {
-      font-size: 1.8rem;
-      margin: 20px;
+    .hist-btns button {
+      margin-left: 8px;
+      font-size: 1em;
+      padding: 10px 15px;
+      border-radius: 8px;
+      background: #444;
+      color: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .hist-btns button:active {
+      background: #333;
+    }
+
+    @media (max-width: 410px) {
+      body {
+        padding: 0;
+      }
+      .calc-app {
+        max-width: 100%;
+        padding: 15px 3vw 15px;
+        border-radius: 0;
+        min-height: 100vh;
+      }
+      .calc-btns {
+        gap: 8px;
+      }
+      .calc-btns button,
+      .calc-special-btn {
+        font-size: 1.2em;
+        padding: 14px 0;
+      }
+      .calc-display {
+        font-size: 2em;
+        min-height: auto;
+        padding: 15px;
+      }
+      .calc-tax-group {
+        gap: 6px;
+      }
+      .calc-special-btn {
+        padding: 8px 10px;
+        font-size: 1em;
+      }
+      .calc-special-btn .material-icons {
+        font-size: 1.5em;
+      }
     }
   </style>
 </head>
 <body>
-  <!-- 広告は削除済み -->
-  
-  <div class="toggle-buttons">
-    <button onclick="showCalculator()">電卓</button>
-    <button onclick="showPeriodCalculator()">期間計算機</button>
-  </div>
-  
-  <!-- 電卓コンテナ -->
-  <div id="calculator" class="container">
-    <div class="calc-container">
-      <input type="text" id="calcInput" class="calc-display">
-      <div id="historyTotal" class="history-total" onclick="historyTotalClick()">合計: 0</div>
+  <div class="calc-app" id="app">
+    <div class="calc-tabs" id="tabs"></div>
+    <div class="calc-display" id="display">0</div>
+    <div class="calc-tax-group" id="taxGroup">
+      <label><input type="radio" name="taxRate" value="0.08" />8%</label>
+      <label><input type="radio" name="taxRate" value="0.10" checked />10%</label>
+      <button class="calc-special-btn" onclick="applyTaxIn()">
+        <span class="material-icons">receipt_long</span>税込
+      </button>
+      <button class="calc-special-btn" onclick="applyTaxOut()">
+        <span class="material-icons">receipt_long</span>税抜
+      </button>
+      <button class="calc-special-btn" onclick="applyDiscount()">
+        <span class="material-icons">local_offer</span>割引
+      </button>
+      <button class="calc-special-btn" onclick="applyUp()">
+        <span class="material-icons">add_shopping_cart</span>割増
+      </button>
     </div>
-    <div class="button-grid">
-      <button onclick="clearHistory()">AC</button>
-      <button onclick="appendOperator('/')">÷</button>
-      <button onclick="appendOperator('*')">×</button>
-      <button onclick="clearDisplay()">C</button>
-      
-      <button onclick="appendNumber('7')">7</button>
-      <button onclick="appendNumber('8')">8</button>
-      <button onclick="appendNumber('9')">9</button>
-      <button onclick="appendOperator('-')">－</button>
-      
-      <button onclick="appendNumber('4')">4</button>
-      <button onclick="appendNumber('5')">5</button>
-      <button onclick="appendNumber('6')">6</button>
-      <button onclick="appendOperator('+')">＋</button>
-      
-      <button onclick="appendNumber('1')">1</button>
-      <button onclick="appendNumber('2')">2</button>
-      <button onclick="appendNumber('3')">3</button>
-      <button onclick="calculate()">=</button>
-      
-      <button onclick="appendNumber('0')" style="grid-column: span 2;">0</button>
-      <button onclick="appendNumber('00')">00</button>
-      <button onclick="appendNumber('.')">.</button>
+    <div class="calc-btns">
+      <button onclick="inputNum('7')">7</button>
+      <button onclick="inputNum('8')">8</button>
+      <button onclick="inputNum('9')">9</button>
+      <button class="op" onclick="inputOp('/')">÷</button>
+
+      <button onclick="inputNum('4')">4</button>
+      <button onclick="inputNum('5')">5</button>
+      <button onclick="inputNum('6')">6</button>
+      <button class="op" onclick="inputOp('*')">×</button>
+
+      <button onclick="inputNum('1')">1</button>
+      <button onclick="inputNum('2')">2</button>
+      <button onclick="inputNum('3')">3</button>
+      <button class="op" onclick="inputOp('-')">−</button>
+
+      <button onclick="inputNum('0')">0</button>
+      <button onclick="inputNum('.')">.</button>
+      <button class="equal" onclick="calcEqual()">=</button>
+      <button class="op" onclick="inputOp('+')">＋</button>
+
+      <button class="ctrl" onclick="allClear()">AC</button>
+      <button class="ctrl" onclick="clearEntry()">CE</button>
+      <button class="ctrl" onclick="backspace()">⌫</button>
+      <button class="ctrl" onclick="addTab()">タブ+</button> </div>
+    <div class="history-title">計算履歴</div>
+    <div class="calc-hist" id="history"></div>
+    <div class="hist-btns">
+      <button onclick="historySum()">履歴合計</button>
+      <button onclick="clearHistory()">履歴クリア</button>
     </div>
-    <div class="history" id="calcHistory"></div>
   </div>
-  
-  <!-- 期間計算機コンテナ -->
-  <div id="periodCalculator" class="container hidden">
-    <label for="startDate">開始日:</label>
-    <input type="date" id="startDate" class="date-input">
-    <label for="endDate">終了日:</label>
-    <input type="date" id="endDate" class="date-input">
-    <button onclick="calculatePeriod()" style="padding: 15px 25px; font-size: 1.5rem; margin-top: 10px;">計算</button>
-    <p id="periodResult" class="result"></p>
-  </div>
-  
   <script>
-    // 表示切り替え
-    function showCalculator() {
-      document.getElementById('calculator').classList.remove('hidden');
-      document.getElementById('periodCalculator').classList.add('hidden');
-    }
-    function showPeriodCalculator() {
-      document.getElementById('periodCalculator').classList.remove('hidden');
-      document.getElementById('calculator').classList.add('hidden');
+    // タブの状態からdisplayを削除し、expr(計算式)とhist(履歴)のみを保持
+    let tabs = [{ name: 'タブ1', expr: '', hist: [] }];
+    let activeTab = 0;
+    let inputting = true;
+    let expr = '';
+    let calcHistory = [];
+    
+    // 数値をカンマ区切りにフォーマットする関数
+    function formatNumber(numStr) {
+      if (typeof numStr !== 'string') numStr = String(numStr);
+      if (numStr.slice(-1) === '.' && !numStr.slice(0, -1).includes('.')) {
+        return numStr.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.';
+      }
+      let parts = numStr.split('.');
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return parts.join('.');
     }
     
-    // 数値のカンマ区切りフォーマット関数
-    function formatNumber(num) {
-      return num.toLocaleString();
-    }
-    
-    // 式内の各数値トークンをカンマ区切りにする関数
-    function formatExpression(expr) {
-      expr = expr.replace(/,/g, '');
-      let tokens = expr.split(/([+\-*/])/);
-      for (let i = 0; i < tokens.length; i++) {
-        if (/^\d+(\.\d*)?$/.test(tokens[i])) {
-          let hasDot = tokens[i].endsWith('.');
-          let numericPart = hasDot ? tokens[i].slice(0, -1) : tokens[i];
-          if (numericPart !== "") {
-            let n = Number(numericPart);
-            tokens[i] = n.toLocaleString() + (hasDot ? '.' : '');
-          }
+    // 式全体を解析して数値部分のみをカンマ区切りにする関数
+    function formatExpression(expression) {
+      if (expression === '' || expression === null) return '0';
+      return expression.split(/([+\-*/])/).map(part => {
+        if (!/^[+\-*/]$/.test(part) && part !== '' && !isNaN(part)) {
+          return formatNumber(part);
         }
-      }
-      return tokens.join('');
+        return part;
+      }).join('');
     }
-    
-    let calcInput = document.getElementById('calcInput');
-    let calcHistory = document.getElementById('calcHistory');
-    let historyTotal = document.getElementById('historyTotal');
-    let shouldClearDisplay = false;
-    
-    function appendNumber(num) {
-      if (shouldClearDisplay) {
-        calcInput.value = '';
-        shouldClearDisplay = false;
-      }
-      let raw = calcInput.value.replace(/,/g, '') + num;
-      calcInput.value = formatExpression(raw);
-    }
-    function appendOperator(op) {
-      if (calcInput.value !== '') {
-        let raw = calcInput.value.replace(/,/g, '') + op;
-        calcInput.value = raw;
-        shouldClearDisplay = false;
-      }
-    }
-    function calculate() {
-      try {
-        if (calcInput.value.trim() !== '') {
-          const rawExpr = calcInput.value
-                             .replace(/,/g, '')
-                             .replace(/÷/g, '/')
-                             .replace(/×/g, '*');
-          const rawResult = eval(rawExpr);
-          const formattedResult = formatNumber(rawResult);
-          const entry = document.createElement('div');
-          entry.textContent = `${calcInput.value} = ${formattedResult}`;
-          entry.dataset.result = rawResult;
-          entry.ondblclick = function() {
-            calcHistory.removeChild(entry);
-            updateHistoryTotal();
+
+    // タブのレンダリング
+    function renderTabs() {
+      const tabEl = document.getElementById('tabs');
+      tabEl.innerHTML = '';
+      tabs.forEach((tab, i) => {
+        const t = document.createElement('div');
+        t.className = 'calc-tab' + (i === activeTab ? ' active' : '');
+        t.innerHTML = `<span>${tab.name}</span>`;
+        t.onclick = () => switchTab(i);
+        if (tabs.length > 1) {
+          const d = document.createElement('span');
+          d.className = 'calc-tab-del-btn';
+          d.textContent = '✕';
+          d.onclick = (e) => {
+            e.stopPropagation();
+            removeTab(i);
           };
-          calcHistory.appendChild(entry);
-          calcInput.value = formattedResult;
-          shouldClearDisplay = true;
-          updateHistoryTotal();
+          t.appendChild(d);
         }
-      } catch {
-        alert('無効な式です');
-      }
-    }
-    function clearDisplay() {
-      calcInput.value = '';
-    }
-    function clearHistory() {
-      calcHistory.innerHTML = '';
-      updateHistoryTotal();
-    }
-    function updateHistoryTotal() {
-      let sum = 0;
-      const entries = calcHistory.querySelectorAll('div');
-      entries.forEach(entry => {
-        const value = parseFloat(entry.dataset.result);
-        if (!isNaN(value)) {
-          sum += value;
-        }
+        t.ondblclick = (e) => {
+            e.stopPropagation();
+            const newName = prompt('タブの新しい名前を入力してください', tab.name);
+            if (newName && newName.trim() !== '') {
+                tabs[i].name = newName.trim();
+                renderTabs();
+            }
+        };
+        tabEl.appendChild(t);
       });
-      historyTotal.textContent = `合計: ${formatNumber(sum)}`;
-    }
-    function historyTotalClick() {
-      const text = historyTotal.textContent;
-      const numberPart = text.replace('合計: ', '');
-      calcInput.value = numberPart;
-      shouldClearDisplay = false;
     }
     
-    // 期間計算機能
-    function calculatePeriod() {
-      const start = new Date(document.getElementById('startDate').value);
-      const end = new Date(document.getElementById('endDate').value);
-      if (!isNaN(start) && !isNaN(end)) {
-        const diffTime = end - start;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        document.getElementById('periodResult').textContent = `期間: ${diffDays.toLocaleString()} 日`;
+    function switchTab(i) {
+      saveTabState();
+      activeTab = i;
+      loadTabState();
+      renderTabs();
+    }
+    function addTab() {
+      saveTabState();
+      tabs.push({ name: 'タブ' + (tabs.length + 1), expr: '', hist: [] });
+      switchTab(tabs.length - 1);
+    }
+    function removeTab(idx) {
+      if (tabs.length === 1) return;
+      tabs.splice(idx, 1);
+      if (activeTab >= tabs.length) activeTab = tabs.length - 1;
+      loadTabState();
+      renderTabs();
+    }
+
+    function saveTabState() {
+      tabs[activeTab].expr = expr || '';
+      tabs[activeTab].hist = JSON.parse(JSON.stringify(calcHistory || []));
+    }
+    function loadTabState() {
+      expr = tabs[activeTab].expr || '';
+      calcHistory = JSON.parse(JSON.stringify(tabs[activeTab].hist || []));
+      updateDisplay(expr === '' ? '0' : expr);
+      renderHistory();
+    }
+    
+    function updateDisplay(val) {
+      const displayEl = document.getElementById('display');
+      if (typeof val !== 'string') val = String(val);
+
+      if (val.startsWith('合計: ')) {
+        const sum = val.substring(4);
+        displayEl.textContent = '合計: ' + formatNumber(sum);
+      } else if (val === 'ERR') {
+        displayEl.textContent = 'ERR';
       } else {
-        document.getElementById('periodResult').textContent = '有効な日付を入力してください。';
+        displayEl.textContent = formatExpression(val);
       }
     }
+
+    function inputNum(n) {
+      if (!inputting) {
+        expr = '';
+        inputting = true;
+      }
+      if (expr.length > 25) return;
+      if (n === '.' && expr.split(/[+\-*/]/).pop().includes('.')) return;
+      expr += n;
+      updateDisplay(expr);
+    }
+    function inputOp(o) {
+      if (expr === '' && o !== '-') return;
+      if ('+-*/'.indexOf(expr.slice(-1)) !== -1) {
+         expr = expr.slice(0, -1) + o;
+      } else {
+         expr += o;
+      }
+      inputting = true;
+      updateDisplay(expr);
+    }
+    function backspace() {
+      expr = expr.slice(0, -1);
+      updateDisplay(expr === '' ? '0' : expr);
+    }
+    function allClear() {
+      expr = '';
+      updateDisplay('0');
+    }
+    function clearEntry() {
+      if (/[+\-*/]/.test(expr)) {
+          let parts = expr.split(/([+\-*/])/);
+          parts.pop();
+          expr = parts.join('');
+      } else {
+          expr = '';
+      }
+      updateDisplay(expr === '' ? '0' : expr);
+    }
+    function calcEqual() {
+      try {
+        if (expr === '' || /[+\-*/]$/.test(expr)) return;
+        let sanitizedExpr = expr.replace(/--/g, '+');
+        let result = eval(sanitizedExpr);
+        result = +result.toFixed(6);
+        addHistory(expr + '=' + result);
+        expr = '' + result;
+        inputting = false;
+        updateDisplay(expr);
+      } catch (e) {
+        updateDisplay('ERR');
+        expr = '';
+        inputting = false;
+      }
+    }
+
+    let longPressTimer = null;
+    const longPressDuration = 700; 
+
+    function addHistory(str) {
+      calcHistory.unshift(str);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const h = document.getElementById('history');
+      h.innerHTML = '';
+      (calcHistory || []).forEach((item, i) => {
+        const s = document.createElement('div');
+        s.className = 'hist-line';
+        s.textContent = formatExpression(item);
+        s.title = item;
+        s.tabIndex = 0;
+        s.onmousedown = s.ontouchstart = () => {
+          longPressTimer = setTimeout(() => {
+            calcHistory.splice(i, 1);
+            renderHistory();
+          }, longPressDuration);
+        };
+        s.onmouseup = s.onmouseleave = s.ontouchend = s.ontouchcancel = () => {
+          if (longPressTimer) {
+            clearTimeout(longPressTimer);
+            longPressTimer = null;
+            return;
+          }
+          if (item.includes('=')) {
+            expr = item.split('=')[1];
+          } else {
+            expr = item;
+          }
+          inputting = true;
+          updateDisplay(expr);
+        };
+        h.appendChild(s);
+      });
+    }
+
+    function clearHistory() {
+      calcHistory = [];
+      renderHistory();
+    }
+    function historySum() {
+      let sum = 0;
+      for (const c of calcHistory) {
+        let value = c.split('=')[1];
+        if (typeof value === 'string') {
+          value = value.replace(/[^\d.-]/g, '');
+          if (value !== '' && !isNaN(value)) sum += parseFloat(value);
+        }
+      }
+      sum = +sum.toFixed(6);
+      updateDisplay('合計: ' + sum);
+    }
+
+    function getTaxRate() {
+      const radios = document.getElementsByName('taxRate');
+      for (let r of radios) if (r.checked) return parseFloat(r.value);
+      return 0.1;
+    }
+    function applyTaxIn() {
+      if (!expr) return;
+      calcEqual();
+      if(inputting) return;
+      let v = parseFloat(expr);
+      let tax = getTaxRate();
+      let result = Math.round(v * (1 + tax));
+      addHistory(v + '（税込' + Math.round(tax * 100) + '%）=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
+    function applyTaxOut() {
+      if (!expr) return;
+      calcEqual();
+      if(inputting) return;
+      let v = parseFloat(expr);
+      let tax = getTaxRate();
+      let result = Math.round(v / (1 + tax));
+      addHistory(v + '（税抜' + Math.round(tax * 100) + '%）=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
+    function applyDiscount() {
+      if (!expr) return;
+      calcEqual();
+      if(inputting) return;
+      let v = parseFloat(expr);
+      let rate = prompt('割引率（％）を入力:', '10');
+      if (rate === null || isNaN(rate) || rate === '') return;
+      let r = parseFloat(rate) / 100;
+      let result = Math.round(v * (1 - r));
+      addHistory(v + '−' + rate + '%=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
+    function applyUp() {
+      if (!expr) return;
+      calcEqual();
+      if(inputting) return;
+      let v = parseFloat(expr);
+      let rate = prompt('割増率（％）を入力:', '10');
+      if (rate === null || isNaN(rate) || rate === '') return;
+      let r = parseFloat(rate) / 100;
+      let result = Math.round(v * (1 + r));
+      addHistory(v + '＋' + rate + '%=' + result);
+      expr = '' + result;
+      inputting = false;
+      updateDisplay(expr);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      const key = e.key;
+      if ('0123456789'.includes(key)) inputNum(key);
+      if (key === '+' || key === '-' || key === '*' || key === '/') inputOp(key);
+      if (key === 'Enter' || key === '=') {
+        e.preventDefault();
+        calcEqual();
+      }
+      if (key === 'Backspace') backspace();
+      if (key === 'Delete') clearEntry();
+      if (key === 'Escape') allClear();
+      if (key === 'Tab' && !e.shiftKey) {
+        e.preventDefault();
+        addTab();
+      }
+      if (key === '.') inputNum('.');
+    });
+
+    renderTabs();
+    loadTabState();
   </script>
 </body>
 </html>
