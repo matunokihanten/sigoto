@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高度な3Dアイコン作成ツール</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=M+PLUS+Rounded+1c:wght@400;700&family=Kosugi+Maru&family=Varela+Round&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #667eea;
+      --secondary: #764ba2;
+      --accent: #f093fb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --background: #f1f5f9;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --text-muted: #94a3b8;
+      --border: #e2e8f0;
+      --border-focus: #cbd5e1;
+      --shadow-sm: rgba(0, 0, 0, 0.05);
+      --shadow: rgba(0, 0, 0, 0.1);
+      --shadow-lg: rgba(0, 0, 0, 0.15);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: 'Inter', 'Noto Sans JP', sans-serif;
+      min-height: 100vh;
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: minmax(320px, 400px) 1fr;
+      gap: 30px;
+      min-height: 100vh;
+    }
+
+    .control-panel {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow);
+      height: fit-content;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .preview-area {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: 0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    h1 {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 2.5rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 30px;
+      letter-spacing: -0.02em;
+    }
+
+    .section {
+      margin-bottom: 25px;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 15px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-inline {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-weight: 500;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    input, select, textarea {
+      padding: 12px 16px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 15px;
+      transition: var(--transition);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-family: inherit;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    }
+
+    input:invalid {
+      border-color: var(--error);
+    }
+
+    input[type="range"] {
+      appearance: none;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 4px var(--shadow);
+      transition: var(--transition);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px var(--shadow);
+    }
+
+    input[type="color"] {
+      width: 60px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      padding: 2px;
+      border: 2px solid var(--border);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: inherit;
+    }
+
+    .color-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    .color-box {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      border: 2px solid var(--border);
+      box-shadow: inset 0 1px 2px var(--shadow);
+      flex-shrink: 0;
+    }
+
+    .color-hex {
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      background: var(--surface-2);
+      padding: 4px 8px;
+      border-radius: 4px;
+      min-width: 70px;
+      text-align: center;
+    }
+
+    .radio-group, .checkbox-group {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+
+    .radio-item, .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 6px;
+      transition: var(--transition);
+      border: 1px solid transparent;
+    }
+
+    .radio-item:hover, .checkbox-item:hover {
+      background: var(--surface-2);
+      border-color: var(--border-focus);
+    }
+
+    input[type="radio"], input[type="checkbox"] {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      position: relative;
+      cursor: pointer;
+      transition: var(--transition);
+      margin: 0;
+      padding: 0;
+    }
+
+    input[type="checkbox"] {
+      border-radius: 4px;
+    }
+
+    input[type="radio"]:checked, input[type="checkbox"]:checked {
+      border-color: var(--primary);
+      background: var(--primary);
+    }
+
+    input[type="radio"]:checked::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    input[type="checkbox"]:checked::before {
+      content: '✓';
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      margin-top: 30px;
+    }
+
+    button {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      font-family: inherit;
+      min-height: 48px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #f093fb, #f5576c);
+      color: white;
+      box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      color: white;
+      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, var(--success), #059669);
+      color: white;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .preview-canvas-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      padding: 30px;
+      background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+      border-radius: var(--radius);
+      border: 2px dashed var(--border);
+      position: relative;
+    }
+
+    canvas, #svgPreview {
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px var(--shadow-lg);
+      transition: var(--transition-slow);
+      max-width: 100%;
+      height: auto;
+    }
+
+    canvas:hover, #svgPreview:hover {
+      transform: scale(1.02);
+    }
+
+    .size-indicator {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .advanced-controls {
+      display: none;
+      animation: slideDown 0.3s ease-out;
+    }
+
+    .advanced-controls.show {
+      display: block;
+    }
+
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .toggle-advanced {
+      background: none;
+      border: 2px solid var(--primary);
+      color: var(--primary);
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      transition: var(--transition);
+      width: 100%;
+    }
+
+    .toggle-advanced:hover {
+      background: var(--primary);
+      color: white;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .preset-buttons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .preset-btn {
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .preset-btn:hover {
+      background: var(--primary);
+      color: white;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .export-options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .export-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      transition: var(--transition);
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .export-btn:hover {
+      border-color: var(--primary);
+      background: rgba(102, 126, 234, 0.05);
+      transform: translateY(-2px);
+    }
+
+    .export-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .history-panel {
+      margin-top: 30px;
+      padding: 20px;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 2px solid transparent;
+      object-fit: cover;
+    }
+
+    .history-item:hover {
+      border-color: var(--primary);
+      transform: scale(1.05);
+    }
+
+    .range-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .range-display input[type="range"] {
+      flex: 1;
+    }
+
+    .range-display output {
+      min-width: 50px;
+      text-align: center;
+      font-weight: 600;
+      color: var(--primary);
+      background: var(--surface-2);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    
+    .size-input-group {
+      display: flex;
+      gap: 10px;
+    }
+    
+    .size-input-group input {
+      flex: 1;
+    }
+
+    .tooltip {
+      position: relative;
+    }
+
+    .tooltip::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--text-primary);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: var(--transition);
+      z-index: 1000;
+    }
+
+    .tooltip:hover::after {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-5px);
+    }
+
+    .loading {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .loading::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: loading 1.5s infinite;
+    }
+
+    @keyframes loading {
+      100% { left: 100%; }
+    }
+
+    .error-message {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      margin-top: 10px;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .success-message {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      margin-top: 10px;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .app-container {
+        grid-template-columns: 1fr;
+        max-width: 800px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app-container {
+        padding: 15px;
+        gap: 20px;
+      }
+      
+      .control-panel, .preview-area {
+        padding: 20px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      .button-group {
+        flex-direction: column;
+      }
+
+      .export-options {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .radio-group, .checkbox-group {
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .preset-buttons {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .control-inline {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .size-input-group {
+        flex-direction: column;
+      }
+
+      .export-options {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Print Styles */
+    @media print {
+      body {
+        background: white;
+      }
+      
+      .control-panel {
+        display: none;
+      }
+      
+      .preview-area {
+        box-shadow: none;
+        border: 1px solid #ccc;
+      }
+    }
+
+    /* High Contrast Mode */
+    @media (prefers-contrast: high) {
+      :root {
+        --border: #000000;
+        --text-secondary: #000000;
+        --shadow: rgba(0, 0, 0, 0.5);
+      }
+    }
+
+    /* Reduced Motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="control-panel">
+      <h1>🎨 高度な3Dアイコン作成ツール</h1>
+      
+      <div class="section">
+        <div class="section-title">📝 テキスト設定</div>
+        <div class="control">
+          <label for="iconText">表示テキスト</label>
+          <textarea id="iconText" placeholder="アイコンに表示するテキストを入力" rows="2" maxlength="50">松乃木飯店</textarea>
+          <small class="color-hex">文字数: <span id="textLength">5</span>/50</small>
+        </div>
+        
+        <div class="control">
+          <label for="fontFamily">フォント</label>
+          <select id="fontFamily">
+            <option value="'Inter', sans-serif">Inter (モダン)</option>
+            <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+            <option value="'M PLUS Rounded 1c', sans-serif" selected>M PLUS Rounded (丸文字)</option>
+            <option value="'Kosugi Maru', sans-serif">Kosugi Maru</option>
+            <option value="'Varela Round', sans-serif">Varela Round</option>
+            <option value="system-ui, sans-serif">システムフォント</option>
+            <option value="'Courier New', monospace">等幅フォント</option>
+          </select>
+        </div>
+
+        <div class="control">
+          <label for="fontWeight">文字の太さ</label>
+          <select id="fontWeight">
+            <option value="300">Light (300)</option>
+            <option value="400">Regular (400)</option>
+            <option value="500">Medium (500)</option>
+            <option value="600">SemiBold (600)</option>
+            <option value="700">Bold (700)</option>
+            <option value="800" selected>ExtraBold (800)</option>
+            <option value="900">Black (900)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🎨 カラー設定</div>
+        <div class="control">
+          <label for="textColor">文字色</label>
+          <div class="control-inline">
+            <input type="color" id="textColor" value="#ffffff">
+            <div class="color-display">
+              <div class="color-box" id="textColorBox"></div>
+              <div class="color-hex" id="textColorHex">#FFFFFF</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="gradColor1">背景グラデーション1</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor1" value="#667eea">
+            <div class="color-display">
+              <div class="color-box" id="gradColor1Box"></div>
+              <div class="color-hex" id="gradColor1Hex">#667EEA</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="gradColor2">背景グラデーション2</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor2" value="#764ba2">
+            <div class="color-display">
+              <div class="color-box" id="gradColor2Box"></div>
+              <div class="color-hex" id="gradColor2Hex">#764BA2</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="preset-buttons">
+          <button class="preset-btn" data-colors="#667eea,#764ba2">オーシャン</button>
+          <button class="preset-btn" data-colors="#f093fb,#f5576c">サンセット</button>
+          <button class="preset-btn" data-colors="#4facfe,#00f2fe">スカイ</button>
+          <button class="preset-btn" data-colors="#43e97b,#38f9d7">フォレスト</button>
+          <button class="preset-btn" data-colors="#fa709a,#fee140">ウォーム</button>
+          <button class="preset-btn" data-colors="#a8edea,#fed6e3">パステル</button>
+          <button class="preset-btn" data-colors="#ff6b6b,#ee5a52">コーラル</button>
+          <button class="preset-btn" data-colors="#4ecdc4,#44a08d">ティール</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">⚙️ 基本設定</div>
+        <div class="control">
+          <label for="iconSize">アイコンサイズ</label>
+          <select id="iconSize">
+            <option value="64">64×64 (ファビコン)</option>
+            <option value="128">128×128 (アプリ)</option>
+            <option value="256" selected>256×256 (標準)</option>
+            <option value="512">512×512 (高解像度)</option>
+            <option value="1024">1024×1024 (超高解像度)</option>
+            <option value="custom">カスタム</option>
+          </select>
+        </div>
+
+        <div class="control size-input-group" id="customSizeInputs" style="display: none;">
+          <input type="number" id="iconWidth" placeholder="幅 (px)" value="256" min="32" max="2048" step="1">
+          <input type="number" id="iconHeight" placeholder="高さ (px)" value="256" min="32" max="2048" step="1">
+        </div>
+
+        <div class="control">
+          <label for="letterSpacing">文字間隔</label>
+          <div class="range-display">
+            <input type="range" id="letterSpacing" min="-5" max="20" value="0" step="0.5">
+            <output id="letterSpacingValue">0</output>
+          </div>
+        </div>
+
+        <div class="control">
+          <label for="lineHeight">行間隔</label>
+          <div class="range-display">
+            <input type="range" id="lineHeight" min="0.8" max="2.0" value="1.2" step="0.1">
+            <output id="lineHeightValue">1.2</output>
+          </div>
+        </div>
+      </div>
+
+      <button class="toggle-advanced" onclick="toggleAdvanced()">🔧 高度な設定を表示</button>
+
+      <div class="advanced-controls" id="advancedControls">
+        <div class="section">
+          <div class="section-title">💫 エフェクト</div>
+          <div class="control">
+            <label>ドロップシャドウ</label>
+            <div class="radio-group">
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="0" id="shadow0">
+                <label for="shadow0">なし</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="3" id="shadow3" checked>
+                <label for="shadow3">軽い</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="6" id="shadow6">
+                <label for="shadow6">標準</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="dropShadow" value="10" id="shadow10">
+                <label for="shadow10">強い</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="control">
+            <div class="checkbox-item">
+              <input type="checkbox" id="addOutline" checked>
+              <label for="addOutline">アウトライン追加</label>
+            </div>
+          </div>
+
+          <div class="control" id="outlineControls">
+            <label for="outlineColor">アウトライン色</label>
+            <div class="control-inline">
+              <input type="color" id="outlineColor" value="#000000">
+              <div class="color-display">
+                <div class="color-box" id="outlineColorBox"></div>
+                <div class="color-hex" id="outlineColorHex">#000000</div>
+              </div>
+            </div>
+            
+            <label for="outlineWidth">アウトライン幅</label>
+            <div class="range-display">
+              <input type="range" id="outlineWidth" min="1" max="20" value="5">
+              <output id="outlineWidthValue">5</output>
+            </div>
+          </div>
+
+          <div class="control">
+            <label for="cornerRadius">角丸の強さ</label>
+            <div class="range-display">
+              <input type="range" id="cornerRadius" min="0" max="50" value="15">
+              <output id="cornerRadiusValue">15%</output>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button class="btn-primary" id="randomizeBtn">🎲 ランダム生成</button>
+        <button class="btn-secondary" id="resetBtn">🔄 リセット</button>
+      </div>
+
+    </div>
+
+    <div class="preview-area">
+      <div class="preview-canvas-container">
+        <canvas id="iconCanvas" width="256" height="256"></canvas>
+        <div class="size-indicator" id="sizeIndicator">256 x 256 px</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">⬇️ ダウンロードとエクスポート</div>
+        <div class="export-options">
+          <a href="#" id="downloadPngBtn" class="export-btn" download="icon.png">
+            <span class="export-icon" style="background: var(--success);">PNG</span>
+            <span>PNG</span>
+          </a>
+          <a href="#" id="downloadJpgBtn" class="export-btn" download="icon.jpeg">
+            <span class="export-icon" style="background: var(--warning);">JPG</span>
+            <span>JPG</span>
+          </a>
+          <a href="#" id="downloadWebpBtn" class="export-btn" download="icon.webp">
+            <span class="export-icon" style="background: var(--primary);">WEBP</span>
+            <span>WEBP</span>
+          </a>
+          <button id="copyBtn" class="export-btn">
+            <span class="export-icon" style="background: var(--secondary);">📋</span>
+            <span>画像コピー</span>
+          </button>
+        </div>
+        <div class="success-message" id="copySuccessMessage">✅ 画像がクリップボードにコピーされました！</div>
+        <div class="error-message" id="copyErrorMessage">⚠️ 画像のコピーに失敗しました。ブラウザが対応していません。</div>
+      </div>
+      
+      <div class="history-panel">
+        <div class="section-title">🕒 履歴</div>
+        <div class="history-grid" id="historyGrid">
+        </div>
+        <small class="color-hex" style="margin-top:10px; display:block;">最新の10個を保存</small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ユーティリティ関数
+    function hexToRgb(hex) {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : null;
+    }
+
+    // 要素の取得
+    const canvas = document.getElementById('iconCanvas');
+    const ctx = canvas.getContext('2d');
+    const iconTextarea = document.getElementById('iconText');
+    const textLengthSpan = document.getElementById('textLength');
+    const fontFamilySelect = document.getElementById('fontFamily');
+    const fontWeightSelect = document.getElementById('fontWeight');
+    const textColorInput = document.getElementById('textColor');
+    const gradColor1Input = document.getElementById('gradColor1');
+    const gradColor2Input = document.getElementById('gradColor2');
+    const iconSizeSelect = document.getElementById('iconSize');
+    const iconWidthInput = document.getElementById('iconWidth');
+    const iconHeightInput = document.getElementById('iconHeight');
+    const customSizeInputs = document.getElementById('customSizeInputs');
+    const letterSpacingRange = document.getElementById('letterSpacing');
+    const letterSpacingValue = document.getElementById('letterSpacingValue');
+    const lineHeightRange = document.getElementById('lineHeight');
+    const lineHeightValue = document.getElementById('lineHeightValue');
+    const cornerRadiusRange = document.getElementById('cornerRadius');
+    const cornerRadiusValue = document.getElementById('cornerRadiusValue');
+    const dropShadowRadios = document.querySelectorAll('input[name="dropShadow"]');
+    const addOutlineCheckbox = document.getElementById('addOutline');
+    const outlineColorInput = document.getElementById('outlineColor');
+    const outlineWidthRange = document.getElementById('outlineWidth');
+    const outlineWidthValue = document.getElementById('outlineWidthValue');
+    const outlineControls = document.getElementById('outlineControls');
+    const randomizeBtn = document.getElementById('randomizeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    const downloadPngBtn = document.getElementById('downloadPngBtn');
+    const downloadJpgBtn = document.getElementById('downloadJpgBtn');
+    const downloadWebpBtn = document.getElementById('downloadWebpBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const copySuccessMessage = document.getElementById('copySuccessMessage');
+    const copyErrorMessage = document.getElementById('copyErrorMessage');
+    const historyGrid = document.getElementById('historyGrid');
+    const sizeIndicator = document.getElementById('sizeIndicator');
+
+    let history = [];
+    const MAX_HISTORY = 10;
+
+    // 初期状態の設定
+    function initializeState() {
+      iconTextarea.value = '松乃木飯店';
+      fontFamilySelect.value = "'M PLUS Rounded 1c', sans-serif";
+      fontWeightSelect.value = '800';
+      textColorInput.value = '#ffffff';
+      gradColor1Input.value = '#667eea';
+      gradColor2Input.value = '#764ba2';
+      iconSizeSelect.value = '256';
+      iconWidthInput.value = '256';
+      iconHeightInput.value = '256';
+      letterSpacingRange.value = '0';
+      lineHeightRange.value = '1.2';
+      cornerRadiusRange.value = '15';
+      addOutlineCheckbox.checked = true;
+      outlineColorInput.value = '#000000';
+      outlineWidthRange.value = '5';
+      document.getElementById('shadow3').checked = true;
+      
+      updateUI();
+      drawIcon();
+    }
+
+    // UIの値を更新
+    function updateUI() {
+      // カラーボックスとHEX値
+      document.getElementById('textColorHex').textContent = textColorInput.value.toUpperCase();
+      document.getElementById('textColorBox').style.backgroundColor = textColorInput.value;
+      document.getElementById('gradColor1Hex').textContent = gradColor1Input.value.toUpperCase();
+      document.getElementById('gradColor1Box').style.backgroundColor = gradColor1Input.value;
+      document.getElementById('gradColor2Hex').textContent = gradColor2Input.value.toUpperCase();
+      document.getElementById('gradColor2Box').style.backgroundColor = gradColor2Input.value;
+      
+      // レンジスライダーの値
+      letterSpacingValue.textContent = letterSpacingRange.value;
+      lineHeightValue.textContent = lineHeightRange.value;
+      outlineWidthValue.textContent = outlineWidthRange.value;
+      cornerRadiusValue.textContent = `${cornerRadiusRange.value}%`;
+
+      // 文字数
+      textLengthSpan.textContent = iconTextarea.value.length;
+
+      // カスタムサイズ入力の表示/非表示
+      customSizeInputs.style.display = iconSizeSelect.value === 'custom' ? 'flex' : 'none';
+      
+      // アウトラインコントロールの表示/非表示
+      outlineControls.style.display = addOutlineCheckbox.checked ? 'flex' : 'none';
+    }
+
+    // キャンバスにアイコンを描画
+    function drawIcon() {
+      const text = iconTextarea.value.trim();
+      const fontFamily = fontFamilySelect.value;
+      const fontWeight = fontWeightSelect.value;
+      const textColor = textColorInput.value;
+      const gradColor1 = gradColor1Input.value;
+      const gradColor2 = gradColor2Input.value;
+      const letterSpacing = parseFloat(letterSpacingRange.value);
+      const lineHeight = parseFloat(lineHeightRange.value);
+      const cornerRadius = parseFloat(cornerRadiusRange.value) / 100;
+      const dropShadow = parseInt(document.querySelector('input[name="dropShadow"]:checked').value);
+      const addOutline = addOutlineCheckbox.checked;
+      const outlineColor = outlineColorInput.value;
+      const outlineWidth = parseInt(outlineWidthRange.value);
+
+      const width = iconSizeSelect.value === 'custom' ? parseInt(iconWidthInput.value) : parseInt(iconSizeSelect.value);
+      const height = iconSizeSelect.value === 'custom' ? parseInt(iconHeightInput.value) : parseInt(iconSizeSelect.value);
+      
+      if (isNaN(width) || isNaN(height) || width < 32 || height < 32) return;
+
+      canvas.width = width;
+      canvas.height = height;
+      sizeIndicator.textContent = `${width} x ${height} px`;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // 角丸の背景を描画
+      const radius = width * cornerRadius;
+      ctx.beginPath();
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(width - radius, 0);
+      ctx.quadraticCurveTo(width, 0, width, radius);
+      ctx.lineTo(width, height - radius);
+      ctx.quadraticCurveTo(width, height, width - radius, height);
+      ctx.lineTo(radius, height);
+      ctx.quadraticCurveTo(0, height, 0, height - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+
+      // グラデーションを設定して塗りつぶし
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, gradColor1);
+      gradient.addColorStop(1, gradColor2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // テキストの準備
+      if (text) {
+        // テキストの測定
+        const lines = text.split('\n');
+        const maxTextWidth = width * 0.9;
+        const maxTextHeight = height * 0.9;
+        let fontSize = 100;
+
+        while (true) {
+          ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+          let totalTextHeight = 0;
+          let maxWidth = 0;
+
+          lines.forEach((line, index) => {
+            const metrics = ctx.measureText(line);
+            const textWidth = metrics.width + (line.length - 1) * parseFloat(letterSpacingRange.value);
+            maxWidth = Math.max(maxWidth, textWidth);
+            totalTextHeight += fontSize * lineHeight;
+          });
+
+          if (maxWidth <= maxTextWidth && totalTextHeight <= maxTextHeight) {
+            break;
+          }
+          fontSize -= 1;
+          if (fontSize <= 10) break;
+        }
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // ドロップシャドウ
+        if (dropShadow > 0) {
+          ctx.shadowColor = `rgba(0, 0, 0, 0.3)`;
+          ctx.shadowBlur = dropShadow * 3;
+          ctx.shadowOffsetX = dropShadow * 1;
+          ctx.shadowOffsetY = dropShadow * 1.5;
+        } else {
+          ctx.shadowColor = 'transparent';
+        }
+
+        // アウトライン
+        if (addOutline) {
+          ctx.strokeStyle = outlineColor;
+          ctx.lineWidth = outlineWidth;
+          ctx.lineJoin = 'round';
+        }
+        
+        ctx.fillStyle = textColor;
+        
+        // 複数行テキストの描画
+        const textHeight = fontSize * lineHeight;
+        const totalHeight = textHeight * (lines.length - 1);
+        const startY = height / 2 - (totalHeight / 2);
+        
+        lines.forEach((line, index) => {
+          if (addOutline) {
+            ctx.strokeText(line, width / 2, startY + index * textHeight);
+          }
+          ctx.fillText(line, width / 2, startY + index * textHeight);
+        });
+      }
+      
+      // 履歴に保存
+      addToHistory();
+    }
+    
+    // 履歴を管理
+    function addToHistory() {
+      const dataUrl = canvas.toDataURL('image/png');
+      
+      const img = new Image();
+      img.src = dataUrl;
+      img.alt = 'アイコン履歴';
+      img.className = 'history-item';
+      img.addEventListener('click', () => {
+        const tempImg = new Image();
+        tempImg.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
+        };
+        tempImg.src = dataUrl;
+      });
+      
+      history.unshift(img);
+      if (history.length > MAX_HISTORY) {
+        history.pop();
+      }
+      
+      renderHistory();
+    }
+    
+    function renderHistory() {
+      historyGrid.innerHTML = '';
+      history.forEach(img => {
+        historyGrid.appendChild(img);
+      });
+    }
+
+    // イベントリスナーの登録
+    const inputs = [
+      iconTextarea, fontFamilySelect, fontWeightSelect, textColorInput,
+      gradColor1Input, gradColor2Input, iconSizeSelect, iconWidthInput,
+      iconHeightInput, letterSpacingRange, lineHeightRange,
+      cornerRadiusRange, addOutlineCheckbox, outlineColorInput, outlineWidthRange
+    ];
+    
+    inputs.forEach(input => input.addEventListener('input', () => {
+      updateUI();
+      drawIcon();
+    }));
+    
+    dropShadowRadios.forEach(radio => radio.addEventListener('change', () => {
+      drawIcon();
+    }));
+
+    // プリセットボタン
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const colors = btn.dataset.colors.split(',');
+        gradColor1Input.value = colors[0];
+        gradColor2Input.value = colors[1];
+        updateUI();
+        drawIcon();
+      });
+    });
+
+    // ランダム生成
+    randomizeBtn.addEventListener('click', () => {
+      const randomHex = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+      gradColor1Input.value = randomHex();
+      gradColor2Input.value = randomHex();
+      
+      const randomWeight = ['300', '400', '500', '600', '700', '800', '900'];
+      fontWeightSelect.value = randomWeight[Math.floor(Math.random() * randomWeight.length)];
+      
+      letterSpacingRange.value = Math.floor(Math.random() * 25) - 5;
+      cornerRadiusRange.value = Math.floor(Math.random() * 50);
+      
+      updateUI();
+      drawIcon();
+    });
+
+    // リセットボタン
+    resetBtn.addEventListener('click', initializeState);
+
+    // ダウンロード機能
+    downloadPngBtn.addEventListener('click', () => {
+      downloadPngBtn.href = canvas.toDataURL('image/png');
+    });
+
+    downloadJpgBtn.addEventListener('click', () => {
+      downloadJpgBtn.href = canvas.toDataURL('image/jpeg', 0.9);
+    });
+    
+    downloadWebpBtn.addEventListener('click', () => {
+      downloadWebpBtn.href = canvas.toDataURL('image/webp');
+    });
+
+    // 画像コピー機能
+    copyBtn.addEventListener('click', async () => {
+      try {
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        await navigator.clipboard.write([
+          new ClipboardItem({'image/png': blob})
+        ]);
+        copySuccessMessage.style.display = 'block';
+        copyErrorMessage.style.display = 'none';
+        setTimeout(() => copySuccessMessage.style.display = 'none', 3000);
+      } catch (err) {
+        copyErrorMessage.style.display = 'block';
+        copySuccessMessage.style.display = 'none';
+        console.error('画像のコピーに失敗しました:', err);
+      }
+    });
+
+    // 高度な設定のトグル
+    function toggleAdvanced() {
+      const advancedControls = document.getElementById('advancedControls');
+      const toggleBtn = document.querySelector('.toggle-advanced');
+      const isVisible = advancedControls.classList.contains('show');
+      
+      if (isVisible) {
+        advancedControls.classList.remove('show');
+        toggleBtn.textContent = '🔧 高度な設定を表示';
+      } else {
+        advancedControls.classList.add('show');
+        toggleBtn.textContent = '❌ 高度な設定を隠す';
+      }
+    }
+
+    // 初期化
+    window.onload = initializeState;
+  </script>
+</body>
+</html>
