@@ -484,37 +484,7 @@
       font-weight: bold;
       color: white;
     }
-
-    .history-panel {
-      margin-top: 30px;
-      padding: 20px;
-      background: var(--surface-2);
-      border-radius: var(--radius);
-    }
-
-    .history-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-      gap: 10px;
-      margin-top: 15px;
-      max-height: 200px;
-      overflow-y: auto;
-    }
-
-    .history-item {
-      aspect-ratio: 1;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: var(--transition);
-      border: 2px solid transparent;
-      object-fit: cover;
-    }
-
-    .history-item:hover {
-      border-color: var(--primary);
-      transform: scale(1.05);
-    }
-
+    
     .range-display {
       display: flex;
       align-items: center;
@@ -552,9 +522,9 @@
     .tooltip::after {
       content: attr(data-tooltip);
       position: absolute;
-      bottom: 100%;
+      top: -10px;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -100%);
       background: var(--text-primary);
       color: white;
       padding: 6px 10px;
@@ -566,10 +536,10 @@
       transition: var(--transition);
       z-index: 1000;
     }
-
+    
     .tooltip:hover::after {
       opacity: 1;
-      transform: translateX(-50%) translateY(-5px);
+      transform: translate(-50%, -100%);
     }
 
     .loading {
@@ -904,47 +874,34 @@
       <div class="section">
         <div class="section-title">⬇️ ダウンロードとエクスポート</div>
         <div class="export-options">
-          <a href="#" id="downloadPngBtn" class="export-btn" download="icon.png">
+          <a href="#" id="downloadPngBtn" class="export-btn tooltip" download="icon.png" data-tooltip="ウェブの透過アイコン、ロゴに">
             <span class="export-icon" style="background: var(--success);">PNG</span>
             <span>PNG</span>
           </a>
-          <a href="#" id="downloadJpgBtn" class="export-btn" download="icon.jpeg">
+          <a href="#" id="downloadJpgBtn" class="export-btn tooltip" download="icon.jpeg" data-tooltip="写真など、透過が不要な画像に">
             <span class="export-icon" style="background: var(--warning);">JPG</span>
             <span>JPG</span>
           </a>
-          <a href="#" id="downloadWebpBtn" class="export-btn" download="icon.webp">
+          <a href="#" id="downloadWebpBtn" class="export-btn tooltip" download="icon.webp" data-tooltip="高画質を保ちつつ、軽量なウェブ画像に">
             <span class="export-icon" style="background: var(--primary);">WEBP</span>
             <span>WEBP</span>
           </a>
-          <button id="copyBtn" class="export-btn">
-            <span class="export-icon" style="background: var(--secondary);">📋</span>
-            <span>画像コピー</span>
-          </button>
+          <a href="#" id="downloadSvgBtn" class="export-btn tooltip" download="icon.svg" data-tooltip="サイズを変えても劣化しないベクター画像に">
+            <span class="export-icon" style="background: var(--accent);">SVG</span>
+            <span>SVG</span>
+          </a>
+          <a href="#" id="downloadIcoBtn" class="export-btn tooltip" download="icon.ico" data-tooltip="ファビコンやデスクトップアイコンに">
+            <span class="export-icon" style="background: var(--secondary);">ICO</span>
+            <span>ICO</span>
+          </a>
         </div>
         <div class="success-message" id="copySuccessMessage">✅ 画像がクリップボードにコピーされました！</div>
         <div class="error-message" id="copyErrorMessage">⚠️ 画像のコピーに失敗しました。ブラウザが対応していません。</div>
-      </div>
-      
-      <div class="history-panel">
-        <div class="section-title">🕒 履歴</div>
-        <div class="history-grid" id="historyGrid">
-        </div>
-        <small class="color-hex" style="margin-top:10px; display:block;">最新の10個を保存</small>
       </div>
     </div>
   </div>
 
   <script>
-    // ユーティリティ関数
-    function hexToRgb(hex) {
-      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-      return result ? {
-        r: parseInt(result[1], 16),
-        g: parseInt(result[2], 16),
-        b: parseInt(result[3], 16)
-      } : null;
-    }
-
     // 要素の取得
     const canvas = document.getElementById('iconCanvas');
     const ctx = canvas.getContext('2d');
@@ -977,14 +934,11 @@
     const downloadPngBtn = document.getElementById('downloadPngBtn');
     const downloadJpgBtn = document.getElementById('downloadJpgBtn');
     const downloadWebpBtn = document.getElementById('downloadWebpBtn');
-    const copyBtn = document.getElementById('copyBtn');
+    const downloadSvgBtn = document.getElementById('downloadSvgBtn');
+    const downloadIcoBtn = document.getElementById('downloadIcoBtn');
     const copySuccessMessage = document.getElementById('copySuccessMessage');
     const copyErrorMessage = document.getElementById('copyErrorMessage');
-    const historyGrid = document.getElementById('historyGrid');
     const sizeIndicator = document.getElementById('sizeIndicator');
-
-    let history = [];
-    const MAX_HISTORY = 10;
 
     // 初期状態の設定
     function initializeState() {
@@ -1011,7 +965,6 @@
 
     // UIの値を更新
     function updateUI() {
-      // カラーボックスとHEX値
       document.getElementById('textColorHex').textContent = textColorInput.value.toUpperCase();
       document.getElementById('textColorBox').style.backgroundColor = textColorInput.value;
       document.getElementById('gradColor1Hex').textContent = gradColor1Input.value.toUpperCase();
@@ -1019,19 +972,15 @@
       document.getElementById('gradColor2Hex').textContent = gradColor2Input.value.toUpperCase();
       document.getElementById('gradColor2Box').style.backgroundColor = gradColor2Input.value;
       
-      // レンジスライダーの値
       letterSpacingValue.textContent = letterSpacingRange.value;
       lineHeightValue.textContent = lineHeightRange.value;
       outlineWidthValue.textContent = outlineWidthRange.value;
       cornerRadiusValue.textContent = `${cornerRadiusRange.value}%`;
 
-      // 文字数
       textLengthSpan.textContent = iconTextarea.value.length;
 
-      // カスタムサイズ入力の表示/非表示
       customSizeInputs.style.display = iconSizeSelect.value === 'custom' ? 'flex' : 'none';
       
-      // アウトラインコントロールの表示/非表示
       outlineControls.style.display = addOutlineCheckbox.checked ? 'flex' : 'none';
     }
 
@@ -1085,20 +1034,19 @@
 
       // テキストの準備
       if (text) {
-        // テキストの測定
         const lines = text.split('\n');
         const maxTextWidth = width * 0.9;
         const maxTextHeight = height * 0.9;
-        let fontSize = 100;
+        let fontSize = Math.min(width, height);
 
         while (true) {
           ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
           let totalTextHeight = 0;
           let maxWidth = 0;
 
-          lines.forEach((line, index) => {
+          lines.forEach((line) => {
             const metrics = ctx.measureText(line);
-            const textWidth = metrics.width + (line.length - 1) * parseFloat(letterSpacingRange.value);
+            const textWidth = metrics.width + (line.length - 1) * letterSpacing;
             maxWidth = Math.max(maxWidth, textWidth);
             totalTextHeight += fontSize * lineHeight;
           });
@@ -1132,7 +1080,6 @@
         
         ctx.fillStyle = textColor;
         
-        // 複数行テキストの描画
         const textHeight = fontSize * lineHeight;
         const totalHeight = textHeight * (lines.length - 1);
         const startY = height / 2 - (totalHeight / 2);
@@ -1144,41 +1091,102 @@
           ctx.fillText(line, width / 2, startY + index * textHeight);
         });
       }
-      
-      // 履歴に保存
-      addToHistory();
     }
-    
-    // 履歴を管理
-    function addToHistory() {
-      const dataUrl = canvas.toDataURL('image/png');
+
+    // SVG生成
+    function createSvgString() {
+      const text = iconTextarea.value.trim();
+      const fontFamily = fontFamilySelect.value;
+      const fontWeight = fontWeightSelect.value;
+      const textColor = textColorInput.value;
+      const gradColor1 = gradColor1Input.value;
+      const gradColor2 = gradColor2Input.value;
+      const letterSpacing = parseFloat(letterSpacingRange.value);
+      const lineHeight = parseFloat(lineHeightRange.value);
+      const cornerRadius = parseFloat(cornerRadiusRange.value);
+      const dropShadow = parseInt(document.querySelector('input[name="dropShadow"]:checked').value);
+      const addOutline = addOutlineCheckbox.checked;
+      const outlineColor = outlineColorInput.value;
+      const outlineWidth = parseInt(outlineWidthRange.value);
       
-      const img = new Image();
-      img.src = dataUrl;
-      img.alt = 'アイコン履歴';
-      img.className = 'history-item';
-      img.addEventListener('click', () => {
-        const tempImg = new Image();
-        tempImg.onload = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(tempImg, 0, 0, canvas.width, canvas.height);
-        };
-        tempImg.src = dataUrl;
-      });
+      const size = iconSizeSelect.value === 'custom' ? parseInt(iconWidthInput.value) : parseInt(iconSizeSelect.value);
+      const width = size;
+      const height = size;
+
+      let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+
+      // グラデーション
+      svg += `<defs><linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:${gradColor1}"/><stop offset="100%" style="stop-color:${gradColor2}"/></linearGradient></defs>`;
       
-      history.unshift(img);
-      if (history.length > MAX_HISTORY) {
-        history.pop();
+      // 背景
+      const radius = width * (cornerRadius / 100);
+      svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="url(#bgGrad)"/>`;
+
+      // テキスト
+      if (text) {
+        const lines = text.split('\n');
+        
+        // フォントサイズを自動調整
+        let fontSize = Math.min(width, height);
+        const maxTextWidth = width * 0.9;
+        const maxTextHeight = height * 0.9;
+        
+        const testSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const testText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        testText.setAttribute('font-family', fontFamily);
+        testText.setAttribute('font-weight', fontWeight);
+        testText.setAttribute('letter-spacing', letterSpacing);
+        testText.setAttribute('font-size', fontSize + 'px');
+        testSvg.appendChild(testText);
+        document.body.appendChild(testSvg);
+        
+        while (true) {
+          let totalTextHeight = 0;
+          let maxWidth = 0;
+          testText.setAttribute('font-size', fontSize + 'px');
+          
+          lines.forEach((line) => {
+            testText.textContent = line;
+            const textWidth = testText.getComputedTextLength() + (line.length - 1) * letterSpacing;
+            maxWidth = Math.max(maxWidth, textWidth);
+            totalTextHeight += fontSize * lineHeight;
+          });
+
+          if (maxWidth <= maxTextWidth && totalTextHeight <= maxTextHeight) {
+            break;
+          }
+          fontSize -= 1;
+          if (fontSize <= 10) break;
+        }
+
+        document.body.removeChild(testSvg);
+        
+        const textHeight = fontSize * lineHeight;
+        const totalHeight = textHeight * (lines.length - 1);
+        const startY = height / 2 - (totalHeight / 2) + fontSize / 2;
+        
+        const textAttrs = `fill="${textColor}" font-family="${fontFamily}" font-weight="${fontWeight}" font-size="${fontSize}px" text-anchor="middle" letter-spacing="${letterSpacing}"`;
+        
+        if (dropShadow > 0) {
+          svg += `<filter id="shadow"><feDropShadow dx="${dropShadow * 1}" dy="${dropShadow * 1.5}" stdDeviation="${dropShadow * 0.5}" flood-color="rgba(0, 0, 0, 0.3)"/></filter>`;
+          svg += `<g filter="url(#shadow)">`;
+        }
+
+        lines.forEach((line, index) => {
+          const yPos = startY + index * textHeight;
+          if (addOutline) {
+            svg += `<text x="${width / 2}" y="${yPos}" ${textAttrs} stroke="${outlineColor}" stroke-width="${outlineWidth}" stroke-linejoin="round">${line}</text>`;
+          }
+          svg += `<text x="${width / 2}" y="${yPos}" ${textAttrs}>${line}</text>`;
+        });
+
+        if (dropShadow > 0) {
+          svg += `</g>`;
+        }
       }
       
-      renderHistory();
-    }
-    
-    function renderHistory() {
-      historyGrid.innerHTML = '';
-      history.forEach(img => {
-        historyGrid.appendChild(img);
-      });
+      svg += `</svg>`;
+      return svg;
     }
 
     // イベントリスナーの登録
@@ -1241,20 +1249,21 @@
       downloadWebpBtn.href = canvas.toDataURL('image/webp');
     });
 
-    // 画像コピー機能
-    copyBtn.addEventListener('click', async () => {
+    downloadSvgBtn.addEventListener('click', () => {
+      const svgString = createSvgString();
+      const blob = new Blob([svgString], {type: 'image/svg+xml'});
+      downloadSvgBtn.href = URL.createObjectURL(blob);
+    });
+
+    downloadIcoBtn.addEventListener('click', async () => {
       try {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        await navigator.clipboard.write([
-          new ClipboardItem({'image/png': blob})
-        ]);
-        copySuccessMessage.style.display = 'block';
-        copyErrorMessage.style.display = 'none';
-        setTimeout(() => copySuccessMessage.style.display = 'none', 3000);
+        const pngDataUrl = canvas.toDataURL('image/png');
+        const iconifier = await import('https://cdn.jsdelivr.net/npm/iconifier-js@1.0.1/dist/iconifier.js');
+        const icoBlob = iconifier.toIco(pngDataUrl, [16, 32, 48, 64, 128, 256]);
+        downloadIcoBtn.href = URL.createObjectURL(icoBlob);
       } catch (err) {
-        copyErrorMessage.style.display = 'block';
-        copySuccessMessage.style.display = 'none';
-        console.error('画像のコピーに失敗しました:', err);
+        console.error('ICO変換に失敗しました:', err);
+        alert('ICO変換に失敗しました。');
       }
     });
 
