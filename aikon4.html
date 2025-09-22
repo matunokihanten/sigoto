@@ -1241,24 +1241,18 @@
         let dataUrl;
         let mimeType;
         let fileExtension;
+        let blob;
 
         if (outputFormat === "svg") {
             const svgString = createSvg(params);
-            const blob = new Blob([svgString], { type: 'image/svg+xml' });
-            dataUrl = URL.createObjectURL(blob);
+            blob = new Blob([svgString], { type: 'image/svg+xml' });
             mimeType = 'image/svg+xml';
             fileExtension = 'svg';
         } else if (outputFormat === "ico") {
             const canvas = document.getElementById("iconCanvas");
-            // ICOは複数サイズを1ファイルに格納するため複雑。
-            // ここでは簡易的に、現在のキャンバスサイズからICO形式に変換
-            // 実際にはサーバーサイドやライブラリが必要になるため、
-            // 互換性のためPNGを推奨
-            dataUrl = canvas.toDataURL("image/png");
-            mimeType = "image/png";
-            fileExtension = "png"; // 簡易的にPNGとしてダウンロード
-            alert("ICO形式は現在、PNG形式としてダウンロードされます。");
-            return;
+            blob = canvasToICO(canvas);
+            mimeType = "image/x-icon";
+            fileExtension = "ico";
         } else {
             const canvas = document.getElementById("iconCanvas");
             if (outputFormat === "jpeg") {
@@ -1275,6 +1269,11 @@
                 fileExtension = "png";
             }
         }
+        
+        // Blobが存在する場合は、URL.createObjectURLでダウンロード
+        if (blob) {
+            dataUrl = URL.createObjectURL(blob);
+        }
 
         const link = document.createElement('a');
         link.download = `${filename}.${fileExtension}`;
@@ -1283,12 +1282,50 @@
         link.click();
         document.body.removeChild(link);
         
-        // SVGダウンロードの場合、URLをrevoke
-        if (outputFormat === "svg") {
+        // URLをrevoke
+        if (blob) {
              URL.revokeObjectURL(dataUrl);
         }
     }
-    
+
+    // CanvasからICO Blobを生成する関数
+    function canvasToICO(canvas) {
+        const pngDataUrl = canvas.toDataURL('image/png');
+        const pngBase64 = pngDataUrl.split(',')[1];
+        const pngBytes = atob(pngBase64);
+        const pngLength = pngBytes.length;
+
+        const headerSize = 6 + 16;
+        const totalSize = headerSize + pngLength;
+        const buffer = new ArrayBuffer(totalSize);
+        const view = new DataView(buffer);
+        
+        let offset = 0;
+        
+        // ICO Header (ICONHEADER)
+        view.setUint16(offset, 0, true); offset += 2; // Reserved (0)
+        view.setUint16(offset, 1, true); offset += 2; // Type (1 = icon)
+        view.setUint16(offset, 1, true); offset += 2; // Count (1 entry)
+        
+        // Directory Entry (ICONDIR)
+        const size = canvas.width;
+        view.setUint8(offset, size >= 256 ? 0 : size); offset++; // Width
+        view.setUint8(offset, size >= 256 ? 0 : size); offset++; // Height
+        view.setUint8(offset, 0); offset++; // Colors
+        view.setUint8(offset, 0); offset++; // Reserved (0)
+        view.setUint16(offset, 1, true); offset += 2; // Color planes
+        view.setUint16(offset, 32, true); offset += 2; // Bits per pixel
+        view.setUint32(offset, pngLength, true); offset += 4; // Size of PNG data
+        view.setUint32(offset, headerSize, true); offset += 4; // Offset of PNG data
+        
+        // PNG Data
+        for (let i = 0; i < pngLength; i++) {
+            view.setUint8(offset + i, pngBytes.charCodeAt(i));
+        }
+        
+        return new Blob([buffer], { type: 'image/x-icon' });
+    }
+
     // 成功メッセージ表示
     function showSuccessMessage() {
         const msg = document.getElementById("successMessage");
