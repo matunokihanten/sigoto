@@ -45,9 +45,9 @@
     }
 
     .app-container {
-      max-width: 1600px;
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 30px;
+      padding: 20px;
       display: grid;
       grid-template-columns: minmax(320px, 400px) 1fr;
       gap: 30px;
@@ -62,8 +62,6 @@
       height: fit-content;
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      position: sticky;
-      top: 30px;
     }
 
     .preview-area {
@@ -125,18 +123,6 @@
       gap: 12px;
       flex-wrap: wrap;
     }
-    
-    .control-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 15px;
-    }
-    
-    @media (min-width: 768px) {
-      .control-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
 
     label {
       font-weight: 500;
@@ -154,16 +140,6 @@
       background: var(--surface);
       color: var(--text-primary);
       font-family: inherit;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      appearance: none;
-    }
-    
-    select {
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2364748b'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z' clip-rule='evenodd'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 1em center;
-      background-size: 1.2em;
     }
 
     input:focus, select:focus, textarea:focus {
@@ -546,9 +522,9 @@
     .tooltip::after {
       content: attr(data-tooltip);
       position: absolute;
-      bottom: 100%;
+      top: -10px;
       left: 50%;
-      transform: translateX(-50%);
+      transform: translate(-50%, -100%);
       background: var(--text-primary);
       color: white;
       padding: 6px 10px;
@@ -559,12 +535,11 @@
       pointer-events: none;
       transition: var(--transition);
       z-index: 1000;
-      margin-bottom: 10px;
     }
     
     .tooltip:hover::after {
       opacity: 1;
-      transform: translateX(-50%) translateY(-5px);
+      transform: translate(-50%, -100%);
     }
 
     .loading {
@@ -614,12 +589,6 @@
       .app-container {
         grid-template-columns: 1fr;
         max-width: 800px;
-        padding: 20px;
-      }
-      
-      .control-panel {
-        position: static;
-        top: auto;
       }
     }
 
@@ -710,65 +679,61 @@
     <div class="control-panel">
       <h1>🎨 高度な3Dアイコン作成ツール</h1>
       
-      <section class="section">
-        <h2 class="section-title">📝 テキスト設定</h2>
-        <div class="control-grid">
-          <div class="control" style="grid-column: 1 / -1;">
-            <label for="iconText">表示テキスト</label>
-            <textarea id="iconText" placeholder="アイコンに表示するテキストを入力" rows="2" maxlength="50">松乃木\n飯店</textarea>
-            <small class="color-hex">文字数: <span id="textLength">5</span>/50</small>
-          </div>
-          
-          <div class="control">
-            <label for="fontFamily">フォント</label>
-            <select id="fontFamily">
-              <option value="'Inter', sans-serif">Inter (モダン)</option>
-              <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
-              <option value="'M PLUS Rounded 1c', sans-serif" selected>M PLUS Rounded (丸文字)</option>
-              <option value="'Kosugi Maru', sans-serif">Kosugi Maru</option>
-              <option value="'Varela Round', sans-serif">Varela Round</option>
-              <option value="system-ui, sans-serif">システムフォント</option>
-              <option value="'Courier New', monospace">等幅フォント</option>
-            </select>
-          </div>
-
-          <div class="control">
-            <label for="fontWeight">文字の太さ</label>
-            <select id="fontWeight">
-              <option value="300">Light (300)</option>
-              <option value="400">Regular (400)</option>
-              <option value="500">Medium (500)</option>
-              <option value="600">SemiBold (600)</option>
-              <option value="700">Bold (700)</option>
-              <option value="800" selected>ExtraBold (800)</option>
-              <option value="900">Black (900)</option>
-            </select>
-          </div>
+      <div class="section">
+        <div class="section-title">📝 テキスト設定</div>
+        <div class="control">
+          <label for="iconText">表示テキスト</label>
+          <textarea id="iconText" placeholder="アイコンに表示するテキストを入力" rows="2" maxlength="50">松乃木飯店</textarea>
+          <small class="color-hex">文字数: <span id="textLength">5</span>/50</small>
         </div>
-      </section>
+        
+        <div class="control">
+          <label for="fontFamily">フォント</label>
+          <select id="fontFamily">
+            <option value="'Inter', sans-serif">Inter (モダン)</option>
+            <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+            <option value="'M PLUS Rounded 1c', sans-serif" selected>M PLUS Rounded (丸文字)</option>
+            <option value="'Kosugi Maru', sans-serif">Kosugi Maru</option>
+            <option value="'Varela Round', sans-serif">Varela Round</option>
+            <option value="system-ui, sans-serif">システムフォント</option>
+            <option value="'Courier New', monospace">等幅フォント</option>
+          </select>
+        </div>
 
-      <section class="section">
-        <h2 class="section-title">🎨 カラー設定</h2>
-        <div class="control-grid">
-          <div class="control">
-            <label for="gradColor1">背景グラデーション1</label>
-            <div class="control-inline">
-              <input type="color" id="gradColor1" value="#667eea">
-              <div class="color-display">
-                <div class="color-box" id="gradColor1Box"></div>
-                <div class="color-hex" id="gradColor1Hex">#667EEA</div>
-              </div>
+        <div class="control">
+          <label for="fontWeight">文字の太さ</label>
+          <select id="fontWeight">
+            <option value="300">Light (300)</option>
+            <option value="400">Regular (400)</option>
+            <option value="500">Medium (500)</option>
+            <option value="600">SemiBold (600)</option>
+            <option value="700">Bold (700)</option>
+            <option value="800" selected>ExtraBold (800)</option>
+            <option value="900">Black (900)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🎨 カラー設定</div>
+        <div class="control">
+          <label for="gradColor1">背景グラデーション1</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor1" value="#667eea">
+            <div class="color-display">
+              <div class="color-box" id="gradColor1Box"></div>
+              <div class="color-hex" id="gradColor1Hex">#667EEA</div>
             </div>
           </div>
+        </div>
 
-          <div class="control">
-            <label for="gradColor2">背景グラデーション2</label>
-            <div class="control-inline">
-              <input type="color" id="gradColor2" value="#764ba2">
-              <div class="color-display">
-                <div class="color-box" id="gradColor2Box"></div>
-                <div class="color-hex" id="gradColor2Hex">#764BA2</div>
-              </div>
+        <div class="control">
+          <label for="gradColor2">背景グラデーション2</label>
+          <div class="control-inline">
+            <input type="color" id="gradColor2" value="#764ba2">
+            <div class="color-display">
+              <div class="color-box" id="gradColor2Box"></div>
+              <div class="color-hex" id="gradColor2Hex">#764BA2</div>
             </div>
           </div>
         </div>
@@ -783,10 +748,10 @@
           <button class="preset-btn" data-colors="#ff6b6b,#ee5a52">コーラル</button>
           <button class="preset-btn" data-colors="#4ecdc4,#44a08d">ティール</button>
         </div>
-      </section>
-      
-      <section class="section">
-        <h2 class="section-title">⚙️ 基本設定</h2>
+      </div>
+
+      <div class="section">
+        <div class="section-title">⚙️ 基本設定</div>
         <div class="control">
           <label for="iconSize">アイコンサイズ</label>
           <select id="iconSize">
@@ -803,7 +768,7 @@
           <input type="number" id="iconWidth" placeholder="幅 (px)" value="256" min="32" max="2048" step="1">
           <input type="number" id="iconHeight" placeholder="高さ (px)" value="256" min="32" max="2048" step="1">
         </div>
-        
+
         <div class="control">
           <label for="letterSpacing">文字間隔</label>
           <div class="range-display">
@@ -819,13 +784,13 @@
             <output id="lineHeightValue">1.2</output>
           </div>
         </div>
-      </section>
-      
+      </div>
+
       <button class="toggle-advanced" onclick="toggleAdvanced()">🔧 高度な設定を表示</button>
 
       <div class="advanced-controls" id="advancedControls">
-        <section class="section">
-          <h2 class="section-title">💫 エフェクト</h2>
+        <div class="section">
+          <div class="section-title">💫 エフェクト</div>
           <div class="control">
             <label>ドロップシャドウ</label>
             <div class="radio-group">
@@ -864,33 +829,28 @@
               </div>
             </div>
           </div>
-        </section>
-        
-        <section class="section">
-          <h2 class="section-title">✨ テキスト詳細</h2>
-          <div class="control-grid">
-            <div class="control">
-              <label for="textGradColor1">テキストグラデーション1</label>
-              <div class="control-inline">
-                <input type="color" id="textGradColor1" value="#ffffff">
-                <div class="color-display">
-                  <div class="color-box" id="textGradColor1Box"></div>
-                  <div class="color-hex" id="textGradColor1Hex">#FFFFFF</div>
-                </div>
-              </div>
-            </div>
-            <div class="control">
-              <label for="textGradColor2">テキストグラデーション2</label>
-              <div class="control-inline">
-                <input type="color" id="textGradColor2" value="#e0e0e0">
-                <div class="color-display">
-                  <div class="color-box" id="textGradColor2Box"></div>
-                  <div class="color-hex" id="textGradColor2Hex">#E0E0E0</div>
-                </div>
+
+          <div class="control">
+            <label for="textGradColor1">テキストグラデーション1</label>
+            <div class="control-inline">
+              <input type="color" id="textGradColor1" value="#ffffff">
+              <div class="color-display">
+                <div class="color-box" id="textGradColor1Box"></div>
+                <div class="color-hex" id="textGradColor1Hex">#FFFFFF</div>
               </div>
             </div>
           </div>
-          
+          <div class="control">
+            <label for="textGradColor2">テキストグラデーション2</label>
+            <div class="control-inline">
+              <input type="color" id="textGradColor2" value="#e0e0e0">
+              <div class="color-display">
+                <div class="color-box" id="textGradColor2Box"></div>
+                <div class="color-hex" id="textGradColor2Hex">#E0E0E0</div>
+              </div>
+            </div>
+          </div>
+
           <div class="control">
             <div class="checkbox-item">
               <input type="checkbox" id="addOutline" checked>
@@ -914,32 +874,7 @@
               <output id="outlineWidthValue">5</output>
             </div>
           </div>
-        </section>
-        
-        <section class="section">
-          <h2 class="section-title">🧊 3D効果</h2>
-          <div class="control" id="threeDControls">
-            <label for="extrudeDepth">3Dの奥行き</label>
-            <div class="range-display">
-              <input type="range" id="extrudeDepth" min="0" max="15" value="5">
-              <output id="extrudeDepthValue">5</output>
-            </div>
-            <label for="lightAngle">光の角度</label>
-            <div class="range-display">
-              <input type="range" id="lightAngle" min="0" max="360" value="45">
-              <output id="lightAngleValue">45°</output>
-            </div>
-          </div>
-          <div class="control">
-            <div class="checkbox-item">
-              <input type="checkbox" id="enable3d" checked>
-              <label for="enable3d">3D効果を有効にする</label>
-            </div>
-          </div>
-        </section>
 
-        <section class="section">
-          <h2 class="section-title">🖼️ 背景詳細</h2>
           <div class="control">
             <label for="cornerRadius">角丸の強さ</label>
             <div class="range-display">
@@ -947,13 +882,14 @@
               <output id="cornerRadiusValue">15%</output>
             </div>
           </div>
-        </section>
+        </div>
       </div>
-      
+
       <div class="button-group">
         <button class="btn-primary" id="randomizeBtn">🎲 ランダム生成</button>
         <button class="btn-secondary" id="resetBtn">🔄 リセット</button>
       </div>
+
     </div>
 
     <div class="preview-area">
@@ -962,8 +898,8 @@
         <div class="size-indicator" id="sizeIndicator">256 x 256 px</div>
       </div>
 
-      <section class="section">
-        <h2 class="section-title">⬇️ ダウンロードとエクスポート</h2>
+      <div class="section">
+        <div class="section-title">⬇️ ダウンロードとエクスポート</div>
         <div class="export-options">
           <a href="#" id="downloadPngBtn" class="export-btn tooltip" download="icon.png" data-tooltip="ウェブの透過アイコン、ロゴに">
             <span class="export-icon" style="background: var(--success);">PNG</span>
@@ -981,11 +917,14 @@
             <span class="export-icon" style="background: var(--accent);">SVG</span>
             <span>SVG</span>
           </a>
+          <a href="#" id="downloadIcoBtn" class="export-btn tooltip" download="icon.ico" data-tooltip="Windowsのファビコンやショートカットに最適">
+            <span class="export-icon" style="background: #5D5DFF;">ICO</span>
+            <span>ICO</span>
+          </a>
         </div>
-        <button id="copyBtn" class="btn-success" style="margin-top: 20px;">📋 画像をコピー</button>
         <div class="success-message" id="copySuccessMessage">✅ 画像がクリップボードにコピーされました！</div>
         <div class="error-message" id="copyErrorMessage">⚠️ 画像のコピーに失敗しました。ブラウザが対応していません。</div>
-      </section>
+      </div>
     </div>
   </div>
 
@@ -997,6 +936,7 @@
     const textLengthSpan = document.getElementById('textLength');
     const fontFamilySelect = document.getElementById('fontFamily');
     const fontWeightSelect = document.getElementById('fontWeight');
+    const textColorInput = document.getElementById('textColor');
     const gradColor1Input = document.getElementById('gradColor1');
     const gradColor2Input = document.getElementById('gradColor2');
     const iconSizeSelect = document.getElementById('iconSize');
@@ -1016,12 +956,6 @@
     const outlineWidthRange = document.getElementById('outlineWidth');
     const outlineWidthValue = document.getElementById('outlineWidthValue');
     const outlineControls = document.getElementById('outlineControls');
-    const enable3dCheckbox = document.getElementById('enable3d');
-    const extrudeDepthRange = document.getElementById('extrudeDepth');
-    const extrudeDepthValue = document.getElementById('extrudeDepthValue');
-    const lightAngleRange = document.getElementById('lightAngle');
-    const lightAngleValue = document.getElementById('lightAngleValue');
-    const threeDControls = document.getElementById('threeDControls');
     const randomizeBtn = document.getElementById('randomizeBtn');
     const resetBtn = document.getElementById('resetBtn');
     const presetBtns = document.querySelectorAll('.preset-btn');
@@ -1029,22 +963,79 @@
     const downloadJpgBtn = document.getElementById('downloadJpgBtn');
     const downloadWebpBtn = document.getElementById('downloadWebpBtn');
     const downloadSvgBtn = document.getElementById('downloadSvgBtn');
-    const copyBtn = document.getElementById('copyBtn');
+    const downloadIcoBtn = document.getElementById('downloadIcoBtn');
     const copySuccessMessage = document.getElementById('copySuccessMessage');
     const copyErrorMessage = document.getElementById('copyErrorMessage');
     const sizeIndicator = document.getElementById('sizeIndicator');
     const textGradColor1Input = document.getElementById('textGradColor1');
     const textGradColor2Input = document.getElementById('textGradColor2');
 
-    let animationFrameId = null;
+    let patternType = 'none';
+    let patternOpacity = 0.1;
 
-    // デバウンス関数
-    function debounce(func, delay) {
-      let timeout;
-      return function(...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), delay);
-      };
+    // ICOファイル作成関数
+    function canvasToICO(canvas) {
+      const pngDataUrl = canvas.toDataURL('image/png');
+      const pngBase64 = pngDataUrl.split(',')[1];
+      const pngBytes = atob(pngBase64);
+      const pngLength = pngBytes.length;
+
+      const headerSize = 6 + 16;
+      const totalSize = headerSize + pngLength;
+      const buffer = new ArrayBuffer(totalSize);
+      const view = new DataView(buffer);
+      
+      let offset = 0;
+      
+      // ICO Header
+      view.setUint16(offset, 0, true); offset += 2; // Reserved (0)
+      view.setUint16(offset, 1, true); offset += 2; // Type (1 = icon)
+      view.setUint16(offset, 1, true); offset += 2; // Count (1 entry)
+      
+      // Directory Entry (ICONDIR)
+      const size = canvas.width;
+      view.setUint8(offset, size >= 256 ? 0 : size); offset++; // Width
+      view.setUint8(offset, size >= 256 ? 0 : size); offset++; // Height
+      view.setUint8(offset, 0); offset++; // Colors
+      view.setUint8(offset, 0); offset++; // Reserved (0)
+      view.setUint16(offset, 1, true); offset += 2; // Color planes
+      view.setUint16(offset, 32, true); offset += 2; // Bits per pixel
+      view.setUint32(offset, pngLength, true); offset += 4; // Size of PNG data
+      view.setUint32(offset, headerSize, true); offset += 4; // Offset of PNG data
+      
+      // PNG Data
+      for (let i = 0; i < pngLength; i++) {
+        view.setUint8(offset + i, pngBytes.charCodeAt(i));
+      }
+      
+      return new Blob([buffer], { type: 'image/x-icon' });
+    }
+
+    // 初期状態の設定
+    function initializeState() {
+      iconTextarea.value = '松乃木飯店';
+      fontFamilySelect.value = "'M PLUS Rounded 1c', sans-serif";
+      fontWeightSelect.value = '800';
+      gradColor1Input.value = '#667eea';
+      gradColor2Input.value = '#764ba2';
+      textGradColor1Input.value = '#ffffff';
+      textGradColor2Input.value = '#e0e0e0';
+      iconSizeSelect.value = '256';
+      iconWidthInput.value = '256';
+      iconHeightInput.value = '256';
+      letterSpacingRange.value = '0';
+      lineHeightRange.value = '1.2';
+      cornerRadiusRange.value = '15';
+      addOutlineCheckbox.checked = true;
+      outlineColorInput.value = '#000000';
+      outlineWidthRange.value = '5';
+      document.getElementById('shadow3').checked = true;
+      document.getElementById('innerShadow0').checked = true;
+      
+      patternType = 'none';
+      
+      updateUI();
+      drawIcon();
     }
 
     // UIの値を更新
@@ -1060,15 +1051,13 @@
       
       letterSpacingValue.textContent = letterSpacingRange.value;
       lineHeightValue.textContent = lineHeightRange.value;
-      extrudeDepthValue.textContent = extrudeDepthRange.value;
-      lightAngleValue.textContent = `${lightAngleRange.value}°`;
       outlineWidthValue.textContent = outlineWidthRange.value;
       cornerRadiusValue.textContent = `${cornerRadiusRange.value}%`;
-      
+
       textLengthSpan.textContent = iconTextarea.value.length;
 
       customSizeInputs.style.display = iconSizeSelect.value === 'custom' ? 'flex' : 'none';
-      threeDControls.style.display = enable3dCheckbox.checked ? 'flex' : 'none';
+      
       outlineControls.style.display = addOutlineCheckbox.checked ? 'flex' : 'none';
     }
 
@@ -1089,9 +1078,6 @@
       const addOutline = addOutlineCheckbox.checked;
       const outlineColor = outlineColorInput.value;
       const outlineWidth = parseInt(outlineWidthRange.value);
-      const enable3d = enable3dCheckbox.checked;
-      const extrudeDepth = parseInt(extrudeDepthRange.value);
-      const lightAngle = parseInt(lightAngleRange.value) * (Math.PI / 180);
 
       const width = iconSizeSelect.value === 'custom' ? parseInt(iconWidthInput.value) : parseInt(iconSizeSelect.value);
       const height = iconSizeSelect.value === 'custom' ? parseInt(iconHeightInput.value) : parseInt(iconSizeSelect.value);
@@ -1125,10 +1111,45 @@
       ctx.fillStyle = gradient;
       ctx.fill();
 
+      // パターンを追加
+      if (patternType !== 'none') {
+        const patternCanvas = document.createElement('canvas');
+        const pctx = patternCanvas.getContext('2d');
+        const patternSize = 30;
+        patternCanvas.width = patternSize;
+        patternCanvas.height = patternSize;
+        pctx.fillStyle = `rgba(255, 255, 255, ${patternOpacity})`;
+        
+        if (patternType === 'lines') {
+          pctx.strokeStyle = `rgba(255, 255, 255, ${patternOpacity})`;
+          pctx.lineWidth = 2;
+          for (let i = 0; i < patternSize * 2; i += 8) {
+            pctx.beginPath();
+            pctx.moveTo(i, 0);
+            pctx.lineTo(0, i);
+            pctx.stroke();
+          }
+        } else if (patternType === 'dots') {
+          pctx.fillStyle = `rgba(255, 255, 255, ${patternOpacity})`;
+          for (let x = 0; x < patternSize; x += 10) {
+            for (let y = 0; y < patternSize; y += 10) {
+              pctx.beginPath();
+              pctx.arc(x, y, 1.5, 0, Math.PI * 2);
+              pctx.fill();
+            }
+          }
+        }
+
+        const pattern = ctx.createPattern(patternCanvas, 'repeat');
+        ctx.fillStyle = pattern;
+        ctx.globalAlpha = 1.0;
+        ctx.fill();
+      }
+
       // インナーシャドウ
       if (innerShadow > 0) {
         ctx.save();
-        ctx.clip();
+        ctx.clip(); // パスをクリップ
         ctx.shadowColor = `rgba(0, 0, 0, 0.4)`;
         ctx.shadowBlur = innerShadow;
         ctx.shadowOffsetX = 0;
@@ -1141,56 +1162,31 @@
       // テキストの準備
       if (text) {
         const lines = text.split('\n');
-        const textBoundX = width * 0.9;
-        const textBoundY = height * 0.9;
+        const maxTextWidth = width * 0.9;
+        const maxTextHeight = height * 0.9;
         let fontSize = Math.min(width, height);
 
         while (true) {
-            ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-            let totalTextHeight = 0;
-            let maxWidth = 0;
-            
-            lines.forEach(line => {
-                const metrics = ctx.measureText(line);
-                const textWidth = metrics.width + (line.length - 1) * letterSpacing;
-                maxWidth = Math.max(maxWidth, textWidth);
-                totalTextHeight += fontSize * lineHeight;
-            });
+          ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+          let totalTextHeight = 0;
+          let maxWidth = 0;
 
-            if (maxWidth <= textBoundX && totalTextHeight <= textBoundY) {
-                break;
-            }
-            fontSize -= 1;
-            if (fontSize <= 10) break;
+          lines.forEach((line) => {
+            const metrics = ctx.measureText(line);
+            const textWidth = metrics.width + (line.length - 1) * letterSpacing;
+            maxWidth = Math.max(maxWidth, textWidth);
+            totalTextHeight += fontSize * lineHeight;
+          });
+
+          if (maxWidth <= maxTextWidth && totalTextHeight <= maxTextHeight) {
+            break;
+          }
+          fontSize -= 1;
+          if (fontSize <= 10) break;
         }
 
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-
-        // 3D効果
-        if (enable3d && extrudeDepth > 0) {
-          const offsetX = extrudeDepth * Math.cos(lightAngle);
-          const offsetY = extrudeDepth * Math.sin(lightAngle);
-
-          const sideGradient = ctx.createLinearGradient(0, 0, offsetX, offsetY);
-          sideGradient.addColorStop(0, '#555555');
-          sideGradient.addColorStop(1, '#111111');
-          ctx.fillStyle = sideGradient;
-
-          const textHeight = fontSize * lineHeight;
-          const totalHeight = textHeight * lines.length;
-          const startY = height / 2 - totalHeight / 2;
-
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-          ctx.shadowBlur = 5;
-          ctx.shadowOffsetX = offsetX * 0.5;
-          ctx.shadowOffsetY = offsetY * 0.5;
-
-          lines.forEach((line, index) => {
-              ctx.fillText(line, width / 2 + offsetX, startY + (index * textHeight) + (fontSize * 0.5));
-          });
-          ctx.shadowColor = 'transparent';
-        }
 
         // ドロップシャドウ
         if (dropShadow > 0) {
@@ -1217,15 +1213,14 @@
         ctx.fillStyle = textGradient;
         
         const textHeight = fontSize * lineHeight;
-        const totalHeight = textHeight * lines.length;
-        const startY = height / 2 - totalHeight / 2;
+        const totalHeight = textHeight * (lines.length - 1);
+        const startY = height / 2 - (totalHeight / 2);
         
         lines.forEach((line, index) => {
-            const yPos = startY + (index * textHeight) + (fontSize * 0.5);
-            if (addOutline) {
-                ctx.strokeText(line, width / 2, yPos);
-            }
-            ctx.fillText(line, width / 2, yPos);
+          if (addOutline) {
+            ctx.strokeText(line, width / 2, startY + index * textHeight);
+          }
+          ctx.fillText(line, width / 2, startY + index * textHeight);
         });
       }
     }
@@ -1247,9 +1242,6 @@
       const addOutline = addOutlineCheckbox.checked;
       const outlineColor = outlineColorInput.value;
       const outlineWidth = parseInt(outlineWidthRange.value);
-      const enable3d = enable3dCheckbox.checked;
-      const extrudeDepth = parseInt(extrudeDepthRange.value);
-      const lightAngle = parseInt(lightAngleRange.value);
       
       const size = iconSizeSelect.value === 'custom' ? parseInt(iconWidthInput.value) : parseInt(iconSizeSelect.value);
       const width = size;
@@ -1264,6 +1256,18 @@
       // テキストグラデーション
       svg += `<linearGradient id="textGrad" x1="0%" y1="50%" x2="100%" y2="50%"><stop offset="0%" style="stop-color:${textGradColor1}"/><stop offset="100%" style="stop-color:${textGradColor2}"/></linearGradient>`;
 
+      // パターン
+      if (patternType !== 'none') {
+        svg += `<pattern id="pattern" width="10" height="10" patternUnits="userSpaceOnUse">`;
+        if (patternType === 'lines') {
+          svg += `<path d="M-1,1 l2,-2 M0,10 l10,-10 M9,11 l2,-2" stroke="rgba(255, 255, 255, ${patternOpacity})" stroke-width="2"/>`;
+        } else if (patternType === 'dots') {
+          svg += `<circle cx="2" cy="2" r="1.5" fill="rgba(255, 255, 255, ${patternOpacity})"/>`;
+          svg += `<circle cx="7" cy="7" r="1.5" fill="rgba(255, 255, 255, ${patternOpacity})"/>`;
+        }
+        svg += `</pattern>`;
+      }
+      
       // ドロップシャドウ
       if (dropShadow > 0) {
         svg += `<filter id="shadow"><feDropShadow dx="${dropShadow * 1}" dy="${dropShadow * 1.5}" stdDeviation="${dropShadow * 0.5}" flood-color="rgba(0, 0, 0, 0.3)"/></filter>`;
@@ -1274,80 +1278,83 @@
         svg += `<filter id="innerShadow"><feOffset dx="0" dy="0"/><feGaussianBlur stdDeviation="${innerShadow * 0.2}"/><feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/><feFlood flood-color="rgba(0,0,0,0.4)"/><feComposite in2="SourceGraphic" operator="in"/><feComposite operator="over" in2="SourceGraphic"/></filter>`;
       }
       
-      // 3D効果 (SVGでの表現は複雑なため、簡略化)
-      if (enable3d && extrudeDepth > 0) {
-        const offset = extrudeDepth;
-        svg += `<filter id="extrude"><feMorphology operator="dilate" radius="${offset/2}" in="SourceAlpha" result="extrude"/>`;
-        svg += `<feOffset dx="${Math.cos(lightAngle * Math.PI / 180) * offset}" dy="${Math.sin(lightAngle * Math.PI / 180) * offset}" in="extrude" result="offset"/>`;
-        svg += `<feFlood flood-color="#111" flood-opacity="1" result="color"/>`;
-        svg += `<feComposite in="color" in2="offset" operator="in" result="shadow"/>`;
-        svg += `<feMerge><feMergeNode in="shadow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
-      }
-      
       svg += `</defs>`;
       
       // 背景
       const radius = width * (cornerRadius / 100);
+      let rectFill = `url(#bgGrad)`;
       let rectFilter = dropShadow > 0 ? `filter="url(#shadow)"` : '';
       if (innerShadow > 0) {
+        // SVGでのinnerShadowは背景に直接適用できないため、rectを重ねる
         svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="url(#bgGrad)" ${rectFilter}/>`;
         svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="rgba(0,0,0,0.4)" filter="url(#innerShadow)"/>`;
       } else {
         svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="url(#bgGrad)" ${rectFilter}/>`;
       }
       
+      // パターンを重ねる
+      if (patternType !== 'none') {
+        svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="url(#pattern)"/>`;
+      }
+
       // テキスト
       if (text) {
         const lines = text.split('\n');
         
-        // テキストサイズ計測を改善
-        const canvasSize = Math.min(width, height);
-        let fontSize = canvasSize;
-        let tempCtx = document.createElement('canvas').getContext('2d');
+        // フォントサイズを自動調整
+        let fontSize = Math.min(width, height);
+        const maxTextWidth = width * 0.9;
+        const maxTextHeight = height * 0.9;
+        
+        const testSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        const testText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        testText.setAttribute('font-family', fontFamily);
+        testText.setAttribute('font-weight', fontWeight);
+        testText.setAttribute('letter-spacing', letterSpacing);
+        testText.setAttribute('font-size', fontSize + 'px');
+        testSvg.appendChild(testText);
+        document.body.appendChild(testSvg);
         
         while (true) {
-            tempCtx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
-            let totalTextHeight = 0;
-            let maxWidth = 0;
+          let totalTextHeight = 0;
+          let maxWidth = 0;
+          testText.setAttribute('font-size', fontSize + 'px');
+          
+          lines.forEach((line) => {
+            testText.textContent = line;
+            const textWidth = testText.getComputedTextLength() + (line.length - 1) * letterSpacing;
+            maxWidth = Math.max(maxWidth, textWidth);
+            totalTextHeight += fontSize * lineHeight;
+          });
 
-            lines.forEach(line => {
-                const metrics = tempCtx.measureText(line);
-                const textWidth = metrics.width + (line.length - 1) * letterSpacing;
-                maxWidth = Math.max(maxWidth, textWidth);
-                totalTextHeight += fontSize * lineHeight;
-            });
-
-            if (maxWidth <= canvasSize * 0.9 && totalTextHeight <= canvasSize * 0.9) {
-                break;
-            }
-            fontSize -= 1;
-            if (fontSize <= 10) break;
+          if (maxWidth <= maxTextWidth && totalTextHeight <= maxTextHeight) {
+            break;
+          }
+          fontSize -= 1;
+          if (fontSize <= 10) break;
         }
 
+        document.body.removeChild(testSvg);
+        
         const textHeight = fontSize * lineHeight;
-        const totalHeight = textHeight * lines.length;
-        const startY = height / 2 - totalHeight / 2;
+        const totalHeight = textHeight * (lines.length - 1);
+        const startY = height / 2 - (totalHeight / 2) + fontSize / 2;
         
-        let textFilter = '';
-        if (enable3d && extrudeDepth > 0) {
-          textFilter = `filter="url(#extrude)"`;
-        }
-
-        const textAttrs = `fill="url(#textGrad)" font-family="${fontFamily}" font-weight="${fontWeight}" font-size="${fontSize}px" text-anchor="middle" letter-spacing="${letterSpacing}" ${textFilter}`;
+        const textAttrs = `fill="url(#textGrad)" font-family="${fontFamily}" font-weight="${fontWeight}" font-size="${fontSize}px" text-anchor="middle" letter-spacing="${letterSpacing}"`;
         
-        if (dropShadow > 0 && !enable3d) {
+        if (dropShadow > 0) {
           svg += `<g filter="url(#shadow)">`;
         }
 
         lines.forEach((line, index) => {
-          const yPos = startY + (index * textHeight) + (fontSize * 0.5);
+          const yPos = startY + index * textHeight;
           if (addOutline) {
             svg += `<text x="${width / 2}" y="${yPos}" ${textAttrs} stroke="${outlineColor}" stroke-width="${outlineWidth}" stroke-linejoin="round">${line}</text>`;
           }
           svg += `<text x="${width / 2}" y="${yPos}" ${textAttrs}>${line}</text>`;
         });
 
-        if (dropShadow > 0 && !enable3d) {
+        if (dropShadow > 0) {
           svg += `</g>`;
         }
       }
@@ -1356,41 +1363,36 @@
       return svg;
     }
 
-    // 描画をrequestAnimationFrameでキューに入れる
-    let isDrawing = false;
-    const requestDraw = debounce(() => {
-      if (!isDrawing) {
-        isDrawing = true;
-        window.requestAnimationFrame(() => {
-          drawIcon();
-          isDrawing = false;
-        });
-      }
-    }, 200);
-
     // イベントリスナーの登録
     const inputs = [
       iconTextarea, fontFamilySelect, fontWeightSelect,
       gradColor1Input, gradColor2Input, textGradColor1Input, textGradColor2Input, iconSizeSelect, iconWidthInput,
       iconHeightInput, letterSpacingRange, lineHeightRange,
-      cornerRadiusRange, addOutlineCheckbox, outlineColorInput, outlineWidthRange,
-      enable3dCheckbox, extrudeDepthRange, lightAngleRange
+      cornerRadiusRange, addOutlineCheckbox, outlineColorInput, outlineWidthRange
     ];
     
     inputs.forEach(input => input.addEventListener('input', () => {
       updateUI();
-      requestDraw();
+      drawIcon();
     }));
     
-    dropShadowRadios.forEach(radio => radio.addEventListener('change', requestDraw));
-    innerShadowRadios.forEach(radio => radio.addEventListener('change', requestDraw));
-    
+    dropShadowRadios.forEach(radio => radio.addEventListener('change', () => {
+      drawIcon();
+    }));
+
+    innerShadowRadios.forEach(radio => radio.addEventListener('change', () => {
+      drawIcon();
+    }));
+
     // プリセットボタン
     presetBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         const colors = btn.dataset.colors.split(',');
         gradColor1Input.value = colors[0];
         gradColor2Input.value = colors[1];
+        
+        patternType = 'none';
+        
         updateUI();
         drawIcon();
       });
@@ -1409,9 +1411,12 @@
       
       letterSpacingRange.value = Math.floor(Math.random() * 25) - 5;
       cornerRadiusRange.value = Math.floor(Math.random() * 50);
-      extrudeDepthRange.value = Math.floor(Math.random() * 15);
-      lightAngleRange.value = Math.floor(Math.random() * 360);
       
+      // 背景模様をランダムに設定
+      const patterns = ['none', 'lines', 'dots'];
+      patternType = patterns[Math.floor(Math.random() * patterns.length)];
+      patternOpacity = Math.random() * 0.2 + 0.05; // 0.05 から 0.25 の間で透明度をランダム化
+
       updateUI();
       drawIcon();
     });
@@ -1437,22 +1442,12 @@
       const blob = new Blob([svgString], {type: 'image/svg+xml'});
       downloadSvgBtn.href = URL.createObjectURL(blob);
     });
-    
-    // 画像コピー機能
-    copyBtn.addEventListener('click', async () => {
-      try {
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        await navigator.clipboard.write([
-          new ClipboardItem({'image/png': blob})
-        ]);
-        copySuccessMessage.style.display = 'block';
-        copyErrorMessage.style.display = 'none';
-        setTimeout(() => copySuccessMessage.style.display = 'none', 3000);
-      } catch (err) {
-        copyErrorMessage.style.display = 'block';
-        copySuccessMessage.style.display = 'none';
-        console.error('画像のコピーに失敗しました:', err);
-      }
+
+    downloadIcoBtn.addEventListener('click', () => {
+      const icoBlob = canvasToICO(canvas);
+      const url = URL.createObjectURL(icoBlob);
+      downloadIcoBtn.href = url;
+      downloadIcoBtn.download = 'icon.ico';
     });
 
     // 高度な設定のトグル
@@ -1471,33 +1466,6 @@
     }
 
     // 初期化
-    function initializeState() {
-      iconTextarea.value = '松乃木\n飯店';
-      fontFamilySelect.value = "'M PLUS Rounded 1c', sans-serif";
-      fontWeightSelect.value = '800';
-      gradColor1Input.value = '#667eea';
-      gradColor2Input.value = '#764ba2';
-      textGradColor1Input.value = '#ffffff';
-      textGradColor2Input.value = '#e0e0e0';
-      iconSizeSelect.value = '256';
-      iconWidthInput.value = '256';
-      iconHeightInput.value = '256';
-      letterSpacingRange.value = '0';
-      lineHeightRange.value = '1.2';
-      cornerRadiusRange.value = '15';
-      extrudeDepthRange.value = '5';
-      lightAngleRange.value = '45';
-      addOutlineCheckbox.checked = true;
-      outlineColorInput.value = '#000000';
-      outlineWidthRange.value = '5';
-      enable3dCheckbox.checked = true;
-      document.getElementById('shadow3').checked = true;
-      document.getElementById('innerShadow0').checked = true;
-      
-      updateUI();
-      drawIcon();
-    }
-    
     window.onload = initializeState;
   </script>
 </body>
