@@ -1,892 +1,364 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>完全機能掲示板システム</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>進化版掲示板システム Pro</title>
   <style>
-    /* --- CSS Variables for Dynamic Theming --- */
-    :root {
-      --primary-color: #007acc;
-      --primary-dark: #005fa3;
-      --primary-darker: #004080;
-      --success-color: #28a745;
-      --warning-color: #ffc107;
-      --danger-color: #dc3545;
-      --info-color: #17a2b8;
-      --light-color: #f8f9fa;
-      --dark-color: #343a40;
-      --bg-color: #f4f4f4;
-      --text-color: #333;
-      --border-color: #ddd;
-      --shadow: 0 2px 4px rgba(0,0,0,0.1);
-      --shadow-hover: 0 4px 8px rgba(0,0,0,0.15);
-      --transition: all 0.3s ease;
-      --border-radius: 8px;
-      --font-size-small: 0.85rem;
-      --font-size-normal: 1rem;
-      --font-size-large: 1.2rem;
-    }
-
-    /* --- Dark Mode Variables --- */
-    .dark-mode {
-      --bg-color: #1a1a1a;
-      --text-color: #e0e0e0;
-      --border-color: #444;
-      --light-color: #2d2d2d;
-      --dark-color: #121212;
-      --primary-color: #4da6ff;
-      --primary-dark: #3b89e0;
-      --primary-darker: #2c6eb5;
-      --info-color: #20c997;
-      --success-color: #20c997;
-    }
-
-    /* --- Global Styles --- */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: var(--bg-color);
-      color: var(--text-color);
-      transition: var(--transition);
-      line-height: 1.6;
-    }
-
-    /* --- Header Styles --- */
-    header {
-      background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
-      padding: 15px;
-      box-shadow: var(--shadow);
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-
-    .header-content {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .header-row {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      align-items: center;
-    }
-
-    .header-row.top {
-      margin-bottom: 15px;
-    }
-
-    .header-btn {
-      padding: 10px 16px;
-      border: none;
-      border-radius: var(--border-radius);
-      background: var(--primary-dark);
-      color: white;
-      cursor: pointer;
-      transition: var(--transition);
-      font-size: var(--font-size-small);
-      font-weight: 500;
-      white-space: nowrap;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .header-btn:hover {
-      background: var(--primary-darker);
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-hover);
-    }
-
-    .header-btn:active {
-      transform: translateY(0);
-    }
-
-    .header-btn.active {
-      background: var(--success-color);
-    }
-
-    .header-input {
-      padding: 8px 12px;
-      border: 2px solid rgba(255,255,255,0.3);
-      border-radius: var(--border-radius);
-      background: rgba(255,255,255,0.1);
-      color: white;
-      font-size: var(--font-size-small);
-      transition: var(--transition);
-    }
-
-    .header-input::placeholder {
-      color: rgba(255,255,255,0.7);
-    }
-
-    .header-input:focus {
-      outline: none;
-      background: rgba(255,255,255,0.2);
-      border-color: rgba(255,255,255,0.5);
-    }
-
-    /* --- New Post Area --- */
-    .new-post-section {
-      background: var(--light-color);
-      padding: 20px;
-      border-bottom: 1px solid var(--border-color);
-      box-shadow: var(--shadow);
-    }
-
-    .new-post-container {
-      max-width: 1400px;
-      margin: 0 auto;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 15px;
-      align-items: start;
-    }
-
-    .new-post-input {
-      width: 100%;
-      padding: 12px;
-      border: 2px solid var(--border-color);
-      border-radius: var(--border-radius);
-      resize: vertical;
-      font-family: inherit;
-      font-size: var(--font-size-normal);
-      transition: var(--transition);
-      min-height: 80px;
-      background: var(--bg-color);
-      color: var(--text-color);
-    }
-
-    .new-post-input:focus {
-      outline: none;
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
-    }
-
-    .new-post-controls {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .control-btn {
-      padding: 12px 20px;
-      border: none;
-      border-radius: var(--border-radius);
-      font-weight: 600;
-      cursor: pointer;
-      transition: var(--transition);
-      white-space: nowrap;
-    }
-
-    .btn-primary {
-      background: var(--success-color);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: #218838;
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-      background: var(--warning-color);
-      color: var(--dark-color);
-    }
-
-    .btn-secondary:hover {
-      background: #e0a800;
-      transform: translateY(-1px);
-    }
-
-    /* --- Posts Container --- */
-    .posts-section {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 20px;
-      transform-origin: top left;
-      transition: transform 0.3s ease;
-    }
-
-    /* --- Post Styles --- */
-    .post {
-      background: var(--light-color);
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius);
-      margin: 15px 0;
-      padding: 20px;
-      transition: var(--transition);
-      position: relative;
-      cursor: pointer;
-      box-shadow: var(--shadow);
-    }
-
-    .post:hover {
-      box-shadow: var(--shadow-hover);
-      transform: translateY(-2px);
-    }
-
-    .post.pinned {
-      border-left: 5px solid var(--success-color);
-      background: linear-gradient(135deg, var(--light-color), #f0fff0);
-    }
-    
-    .dark-mode .post.pinned {
-      background: linear-gradient(135deg, var(--light-color), #2f4f4f);
-    }
-
-    .post.archived {
-      opacity: 0.7;
-      background: linear-gradient(135deg, var(--light-color), #f5f5f5);
-    }
-
-    .dark-mode .post.archived {
-      background: linear-gradient(135deg, var(--light-color), #333);
-    }
-
-    .post-header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
-      gap: 10px;
-    }
-
-    .post-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 15px;
-      align-items: center;
-      font-size: var(--font-size-small);
-      color: #666;
-    }
-    
-    .dark-mode .post-meta {
-      color: #aaa;
-    }
-
-    .timestamp {
-      font-weight: 500;
-    }
-
-    .post-stats {
-      display: flex;
-      gap: 15px;
-      align-items: center;
-      font-size: var(--font-size-small);
-    }
-
-    .stat-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      background: rgba(0, 122, 204, 0.1);
-      border-radius: 12px;
-      color: var(--primary-color);
-      font-weight: 500;
-    }
-
-    .post-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-
-    .post-btn {
-      padding: 6px 12px;
-      border: none;
-      border-radius: 16px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: var(--transition);
-      font-weight: 500;
-    }
-
-    .btn-favorite {
-      background: #fff3cd;
-      color: #856404;
-      border: 1px solid #ffeaa7;
-    }
-
-    .btn-favorite.active {
-      background: #ffc107;
-      color: white;
-    }
-
-    .btn-reply {
-      background: #d1ecf1;
-      color: #0c5460;
-      border: 1px solid #bee5eb;
-    }
-
-    .btn-edit {
-      background: #e2e3e5;
-      color: #383d41;
-      border: 1px solid #d6d8db;
-    }
-
-    .btn-delete {
-      background: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f1b0b7;
-    }
-
-    .post-btn:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .post-content {
-      font-size: var(--font-size-normal);
-      line-height: 1.7;
-      margin-bottom: 15px;
-      word-wrap: break-word;
-      white-space: pre-wrap;
-    }
-
-    .post-content.collapsed {
-      max-height: 100px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .post-content.collapsed::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 40px;
-      width: 100%;
-      background: linear-gradient(transparent, var(--light-color));
-    }
-    
-    .dark-mode .post-content.collapsed::after {
-      background: linear-gradient(transparent, var(--light-color));
-    }
-
-    .highlighted {
-      background: linear-gradient(120deg, #a8e6cf 0%, #dcedc1 100%);
-      padding: 2px 4px;
-      border-radius: 4px;
-      font-weight: 600;
-    }
-
-    /* --- Tags --- */
-    .post-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 15px;
-    }
-
-    .tag {
-      padding: 4px 10px;
-      background: linear-gradient(135deg, var(--info-color), #20c997);
-      color: white;
-      border-radius: 16px;
-      font-size: 0.8rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .tag:hover {
-      transform: scale(1.05);
-      box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
-    }
-
-    .tag-removable {
-      cursor: pointer;
-      margin-left: 5px;
-      font-weight: bold;
-    }
-
-    /* --- Reply Form --- */
-    .reply-form {
-      background: var(--bg-color);
-      border: 2px dashed var(--border-color);
-      border-radius: var(--border-radius);
-      padding: 15px;
-      margin-top: 15px;
-      animation: slideDown 0.3s ease;
-    }
-
-    @keyframes slideDown {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .reply-textarea {
-      width: 100%;
-      min-height: 80px;
-      padding: 12px;
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius);
-      resize: vertical;
-      font-family: inherit;
-      margin-bottom: 10px;
-      background: var(--light-color);
-      color: var(--text-color);
-    }
-
-    .reply-actions {
-      display: flex;
-      gap: 10px;
-      justify-content: flex-end;
-    }
-
-    /* --- Sidebar Panels --- */
-    .sidebar-panel {
-      position: fixed;
-      top: 120px;
-      right: 20px;
-      background: var(--light-color);
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius);
-      padding: 20px;
-      max-width: 300px;
-      max-height: 500px;
-      overflow-y: auto;
-      box-shadow: var(--shadow-hover);
-      z-index: 40;
-      transform: translateX(320px);
-      transition: transform 0.3s ease;
-    }
-
-    .sidebar-panel.visible {
-      transform: translateX(0);
-    }
-
-    .panel-header {
-      font-size: var(--font-size-large);
-      font-weight: 700;
-      margin-bottom: 15px;
-      color: var(--primary-color);
-      border-bottom: 2px solid var(--primary-color);
-      padding-bottom: 8px;
-    }
-
-    .fav-item, .archive-item {
-      padding: 10px;
-      border-bottom: 1px solid var(--border-color);
-      cursor: pointer;
-      transition: var(--transition);
-      border-radius: 4px;
-      margin-bottom: 5px;
-    }
-
-    .fav-item:hover, .archive-item:hover {
-      background: var(--primary-color);
-      color: white;
-      transform: translateX(5px);
-    }
-
-    /* --- Filter Tags --- */
-    .tag-filter-section {
-      background: var(--light-color);
-      padding: 15px 20px;
-      border-top: 1px solid var(--border-color);
-    }
-
-    .tag-filter-container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    .filter-tag {
-      display: inline-block;
-      padding: 8px 15px;
-      margin: 4px;
-      background: #e9ecef;
-      color: #495057;
-      border: 1px solid #ced4da;
-      border-radius: 20px;
-      cursor: pointer;
-      transition: var(--transition);
-      font-weight: 500;
-    }
-    
-    .dark-mode .filter-tag {
-      background: #444;
-      color: #e0e0e0;
-      border-color: #555;
-    }
-
-    .filter-tag:hover, .filter-tag.active {
-      background: var(--primary-color);
-      color: white;
-      transform: scale(1.05);
-    }
-
-    /* --- Settings Panel --- */
-    .overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(5px);
-      z-index: 98;
-      opacity: 0;
-      visibility: hidden;
-      transition: var(--transition);
-    }
-
-    .overlay.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .settings-panel {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(0.8);
-      background: var(--light-color);
-      border-radius: var(--border-radius);
-      padding: 30px;
-      width: 90%;
-      max-width: 500px;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      z-index: 99;
-      transition: var(--transition);
-      opacity: 0;
-    }
-
-    .settings-panel.visible {
-      transform: translate(-50%, -50%) scale(1);
-      opacity: 1;
-    }
-
-    .settings-section {
-      margin-bottom: 25px;
-    }
-
-    .settings-label {
-      display: block;
-      font-weight: 700;
-      margin-bottom: 10px;
-      color: var(--primary-color);
-      font-size: var(--font-size-large);
-    }
-
-    .button-list {
-      max-height: 200px;
-      overflow-y: auto;
-      border: 1px solid var(--border-color);
-      border-radius: var(--border-radius);
-      padding: 10px;
-    }
-
-    .button-item {
-      display: flex;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid #eee;
-    }
-
-    .button-item:last-child {
-      border-bottom: none;
-    }
-
-    .button-item input[type="checkbox"] {
-      margin-right: 10px;
-      transform: scale(1.2);
-    }
-
-    .settings-slider {
-      width: 100%;
-      margin: 15px 0;
-      height: 8px;
-      border-radius: 4px;
-      background: #ddd;
-      outline: none;
-      -webkit-appearance: none;
-    }
-
-    .settings-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary-color);
-      cursor: pointer;
-    }
-
-    /* --- Notification System --- */
-    .notification {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      padding: 15px 20px;
-      border-radius: var(--border-radius);
-      color: white;
-      font-weight: 600;
-      z-index: 101;
-      transform: translateX(400px);
-      transition: var(--transition);
-      min-width: 250px;
-      box-shadow: var(--shadow-hover);
-    }
-
-    .notification.visible {
-      transform: translateX(0);
-    }
-
-    .notification.success {
-      background: linear-gradient(135deg, var(--success-color), #20c997);
-    }
-
-    .notification.error {
-      background: linear-gradient(135deg, var(--danger-color), #e83e8c);
-    }
-
-    .notification.info {
-      background: linear-gradient(135deg, var(--info-color), var(--primary-color));
-    }
-    
-    .close-notification {
-      margin-left: 10px;
-      font-size: 1.2rem;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    /* --- Color Picker --- */
-    .color-picker {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: var(--light-color);
-      border-radius: var(--border-radius);
-      padding: 20px;
-      box-shadow: var(--shadow-hover);
-      z-index: 100;
-      display: grid;
-      grid-template-columns: repeat(8, 1fr);
-      gap: 8px;
-      max-width: 300px;
-      opacity: 0;
-      visibility: hidden;
-      transition: var(--transition);
-    }
-    
-    .color-picker.visible {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .color-btn {
-      width: 30px;
-      height: 30px;
-      border: 2px solid #fff;
-      border-radius: 50%;
-      cursor: pointer;
-      transition: var(--transition);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-
-    .color-btn:hover {
-      transform: scale(1.2);
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    }
-
-    /* --- Loading Animation --- */
-    .loading {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255,255,255,.3);
-      border-radius: 50%;
-      border-top-color: #fff;
-      animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* --- Responsive Design --- */
-    @media (max-width: 768px) {
-      .header-row {
-        flex-direction: column;
-        gap: 5px;
-      }
-
-      .new-post-container {
-        grid-template-columns: 1fr;
-        gap: 10px;
-      }
-
-      .new-post-controls {
-        flex-direction: row;
-        justify-content: space-between;
-      }
-
-      .posts-section {
-        padding: 10px;
-      }
-
-      .post {
-        margin: 10px 0;
-        padding: 15px;
-      }
-
-      .post-header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .sidebar-panel {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        max-width: none;
-        max-height: none;
-        border-radius: 0;
-        transform: translateY(100%);
-      }
-
-      .sidebar-panel.visible {
-        transform: translateY(0);
-      }
-    }
-
-    /* --- Print Styles --- */
-    @media print {
-      * {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-
-      header, .new-post-section, .tag-filter-section, .sidebar-panel, .settings-panel, .overlay, .post-actions, .reply-form {
-        display: none !important;
-      }
-
-      .post {
-        break-inside: avoid;
-        margin: 10px 0;
-        box-shadow: none;
-        border: 1px solid #000;
-      }
-    }
-
-    /* --- Utility Classes --- */
-    .hidden { display: none !important; }
-    .visible { display: block !important; }
-    .flex { display: flex; }
-    .flex-center { display: flex; align-items: center; justify-content: center; }
-    .text-center { text-align: center; }
-    .font-bold { font-weight: 700; }
-    .text-small { font-size: var(--font-size-small); }
-    .text-large { font-size: var(--font-size-large); }
-    .mb-10 { margin-bottom: 10px; }
-    .mt-10 { margin-top: 10px; }
-    .p-10 { padding: 10px; }
-    
-    /* --- Animation Classes --- */
-    .fade-in {
-      animation: fadeIn 0.3s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .pulse {
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(0, 122, 204, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(0, 122, 204, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(0, 122, 204, 0); }
-    }
+    :root{
+      --primary-color:#007acc;
+      --primary-dark:#005fa3;
+      --primary-darker:#004080;
+      --success-color:#28a745;
+      --warning-color:#ffc107;
+      --danger-color:#dc3545;
+      --info-color:#17a2b8;
+      --light-color:#f8f9fa;
+      --dark-color:#343a40;
+      --bg-color:#f4f4f4;
+      --text-color:#333;
+      --border-color:#ddd;
+      --shadow:0 2px 4px rgba(0,0,0,0.1);
+      --shadow-hover:0 4px 8px rgba(0,0,0,0.15);
+      --transition:all 0.3s ease;
+      --border-radius:8px;
+      --font-size-small:0.85rem;
+      --font-size-normal:1rem;
+      --font-size-large:1.2rem;
+      --header-padding:12px;
+    }
+
+    .dark-mode{
+      --bg-color:#1a1a1a;
+      --text-color:#e0e0e0;
+      --border-color:#444;
+      --light-color:#2d2d2d;
+      --dark-color:#121212;
+      --primary-color:#4da6ff;
+      --primary-dark:#3b89e0;
+      --primary-darker:#2c6eb5;
+      --info-color:#20c997;
+      --success-color:#20c997;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;width:100%;}
+
+    /* Prevent page/body scrolling: keep single-viewport app */
+    body{
+      font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background:var(--bg-color);
+      color:var(--text-color);
+      transition:var(--transition);
+      line-height:1.45;
+      height:100vh;          /* lock to viewport */
+      overflow:hidden;       /* prevent page scroll */
+      -webkit-overflow-scrolling:touch;
+      -webkit-text-size-adjust:100%;
+      -ms-text-size-adjust:100%;
+    }
+
+    /* Header: three-row button layout using CSS grid */
+    header{
+      background:linear-gradient(135deg,var(--primary-color),var(--primary-dark));
+      padding:var(--header-padding);
+      box-shadow:var(--shadow);
+      position:sticky;
+      top:0;
+      z-index:60;
+    }
+
+    .header-content{
+      max-width:1400px;
+      margin:0 auto;
+    }
+
+    /* Make header buttons flow into exactly three rows.
+       Use a responsive grid with three explicit rows, each row auto-fitting columns.
+       Buttons will wrap and remain accessible without causing body scroll. */
+    .header-row{
+      display:grid;
+      grid-template-rows: repeat(3, auto);
+      grid-auto-flow: row;
+      gap:8px;
+      align-items:center;
+      justify-items:center;
+      row-gap:8px;
+      padding:4px;
+    }
+
+    .header-row .row{
+      width:100%;
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .header-btn{
+      padding:10px 12px;
+      border:none;
+      border-radius:var(--border-radius);
+      background:var(--primary-dark);
+      color:white;
+      cursor:pointer;
+      transition:var(--transition);
+      font-size:var(--font-size-small);
+      font-weight:500;
+      white-space:nowrap;
+      flex:0 1 auto;
+      min-width:48px;
+    }
+
+    .header-btn:hover{background:var(--primary-darker);transform:translateY(-2px);box-shadow:var(--shadow-hover);}
+    .header-btn.active{background:var(--success-color);}
+
+    .header-input{
+      padding:8px 12px;
+      border:2px solid rgba(255,255,255,0.3);
+      border-radius:var(--border-radius);
+      background:rgba(255,255,255,0.1);
+      color:white;
+      font-size:var(--font-size-small);
+      transition:var(--transition);
+      min-width:160px;
+    }
+
+    .header-input::placeholder{color:rgba(255,255,255,0.7);}
+    .header-input:focus{outline:none;background:rgba(255,255,255,0.18);border-color:rgba(255,255,255,0.5);}
+
+    /* Main layout: stack without causing the body to scroll.
+       We use a column flex layout filling remaining viewport height. */
+    main{
+      height:calc(100vh -  (var(--header-height, 160px) * 0)); /* fallback; actual height controlled by flex */
+      display:flex;
+      flex-direction:column;
+      gap:0;
+      align-items:stretch;
+      justify-content:flex-start;
+      max-width:1400px;
+      margin:0 auto;
+      padding:10px;
+      height:calc(100vh -  ( (var(--header-padding) * 2) + 24px)); /* conservative reserve to avoid overlap */
+    }
+
+    /* New post area fixed height to keep total content fit in viewport */
+    .new-post-section{
+      background:var(--light-color);
+      padding:12px;
+      border-bottom:1px solid var(--border-color);
+      box-shadow:var(--shadow);
+      border-radius:8px;
+      flex:0 0 auto;
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+    }
+
+    .new-post-container{
+      width:100%;
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:12px;
+      align-items:start;
+    }
+
+    .new-post-input{
+      width:100%;
+      padding:10px;
+      border:2px solid var(--border-color);
+      border-radius:var(--border-radius);
+      resize:vertical;
+      font-family:inherit;
+      font-size:var(--font-size-normal);
+      transition:var(--transition);
+      min-height:78px;
+      max-height:140px;
+      overflow:auto;
+      background:var(--bg-color);
+      color:var(--text-color);
+    }
+    .new-post-input:focus{outline:none;border-color:var(--primary-color);box-shadow:0 0 0 3px rgba(0,122,204,0.08);}
+
+    .new-post-controls{display:flex;flex-direction:column;gap:10px;align-items:stretch;}
+    .control-btn{padding:10px 14px;border:none;border-radius:var(--border-radius);font-weight:600;cursor:pointer;transition:var(--transition);white-space:nowrap;}
+    .btn-primary{background:var(--success-color);color:white;}
+    .btn-primary:hover{background:#218838}
+    .btn-secondary{background:var(--warning-color);color:var(--dark-color);}
+
+    /* Posts area takes remaining vertical space; internal scrolling allowed (but page won't scroll). */
+    .posts-section{
+      flex:1 1 auto;
+      overflow:auto;
+      padding:12px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      -webkit-overflow-scrolling:touch;
+    }
+
+    .post{background:var(--light-color);border:1px solid var(--border-color);border-radius:var(--border-radius);padding:14px;transition:var(--transition);position:relative;box-shadow:var(--shadow);cursor:move;}
+    .post:hover{box-shadow:var(--shadow-hover);transform:translateY(-2px);}
+    .post.pinned{border-left:5px solid var(--success-color);background:linear-gradient(135deg,var(--light-color),#f0fff0);}
+
+    .post-header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;}
+    .post-meta{display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:var(--font-size-small);color:#666;}
+    .post-stats{display:flex;gap:10px;align-items:center;font-size:var(--font-size-small);}
+    .stat-item{display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(0,122,204,0.08);border-radius:12px;color:var(--primary-color);font-weight:500;}
+
+    .post-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+    .post-btn{padding:6px 12px;border:none;border-radius:16px;font-size:0.8rem;cursor:pointer;transition:var(--transition);font-weight:500;}
+    .btn-favorite{background:#fff3cd;color:#856404;border:1px solid #ffeaa7;}
+    .btn-favorite.active{background:#ffc107;color:white;}
+    .btn-reply{background:#d1ecf1;color:#0c5460;border:1px solid #bee5eb;}
+    .btn-edit{background:#e2e3e5;color:#383d41;border:1px solid #d6d8db;}
+    .btn-delete{background:#f8d7da;color:#721c24;border:1px solid #f1b0b7;}
+    .post-btn:hover{transform:translateY(-1px);box-shadow:0 2px 4px rgba(0,0,0,0.08);}
+
+    .post-content{font-size:var(--font-size-normal);line-height:1.6;margin-bottom:8px;word-wrap:break-word;white-space:pre-wrap;}
+
+    .post-tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;}
+    .tag{padding:4px 10px;background:linear-gradient(135deg,var(--info-color),#20c997);color:white;border-radius:16px;font-size:0.8rem;font-weight:500;cursor:pointer;transition:var(--transition);}
+
+    /* Sidebars and panels kept as-is but positioned within viewport; they may scroll internally */
+    .sidebar-panel{position:fixed;top:120px;right:20px;background:var(--light-color);border:1px solid var(--border-color);border-radius:var(--border-radius);padding:16px;max-width:320px;max-height:60vh;overflow:auto;box-shadow:var(--shadow-hover);z-index:40;transform:translateX(400px);transition:transform 0.3s ease;}
+    .sidebar-panel.visible{transform:translateX(0);}
+
+    .panel-header{font-size:var(--font-size-large);font-weight:700;margin-bottom:12px;color:var(--primary-color);border-bottom:2px solid var(--primary-color);padding-bottom:8px;}
+
+    .overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(3px);z-index:98;opacity:0;visibility:hidden;transition:var(--transition);}
+    .overlay.visible{opacity:1;visibility:visible;}
+
+    /*
+      CRITICAL FIX:
+      - Non-visible panels (settings-panel, advanced-filter-panel) previously accepted pointer events even when hidden (opacity:0/transform),
+        causing invisible inputs (type=date) to receive focus/taps, resulting in calendar appearing and blocking textarea input.
+      - Solution: default pointer-events:none; when panel has .visible, enable pointer-events:auto.
+    */
+    .settings-panel, .advanced-filter-panel{
+      position:fixed;
+      top:50%;
+      left:50%;
+      transform:translate(-50%,-50%) scale(0.95);
+      background:var(--light-color);
+      border-radius:var(--border-radius);
+      padding:20px;
+      width:92%;
+      max-width:640px;
+      max-height:80vh;
+      overflow:auto;
+      box-shadow:0 20px 60px rgba(0,0,0,0.3);
+      z-index:99;
+      transition:var(--transition);
+      opacity:0;
+      pointer-events:none;           /* <-- make non-interactive when hidden */
+      -webkit-user-select:none;
+      user-select:none;
+    }
+    .settings-panel.visible, .advanced-filter-panel.visible{
+      transform:translate(-50%,-50%) scale(1);
+      opacity:1;
+      pointer-events:auto;           /* <-- interactive only when visible */
+      -webkit-user-select:auto;
+      user-select:auto;
+    }
+
+    .notification{position:fixed;top:16px;right:16px;padding:12px 14px;border-radius:var(--border-radius);color:white;font-weight:600;z-index:101;transform:translateX(400px);transition:var(--transition);min-width:220px;box-shadow:var(--shadow-hover);}
+    .notification.visible{transform:translateX(0);}
+    .notification.success{background:linear-gradient(135deg,var(--success-color),#20c997);}
+    .notification.error{background:linear-gradient(135deg,var(--danger-color),#e83e8c);}
+    .notification.info{background:linear-gradient(135deg,var(--info-color),var(--primary-color));}
+    .close-notification{margin-left:10px;font-size:1.1rem;cursor:pointer;font-weight:bold;}
+
+    /* Compact UI adjustments for small portrait screens */
+    @media (max-width: 420px) and (orientation: portrait) {
+      header{padding:10px;}
+      .header-row .row{gap:6px;}
+      .header-btn{padding:8px 10px;font-size:0.82rem;min-width:40px;}
+      .header-input{min-width:120px;font-size:0.86rem;padding:6px 8px;}
+      .new-post-input{min-height:70px;max-height:120px;font-size:0.95rem;}
+      .new-post-section{padding:10px;}
+      .sidebar-panel{right:8px;top:110px;max-width:300px;max-height:55vh;}
+      .posts-section{padding:8px;gap:10px;}
+      .post{padding:10px;}
+      .panel-header{font-size:1.05rem;}
+      main{padding:8px;height:calc(100vh -  ( (var(--header-padding) * 2) + 16px));}
+    }
+
+    @media (min-width: 900px){
+      .new-post-input{max-height:160px}
+      .sidebar-panel{max-width:340px;top:140px;}
+    }
+
+    /* Utility */
+    .hidden{display:none!important}
+    .fade-in{animation:fadeIn 0.25s ease}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .tag-removable{cursor:pointer;margin-left:6px;font-weight:bold}
+    .image-preview{max-width:180px;max-height:120px;border-radius:8px;margin-top:8px;box-shadow:var(--shadow)}
+    .filter-input{padding:8px 12px;border:1px solid var(--border-color);border-radius:var(--border-radius);width:100%;margin-bottom:10px;background:var(--bg-color);color:var(--text-color)}
   </style>
 </head>
 <body>
   <header id="global-header">
     <div class="header-content">
       <div class="header-row top" id="btn-container">
-        <button id="btn-dark-mode" class="header-btn" draggable="true" title="ダークモード切替">🌙 ダークモード</button>
-        <button id="btn-sort-new" class="header-btn" draggable="true" title="新しい順でソート">📅 新しい順</button>
-        <button id="btn-sort-old" class="header-btn" draggable="true" title="古い順でソート">📆 古い順</button>
-        <button id="btn-sort-alpha" class="header-btn" draggable="true" title="五十音順でソート">🔤 五十音順</button>
-        <button id="btn-sort-popular" class="header-btn" draggable="true" title="人気順でソート">⭐ 人気順</button>
-        <button id="btn-collapse-expand" class="header-btn" draggable="true" title="全投稿の折りたたみ切替">📋 展開/折りたたみ</button>
-        <button id="btn-print" class="header-btn" draggable="true" title="印刷">🖨️ 印刷</button>
-        <button id="btn-save" class="header-btn" draggable="true" title="データ保存">💾 保存</button>
-        <button id="btn-load" class="header-btn" draggable="true" title="データ読み込み">📁 読み込み</button>
-        <button id="btn-export" class="header-btn" draggable="true" title="CSV/JSON形式で出力">📤 出力</button>
-        <button id="btn-favorites" class="header-btn" draggable="true" title="お気に入り一覧">⭐ お気に入り</button>
-        <button id="btn-archives" class="header-btn" draggable="true" title="アーカイブ一覧">📦 アーカイブ</button>
-        <button id="btn-statistics" class="header-btn" draggable="true" title="統計情報">📊 統計</button>
-        <input type="text" id="search-input" class="header-input" placeholder="🔍 投稿を検索..." title="キーワード検索">
-        <button id="btn-search" class="header-btn" draggable="true" title="検索実行">🔍 検索</button>
-        <button id="btn-search-reset" class="header-btn" draggable="true" title="検索リセット">🔄 リセット</button>
-        <button id="btn-undo" class="header-btn" draggable="true" title="元に戻す">↶ 元に戻す</button>
-        <button id="btn-redo" class="header-btn" draggable="true" title="やり直し">↷ やり直し</button>
-        <button id="btn-recover" class="header-btn" draggable="true" title="削除した投稿を復活">🔮 復活</button>
-        <button id="btn-settings" class="header-btn" draggable="true" title="設定">⚙️ 設定</button>
-      </div>
-      <div class="header-row bottom">
-        <label for="zoom-slider">🔍 ズーム:</label>
-        <input type="range" id="zoom-slider" class="settings-slider" min="50" max="200" value="100" title="表示倍率調整">
-        <span id="zoom-value">100%</span>
+        <div class="row" style="justify-content:center;">
+          <button id="btn-dark-mode" class="header-btn" title="ダークモード切替">🌙 ダーク</button>
+          <button id="btn-sort-new" class="header-btn active" title="新しい順">📅 新しい順</button>
+          <button id="btn-sort-old" class="header-btn" title="古い順">📆 古い順</button>
+          <button id="btn-sort-popular" class="header-btn" title="人気順">⭐ 人気順</button>
+        </div>
+
+        <div class="row" style="justify-content:center;">
+          <button id="btn-advanced-filter" class="header-btn" title="高度なフィルター">🔍 高度検索</button>
+          <input type="text" id="search-input" class="header-input" placeholder="🔍 リアルタイム検索...">
+          <button id="btn-favorites" class="header-btn" title="お気に入り">⭐ お気に入り</button>
+          <button id="btn-archives" class="header-btn" title="アーカイブ">📦 アーカイブ</button>
+        </div>
+
+        <div class="row" style="justify-content:center;">
+          <button id="btn-notifications" class="header-btn" title="通知センター">🔔 通知</button>
+          <button id="btn-statistics" class="header-btn" title="統計">📊 統計</button>
+          <button id="btn-export" class="header-btn" title="エクスポート">📤 出力</button>
+          <button id="btn-undo" class="header-btn" title="元に戻す (Ctrl+Z)">↶ 戻す</button>
+          <button id="btn-redo" class="header-btn" title="やり直し (Ctrl+Y)">↷ 進む</button>
+          <button id="btn-settings" class="header-btn" title="設定">⚙️ 設定</button>
+        </div>
       </div>
     </div>
   </header>
 
-  <section class="new-post-section">
-    <div class="new-post-container">
-      <div>
-        <textarea id="new-post-input" class="new-post-input" placeholder="💭 新しい投稿を入力してください..." rows="3"></textarea>
-        <div class="post-tags" style="margin-top: 10px;">
-          <input type="text" id="tag-input" placeholder="タグを追加 (スペース区切り)" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; width: 200px;">
-          <button id="add-tag-btn" class="post-btn" style="margin-left: 10px;">🏷️ タグ追加</button>
+  <main>
+    <section class="new-post-section">
+      <div class="new-post-container">
+        <div>
+          <textarea id="new-post-input" class="new-post-input" placeholder="💭 新しい投稿を入力... (Markdown対応: # 見出し, - リスト, ```コード```)" rows="4"></textarea>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap;">
+            <input type="text" id="tag-input" class="filter-input" placeholder="タグ (スペース区切り)" style="width:220px;">
+            <button id="add-tag-btn" class="post-btn">🏷️ タグ追加</button>
+            <input type="file" id="image-input" accept="image/*" style="display:none;">
+            <button id="add-image-btn" class="post-btn btn-edit">🖼️ 画像添付</button>
+            <img id="image-preview" class="image-preview" style="display:none;">
+          </div>
+          <div id="current-tags" class="post-tags" style="margin-top:8px;"></div>
         </div>
-        <div id="current-tags" class="post-tags"></div>
+        <div class="new-post-controls">
+          <button id="post-btn" class="control-btn btn-primary">📝 投稿 (Ctrl+Enter)</button>
+        </div>
       </div>
-      <div class="new-post-controls">
-        <button id="post-btn" class="control-btn btn-primary">📝 投稿</button>
-        <button id="local-collapse-btn" class="control-btn btn-secondary">📋 全折りたたみ</button>
-        <button id="pin-mode-btn" class="control-btn btn-secondary">📌 ピンモード</button>
+    </section>
+
+    <section id="posts-container" class="posts-section"></section>
+
+    <section class="tag-filter-section" id="tag-filter-section" style="flex:0 0 auto;">
+      <div class="tag-filter-container">
+        <h3 style="margin-bottom:8px;color:var(--primary-color);">🏷️ タグでフィルター</h3>
+        <div id="tag-filter"></div>
       </div>
-    </div>
-  </section>
-
-  <section id="posts-container" class="posts-section"></section>
-
-  <section class="tag-filter-section" id="tag-filter-section">
-    <div class="tag-filter-container">
-      <h3 style="margin-bottom: 10px; color: var(--primary-color);">🏷️ タグでフィルター</h3>
-      <div id="tag-filter"></div>
-    </div>
-  </section>
+    </section>
+  </main>
 
   <aside id="favorites-panel" class="sidebar-panel">
     <div class="panel-header">⭐ お気に入り一覧</div>
@@ -898,47 +370,64 @@
     <div id="archives-list"></div>
   </aside>
 
+  <aside id="notifications-panel" class="sidebar-panel">
+    <div class="panel-header">🔔 通知センター</div>
+    <button id="clear-notifications" class="control-btn btn-secondary" style="width:100%;margin-bottom:10px;">通知をクリア</button>
+    <div id="notifications-list"></div>
+  </aside>
+
   <aside id="statistics-panel" class="sidebar-panel">
     <div class="panel-header">📊 統計情報</div>
     <div id="statistics-content"></div>
   </aside>
 
-  <input type="file" id="load-file-input" style="display:none;" accept=".json,.csv">
-
   <div id="overlay" class="overlay"></div>
+
   <div id="settings-panel" class="settings-panel">
     <div class="settings-section">
-      <label class="settings-label">🎨 テーマカラー変更</label>
-      <div id="theme-color-palette" class="color-picker"></div>
+      <label class="settings-label">⚙️ 設定</label>
+      <button id="export-settings" class="control-btn btn-secondary" style="width:100%;margin-bottom:10px;">設定をエクスポート</button>
+      <button id="import-settings" class="control-btn btn-secondary" style="width:100%;">設定をインポート</button>
     </div>
     <div class="settings-section">
-      <label class="settings-label">🔧 ボタンの表示設定</label>
-      <div class="button-list" id="button-visibility-list"></div>
-    </div>
-    <div class="settings-section">
-      <label class="settings-label">📏 ボタンサイズ</label>
-      <input type="range" id="button-size-slider" class="settings-slider" min="0.8" max="1.4" step="0.1" value="1.0">
-      <span id="button-size-value">1.0x</span>
-    </div>
-    <div class="settings-section">
-      <label class="settings-label">📝 デフォルトの投稿テンプレート</label>
-      <textarea id="template-textarea" style="width:100%; height:100px; padding:10px; border:1px solid var(--border-color);"></textarea>
-      <button id="save-template-btn" class="control-btn btn-primary" style="margin-top:10px;">テンプレート保存</button>
+      <label class="settings-label">⌨️ キーボードショートカット</label>
+      <div class="keyboard-shortcuts">
+        <div class="shortcut-item"><span>新規投稿</span><span class="shortcut-key">Ctrl + Enter</span></div>
+        <div class="shortcut-item"><span>検索フォーカス</span><span class="shortcut-key">Ctrl + F</span></div>
+        <div class="shortcut-item"><span>元に戻す</span><span class="shortcut-key">Ctrl + Z</span></div>
+        <div class="shortcut-item"><span>やり直し</span><span class="shortcut-key">Ctrl + Y</span></div>
+        <div class="shortcut-item"><span>ダークモード切替</span><span class="shortcut-key">Ctrl + D</span></div>
+      </div>
     </div>
   </div>
-  
+
+  <div id="advanced-filter-panel" class="advanced-filter-panel">
+    <div class="settings-section">
+      <label class="settings-label">🔍 高度なフィルター</label>
+      <label style="display:block;margin-bottom:5px;">日付範囲</label>
+      <input type="date" id="date-from" class="filter-input">
+      <input type="date" id="date-to" class="filter-input">
+      <label style="display:block;margin:15px 0 5px 0;">タグ (複数選択可)</label>
+      <div id="tag-checkboxes" style="max-height:200px;overflow-y:auto;border:1px solid var(--border-color);padding:10px;border-radius:8px;"></div>
+      <label style="display:block;margin:15px 0 5px 0;"><input type="checkbox" id="filter-favorites"> お気に入りのみ表示</label>
+      <label style="display:block;margin:10px 0 5px 0;"><input type="checkbox" id="filter-pinned"> ピン留めのみ表示</label>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button id="apply-advanced-filter" class="control-btn btn-primary" style="flex:1;">フィルター適用</button>
+        <button id="reset-advanced-filter" class="control-btn btn-secondary" style="flex:1;">リセット</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="import-settings-input" style="display:none;" accept=".json">
   <div id="notification-area"></div>
 
   <script>
-    // JavaScript Code
     document.addEventListener('DOMContentLoaded', () => {
-      // --- DOM Elements ---
+      // DOM Elements
       const postsContainer = document.getElementById('posts-container');
       const newPostInput = document.getElementById('new-post-input');
       const postBtn = document.getElementById('post-btn');
       const searchInput = document.getElementById('search-input');
-      const searchBtn = document.getElementById('btn-search');
-      const searchResetBtn = document.getElementById('btn-search-reset');
       const tagInput = document.getElementById('tag-input');
       const addTagBtn = document.getElementById('add-tag-btn');
       const currentTagsContainer = document.getElementById('current-tags');
@@ -946,97 +435,103 @@
       const darkModeBtn = document.getElementById('btn-dark-mode');
       const sortNewBtn = document.getElementById('btn-sort-new');
       const sortOldBtn = document.getElementById('btn-sort-old');
-      const sortAlphaBtn = document.getElementById('btn-sort-alpha');
       const sortPopularBtn = document.getElementById('btn-sort-popular');
-      const collapseExpandBtn = document.getElementById('btn-collapse-expand');
-      const localCollapseBtn = document.getElementById('local-collapse-btn');
-      const pinModeBtn = document.getElementById('pin-mode-btn');
       const favoritesBtn = document.getElementById('btn-favorites');
       const archivesBtn = document.getElementById('btn-archives');
+      const notificationsBtn = document.getElementById('btn-notifications');
       const statisticsBtn = document.getElementById('btn-statistics');
       const favoritesPanel = document.getElementById('favorites-panel');
       const archivesPanel = document.getElementById('archives-panel');
+      const notificationsPanel = document.getElementById('notifications-panel');
       const statisticsPanel = document.getElementById('statistics-panel');
+      const favoritesList = document.getElementById('favorites-list');
+      const archivesList = document.getElementById('archives-list');
+      const notificationsList = document.getElementById('notifications-list');
+      const statisticsContent = document.getElementById('statistics-content');
       const settingsBtn = document.getElementById('btn-settings');
       const settingsPanel = document.getElementById('settings-panel');
       const overlay = document.getElementById('overlay');
-      const zoomSlider = document.getElementById('zoom-slider');
-      const zoomValueSpan = document.getElementById('zoom-value');
-      const buttonVisibilityList = document.getElementById('button-visibility-list');
-      const buttonSizeSlider = document.getElementById('button-size-slider');
-      const buttonSizeValueSpan = document.getElementById('button-size-value');
       const undoBtn = document.getElementById('btn-undo');
       const redoBtn = document.getElementById('btn-redo');
-      const recoverBtn = document.getElementById('btn-recover');
-      const saveBtn = document.getElementById('btn-save');
-      const loadBtn = document.getElementById('btn-load');
-      const loadFileInput = document.getElementById('load-file-input');
       const exportBtn = document.getElementById('btn-export');
-      const themeColorPalette = document.getElementById('theme-color-palette');
-      const templateTextarea = document.getElementById('template-textarea');
-      const saveTemplateBtn = document.getElementById('save-template-btn');
       const notificationArea = document.getElementById('notification-area');
-      const printBtn = document.getElementById('btn-print');
+      const advancedFilterBtn = document.getElementById('btn-advanced-filter');
+      const advancedFilterPanel = document.getElementById('advanced-filter-panel');
+      const imageInput = document.getElementById('image-input');
+      const addImageBtn = document.getElementById('add-image-btn');
+      const imagePreview = document.getElementById('image-preview');
+      const clearNotificationsBtn = document.getElementById('clear-notifications');
 
-      // --- Global State ---
+      // State
       let posts = [];
       let currentTags = [];
       let historyStack = [];
       let historyIndex = -1;
       let deletedPosts = [];
-      let isCollapsed = false;
-      let isPinMode = false;
       let currentSort = 'new';
       let currentFilterTag = null;
       let currentSearchQuery = '';
+      let notificationHistory = [];
+      let currentImage = null;
+      let advancedFilters = {
+        dateFrom: null,
+        dateTo: null,
+        tags: [],
+        favoritesOnly: false,
+        pinnedOnly: false
+      };
+      let draggedPost = null;
 
-      // --- Data Structure (Post Class) ---
+      // Post Class
       class Post {
-        constructor(content, tags = [], parentId = null) {
-          this.id = Date.now();
+        constructor(content, tags = [], parentId = null, image = null) {
+          this.id = Date.now() + Math.random();
           this.content = content;
           this.timestamp = new Date().toISOString();
           this.tags = tags;
           this.replies = [];
           this.parentId = parentId;
           this.favorites = 0;
+          this.isFavorite = false;
           this.isPinned = false;
           this.isArchived = false;
+          this.image = image;
         }
       }
 
-      // --- Persistence (localStorage) ---
+      // Persistence
       const saveState = () => {
         try {
-          localStorage.setItem('boardPosts', JSON.stringify(posts));
-          localStorage.setItem('deletedPosts', JSON.stringify(deletedPosts));
+          const state = { posts, deletedPosts, notificationHistory };
+          localStorage.setItem('boardPosts', JSON.stringify(state));
         } catch (e) {
           showNotification('データの保存に失敗しました。', 'error');
-          console.error('Failed to save state to localStorage:', e);
         }
       };
 
       const loadState = () => {
         try {
-          const storedPosts = localStorage.getItem('boardPosts');
-          const storedDeleted = localStorage.getItem('deletedPosts');
-          if (storedPosts) {
-            posts = JSON.parse(storedPosts);
-          }
-          if (storedDeleted) {
-            deletedPosts = JSON.parse(storedDeleted);
+          const stored = localStorage.getItem('boardPosts');
+          if (stored) {
+            const state = JSON.parse(stored);
+            posts = state.posts || [];
+            deletedPosts = state.deletedPosts || [];
+            notificationHistory = state.notificationHistory || [];
           }
         } catch (e) {
           showNotification('データの読み込みに失敗しました。', 'error');
-          console.error('Failed to load state from localStorage:', e);
         }
       };
 
-      // --- History (Undo/Redo) ---
+      // History
       const saveHistory = () => {
         historyStack = historyStack.slice(0, historyIndex + 1);
         historyStack.push(JSON.stringify({ posts, deletedPosts }));
         historyIndex = historyStack.length - 1;
+        if (historyStack.length > 50) {
+          historyStack.shift();
+          historyIndex--;
+        }
         updateHistoryButtons();
       };
 
@@ -1069,45 +564,58 @@
         redoBtn.disabled = historyIndex >= historyStack.length - 1;
       };
 
-      // --- UI Rendering ---
+      // Markdown Parser
+      const parseMarkdown = (text) => {
+        let html = text;
+        html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        html = html.replace(/^\- (.*$)/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+        html = html.replace(/`(.*?)`/g, '<code>$1</code>');
+        return html;
+      };
+
+      // Render Posts
       const renderPosts = () => {
         postsContainer.innerHTML = '';
         const sortedPosts = sortPosts(filterPosts(posts));
-        
-        sortedPosts.forEach(post => {
+        sortedPosts.forEach((post, index) => {
           if (!post.isArchived) {
-            postsContainer.appendChild(createPostElement(post));
+            const postEl = createPostElement(post, index);
+            postsContainer.appendChild(postEl);
           }
         });
-        
         renderTagFilters();
         renderSidebarPanels();
         saveState();
       };
-      
-      const createPostElement = (post, isReply = false) => {
+
+      const createPostElement = (post, index) => {
         const postElement = document.createElement('div');
         postElement.className = 'post fade-in';
         postElement.dataset.id = post.id;
-        
-        if (post.isPinned) {
-          postElement.classList.add('pinned');
-        }
+        postElement.dataset.index = index;
+        postElement.draggable = true;
+        if (post.isPinned) postElement.classList.add('pinned');
 
         const tagsHtml = post.tags.map(tag => `<span class="tag" data-tag="${tag}">${tag}</span>`).join('');
         const repliesCount = post.replies ? post.replies.length : 0;
-
-        let contentHtml = post.content;
+        let contentHtml = parseMarkdown(post.content);
         if (currentSearchQuery) {
           const regex = new RegExp(`(${currentSearchQuery})`, 'gi');
-          contentHtml = post.content.replace(regex, `<span class="highlighted">$1</span>`);
+          contentHtml = contentHtml.replace(regex, `<span class="highlighted">$1</span>`);
         }
+        const imageHtml = post.image ? `<img src="${post.image}" class="post-image" alt="投稿画像">` : '';
 
         postElement.innerHTML = `
           <div class="post-header">
             <div class="post-meta">
               <span class="timestamp">${new Date(post.timestamp).toLocaleString()}</span>
-              ${post.isPinned ? `<span class="stat-item">📌 ピン留め</span>` : ''}
+              ${post.isPinned ? '<span class="stat-item">📌 ピン留め</span>' : ''}
             </div>
             <div class="post-stats">
               <span class="stat-item">💬 ${repliesCount}</span>
@@ -1115,6 +623,7 @@
             </div>
           </div>
           <div class="post-tags">${tagsHtml}</div>
+          ${imageHtml}
           <div class="post-content">${contentHtml}</div>
           <div class="post-actions">
             <button class="post-btn btn-reply">💬 返信</button>
@@ -1122,64 +631,90 @@
             <button class="post-btn btn-edit">✍️ 編集</button>
             <button class="post-btn btn-delete">🗑️ 削除</button>
             <button class="post-btn btn-archive">📦 アーカイブ</button>
-            <button class="post-btn btn-pin">${post.isPinned ? '📌 ピン解除' : '📌 ピン留め'}</button>
+            <button class="post-btn btn-pin">${post.isPinned ? '📌 解除' : '📌 ピン'}</button>
+            <button class="post-btn btn-export">📤 出力</button>
           </div>
         `;
-        
+
         if (post.replies && post.replies.length > 0) {
           const repliesContainer = document.createElement('div');
-          repliesContainer.className = 'replies-container';
+          repliesContainer.style.marginLeft = '20px';
+          repliesContainer.style.marginTop = '10px';
           post.replies.forEach(reply => {
-            repliesContainer.appendChild(createPostElement(reply, true));
+            repliesContainer.appendChild(createPostElement(reply, 0));
           });
           postElement.appendChild(repliesContainer);
         }
-        
-        // Add event listeners to new buttons
-        const replyBtn = postElement.querySelector('.btn-reply');
-        replyBtn.addEventListener('click', (e) => {
+
+        // Event listeners
+        postElement.querySelector('.btn-reply').addEventListener('click', (e) => {
           e.stopPropagation();
           toggleReplyForm(postElement, post.id);
         });
-        
-        const favoriteBtn = postElement.querySelector('.btn-favorite');
-        favoriteBtn.addEventListener('click', (e) => {
+
+        postElement.querySelector('.btn-favorite').addEventListener('click', (e) => {
           e.stopPropagation();
           toggleFavorite(post.id);
         });
-        
-        const editBtn = postElement.querySelector('.btn-edit');
-        editBtn.addEventListener('click', (e) => {
+
+        postElement.querySelector('.btn-edit').addEventListener('click', (e) => {
           e.stopPropagation();
           editPost(post.id, postElement);
         });
-        
-        const deleteBtn = postElement.querySelector('.btn-delete');
-        deleteBtn.addEventListener('click', (e) => {
+
+        postElement.querySelector('.btn-delete').addEventListener('click', (e) => {
           e.stopPropagation();
           deletePost(post.id);
         });
-        
-        const archiveBtn = postElement.querySelector('.btn-archive');
-        archiveBtn.addEventListener('click', (e) => {
+
+        postElement.querySelector('.btn-archive').addEventListener('click', (e) => {
           e.stopPropagation();
           archivePost(post.id);
         });
-        
-        const pinBtn = postElement.querySelector('.btn-pin');
-        pinBtn.addEventListener('click', (e) => {
+
+        postElement.querySelector('.btn-pin').addEventListener('click', (e) => {
           e.stopPropagation();
           togglePin(post.id);
         });
-        
-        const tags = postElement.querySelectorAll('.tag');
-        tags.forEach(tag => {
+
+        postElement.querySelector('.btn-export').addEventListener('click', (e) => {
+          e.stopPropagation();
+          exportPost(post);
+        });
+
+        postElement.querySelectorAll('.tag').forEach(tag => {
           tag.addEventListener('click', (e) => {
             e.stopPropagation();
             filterByTag(tag.dataset.tag);
           });
         });
-        
+
+        // Drag and drop
+        postElement.addEventListener('dragstart', (e) => {
+          draggedPost = index;
+          postElement.classList.add('dragging');
+        });
+
+        postElement.addEventListener('dragend', (e) => {
+          postElement.classList.remove('dragging');
+        });
+
+        postElement.addEventListener('dragover', (e) => {
+          e.preventDefault();
+        });
+
+        postElement.addEventListener('drop', (e) => {
+          e.preventDefault();
+          const targetIndex = parseInt(postElement.dataset.index);
+          if (draggedPost !== null && draggedPost !== targetIndex) {
+            const [movedPost] = posts.splice(draggedPost, 1);
+            posts.splice(targetIndex, 0, movedPost);
+            saveHistory();
+            renderPosts();
+            showNotification('投稿の順序を変更しました。', 'info');
+          }
+        });
+
         return postElement;
       };
 
@@ -1188,13 +723,8 @@
         const allTags = new Set();
         posts.forEach(post => {
           post.tags.forEach(tag => allTags.add(tag));
-          if (post.replies) {
-            post.replies.forEach(reply => {
-              reply.tags.forEach(tag => allTags.add(tag));
-            });
-          }
         });
-        
+
         allTags.forEach(tag => {
           const tagBtn = document.createElement('span');
           tagBtn.className = 'filter-tag';
@@ -1204,71 +734,84 @@
             tagBtn.classList.add('active');
           }
           tagBtn.addEventListener('click', () => {
-            if (currentFilterTag === tag) {
-              currentFilterTag = null;
-            } else {
-              currentFilterTag = tag;
-            }
-            renderPosts();
+            filterByTag(tag);
           });
           tagFilterContainer.appendChild(tagBtn);
         });
       };
-      
+
       const renderSidebarPanels = () => {
         favoritesList.innerHTML = '';
         archivesList.innerHTML = '';
-        
+        notificationsList.innerHTML = '';
+
         posts.forEach(post => {
           if (post.isFavorite) {
             const favItem = document.createElement('div');
             favItem.className = 'fav-item';
-            favItem.textContent = post.content.substring(0, 30) + '...';
+            favItem.textContent = post.content.substring(0, 50) + '...';
             favItem.dataset.id = post.id;
             favItem.addEventListener('click', () => {
-              document.querySelector(`[data-id="${post.id}"]`).scrollIntoView({ behavior: 'smooth' });
-              showNotification('投稿にジャンプしました。', 'info');
+              const el = document.querySelector(`[data-id="${post.id}"]`);
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showNotification('投稿にジャンプしました。', 'info');
+              }
             });
             favoritesList.appendChild(favItem);
           }
           if (post.isArchived) {
             const archiveItem = document.createElement('div');
             archiveItem.className = 'archive-item';
-            archiveItem.textContent = post.content.substring(0, 30) + '...';
-            archiveItem.dataset.id = post.id;
+            archiveItem.textContent = post.content.substring(0, 50) + '...';
             archiveItem.addEventListener('click', () => {
-              showNotification('アーカイブされた投稿は閲覧できません。', 'info');
+              post.isArchived = false;
+              renderPosts();
+              showNotification('アーカイブから復元しました。', 'success');
             });
             archivesList.appendChild(archiveItem);
           }
         });
-        
+
+        notificationHistory.slice(-20).reverse().forEach(notif => {
+          const notifItem = document.createElement('div');
+          notifItem.className = `notification-item ${notif.type}`;
+          notifItem.innerHTML = `
+            <div style="font-size:0.8rem;color:#666;">${new Date(notif.timestamp).toLocaleString()}</div>
+            <div>${notif.message}</div>
+          `;
+          notificationsList.appendChild(notifItem);
+        });
+
         updateStatistics();
       };
-      
+
       const updateStatistics = () => {
-        const totalPosts = posts.length;
+        const totalPosts = posts.filter(p => !p.isArchived).length;
         const totalReplies = posts.reduce((sum, post) => sum + (post.replies ? post.replies.length : 0), 0);
         const totalFavorites = posts.reduce((sum, post) => sum + post.favorites, 0);
         const uniqueTags = new Set(posts.flatMap(post => post.tags));
-        
+        const archivedCount = posts.filter(p => p.isArchived).length;
+        const pinnedCount = posts.filter(p => p.isPinned).length;
+
         statisticsContent.innerHTML = `
-          <p>📝 総投稿数: ${totalPosts}</p>
-          <p>💬 総返信数: ${totalReplies}</p>
-          <p>⭐ 総お気に入り数: ${totalFavorites}</p>
-          <p>🏷️ 総タグ数: ${uniqueTags.size}</p>
+          <p style="padding:10px;border-bottom:1px solid var(--border-color);">📝 総投稿数: <strong>${totalPosts}</strong></p>
+          <p style="padding:10px;border-bottom:1px solid var(--border-color);">💬 総返信数: <strong>${totalReplies}</strong></p>
+          <p style="padding:10px;border-bottom:1px solid var(--border-color);">⭐ 総お気に入り数: <strong>${totalFavorites}</strong></p>
+          <p style="padding:10px;border-bottom:1px solid var(--border-color);">🏷️ 総タグ数: <strong>${uniqueTags.size}</strong></p>
+          <p style="padding:10px;border-bottom:1px solid var(--border-color);">📦 アーカイブ数: <strong>${archivedCount}</strong></p>
+          <p style="padding:10px;border-bottom:1px solid var(--border-color);">📌 ピン留め数: <strong>${pinnedCount}</strong></p>
+          <p style="padding:10px;border-bottom:1px solid var(--border-color);">🔔 通知履歴: <strong>${notificationHistory.length}</strong></p>
         `;
       };
-      
-      // --- Functional Logic ---
-      const addPost = (content, tags, parentId = null) => {
+
+      // Functional Logic (unchanged)
+      const addPost = (content, tags, parentId = null, image = null) => {
         if (!content.trim()) {
-          showNotification('投稿内容を入力してください。', 'warning');
+          showNotification('投稿内容を入力してください。', 'error');
           return;
         }
-        
-        const newPost = new Post(content, tags, parentId);
-        
+        const newPost = new Post(content, tags, parentId, image);
         if (parentId) {
           const parentPost = findPostById(posts, parentId);
           if (parentPost) {
@@ -1277,35 +820,31 @@
             showNotification('返信が投稿されました。', 'success');
           }
         } else {
-          posts.push(newPost);
+          posts.unshift(newPost);
           showNotification('新しい投稿が作成されました。', 'success');
         }
-        
         saveHistory();
         renderPosts();
         clearNewPostForm();
       };
-      
+
       const findPostById = (arr, id) => {
-        for (let i = 0; i < arr.length; i++) {
-          if (arr[i].id === id) {
-            return arr[i];
-          }
-          if (arr[i].replies) {
-            const reply = findPostById(arr[i].replies, id);
+        for (let post of arr) {
+          if (post.id === id) return post;
+          if (post.replies) {
+            const reply = findPostById(post.replies, id);
             if (reply) return reply;
           }
         }
         return null;
       };
-      
+
       const toggleReplyForm = (postElement, postId) => {
         const existingForm = postElement.querySelector('.reply-form');
         if (existingForm) {
           existingForm.remove();
           return;
         }
-        
         const replyForm = document.createElement('div');
         replyForm.className = 'reply-form';
         replyForm.innerHTML = `
@@ -1315,41 +854,31 @@
             <button class="post-btn btn-secondary reply-cancel">キャンセル</button>
           </div>
         `;
-        
         postElement.appendChild(replyForm);
-        
         const submitBtn = replyForm.querySelector('.reply-submit');
         const cancelBtn = replyForm.querySelector('.reply-cancel');
         const textarea = replyForm.querySelector('.reply-textarea');
-        
         submitBtn.addEventListener('click', () => {
           addPost(textarea.value, [], postId);
           replyForm.remove();
         });
-        
         cancelBtn.addEventListener('click', () => {
           replyForm.remove();
         });
       };
-      
+
       const editPost = (postId, postElement) => {
         const post = findPostById(posts, postId);
         if (!post) return;
-        
         const contentDiv = postElement.querySelector('.post-content');
         const originalContent = post.content;
-        
-        contentDiv.innerHTML = `<textarea class="edit-textarea" style="width:100%; min-height:100px;">${originalContent}</textarea>`;
-        contentDiv.style.cursor = 'auto';
-        
+        contentDiv.innerHTML = `<textarea class="edit-textarea" style="width:100%; min-height:100px; padding:10px; border:1px solid var(--border-color); border-radius:8px;">${originalContent}</textarea>`;
         const textarea = contentDiv.querySelector('.edit-textarea');
         const actionsDiv = postElement.querySelector('.post-actions');
-        
         actionsDiv.innerHTML = `
-          <button class="post-btn btn-primary save-edit">保存</button>
-          <button class="post-btn btn-secondary cancel-edit">キャンセル</button>
+          <button class="post-btn btn-primary save-edit">💾 保存</button>
+          <button class="post-btn btn-secondary cancel-edit">❌ キャンセル</button>
         `;
-        
         postElement.querySelector('.save-edit').addEventListener('click', () => {
           post.content = textarea.value;
           post.timestamp = new Date().toISOString();
@@ -1357,13 +886,11 @@
           renderPosts();
           showNotification('投稿を編集しました。', 'success');
         });
-        
         postElement.querySelector('.cancel-edit').addEventListener('click', () => {
-          renderPosts(); // Simply re-render to revert
-          showNotification('編集をキャンセルしました。', 'info');
+          renderPosts();
         });
       };
-      
+
       const deletePost = (postId) => {
         const postIndex = posts.findIndex(post => post.id === postId);
         if (postIndex > -1) {
@@ -1371,52 +898,29 @@
           deletedPosts.push(deleted);
           saveHistory();
           renderPosts();
-          showNotification('投稿を削除しました。復活ボタンで元に戻せます。', 'info');
-        } else {
-          // Check for replies
-          posts.forEach(post => {
-            if (post.replies) {
-              const replyIndex = post.replies.findIndex(reply => reply.id === postId);
-              if (replyIndex > -1) {
-                const deleted = post.replies.splice(replyIndex, 1)[0];
-                deletedPosts.push(deleted);
-                saveHistory();
-                renderPosts();
-                showNotification('返信を削除しました。', 'info');
-              }
-            }
-          });
+          showNotification('投稿を削除しました。', 'info');
         }
       };
-      
+
       const toggleFavorite = (postId) => {
         const post = findPostById(posts, postId);
         if (post) {
           post.isFavorite = !post.isFavorite;
-          if (post.isFavorite) {
-            post.favorites++;
-            showNotification('お気に入りに追加しました。', 'success');
-          } else {
-            post.favorites--;
-            showNotification('お気に入りから削除しました。', 'info');
-          }
+          post.favorites += post.isFavorite ? 1 : -1;
           renderPosts();
+          showNotification(post.isFavorite ? 'お気に入りに追加しました。' : 'お気に入りから削除しました。', 'success');
         }
       };
-      
+
       const archivePost = (postId) => {
         const post = findPostById(posts, postId);
         if (post) {
           post.isArchived = !post.isArchived;
-          if (post.isArchived) {
-            showNotification('投稿をアーカイブしました。', 'success');
-          } else {
-            showNotification('投稿をアーカイブから復元しました。', 'info');
-          }
           renderPosts();
+          showNotification(post.isArchived ? 'アーカイブしました。' : 'アーカイブから復元しました。', 'info');
         }
       };
-      
+
       const togglePin = (postId) => {
         const post = findPostById(posts, postId);
         if (post) {
@@ -1425,30 +929,55 @@
           showNotification(`投稿を${post.isPinned ? 'ピン留め' : 'ピン解除'}しました。`, 'info');
         }
       };
-      
+
+      const exportPost = (post) => {
+        const data = { content: post.content, tags: post.tags, timestamp: post.timestamp, favorites: post.favorites };
+        const json = JSON.stringify(data, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `post_${post.id}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showNotification('投稿をエクスポートしました。', 'success');
+      };
+
       const filterPosts = (postsArray) => {
         let filtered = postsArray;
-        
         if (currentSearchQuery) {
-          filtered = filtered.filter(post => 
+          filtered = filtered.filter(post =>
             post.content.toLowerCase().includes(currentSearchQuery.toLowerCase()) ||
             post.tags.some(tag => tag.toLowerCase().includes(currentSearchQuery.toLowerCase()))
           );
         }
-        
         if (currentFilterTag) {
           filtered = filtered.filter(post => post.tags.includes(currentFilterTag));
         }
-        
+        if (advancedFilters.dateFrom) {
+          filtered = filtered.filter(post => new Date(post.timestamp) >= new Date(advancedFilters.dateFrom));
+        }
+        if (advancedFilters.dateTo) {
+          const endDate = new Date(advancedFilters.dateTo);
+          endDate.setHours(23, 59, 59);
+          filtered = filtered.filter(post => new Date(post.timestamp) <= endDate);
+        }
+        if (advancedFilters.tags.length > 0) {
+          filtered = filtered.filter(post => advancedFilters.tags.some(tag => post.tags.includes(tag)));
+        }
+        if (advancedFilters.favoritesOnly) {
+          filtered = filtered.filter(post => post.isFavorite);
+        }
+        if (advancedFilters.pinnedOnly) {
+          filtered = filtered.filter(post => post.isPinned);
+        }
         return filtered;
       };
-      
+
       const sortPosts = (postsArray) => {
         const pinnedPosts = postsArray.filter(post => post.isPinned);
         const nonPinnedPosts = postsArray.filter(post => !post.isPinned);
-        
         let sorted = [...nonPinnedPosts];
-        
         switch(currentSort) {
           case 'new':
             sorted.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
@@ -1456,37 +985,27 @@
           case 'old':
             sorted.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
             break;
-          case 'alpha':
-            sorted.sort((a, b) => a.content.localeCompare(b.content, 'ja'));
-            break;
           case 'popular':
             sorted.sort((a, b) => b.favorites - a.favorites);
             break;
         }
-        
         return [...pinnedPosts, ...sorted];
       };
-      
-      const searchPosts = () => {
-        currentSearchQuery = searchInput.value.trim();
+
+      const filterByTag = (tag) => {
+        if (currentFilterTag === tag) currentFilterTag = null; else currentFilterTag = tag;
         renderPosts();
-        showNotification(`${posts.length}件の投稿を検索しました。`, 'info');
-      };
-      
-      const resetSearch = () => {
-        searchInput.value = '';
-        currentSearchQuery = '';
-        renderPosts();
-        showNotification('検索がリセットされました。', 'info');
       };
 
       const clearNewPostForm = () => {
         newPostInput.value = '';
         tagInput.value = '';
         currentTags = [];
+        currentImage = null;
+        imagePreview.style.display = 'none';
         updateCurrentTagsUI();
       };
-      
+
       const updateCurrentTagsUI = () => {
         currentTagsContainer.innerHTML = '';
         currentTags.forEach(tag => {
@@ -1495,7 +1014,7 @@
           tagSpan.textContent = tag;
           const removeBtn = document.createElement('span');
           removeBtn.className = 'tag-removable';
-          removeBtn.textContent = 'x';
+          removeBtn.textContent = ' ×';
           removeBtn.addEventListener('click', () => {
             currentTags = currentTags.filter(t => t !== tag);
             updateCurrentTagsUI();
@@ -1504,106 +1023,58 @@
           currentTagsContainer.appendChild(tagSpan);
         });
       };
-      
+
       const toggleSidebarPanel = (panel) => {
-        [favoritesPanel, archivesPanel, statisticsPanel].forEach(p => {
-          if (p !== panel) {
-            p.classList.remove('visible');
-          }
+        [favoritesPanel, archivesPanel, statisticsPanel, notificationsPanel].forEach(p => {
+          if (p !== panel) p.classList.remove('visible');
         });
         panel.classList.toggle('visible');
-      };
-
-      const closeSidebarPanels = () => {
-        [favoritesPanel, archivesPanel, statisticsPanel].forEach(p => p.classList.remove('visible'));
+        overlay.classList.toggle('visible', panel.classList.contains('visible'));
       };
 
       const toggleSettingsPanel = () => {
         settingsPanel.classList.toggle('visible');
+        advancedFilterPanel.classList.remove('visible');
         overlay.classList.toggle('visible');
+      };
+
+      const toggleAdvancedFilterPanel = () => {
+        advancedFilterPanel.classList.toggle('visible');
+        settingsPanel.classList.remove('visible');
+        overlay.classList.toggle('visible');
+        if (advancedFilterPanel.classList.contains('visible')) updateAdvancedFilterUI();
+      };
+
+      const updateAdvancedFilterUI = () => {
+        const tagCheckboxes = document.getElementById('tag-checkboxes');
+        tagCheckboxes.innerHTML = '';
+        const allTags = new Set();
+        posts.forEach(post => post.tags.forEach(tag => allTags.add(tag)));
+        allTags.forEach(tag => {
+          const label = document.createElement('label');
+          label.style.display = 'block';
+          label.style.marginBottom = '8px';
+          label.innerHTML = `<input type="checkbox" value="${tag}" ${advancedFilters.tags.includes(tag) ? 'checked' : ''}> ${tag}`;
+          tagCheckboxes.appendChild(label);
+        });
       };
 
       const showNotification = (message, type = 'info', duration = 3000) => {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.innerHTML = `<span>${message}</span><span class="close-notification">&times;</span>`;
-        
-        notificationArea.prepend(notification); // Add to top
-        
-        // Show the notification
-        setTimeout(() => {
-          notification.classList.add('visible');
-        }, 10);
-        
-        // Hide after duration
-        setTimeout(() => {
-          notification.classList.remove('visible');
-          notification.addEventListener('transitionend', () => notification.remove());
-        }, duration);
-        
-        // Close on click
+        notificationArea.prepend(notification);
+        notificationHistory.push({ message, type, timestamp: new Date().toISOString() });
+        setTimeout(() => { notification.classList.add('visible'); }, 10);
+        setTimeout(() => { notification.classList.remove('visible'); setTimeout(() => notification.remove(), 300); }, duration);
         notification.querySelector('.close-notification').addEventListener('click', () => {
           notification.classList.remove('visible');
-          notification.addEventListener('transitionend', () => notification.remove());
+          setTimeout(() => notification.remove(), 300);
         });
       };
 
-      const initializeSettingsPanel = () => {
-        // Button visibility
-        const allButtons = document.querySelectorAll('.header-btn:not(#btn-settings)');
-        allButtons.forEach(btn => {
-          const itemId = btn.id;
-          const itemName = btn.title || btn.textContent.trim();
-          const item = document.createElement('div');
-          item.className = 'button-item';
-          item.innerHTML = `
-            <input type="checkbox" id="btn-vis-${itemId}" checked>
-            <label for="btn-vis-${itemId}">${itemName}</label>
-          `;
-          buttonVisibilityList.appendChild(item);
-          
-          item.querySelector('input').addEventListener('change', (e) => {
-            btn.style.display = e.target.checked ? 'block' : 'none';
-          });
-        });
-
-        // Theme color picker
-        const colors = [
-          '#007acc', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
-          '#6f42c1', '#fd7e14', '#e83e8c', '#6c757d', '#343a40'
-        ];
-        colors.forEach(color => {
-          const colorBtn = document.createElement('div');
-          colorBtn.className = 'color-btn';
-          colorBtn.style.backgroundColor = color;
-          colorBtn.addEventListener('click', () => {
-            document.documentElement.style.setProperty('--primary-color', color);
-            document.documentElement.style.setProperty('--primary-dark', color);
-            document.documentElement.style.setProperty('--primary-darker', color);
-            localStorage.setItem('themeColor', color);
-          });
-          themeColorPalette.appendChild(colorBtn);
-        });
-
-        const savedColor = localStorage.getItem('themeColor');
-        if (savedColor) {
-          document.documentElement.style.setProperty('--primary-color', savedColor);
-          document.documentElement.style.setProperty('--primary-dark', savedColor);
-          document.documentElement.style.setProperty('--primary-darker', savedColor);
-        }
-      };
-
-      const loadDefaultTemplate = () => {
-        const savedTemplate = localStorage.getItem('defaultTemplate');
-        if (savedTemplate) {
-          newPostInput.value = savedTemplate;
-        }
-      };
-
-      // --- Event Listeners ---
-      postBtn.addEventListener('click', () => {
-        addPost(newPostInput.value, currentTags);
-      });
+      // Event Listeners
+      postBtn.addEventListener('click', () => { addPost(newPostInput.value, currentTags, null, currentImage); });
 
       addTagBtn.addEventListener('click', () => {
         const tagsToAdd = tagInput.value.split(/\s+/).filter(t => t.trim() !== '');
@@ -1612,215 +1083,214 @@
         updateCurrentTagsUI();
       });
 
-      newPostInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.shiftKey) {
-          e.preventDefault();
-          postBtn.click();
+      addImageBtn.addEventListener('click', () => { imageInput.click(); });
+
+      imageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            currentImage = event.target.result;
+            imagePreview.src = currentImage;
+            imagePreview.style.display = 'block';
+            showNotification('画像を添付しました。', 'success');
+          };
+          reader.readAsDataURL(file);
         }
       });
 
-      searchInput.addEventListener('input', () => {
-        currentSearchQuery = searchInput.value.trim();
-        renderPosts();
-      });
-      
-      searchBtn.addEventListener('click', searchPosts);
-      searchResetBtn.addEventListener('click', resetSearch);
-      
+      searchInput.addEventListener('input', () => { currentSearchQuery = searchInput.value.trim(); renderPosts(); });
+
       darkModeBtn.addEventListener('click', () => {
         document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('darkMode', isDark);
+        showNotification(isDark ? 'ダークモードON' : 'ダークモードOFF', 'info');
       });
-      
+
       sortNewBtn.addEventListener('click', () => {
         currentSort = 'new';
         document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
         sortNewBtn.classList.add('active');
         renderPosts();
       });
-      
+
       sortOldBtn.addEventListener('click', () => {
         currentSort = 'old';
         document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
         sortOldBtn.classList.add('active');
         renderPosts();
       });
-      
-      sortAlphaBtn.addEventListener('click', () => {
-        currentSort = 'alpha';
-        document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
-        sortAlphaBtn.classList.add('active');
-        renderPosts();
-      });
-      
+
       sortPopularBtn.addEventListener('click', () => {
         currentSort = 'popular';
         document.querySelectorAll('.header-btn[id^="btn-sort"]').forEach(btn => btn.classList.remove('active'));
         sortPopularBtn.classList.add('active');
         renderPosts();
       });
-      
-      collapseExpandBtn.addEventListener('click', () => {
-        isCollapsed = !isCollapsed;
-        document.querySelectorAll('.post-content').forEach(content => {
-          content.classList.toggle('collapsed', isCollapsed);
-        });
-        showNotification(`全投稿を${isCollapsed ? '折りたたみ' : '展開'}ました。`, 'info');
-      });
 
-      localCollapseBtn.addEventListener('click', () => {
-        const postElements = document.querySelectorAll('.post');
-        postElements.forEach(postEl => {
-          const content = postEl.querySelector('.post-content');
-          if (content) {
-            content.classList.toggle('collapsed');
-          }
-        });
-      });
-      
-      pinModeBtn.addEventListener('click', () => {
-        isPinMode = !isPinMode;
-        if (isPinMode) {
-          pinModeBtn.classList.add('active');
-          showNotification('ピンモードが有効になりました。', 'info');
-        } else {
-          pinModeBtn.classList.remove('active');
-          showNotification('ピンモードが無効になりました。', 'info');
-        }
-      });
-      
       favoritesBtn.addEventListener('click', () => toggleSidebarPanel(favoritesPanel));
       archivesBtn.addEventListener('click', () => toggleSidebarPanel(archivesPanel));
+      notificationsBtn.addEventListener('click', () => toggleSidebarPanel(notificationsPanel));
       statisticsBtn.addEventListener('click', () => toggleSidebarPanel(statisticsPanel));
-      
+
       settingsBtn.addEventListener('click', toggleSettingsPanel);
+      advancedFilterBtn.addEventListener('click', toggleAdvancedFilterPanel);
+
       overlay.addEventListener('click', () => {
-        toggleSettingsPanel();
-        closeSidebarPanels();
+        settingsPanel.classList.remove('visible');
+        advancedFilterPanel.classList.remove('visible');
+        overlay.classList.remove('visible');
+        [favoritesPanel, archivesPanel, statisticsPanel, notificationsPanel].forEach(p => p.classList.remove('visible'));
       });
-      
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && (settingsPanel.classList.contains('visible') || favoritesPanel.classList.contains('visible') || archivesPanel.classList.contains('visible') || statisticsPanel.classList.contains('visible'))) {
-          toggleSettingsPanel();
-          closeSidebarPanels();
-        }
-      });
-      
-      zoomSlider.addEventListener('input', (e) => {
-        const zoomValue = e.target.value;
-        document.body.style.zoom = `${zoomValue}%`;
-        zoomValueSpan.textContent = `${zoomValue}%`;
-      });
-      
-      buttonSizeSlider.addEventListener('input', (e) => {
-        const sizeValue = e.target.value;
-        document.documentElement.style.setProperty('--font-size-small', `${sizeValue * 0.85}rem`);
-        document.documentElement.style.setProperty('--font-size-normal', `${sizeValue}rem`);
-        document.documentElement.style.setProperty('--font-size-large', `${sizeValue * 1.2}rem`);
-        buttonSizeValueSpan.textContent = `${sizeValue}x`;
-      });
-      
+
       undoBtn.addEventListener('click', undo);
       redoBtn.addEventListener('click', redo);
-      
-      recoverBtn.addEventListener('click', () => {
-        if (deletedPosts.length > 0) {
-          const recovered = deletedPosts.pop();
-          posts.push(recovered);
-          saveHistory();
-          renderPosts();
-          showNotification('最近削除した投稿を復活させました。', 'success');
-        } else {
-          showNotification('復活できる投稿はありません。', 'warning');
-        }
-      });
-
-      saveBtn.addEventListener('click', () => {
-        saveState();
-        showNotification('データを保存しました！', 'success');
-      });
-
-      loadBtn.addEventListener('click', () => {
-        loadFileInput.click();
-      });
-
-      loadFileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const data = JSON.parse(event.target.result);
-            if (data.posts) {
-              posts = data.posts;
-              deletedPosts = data.deletedPosts || [];
-              renderPosts();
-              saveHistory();
-              showNotification('データを読み込みました。', 'success');
-            } else {
-              showNotification('無効なファイル形式です。', 'error');
-            }
-          } catch (error) {
-            showNotification('ファイルの解析に失敗しました。', 'error');
-            console.error('File load error:', error);
-          }
-        };
-        reader.readAsText(file);
-      });
 
       exportBtn.addEventListener('click', () => {
-        const data = { posts, deletedPosts };
+        const data = { posts, deletedPosts, notificationHistory };
         const json = JSON.stringify(data, null, 2);
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'board_data.json';
-        document.body.appendChild(a);
+        a.download = `board_export_${Date.now()}.json`;
         a.click();
-        document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showNotification('JSONファイルとしてエクスポートしました。', 'info');
+        showNotification('すべてのデータをエクスポートしました。', 'success');
       });
 
-      saveTemplateBtn.addEventListener('click', () => {
-        const templateContent = templateTextarea.value;
-        localStorage.setItem('defaultTemplate', templateContent);
-        showNotification('テンプレートを保存しました。', 'success');
-      });
-      
-      printBtn.addEventListener('click', () => {
-        window.print();
+      clearNotificationsBtn.addEventListener('click', () => {
+        notificationHistory = [];
+        renderSidebarPanels();
+        showNotification('通知履歴をクリアしました。', 'info');
       });
 
-      // --- Initialization ---
+      document.getElementById('apply-advanced-filter').addEventListener('click', () => {
+        advancedFilters.dateFrom = document.getElementById('date-from').value;
+        advancedFilters.dateTo = document.getElementById('date-to').value;
+        advancedFilters.favoritesOnly = document.getElementById('filter-favorites').checked;
+        advancedFilters.pinnedOnly = document.getElementById('filter-pinned').checked;
+        advancedFilters.tags = [];
+        document.querySelectorAll('#tag-checkboxes input:checked').forEach(checkbox => {
+          advancedFilters.tags.push(checkbox.value);
+        });
+        renderPosts();
+        advancedFilterPanel.classList.remove('visible');
+        overlay.classList.remove('visible');
+        showNotification('高度なフィルターを適用しました。', 'success');
+      });
+
+      document.getElementById('reset-advanced-filter').addEventListener('click', () => {
+        advancedFilters = { dateFrom:null, dateTo:null, tags:[], favoritesOnly:false, pinnedOnly:false };
+        document.getElementById('date-from').value = '';
+        document.getElementById('date-to').value = '';
+        document.getElementById('filter-favorites').checked = false;
+        document.getElementById('filter-pinned').checked = false;
+        document.querySelectorAll('#tag-checkboxes input').forEach(cb => cb.checked = false);
+        renderPosts();
+        showNotification('フィルターをリセットしました。', 'info');
+      });
+
+      document.getElementById('export-settings').addEventListener('click', () => {
+        const settings = { darkMode: document.body.classList.contains('dark-mode'), sort: currentSort, advancedFilters };
+        const json = JSON.stringify(settings, null, 2);
+        const blob = new Blob([json], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'board_settings.json';
+        a.click();
+        URL.revokeObjectURL(url);
+        showNotification('設定をエクスポートしました。', 'success');
+      });
+
+      document.getElementById('import-settings').addEventListener('click', () => {
+        document.getElementById('import-settings-input').click();
+      });
+
+      document.getElementById('import-settings-input').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const settings = JSON.parse(event.target.result);
+            if (settings.darkMode) document.body.classList.add('dark-mode');
+            if (settings.sort) currentSort = settings.sort;
+            if (settings.advancedFilters) advancedFilters = settings.advancedFilters;
+            renderPosts();
+            showNotification('設定をインポートしました。', 'success');
+          } catch (error) {
+            showNotification('設定ファイルの読み込みに失敗しました。', 'error');
+          }
+        };
+        reader.readAsText(file);
+      });
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          switch(e.key) {
+            case 'Enter':
+              e.preventDefault();
+              if (document.activeElement === newPostInput) postBtn.click();
+              break;
+            case 'z':
+              e.preventDefault(); undo();
+              break;
+            case 'y':
+              e.preventDefault(); redo();
+              break;
+            case 'd':
+              e.preventDefault(); darkModeBtn.click();
+              break;
+            case 'f':
+              e.preventDefault(); searchInput.focus();
+              break;
+          }
+        }
+        if (e.key === 'Escape') {
+          settingsPanel.classList.remove('visible');
+          advancedFilterPanel.classList.remove('visible');
+          overlay.classList.remove('visible');
+          [favoritesPanel, archivesPanel, statisticsPanel, notificationsPanel].forEach(p => p.classList.remove('visible'));
+        }
+      });
+
+      // Initialization
       const init = () => {
         loadState();
-        // Add sample posts if none exist
         if (posts.length === 0) {
-          posts.push(new Post('今日の出来事について話しましょう！\n皆さんの一日はいかがでしたか？', ['日常', '雑談']));
-          posts.push(new Post('JavaScriptの非同期処理について質問です。Promiseとasync/awaitの違いを教えてください。', ['JavaScript', 'プログラミング']));
-          posts[0].replies.push(new Post('私は今日は家でゆっくりしていました。とても良い一日でした！', ['休日', 'リラックス']));
+          posts.push(new Post('# 掲示板システムへようこそ\n\nこの掲示板システムでは以下の機能が利用できます：\n\n- **Markdown記法対応**（見出し、リスト、コードブロック等）\n- ドラッグ&ドロップによる投稿の並び替え\n- 画像添付機能\n- リアルタイム検索\n- 高度なフィルタリング', ['チュートリアル','はじめに']));
+          posts.push(new Post('## プログラミングの質問\n\nJavaScriptで非同期処理を学んでいます。\n\n```javascript\nasync function fetchData() {\n  const response = await fetch(url);\n  const data = await response.json();\n  return data;\n}\n```\n\nこのコードについて質問があります。', ['JavaScript','プログラミング']));
+          posts.push(new Post('今日は良い天気ですね。\n\n- 散歩に行きました\n- カフェで読書\n- とてもリラックスできました', ['日常','雑談']));
         }
+        const savedDarkMode = localStorage.getItem('darkMode');
+        if (savedDarkMode === 'true') document.body.classList.add('dark-mode');
         renderPosts();
         updateHistoryButtons();
-        initializeSettingsPanel();
-        loadDefaultTemplate();
-        // Set initial sort button state
-        sortNewBtn.classList.add('active');
         saveHistory();
+        showNotification('掲示板システムを読み込みました。', 'success', 2000);
       };
-      
+
       init();
+
+      /* Extra safety: when panels are hidden, ensure they are non-interactive (reinforce CSS approach).
+         This guards against edge cases where CSS transition timing might momentarily allow pointer events. */
+      const ensurePanelInteractivity = () => {
+        [settingsPanel, advancedFilterPanel].forEach(panel => {
+          if (!panel.classList.contains('visible')) {
+            panel.style.pointerEvents = 'none';
+          } else {
+            panel.style.pointerEvents = 'auto';
+          }
+        });
+      };
+      // Observe class changes to panels (simple interval check to avoid MutationObserver complexity)
+      setInterval(ensurePanelInteractivity, 300);
+
     });
   </script>
 </body>
-
-
-<a href="https://px.a8.net/svt/ejp?a8mat=35UE1S+6V2WTU+CO4+6L9O1" rel="nofollow">
-<img border="0" width="728" height="90" alt="" src="https://www25.a8.net/svt/bgt?aid=191214496415&wid=001&eno=01&mid=s00000001642001107000&mc=1"></a>
-<img border="0" width="1" height="1" src="https://www14.a8.net/0.gif?a8mat=35UE1S+6V2WTU+CO
-4+6L9O1" alt="">
-
-
 </html>
