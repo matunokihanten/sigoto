@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>レシピ分量計算アプリ</title>
     <style>
-        /* --- ビューポート対応 --- */
+        /* ========================================================================= */
+        /* --- 1. ビューポート対応と基本リセット --- */
+        /* ========================================================================= */
         :root {
+            /* JavaScriptで設定される正確なvh */
             --vh: 1vh;
             --base-font: 15px;
         }
@@ -14,118 +17,87 @@
             height: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* ページ全体のスクロールは無効化 */
+            overflow: hidden; /* ページ全体のスクロールを無効化 */
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            font-size: var(--base-font);
+            color: #333;
+            background-color: #f4f7f9;
+            /* パフォーマンスと描画安定化 */
             -webkit-text-size-adjust: 100%;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            font-size: var(--base-font);
             -webkit-tap-highlight-color: transparent;
         }
+        * { box-sizing: border-box; } /* 全要素をボックスモデルに */
 
-        /* --- 全体レイアウト --- */
+        /* --- 2. 全体レイアウト --- */
         body {
-            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f9;
-            color: #333;
             display: flex;
             justify-content: center;
             align-items: flex-start;
             min-height: calc(var(--vh) * 100);
-            box-sizing: border-box;
+            padding-top: 10px; /* PC/タブレット時の上部余白 */
         }
-
-        /* 固定配置してリフローによる揺れを抑制 */
+        
         .app-container {
             position: relative;
             display: flex;
-            width: 94%;
+            width: 96%;
             max-width: 1200px;
-            height: calc(var(--vh) * 100);
+            /* 高さをvhで指定し、モバイルアドレスバーの変動に対応 */
+            height: calc(var(--vh) * 100 - 20px); 
+            min-height: 450px;
             background-color: #fff;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
             border-radius: 8px;
             overflow: hidden;
-            transform-origin: top center;
-            /* 軽く縮小して余裕を持たせる */
-            transform: scale(0.95);
         }
 
-        /* --- 左右分割 --- */
+        /* --- 3. 左右分割とスクロール --- */
         #recipeListContainer {
             width: 300px;
-            min-width: 220px;
+            min-width: 250px;
             border-right: 1px solid #eee;
             background-color: #ecf0f1;
             padding: 12px;
-            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             gap: 8px;
-            /* 内部スクロール（外部ページはスクロールしない） */
-            overflow: auto;
+            overflow-y: auto; /* 内部スクロール */
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain; /* スクロールバウンス対策 */
         }
 
         #recipeFormContainer {
             flex: 1;
             padding: 12px;
-            box-sizing: border-box;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            overflow: auto;
+            overflow-y: auto; /* 内部スクロール */
             -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
         }
 
-        /* --- ヘッダとリスト --- */
-        .list-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 6px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        #recipeList {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        #recipeList li {
-            padding: 8px 10px;
-            cursor: pointer;
-            transition: background-color 0.15s;
-            border-bottom: 1px dotted #ddd;
-            user-select: none;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 0.95rem;
-        }
-        #recipeList li:hover { background-color: #e9eef1; }
-        #recipeList li.selected { background-color: #3498db; color: #fff; font-weight: 700; }
-
-        /* --- 共通フォーム部品 --- */
+        /* --- 4. 共通フォーム部品とボタン --- */
         .form-section {
-            padding: 8px;
+            padding: 10px;
             border: 1px solid #ddd;
             border-radius: 6px;
             background-color: #fafafa;
-            box-sizing: border-box;
         }
         label { display: block; margin-bottom: 6px; font-weight: 600; color:#2c3e50; font-size:0.95rem; }
+        h2, h3 { margin: 6px 0; font-size: 1.1rem; }
+        
         input[type="text"], input[type="number"], .ingredient-item input {
-            padding: 6px 8px;
+            padding: 8px 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 0.92rem;
-            box-sizing: border-box;
+            font-size: 0.95rem;
+            width: 100%; /* すべての入力要素をデフォルトで100%に */
         }
-
+        #recipeName { margin-bottom: 0; }
+        
         button {
             padding: 8px 10px;
             border: none;
@@ -135,80 +107,136 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            font-size: 0.92rem;
+            font-size: 0.95rem;
             transition: background-color 0.12s;
         }
         .primary { background:#2ecc71; color:#fff; }
         .primary:hover { background:#27ae60; }
         .secondary { background:#3498db; color:#fff; }
         .secondary:hover { background:#2980b9; }
-        .danger { background:#e74c3c; color:#fff; padding:6px 8px; }
+        .danger { background:#e74c3c; color:#fff; padding:6px 8px; font-size:0.9rem; }
         .danger:hover { background:#c0392b; }
 
-        .control-group { display:flex; gap:8px; flex-wrap:wrap; }
-        .io-controls { display:flex; gap:8px; flex-wrap:wrap; }
+        .control-group, .io-controls { display:flex; gap:10px; flex-wrap:wrap; }
 
-        /* --- 材料リスト（1行配置） --- */
+        /* --- 5. リストと選択状態 --- */
+        .list-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:6px; border-bottom:1px solid #ddd; }
+        #recipeList { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:4px; }
+        #recipeList li {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px dotted #ddd;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.95rem;
+            border-radius: 4px;
+        }
+        #recipeList li:hover { background-color: #e9eef1; }
+        #recipeList li.selected { background-color: #3498db; color: #fff; font-weight: 700; }
+
+        /* --- 6. 材料リストのレイアウト（PC/タブレット向け1行固定） --- */
         #ingredientsList { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
         .ingredient-item {
             display:flex;
             align-items:center;
             gap:8px;
-            padding:6px 4px;
+            padding:4px 4px 4px 0;
             border-bottom:1px dashed #eee;
-            box-sizing:border-box;
             flex-wrap:nowrap; /* 1行を維持 */
-            min-height:36px;
         }
-        .ingredient-item input[type="radio"] { flex:0 0 auto; transform:scale(1.05); margin-right:6px; }
-        .ingredient-item .name-input { flex:2 1 50%; min-width:0; font-size:0.92rem; }
-        .ingredient-item .amount-input { flex:1 0 18%; min-width:0; text-align:right; font-size:0.92rem; }
-        .ingredient-item .unit-label { flex:0 0 auto; margin-left:6px; white-space:nowrap; font-size:0.92rem; }
-        .ingredient-item .ratio-display { flex:0 0 70px; text-align:right; font-size:0.88rem; color:#7f8c8d; white-space:nowrap; }
-        .ingredient-item .danger { margin-left:6px; padding:6px 8px; font-size:0.9rem; }
+        .ingredient-item input[type="radio"] { flex:0 0 auto; transform:scale(1.05); margin-right:4px; width: auto; /* ラジオボタンの幅をリセット */ }
+        .ingredient-item .name-input { flex:3 1 45%; min-width:80px; width: auto; }
+        .ingredient-item .amount-input { flex:1 0 15%; min-width:50px; text-align:right; width: auto; }
+        .ingredient-item .unit-label { flex:0 0 auto; margin-left:4px; white-space:nowrap; font-size:0.92rem; width: auto; }
+        .ingredient-item .ratio-display { flex:0 0 65px; text-align:right; font-size:0.85rem; color:#7f8c8d; white-space:nowrap; width: auto; }
+        .ingredient-item .danger { flex:0 0 auto; margin-left:4px; width: auto; }
+        .ingredients-header { display:flex; justify-content:flex-end; margin-bottom:6px; }
 
-        .ingredients-header { display:flex; justify-content:flex-end; padding-right:6px; margin-bottom:6px; }
-
-        /* --- スケール/合計 --- */
-        .scale-control, .total-control { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
-        .scale-control input[type="number"], .total-control input[type="number"] { width:84px; padding:6px; font-size:0.92rem; }
-        .total-display { font-size:1.05rem; font-weight:700; color:#2980b9; }
-
-        /* --- モバイル特定の改善（揺れ対策） --- */
-        /* overscroll-behavior でバウンスや親スクロールへの影響を抑える */
-        #recipeListContainer, #recipeFormContainer, #ingredientsList {
-            overscroll-behavior: contain;
-            -webkit-overflow-scrolling: touch;
+        /* --- 7. スケール/合計表示 --- */
+        .scale-control, .total-control { 
+            display:flex; 
+            align-items:center; 
+            gap:8px; 
+            flex-wrap:wrap; /* バグ修正: 画面幅が狭いときに要素が次の行に流れるように */
         }
+        .scale-control label, .total-control label { flex:0 0 auto; margin-bottom:0; }
+        .scale-control input[type="number"], .total-control input[type="number"] { width:100px; flex: 0 0 auto; } /* 幅を固定し、柔軟性を低くする */
+        .scale-control button, .total-control button { flex-grow: 1; min-width: 150px; } /* ボタンが潰れないように */
 
-        /* ボタンやテキストの縮尺を控えめにして揺れを減らす */
+        .total-display { font-size:1rem; font-weight:700; color:#2980b9; }
+        .unit-radio-group label { display:inline-flex; align-items:center; margin-bottom:0; font-weight:normal; font-size:0.95rem; }
+
+        /* --- 8. モバイル専用スタイル (max-width: 768px) --- */
         @media (max-width: 768px) {
-            .app-container { width:100%; height:calc(var(--vh) * 100); border-radius:0; transform:scale(0.98); }
-            #recipeListContainer, #recipeFormContainer { padding:8px; }
-            #recipeListContainer { width:100%; border-right:none; border-bottom:1px solid #eee; height:40vh; }
-            .app-container.form-visible #recipeListContainer { display:none; }
-            .app-container.form-visible #recipeFormContainer { display:flex; height:calc(var(--vh) * 100); }
+            body { padding-top: 0; }
+            .app-container {
+                width: 100%;
+                height: calc(var(--vh) * 100);
+                border-radius: 0;
+                box-shadow: none;
+                flex-direction: column;
+                transform: scale(1); /* モバイルでは縮小しない */
+            }
+            
+            #recipeListContainer {
+                width: 100%;
+                height: 100%; /* 初期表示時、画面全体を覆う */
+                border-right: none;
+                border-bottom: 1px solid #eee;
+            }
 
-            #recipeFormContainer { height:calc(var(--vh) * 60); }
+            #recipeFormContainer {
+                display: none; /* 初期は隠す */
+                width: 100%;
+                height: 100%;
+                position: absolute; /* 全画面表示のために絶対配置 */
+                top: 0;
+                left: 0;
+                z-index: 10;
+                background-color: #fff;
+                padding: 10px; /* バグ修正: フォームのパディングを適正化 */
+                gap: 8px;
+            }
 
-            /* 縦画面で1行配置を優先 */
-            .ingredient-item { min-height:36px; }
-            .ingredient-item .name-input { font-size:0.9rem; }
-            .ingredient-item .amount-input { font-size:0.9rem; }
-            .ingredient-item .ratio-display { flex:0 0 60px; font-size:0.85rem; }
-            .list-header h2 { font-size:1.05rem; margin:0; }
+            /* フォーム表示時 */
+            .app-container.form-visible #recipeListContainer { display: none; }
+            .app-container.form-visible #recipeFormContainer { display: flex; }
+
+            .mobile-controls {
+                display: flex !important; /* 常に表示 */
+                justify-content: space-between;
+                margin-bottom: 10px;
+                padding: 0;
+            }
+            .mobile-controls button {
+                flex: 1;
+            }
+            .mobile-controls button:first-child { margin-right: 8px; }
+            
+            /* 材料行の調整 (要素が小さくなる) */
+            .ingredient-item {
+                gap: 5px;
+                padding: 4px 0;
+            }
+            .ingredient-item .name-input, .ingredient-item .amount-input {
+                padding: 6px;
+                font-size: 0.9rem;
+            }
+
+            .scale-control, .total-control {
+                /* ボタンと入力欄が縦に並ぶ可能性に対応 */
+                flex-wrap: wrap; 
+                justify-content: flex-start;
+            }
+            .scale-control input[type="number"], .total-control input[type="number"] {
+                width: 80px; /* モバイルで入力欄をやや小さく */
+            }
+            .scale-control button, .total-control button {
+                flex: 1 1 100%; /* ボタンをフル幅に */
+                margin-top: 8px;
+            }
         }
-
-        /* 高さが極端に小さくなる端末向けに余白を調整（揺れを減らす） */
-        @media (max-height: 640px) {
-            .app-container { transform:scale(0.92); }
-            .ingredient-item { padding:4px 4px; }
-            .form-section { padding:6px; }
-            button { padding:6px 8px; font-size:0.9rem; }
-        }
-
-        /* 視覚のちらつきやリフローを減らすための定義 */
-        * { backface-visibility: hidden; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
     </style>
 </head>
 <body>
@@ -254,7 +282,7 @@
                     <label style="margin-right:4px;">基準量:</label>
                     <input type="number" id="scaleAmount" min="0" placeholder="0" />
                     <span id="scaleUnit">g</span>
-                    <button onclick="calculateFromSingleIngredient()" class="secondary">🔄 基準量から計算</button>
+                    <button id="calculateFromSingleIngredientBtn" class="secondary">🔄 基準量から計算</button>
                 </div>
                 <p style="font-size:0.82rem; color:#7f8c8d; margin-top:6px;">※材料横のラジオボタンで基準材料を選択してから、基準量を入力・計算してください。</p>
             </div>
@@ -289,17 +317,19 @@
     </div>
 
     <script>
-    // --- ビューポート高さの正確化（address bar 対応） ---
+    // --- ビューポート高さの正確化（アドレスバー対策） ---
     (function() {
         function setVh() {
+            // window.innerHeight を元に正確な 1vh を計算し CSS 変数に設定
             document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
         }
         setVh();
+        // リサイズ時、画面回転時にも再計算
         window.addEventListener('resize', setVh);
         window.addEventListener('orientationchange', function() { setTimeout(setVh, 200); });
     })();
 
-    // --- グローバル変数とDOM参照（機能は変更しない） ---
+    // --- グローバル変数とDOM参照 ---
     const RECIPES_STORAGE_KEY = 'recipesv1all_improved';
     let recipes = [];
     let currentRecipeId = null;
@@ -328,23 +358,33 @@
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const backToListBtn = document.getElementById('backToListBtn');
     const totalUnitLabelEl = document.getElementById('totalUnitLabel');
+    const calculateFromSingleIngredientBtn = document.getElementById('calculateFromSingleIngredientBtn');
 
-    // --- 初期化 ---
+
+    // --- 初期化処理 ---
     document.addEventListener('DOMContentLoaded', () => {
         loadRecipes();
         renderRecipeList();
         setupEventListeners();
         clearForm();
-        if (window.innerWidth <= 768) showListView();
+        // 初期表示ではフォームを隠す（スマホ考慮）
+        if (window.innerWidth <= 768) {
+            showListView();
+        }
     });
 
-    // --- イベントリスナー ---
+    // --- イベントリスナー設定 ---
     function setupEventListeners() {
         recipeListEl.addEventListener('click', e => {
-            if (e.target.tagName === 'LI' && e.target.dataset.id) selectRecipe(e.target.dataset.id);
+            if (e.target.tagName === 'LI' && e.target.dataset.id) {
+                selectRecipe(e.target.dataset.id);
+            }
         });
-        newRecipeBtn.addEventListener('click', () => { clearForm(); showFormView(); });
-
+        newRecipeBtn.addEventListener('click', () => {
+            clearForm();
+            showFormView();
+        });
+        // 材料追加ボタン
         addIngredientBtn.addEventListener('click', () => addIngredientRow({ name: '', amount: 0 }, true));
 
         saveBtn.addEventListener('click', saveRecipe);
@@ -352,14 +392,20 @@
         deleteBtn.addEventListener('click', deleteRecipe);
         unitGRadio.addEventListener('change', () => setUnit('g'));
         unitKgRadio.addEventListener('change', () => setUnit('kg'));
+        
+        // 基準量からの計算ロジック
         scaleAmountEl.addEventListener('input', calculateFromSingleIngredient);
+        calculateFromSingleIngredientBtn.addEventListener('click', calculateFromSingleIngredient); 
+        
         scaleFromTotalBtn.addEventListener('click', scaleFromTotal);
         fullscreenBtn && fullscreenBtn.addEventListener('click', toggleFullscreen);
         backToListBtn && backToListBtn.addEventListener('click', showListView);
 
+        // 材料リスト全体のイベントをハンドリング
         ingredientsListEl.addEventListener('input', e => {
             const item = e.target.closest('.ingredient-item');
             if (!item) return;
+            // 分量の手入力でデータソースを更新
             if (e.target.classList.contains('amount-input')) {
                 const amountValue = parseFloat(e.target.value) || 0;
                 const multiplier = currentUnit === 'kg' ? 1000 : 1;
@@ -368,13 +414,15 @@
             }
         });
 
+        // 基準材料のラジオボタンクリックで基準量を入力欄にセットし、計算を実行
         ingredientsListEl.addEventListener('click', e => {
             if (e.target.type === 'radio' && e.target.name === 'baseIngredient') {
                 const item = e.target.closest('.ingredient-item');
                 if (item) {
                     const amountInG = parseFloat(item.dataset.amountInG || '0');
                     const divider = currentUnit === 'kg' ? 1000 : 1;
-                    scaleAmountEl.value = (amountInG / divider).toFixed(divider === 1000 ? 3 : 0);
+                    const precision = divider === 1000 ? 3 : 0;
+                    scaleAmountEl.value = (amountInG / divider).toFixed(precision);
                     scaleAmountEl.focus();
                     calculateFromSingleIngredient();
                 }
@@ -384,37 +432,29 @@
         exportBtn.addEventListener('click', exportRecipes);
         importBtn.addEventListener('click', () => importFileEl.click());
         importFileEl.addEventListener('change', importRecipes);
-
-        // リストやフォームの内容変更で高さが変わる場合、レイアウトの揺れを抑える処理を最小化
-        // ここでは必要最小限の再描画だけ行う（強制的な scale 操作は行わない）
-        const observer = new MutationObserver(() => {
-            // 変更が多発すると揺れの原因になるため、何もしない（必要時だけ軽く update）
-            // （重要）: 揺れの原因だった頻繁な scale/resize をここで行わない
-        });
-        observer.observe(appContainer, { childList: true, subtree: true, attributes: true, characterData: true });
     }
 
-    // --- 表示切替（モバイル） ---
-    function showFormView() { appContainer.classList.add('form-visible'); document.body.scrollTop = 0; }
-    function showListView() { appContainer.classList.remove('form-visible'); document.body.scrollTop = 0; }
+    // --- UI制御 (スマホ表示対応) ---
+    function showFormView() { appContainer.classList.add('form-visible'); }
+    function showListView() { appContainer.classList.remove('form-visible'); }
 
-    // --- レシピデータ管理 ---
+    // --- データ管理 ---
     function loadRecipes() {
         try {
-            const stored = localStorage.getItem(RECIPES_STORAGE_KEY);
-            recipes = stored ? JSON.parse(stored) : generateSampleRecipes();
+            const storedRecipes = localStorage.getItem(RECIPES_STORAGE_KEY);
+            recipes = storedRecipes ? JSON.parse(storedRecipes) : generateSampleRecipes();
         } catch (e) {
-            console.error('load error', e);
+            console.error("Failed to load recipes from localStorage", e);
             recipes = generateSampleRecipes();
         }
         saveRecipesToStorage();
     }
     function saveRecipesToStorage() { localStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(recipes)); }
 
-    // --- レンダリング ---
+    // --- UI描画 ---
     function renderRecipeList() {
         recipeListEl.innerHTML = '';
-        if (!recipes || recipes.length === 0) {
+        if (recipes.length === 0) {
             const li = document.createElement('li');
             li.textContent = 'レシピがありません。新規作成してください。';
             li.style.color = '#7f8c8d';
@@ -422,11 +462,12 @@
             recipeListEl.appendChild(li);
             return;
         }
-        recipes.sort((a,b) => a.name.localeCompare(b.name, 'ja')).forEach(r => {
+
+        recipes.sort((a, b) => a.name.localeCompare(b.name, 'ja')).forEach(recipe => {
             const li = document.createElement('li');
-            li.textContent = r.name;
-            li.dataset.id = r.id;
-            if (r.id === currentRecipeId) li.classList.add('selected');
+            li.textContent = recipe.name;
+            li.dataset.id = recipe.id;
+            if (recipe.id === currentRecipeId) li.classList.add('selected');
             recipeListEl.appendChild(li);
         });
     }
@@ -442,39 +483,18 @@
         setUnit(currentUnit);
     }
 
-    // --- 材料行追加（1行配置を維持） ---
-    function addIngredientRow(ingredient = { name:'', amount:0 }, focusAfterAdd = false) {
+    function addIngredientRow(ingredient = { name: '', amount: 0 }, focusAfterAdd = false) {
         const li = document.createElement('li');
         li.className = 'ingredient-item';
         li.dataset.amountInG = ingredient.amount || '0';
 
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.name = 'baseIngredient';
-        radio.title = '基準にする';
+        const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'baseIngredient'; radio.title = '基準にする';
+        const nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.className = 'name-input'; nameInput.placeholder = '材料名'; nameInput.value = ingredient.name;
+        const amountInput = document.createElement('input'); amountInput.type = 'number'; amountInput.className = 'amount-input'; amountInput.placeholder = '分量'; amountInput.min = '0';
 
-        const nameInput = document.createElement('input');
-        nameInput.type = 'text';
-        nameInput.className = 'name-input';
-        nameInput.placeholder = '材料名';
-        nameInput.value = ingredient.name;
-
-        const amountInput = document.createElement('input');
-        amountInput.type = 'number';
-        amountInput.className = 'amount-input';
-        amountInput.placeholder = '分量';
-        amountInput.min = '0';
-
-        const unitLabel = document.createElement('span');
-        unitLabel.className = 'unit-label';
-
-        const ratioDisplay = document.createElement('span');
-        ratioDisplay.className = 'ratio-display';
-
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'danger';
-        removeBtn.textContent = '🗑️';
-        removeBtn.title = '削除';
+        const unitLabel = document.createElement('span'); unitLabel.className = 'unit-label';
+        const ratioDisplay = document.createElement('span'); ratioDisplay.className = 'ratio-display';
+        const removeBtn = document.createElement('button'); removeBtn.textContent = '🗑️'; removeBtn.className = 'danger'; removeBtn.title = '削除';
         removeBtn.addEventListener('click', () => {
             li.remove();
             updateTotalsAndRatios();
@@ -483,11 +503,11 @@
         li.append(radio, nameInput, amountInput, unitLabel, ratioDisplay, removeBtn);
         ingredientsListEl.appendChild(li);
 
-        if (focusAfterAdd) nameInput.focus();
-
-        // 現在の単位に合わせて入力欄を初期化（機能はそのまま）
-        setUnit(currentUnit, true);
-        updateTotalsAndRatios();
+        if (focusAfterAdd) {
+            nameInput.focus();
+        }
+        
+        setUnit(currentUnit, false);
     }
 
     function updateFormState(state) {
@@ -499,13 +519,14 @@
     // --- レシピ操作 ---
     function selectRecipe(recipeId) {
         const recipe = recipes.find(r => r.id === recipeId);
-        if (!recipe) return;
-        const savedUnit = currentUnit;
-        currentRecipeId = recipeId;
-        renderRecipeForm(recipe);
-        setUnit(savedUnit);
-        renderRecipeList();
-        showFormView();
+        if (recipe) {
+            const savedUnit = currentUnit;
+            currentRecipeId = recipeId;
+            renderRecipeForm(recipe);
+            setUnit(savedUnit);
+            renderRecipeList();
+            showFormView();
+        }
     }
 
     function clearForm() {
@@ -514,46 +535,53 @@
         ingredientsListEl.innerHTML = '';
         scaleAmountEl.value = '';
         desiredTotalAmountEl.value = '';
-        // 3行追加（ユーザー指定のUXは変更なし）
-        addIngredientRow({ name:'', amount:0 }, true);
+        // 新規作成時に3行の入力欄を用意
+        addIngredientRow({ name: '', amount: 0 }, true); // 最初の行にフォーカス
         addIngredientRow();
         addIngredientRow();
         updateFormState('new');
-        setUnit('g');
-        const sel = recipeListEl.querySelector('.selected');
-        if (sel) sel.classList.remove('selected');
+        setUnit('g'); // 単位をgにリセット
+        const selected = recipeListEl.querySelector('.selected');
+        if (selected) selected.classList.remove('selected');
         recipeNameEl.focus();
     }
 
     function getRecipeDataFromForm() {
         const name = recipeNameEl.value.trim();
-        if (!name) { alert('レシピ名を入力してください。'); return null; }
+        if (!name) {
+            alert('レシピ名を入力してください。');
+            return null;
+        }
         const ingredients = Array.from(ingredientsListEl.querySelectorAll('.ingredient-item')).map(item => {
-            const nm = item.querySelector('.name-input').value.trim();
+            const nameInput = item.querySelector('.name-input').value.trim();
             const amount = parseFloat(item.dataset.amountInG);
-            return (nm && !isNaN(amount) && amount > 0) ? { name: nm, amount: amount } : null;
-        }).filter(Boolean);
-        if (ingredients.length === 0) { alert('有効な材料を1つ以上入力してください。'); return null; }
+            return (nameInput && !isNaN(amount) && amount > 0) ? { name: nameInput, amount: amount } : null;
+        }).filter(Boolean); // 空の材料は保存しない
+
+        if (ingredients.length === 0) {
+            alert('有効な材料を1つ以上入力してください。');
+            return null;
+        }
         return { name, ingredients };
     }
 
     function saveRecipe() {
-        const data = getRecipeDataFromForm();
-        if (!data) return;
-        const newR = { id: `recipe_${Date.now()}`, ...data };
-        recipes.push(newR);
+        const newRecipeData = getRecipeDataFromForm();
+        if (!newRecipeData) return;
+        const newRecipe = { id: `recipe_${Date.now()}`, ...newRecipeData };
+        recipes.push(newRecipe);
         saveRecipesToStorage();
         renderRecipeList();
-        selectRecipe(newR.id);
+        selectRecipe(newRecipe.id);
     }
 
     function updateRecipe() {
         if (!currentRecipeId) return;
-        const data = getRecipeDataFromForm();
-        if (!data) return;
-        const idx = recipes.findIndex(r => r.id === currentRecipeId);
-        if (idx > -1) {
-            recipes[idx] = { ...recipes[idx], ...data };
+        const updatedData = getRecipeDataFromForm();
+        if (!updatedData) return;
+        const recipeIndex = recipes.findIndex(r => r.id === currentRecipeId);
+        if (recipeIndex > -1) {
+            recipes[recipeIndex] = { ...recipes[recipeIndex], ...updatedData };
             saveRecipesToStorage();
             renderRecipeList();
             alert('レシピが更新されました。');
@@ -563,7 +591,6 @@
     function deleteRecipe() {
         if (!currentRecipeId) return;
         const recipe = recipes.find(r => r.id === currentRecipeId);
-        if (!recipe) return;
         if (confirm(`「${recipe.name}」を削除しますか？`)) {
             recipes = recipes.filter(r => r.id !== currentRecipeId);
             saveRecipesToStorage();
@@ -573,24 +600,23 @@
         }
     }
 
-    // --- 単位・計算ロジック（そのまま） ---
+    // --- 計算ロジック (機能変更なし) ---
     function setUnit(unit, skipInputUpdate = false) {
         currentUnit = unit;
         scaleUnitEl.textContent = unit;
         totalAmountUnitEl.textContent = unit;
         totalUnitLabelEl.textContent = unit;
         unit === 'g' ? (unitGRadio.checked = true) : (unitKgRadio.checked = true);
-
+        
         const divider = unit === 'kg' ? 1000 : 1;
         const precision = unit === 'kg' ? 3 : 0;
 
         ingredientsListEl.querySelectorAll('.ingredient-item').forEach(item => {
             const amountInG = parseFloat(item.dataset.amountInG || '0');
             const input = item.querySelector('.amount-input');
+            
             if (!skipInputUpdate) {
                 input.value = (amountInG / divider).toFixed(precision);
-            } else {
-                if (!input.value) input.value = (amountInG / divider).toFixed(precision);
             }
             item.querySelector('.unit-label').textContent = unit;
         });
@@ -612,10 +638,16 @@
         if (isNaN(scaleAmount) || scaleAmount <= 0) return;
 
         let baseItem = ingredientsListEl.querySelector('input[name=baseIngredient]:checked')?.closest('.ingredient-item');
-        if (!baseItem) { alert('基準にする材料をラジオボタンで選択してください。'); return; }
-
+        if (!baseItem) {
+            alert('基準にする材料をラジオボタンで選択してください。');
+            return;
+        }
+        
         const baseAmountInG = parseFloat(baseItem.dataset.amountInG);
-        if (isNaN(baseAmountInG) || baseAmountInG === 0) { alert('基準材料の分量が0のため、比率を計算できません。'); return; }
+        if (isNaN(baseAmountInG) || baseAmountInG === 0) {
+            alert('基準材料の分量が0のため、比率を計算できません。');
+            return;
+        }
 
         const multiplier = currentUnit === 'kg' ? 1000 : 1;
         const scale = (scaleAmount * multiplier) / baseAmountInG;
@@ -633,16 +665,24 @@
 
     function scaleFromTotal() {
         const desiredTotal = parseFloat(desiredTotalAmountEl.value);
-        if (isNaN(desiredTotal) || desiredTotal <= 0) { alert('有効な目標合計量を入力してください。'); return; }
+        if (isNaN(desiredTotal) || desiredTotal <= 0) {
+            alert('有効な目標合計量を入力してください。');
+            return;
+        }
 
         let currentTotalInG = 0;
         const items = Array.from(ingredientsListEl.querySelectorAll('.ingredient-item'));
         items.forEach(item => {
             const amountInG = parseFloat(item.dataset.amountInG || '0');
-            if (!isNaN(amountInG)) currentTotalInG += amountInG;
+            if (!isNaN(amountInG)) {
+                currentTotalInG += amountInG;
+            }
         });
 
-        if (currentTotalInG === 0) { alert('現在の合計が0のため、比率を計算できません。'); return; }
+        if (currentTotalInG === 0) {
+            alert('現在の合計が0のため、比率を計算できません。');
+            return;
+        }
 
         const multiplier = currentUnit === 'kg' ? 1000 : 1;
         const scale = (desiredTotal * multiplier) / currentTotalInG;
@@ -663,21 +703,24 @@
         const amountsInG = [];
         ingredientsListEl.querySelectorAll('.ingredient-item').forEach(item => {
             const amount = parseFloat(item.dataset.amountInG || '0');
-            if (!isNaN(amount)) { totalAmountInG += amount; amountsInG.push(amount); }
-            else amountsInG.push(0);
+            if (!isNaN(amount)) {
+                totalAmountInG += amount;
+                amountsInG.push(amount);
+            } else {
+                amountsInG.push(0);
+            }
         });
 
         const divider = currentUnit === 'kg' ? 1000 : 1;
         totalAmountValueEl.textContent = (totalAmountInG / divider).toFixed(divider === 1000 ? 3 : 0);
 
-        const displays = ingredientsListEl.querySelectorAll('.ratio-display');
-        displays.forEach((display, index) => {
+        ingredientsListEl.querySelectorAll('.ratio-display').forEach((display, index) => {
             const ratio = totalAmountInG > 0 ? (amountsInG[index] / totalAmountInG) * 100 : 0;
             display.textContent = `(${ratio.toFixed(1)}%)`;
         });
     }
 
-    // --- 全画面 ---
+    // --- 全画面表示 ---
     function toggleFullscreen() {
         if (!document.fullscreenElement) {
             document.documentElement.requestFullscreen().catch(err => alert(`全画面表示にできませんでした: ${err.message}`));
@@ -686,9 +729,12 @@
         }
     }
 
-    // --- エクスポート/インポート ---
+    // --- インポート/エクスポート ---
     function exportRecipes() {
-        if (recipes.length === 0) { alert('エクスポートするレシピがありません。'); return; }
+        if (recipes.length === 0) {
+            alert('エクスポートするレシピがありません。');
+            return;
+        }
         const dataStr = JSON.stringify(recipes, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
