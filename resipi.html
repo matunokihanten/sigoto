@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>レシピ比率計算アプリ</title>
+    <style>
+        /* --- 全体レイアウト --- */
+        :root {
+            --primary-bg: #f4f4f9;
+            --secondary-bg: #ffffff;
+            --header-bg: #4a5a6a;
+            --text-color: #333;
+            --light-text-color: #ffffff;
+            --border-color: #ddd;
+            --accent-color: #007bff;
+            --danger-color: #dc3545;
+            --success-color: #28a745;
+            --disabled-color: #ccc;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--primary-bg);
+            color: var(--text-color);
+            overflow: hidden; /* ページ全体のスクロールを禁止 */
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* --- ヘッダー --- */
+        header {
+            background-color: var(--header-bg);
+            color: var(--light-text-color);
+            padding: 10px 15px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        /* --- メインコンテンツ --- */
+        .main-content {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden; /* メインコンテンツのオーバーフローを隠す */
+            gap: 10px;
+            padding: 10px;
+        }
+
+        /* --- 左パネル (レシピ一覧) --- */
+        .recipe-list-panel {
+            display: flex;
+            flex-direction: column;
+            width: 35%;
+            min-width: 200px;
+            background-color: var(--secondary-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+        .recipe-list-panel h2 {
+            font-size: 1rem;
+            margin: 0;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        #recipeList {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto; /* 内部スクロールを有効化 */
+            flex-grow: 1;
+        }
+        #recipeList li {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #recipeList li:hover {
+            background-color: var(--primary-bg);
+        }
+        #recipeList li.selected {
+            background-color: var(--accent-color);
+            color: var(--light-text-color);
+            font-weight: bold;
+        }
+        .list-actions {
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .list-actions button {
+            flex-grow: 1;
+        }
+
+        /* --- 右パネル (レシピ詳細/編集フォーム) --- */
+        .recipe-form-panel {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            background-color: var(--secondary-bg);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            overflow: hidden; /* 内部スクロールのために必要 */
+        }
+        .form-header {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .form-header #recipeName {
+            width: calc(100% - 10px);
+            font-size: 1rem;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        .form-content {
+            padding: 12px;
+            overflow-y: auto; /* 内部スクロールを有効化 */
+            flex-grow: 1;
+        }
+
+        /* --- 材料リスト --- */
+        #ingredientsList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            margin-bottom: 15px;
+        }
+        .ingredient-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .ingredient-item input[type="radio"] {
+            flex-shrink: 0;
+        }
+        .ingredient-item .name-input { flex-grow: 3; }
+        .ingredient-item .amount-input { flex-grow: 1; width: 60px; }
+        .ingredient-item .unit-label { flex-shrink: 0; }
+        .ingredient-item button { flex-shrink: 0; padding: 4px 8px; font-size: 0.8rem; }
+        
+        #addIngredient {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        /* --- 比率計算と単位 --- */
+        .scaling-unit-section {
+            border-top: 1px dashed var(--border-color);
+            padding-top: 15px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .scaling-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        #scaleAmount { width: 100px; }
+
+        /* --- フォーム下部アクションボタン --- */
+        .form-actions {
+            padding: 12px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        /* --- 共通コンポーネント --- */
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+        button.primary { background-color: var(--accent-color); color: var(--light-text-color); }
+        button.primary:hover { background-color: #0056b3; }
+        button.secondary { background-color: var(--success-color); color: var(--light-text-color); }
+        button.secondary:hover { background-color: #218838; }
+        button.danger { background-color: var(--danger-color); color: var(--light-text-color); }
+        button.danger:hover { background-color: #c82333; }
+        button.default { background-color: #6c757d; color: var(--light-text-color); }
+        button.default:hover { background-color: #5a6268; }
+        button:disabled { background-color: var(--disabled-color); cursor: not-allowed; }
+        
+        input[type="text"], input[type="number"] {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .help-text {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* --- ファイル入出力 --- */
+        .io-actions {
+            padding: 10px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        #importFile { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>レシピ比率計算アプリ</h1>
+        </header>
+
+        <main class="main-content">
+            <section class="recipe-list-panel" aria-labelledby="recipe-list-title">
+                <h2 id="recipe-list-title">レシピ一覧</h2>
+                <ul id="recipeList"></ul>
+                <div class="list-actions">
+                    <button id="newRecipeBtn" class="primary">新規作成</button>
+                </div>
+                <div class="io-actions">
+                    <button id="exportBtn" class="default">全エクスポート</button>
+                    <button id="importBtn" class="default">全インポート</button>
+                    <input type="file" id="importFile" accept="application/json">
+                </div>
+            </section>
+
+            <section class="recipe-form-panel" aria-labelledby="recipe-form-title">
+                <div class="form-header">
+                     <h2 id="recipe-form-title" class="sr-only">レシピ編集</h2>
+                    <input type="text" id="recipeName" placeholder="レシピ名を入力">
+                </div>
+
+                <div class="form-content">
+                    <label for="ingredientsList" style="font-weight:bold;">材料リスト</label>
+                    <p class="help-text">基準にする材料のラジオボタンを選択してください。</p>
+                    <ul id="ingredientsList">
+                        </ul>
+                    <button id="addIngredient" class="default">材料を追加 +</button>
+
+                    <div class="scaling-unit-section">
+                        <div class="control-group">
+                            <label for="scaleAmount">比率計算</label>
+                            <div class="scaling-input">
+                                <input type="number" id="scaleAmount" placeholder="基準量">
+                                <span id="scaleUnit">g</span>
+                            </div>
+                            <p class="help-text">基準材料の量をここに入力すると、他の材料が自動で再計算されます。</p>
+                        </div>
+                        <div class="control-group">
+                            <label>表示単位</label>
+                            <input type="radio" id="unitG" name="unit" value="g" checked>
+                            <label for="unitG">グラム (g)</label>
+                            <input type="radio" id="unitKg" name="unit" value="kg">
+                            <label for="unitKg">キログラム (kg)</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button id="saveBtn" class="primary">保存</button>
+                    <button id="updateBtn" class="secondary">更新</button>
+                    <button id="deleteBtn" class="danger">削除</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+    // --- グローバル変数と定数 ---
+    const RECIPES_STORAGE_KEY = 'recipesv1all_improved';
+    let recipes = [];
+    let currentRecipeId = null;
+    let currentUnit = 'g'; // 'g' or 'kg'
+
+    // --- DOM要素の取得 ---
+    const recipeListEl = document.getElementById('recipeList');
+    const newRecipeBtn = document.getElementById('newRecipeBtn');
+    const recipeNameEl = document.getElementById('recipeName');
+    const ingredientsListEl = document.getElementById('ingredientsList');
+    const addIngredientBtn = document.getElementById('addIngredient');
+    const saveBtn = document.getElementById('saveBtn');
+    const updateBtn = document.getElementById('updateBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const scaleAmountEl = document.getElementById('scaleAmount');
+    const scaleUnitEl = document.getElementById('scaleUnit');
+    const unitGRadio = document.getElementById('unitG');
+    const unitKgRadio = document.getElementById('unitKg');
+    const exportBtn = document.getElementById('exportBtn');
+    const importBtn = document.getElementById('importBtn');
+    const importFileEl = document.getElementById('importFile');
+
+    // --- 初期化処理 ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadRecipes();
+        renderRecipeList();
+        setupEventListeners();
+        clearForm();
+    });
+
+    // --- イベントリスナーの設定 ---
+    function setupEventListeners() {
+        // レシピ一覧のクリック
+        recipeListEl.addEventListener('click', (e) => {
+            if (e.target.tagName === 'LI') {
+                const recipeId = e.target.dataset.id;
+                selectRecipe(recipeId);
+            }
+        });
+
+        // ボタンのクリックイベント
+        newRecipeBtn.addEventListener('click', clearForm);
+        addIngredientBtn.addEventListener('click', () => addIngredientRow());
+        saveBtn.addEventListener('click', saveRecipe);
+        updateBtn.addEventListener('click', updateRecipe);
+        deleteBtn.addEventListener('click', deleteRecipe);
+
+        // 単位切替
+        unitGRadio.addEventListener('change', () => setUnit('g'));
+        unitKgRadio.addEventListener('change', () => setUnit('kg'));
+
+        // 比率計算
+        scaleAmountEl.addEventListener('input', calculateScaledAmounts);
+        ingredientsListEl.addEventListener('change', (e) => {
+            // ラジオボタンまたは分量変更時に再計算
+            if (e.target.type === 'radio' || (e.target.classList.contains('amount-input') && scaleAmountEl.value)) {
+                calculateScaledAmounts();
+            }
+        });
+        
+        // インポート/エクスポート
+        exportBtn.addEventListener('click', exportRecipes);
+        importBtn.addEventListener('click', () => importFileEl.click());
+        importFileEl.addEventListener('change', importRecipes);
+    }
+
+    // --- データ管理 ---
+    
+    /**
+     * localStorageからレシピを読み込む。データがなければサンプルを生成。
+     */
+    function loadRecipes() {
+        const storedRecipes = localStorage.getItem(RECIPES_STORAGE_KEY);
+        if (storedRecipes) {
+            recipes = JSON.parse(storedRecipes);
+        } else {
+            recipes = generateSampleRecipes();
+            saveRecipesToStorage();
+        }
+    }
+
+    /**
+     * 現在のレシピ配列をlocalStorageに保存する。
+     */
+    function saveRecipesToStorage() {
+        localStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(recipes));
+    }
+    
+    // --- UI描画関連 ---
+
+    /**
+     * レシピ一覧を描画する。
+     */
+    function renderRecipeList() {
+        recipeListEl.innerHTML = '';
+        recipes.forEach(recipe => {
+            const li = document.createElement('li');
+            li.textContent = recipe.name;
+            li.dataset.id = recipe.id;
+            li.setAttribute('role', 'button');
+            li.setAttribute('tabindex', '0');
+            if (recipe.id === currentRecipeId) {
+                li.classList.add('selected');
+            }
+            recipeListEl.appendChild(li);
+        });
+    }
+
+    /**
+     * 指定されたレシピをフォームに表示する。
+     * @param {object} recipe - 表示するレシピオブジェクト
+     */
+    function renderRecipeForm(recipe) {
+        currentRecipeId = recipe.id;
+        recipeNameEl.value = recipe.name;
+        ingredientsListEl.innerHTML = '';
+        recipe.ingredients.forEach(ing => addIngredientRow(ing));
+        scaleAmountEl.value = '';
+        updateFormState('edit');
+    }
+
+    /**
+     * 材料の入力行をフォームに追加する。
+     * @param {object} ingredient - (オプション) 表示する材料データ
+     */
+    function addIngredientRow(ingredient = { name: '', amount: '' }) {
+        const li = document.createElement('li');
+        li.className = 'ingredient-item';
+
+        // 基準材料選択ラジオボタン
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'baseIngredient';
+        radio.title = 'この材料を基準にする';
+        radio.setAttribute('aria-label', `${ingredient.name || '新規材料'}を基準にする`);
+
+        // 材料名入力
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.className = 'name-input';
+        nameInput.placeholder = '材料名';
+        nameInput.value = ingredient.name;
+        
+        // 分量入力
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number';
+        amountInput.className = 'amount-input';
+        amountInput.placeholder = '分量';
+        amountInput.value = ingredient.amount;
+        amountInput.min = '0';
+
+        const unitLabel = document.createElement('span');
+        unitLabel.className = 'unit-label';
+        unitLabel.textContent = 'g'; // 内部データは常にg
+
+        // 削除ボタン
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '×';
+        removeBtn.className = 'danger';
+        removeBtn.title = 'この材料を削除';
+        removeBtn.setAttribute('aria-label', `${ingredient.name || '新規材料'}を削除`);
+        removeBtn.addEventListener('click', () => {
+            li.remove();
+            calculateScaledAmounts();
+        });
+
+        li.append(radio, nameInput, amountInput, unitLabel, removeBtn);
+        ingredientsListEl.appendChild(li);
+    }
+    
+    /**
+     * フォームの状態（新規/編集）を切り替える。
+     * @param {'new' | 'edit'} state - フォームの状態
+     */
+    function updateFormState(state) {
+        if (state === 'new') {
+            saveBtn.style.display = 'block';
+            updateBtn.style.display = 'none';
+            deleteBtn.style.display = 'none';
+            recipeNameEl.focus();
+        } else {
+            saveBtn.style.display = 'none';
+            updateBtn.style.display = 'block';
+            deleteBtn.style.display = 'block';
+        }
+    }
+    
+    // --- レシピ操作 ---
+
+    /**
+     * レシピを選択してフォームに表示する。
+     * @param {string} recipeId - 選択するレシピのID
+     */
+    function selectRecipe(recipeId) {
+        const recipe = recipes.find(r => r.id === recipeId);
+        if (recipe) {
+            currentRecipeId = recipeId;
+            renderRecipeForm(recipe);
+            renderRecipeList(); // 選択状態を反映
+            setUnit(currentUnit); // 単位表示を更新
+        }
+    }
+
+    /**
+     * フォームをクリアして新規作成モードにする。
+     */
+    function clearForm() {
+        currentRecipeId = null;
+        recipeNameEl.value = '';
+        ingredientsListEl.innerHTML = '';
+        scaleAmountEl.value = '';
+        addIngredientRow(); // 最初の空の行を追加
+        updateFormState('new');
+        
+        // 選択状態を解除
+        const selected = recipeListEl.querySelector('.selected');
+        if (selected) selected.classList.remove('selected');
+    }
+
+    /**
+     * フォームの入力内容からレシピデータを構築する。
+     * @returns {object|null} レシピデータ。バリデーションエラー時はnull。
+     */
+    function getRecipeDataFromForm() {
+        const name = recipeNameEl.value.trim();
+        if (!name) {
+            alert('レシピ名を入力してください。');
+            return null;
+        }
+
+        const ingredients = [];
+        const ingredientItems = ingredientsListEl.querySelectorAll('.ingredient-item');
+        ingredientItems.forEach(item => {
+            const nameInput = item.querySelector('.name-input').value.trim();
+            const amountInput = parseFloat(item.querySelector('.amount-input').value);
+            if (nameInput) {
+                ingredients.push({
+                    name: nameInput,
+                    amount: isNaN(amountInput) ? 0 : amountInput,
+                });
+            }
+        });
+        
+        if (ingredients.length === 0) {
+            alert('材料を1つ以上入力してください。');
+            return null;
+        }
+
+        return { name, ingredients };
+    }
+
+    /**
+     * 新規レシピを保存する。
+     */
+    function saveRecipe() {
+        const newRecipeData = getRecipeDataFromForm();
+        if (!newRecipeData) return;
+
+        const newRecipe = {
+            id: `recipe_${Date.now()}`,
+            ...newRecipeData,
+        };
+        
+        recipes.push(newRecipe);
+        saveRecipesToStorage();
+        selectRecipe(newRecipe.id); // 保存後、編集モードに移行
+        renderRecipeList();
+    }
+    
+    /**
+     * 既存のレシピを更新する。
+     */
+    function updateRecipe() {
+        if (!currentRecipeId) return;
+
+        const updatedData = getRecipeDataFromForm();
+        if (!updatedData) return;
+
+        const recipeIndex = recipes.findIndex(r => r.id === currentRecipeId);
+        if (recipeIndex > -1) {
+            recipes[recipeIndex] = { ...recipes[recipeIndex], ...updatedData };
+            saveRecipesToStorage();
+            renderRecipeList();
+            alert('レシピが更新されました。');
+        }
+    }
+    
+    /**
+     * レシピを削除する。
+     */
+    function deleteRecipe() {
+        if (!currentRecipeId) return;
+
+        const recipeToDelete = recipes.find(r => r.id === currentRecipeId);
+        if (confirm(`「${recipeToDelete.name}」を削除しますか？`)) {
+            recipes = recipes.filter(r => r.id !== currentRecipeId);
+            saveRecipesToStorage();
+            renderRecipeList();
+            clearForm();
+        }
+    }
+
+    // --- 比率計算と単位 ---
+
+    /**
+     * 表示単位を設定する。
+     * @param {'g' | 'kg'} unit - 設定する単位
+     */
+    function setUnit(unit) {
+        currentUnit = unit;
+        scaleUnitEl.textContent = unit;
+        const divider = unit === 'kg' ? 1000 : 1;
+
+        // 分量入力欄のプレースホルダーと値の表示を更新
+        ingredientsListEl.querySelectorAll('.ingredient-item').forEach(item => {
+            const
