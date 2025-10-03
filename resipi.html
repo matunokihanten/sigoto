@@ -63,11 +63,22 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            overflow-y: auto; /* 内部スクロール */
+            overflow-y: hidden; /* コンテナ全体ではなくリスト部分でスクロールさせる */
             -webkit-overflow-scrolling: touch;
-            overscroll-behavior: contain; /* スクロールバウンス対策 */
+            overscroll-behavior: contain;
         }
 
+        #recipeList { 
+            list-style:none; 
+            padding:0; 
+            margin:0; 
+            display:flex; 
+            flex-direction:column; 
+            gap:4px;
+            flex-grow: 1; /* 親要素の残りの高さを全て使用 */
+            overflow-y: auto; /* 内部スクロールを有効化 */
+        }
+        
         #recipeFormContainer {
             flex: 1;
             padding: 12px;
@@ -121,7 +132,7 @@
 
         /* --- 5. リストと選択状態 --- */
         .list-header { display:flex; justify-content:space-between; align-items:center; padding-bottom:6px; border-bottom:1px solid #ddd; }
-        #recipeList { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:4px; }
+        /* #recipeList は上に修正済み */
         #recipeList li {
             padding: 10px;
             cursor: pointer;
@@ -184,7 +195,10 @@
                 height: 100%; /* 初期表示時、画面全体を覆う */
                 border-right: none;
                 border-bottom: 1px solid #eee;
+                /* flex-direction: column; は上に設定済み */
             }
+
+            /* #recipeList は上に修正済みのため、モバイルでも正常にスクロールする */
 
             #recipeFormContainer {
                 display: none; /* 初期は隠す */
@@ -238,6 +252,7 @@
             }
         }
     </style>
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -309,9 +324,9 @@
             </div>
 
             <div class="io-controls">
-                <button id="exportBtn" class="secondary">📤 エクスポート</button>
-                <button id="importBtn" class="secondary">📥 インポート</button>
-                <input type="file" id="importFile" accept=".json" style="display:none;" />
+                <button id="exportBtn" class="secondary">📤 Excelでエクスポート</button>
+                <button id="importBtn" class="secondary">📥 Excelからインポート</button>
+                <input type="file" id="importFile" accept=".xlsx" style="display:none;" />
             </div>
         </div>
     </div>
@@ -429,9 +444,10 @@
             }
         });
 
-        exportBtn.addEventListener('click', exportRecipes);
+        // ★★★ Excel I/O機能に置き換え ★★★
+        exportBtn.addEventListener('click', exportRecipesToExcel);
         importBtn.addEventListener('click', () => importFileEl.click());
-        importFileEl.addEventListener('change', importRecipes);
+        importFileEl.addEventListener('change', importRecipesFromExcel);
     }
 
     // --- UI制御 (スマホ表示対応) ---
@@ -442,10 +458,15 @@
     function loadRecipes() {
         try {
             const storedRecipes = localStorage.getItem(RECIPES_STORAGE_KEY);
+            // ローカルストレージにデータがない場合のみ、サンプルデータを生成
             recipes = storedRecipes ? JSON.parse(storedRecipes) : generateSampleRecipes();
         } catch (e) {
             console.error("Failed to load recipes from localStorage", e);
             recipes = generateSampleRecipes();
+        }
+        // 初回ロード時またはデータ破損時にサンプルデータを保存し直す
+        if (recipes.length === 0) {
+             recipes = generateSampleRecipes();
         }
         saveRecipesToStorage();
     }
@@ -486,6 +507,7 @@
     function addIngredientRow(ingredient = { name: '', amount: 0 }, focusAfterAdd = false) {
         const li = document.createElement('li');
         li.className = 'ingredient-item';
+        // amountはG単位でデータセットに保持
         li.dataset.amountInG = ingredient.amount || '0';
 
         const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'baseIngredient'; radio.title = '基準にする';
@@ -568,7 +590,8 @@
     function saveRecipe() {
         const newRecipeData = getRecipeDataFromForm();
         if (!newRecipeData) return;
-        const newRecipe = { id: `recipe_${Date.now()}`, ...newRecipeData };
+        // IDは現在時刻ベースで生成 (機能は変更しない)
+        const newRecipe = { id: `recipe_${Date.now()}`, ...newRecipeData }; 
         recipes.push(newRecipe);
         saveRecipesToStorage();
         renderRecipeList();
@@ -581,7 +604,8 @@
         if (!updatedData) return;
         const recipeIndex = recipes.findIndex(r => r.id === currentRecipeId);
         if (recipeIndex > -1) {
-            recipes[recipeIndex] = { ...recipes[recipeIndex], ...updatedData };
+            // IDを維持し、データのみ更新
+            recipes[recipeIndex] = { ...recipes[recipeIndex], ...updatedData }; 
             saveRecipesToStorage();
             renderRecipeList();
             alert('レシピが更新されました。');
@@ -729,66 +753,177 @@
         }
     }
 
-    // --- インポート/エクスポート ---
-    function exportRecipes() {
+    // --- ★★★ Excelでのエクスポート/インポート機能 ★★★
+
+    function exportRecipesToExcel() {
         if (recipes.length === 0) {
             alert('エクスポートするレシピがありません。');
             return;
         }
-        const dataStr = JSON.stringify(recipes, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'recipes_backup.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        // 1つのExcelファイル内の各シートを格納するオブジェクト
+        const workbook = XLSX.utils.book_new();
+
+        recipes.forEach(recipe => {
+            const sheetData = [];
+            // ヘッダー行
+            sheetData.push(['材料名', '分量(g)']); 
+
+            // 材料データを追加
+            recipe.ingredients.forEach(ing => {
+                // name: 材料名, amount: 分量(g)
+                sheetData.push([ing.name, ing.amount]);
+            });
+
+            // ワークシートを作成
+            const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+            
+            // ワークブックにシートを追加 (シート名はレシピ名)
+            const sheetName = recipe.name.substring(0, 31).replace(/[\/\?\\\*\[\]\:\. ]/g, '_'); // シート名の制限に対応
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        });
+
+        // ファイルをダウンロード
+        XLSX.writeFile(workbook, 'recipes_data.xlsx');
     }
 
-    function importRecipes(event) {
+    function importRecipesFromExcel(event) {
         const file = event.target.files[0];
         if (!file) return;
+
         const reader = new FileReader();
         reader.onload = e => {
             try {
-                const data = JSON.parse(e.target.result);
-                if (!Array.isArray(data) || !data.every(item => item.id && item.name && Array.isArray(item.ingredients))) {
-                    throw new Error('JSONのデータ構造が不正です。');
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const importedRecipes = [];
+
+                if (workbook.SheetNames.length === 0) {
+                    alert('Excelファイルにシート（レシピ）がありません。');
+                    return;
                 }
-                if (confirm('現在の全レシピをインポートしたデータで上書きします。よろしいですか？')) {
-                    recipes = data;
+
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    if (!worksheet) return;
+
+                    // シートをJSON形式の配列に変換 (ヘッダー: 1行目)
+                    const jsonSheet = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    if (jsonSheet.length < 2 || jsonSheet[0].length < 2) {
+                        console.warn(`シート「${sheetName}」はデータ形式が不正なためスキップされました。`);
+                        return; // 有効なデータがないシートはスキップ
+                    }
+                    
+                    const header = jsonSheet[0];
+                    const nameIndex = header.indexOf('材料名');
+                    const amountIndex = header.indexOf('分量(g)');
+
+                    if (nameIndex === -1 || amountIndex === -1) {
+                         console.warn(`シート「${sheetName}」のヘッダー（材料名または分量(g)）が見つかりません。スキップします。`);
+                         return;
+                    }
+
+                    const ingredients = [];
+                    // 2行目以降がデータ
+                    for (let i = 1; i < jsonSheet.length; i++) {
+                        const row = jsonSheet[i];
+                        const name = String(row[nameIndex] || '').trim();
+                        const amount = parseFloat(row[amountIndex]);
+                        
+                        if (name && !isNaN(amount) && amount > 0) {
+                            ingredients.push({ name: name, amount: amount });
+                        }
+                    }
+
+                    if (ingredients.length > 0) {
+                        // Excelシート名をレシピ名として採用
+                        const recipeName = sheetName; 
+                        importedRecipes.push({ 
+                            id: `recipe_${Date.now()}_${importedRecipes.length}`, // ユニークIDを生成
+                            name: recipeName, 
+                            ingredients: ingredients 
+                        });
+                    }
+                });
+                
+                if (importedRecipes.length === 0) {
+                    alert('Excelファイルから有効なレシピデータを読み込めませんでした。シート名がレシピ名、1行目が「材料名」「分量(g)」のヘッダーであることを確認してください。');
+                    return;
+                }
+
+                if (confirm(`${importedRecipes.length}件のレシピをインポートします。現在の全レシピを上書きしますがよろしいですか？`)) {
+                    recipes = importedRecipes;
                     saveRecipesToStorage();
                     clearForm();
                     renderRecipeList();
                     showListView();
-                    alert(`${recipes.length}件のレシピをインポートしました。`);
+                    alert(`${recipes.length}件のレシピをExcelからインポートしました。`);
                 }
             } catch (error) {
-                alert(`インポート失敗: ${error.message}`);
+                alert(`Excelインポート失敗: ${error.message}`);
+                console.error(error);
             } finally {
-                importFileEl.value = '';
+                importFileEl.value = ''; // 連続インポートのためにクリア
             }
         };
-        reader.readAsText(file);
+        reader.readAsArrayBuffer(file);
     }
 
-    // --- サンプルデータ ---
+    // --- 【修正】50種類のサンプルデータを含む関数に置き換え ---
     function generateSampleRecipes() {
+        // 50件のレシピデータ。ローカルストレージが空の場合の初期データとして機能します。
         return [
-            { id: "sample_1", name: "肉じゃが", ingredients: [ { name: "じゃがいも", amount: 300 }, { name: "牛肉", amount: 200 }, { name: "玉ねぎ", amount: 150 }, { name: "人参", amount: 100 }, { name: "醤油", amount: 45 }, { name: "砂糖", amount: 30 }, { name: "みりん", amount: 30 }, { name: "だし汁", amount: 200 } ] },
-            { id: "sample_2", name: "豚の生姜焼き", ingredients: [ { name: "豚ロース肉", amount: 300 }, { name: "玉ねぎ", amount: 100 }, { name: "生姜（すりおろし）", amount: 15 }, { name: "醤油", amount: 30 }, { name: "みりん", amount: 30 }, { name: "酒", amount: 15 }, { name: "サラダ油", amount: 15 } ] },
-            { id: "sample_3", name: "親子丼", ingredients: [ { name: "鶏もも肉", amount: 250 }, { name: "玉ねぎ", amount: 100 }, { name: "卵", amount: 150 }, { name: "だし汁", amount: 100 }, { name: "醤油", amount: 30 }, { name: "みりん", amount: 30 }, { name: "ご飯", amount: 600 } ] },
-            { id: "sample_4", name: "カレーライス", ingredients: [ { name: "豚肉または牛肉", amount: 250 }, { name: "じゃがいも", amount: 300 }, { name: "人参", amount: 150 }, { name: "玉ねぎ", amount: 400 }, { name: "カレールー", amount: 100 }, { name: "水", amount: 800 }, { name: "サラダ油", amount: 15 } ] },
-            { id: "sample_5", name: "鶏の唐揚げ", ingredients: [ { name: "鶏もも肉", amount: 500 }, { name: "醤油", amount: 30 }, { name: "酒", amount: 15 }, { name: "生姜（すりおろし）", amount: 10 }, { name: "にんにく（すりおろし）", amount: 5 }, { name: "片栗粉", amount: 50 }, { name: "揚げ油", amount: 500 } ] },
-            { id: "sample_6", name: "ハンバーグ", ingredients: [ { name: "合いびき肉", amount: 400 }, { name: "玉ねぎ", amount: 150 }, { name: "パン粉", amount: 30 }, { name: "牛乳", amount: 45 }, { name: "卵", amount: 50 }, { name: "塩", amount: 3 }, { name: "こしょう", amount: 1 }, { name: "ナツメグ", amount: 1 } ] },
-            { id: "sample_7", name: "鮭の塩焼き", ingredients: [ { name: "生鮭", amount: 240 }, { name: "塩", amount: 2 } ] },
-            { id: "sample_8", name: "筑前煮", ingredients: [ { name: "鶏もも肉", amount: 200 }, { name: "ごぼう", amount: 100 }, { name: "人参", amount: 100 }, { name: "れんこん", amount: 150 }, { name: "干ししいたけ", amount: 10 }, { name: "こんにゃく", amount: 100 }, { name: "だし汁", amount: 300 }, { name: "醤油", amount: 45 }, { name: "砂糖", amount: 15 }, { name: "みりん", amount: 30 } ] },
-            { id: "sample_9", name: "お好み焼き", ingredients: [ { name: "薄力粉", amount: 100 }, { name: "だし汁", amount: 120 }, { name: "キャベツ", amount: 300 }, { name: "豚バラ肉", amount: 100 }, { name: "卵", amount: 100 }, { name: "天かす", amount: 20 }, { name: "紅しょうが", amount: 10 } ] },
-            { id: "sample_10", name: "だし巻き卵", ingredients: [ { name: "卵", amount: 200 }, { name: "だし汁", amount: 60 }, { name: "薄口醤油", amount: 5 }, { name: "みりん", amount: 5 }, { name: "塩", amount: 1 } ] },
-            { id: "sample_11", name: "チャーハン", ingredients: [ { name: "ご飯", amount: 400 }, { name: "卵", amount: 100 }, { name: "長ネギ", amount: 50 }, { name: "焼き豚", amount: 80 }, { name: "醤油", amount: 10 }, { name: "塩", amount: 2 }, { name: "こしょう", amount: 1 }, { name: "ごま油", amount: 10 } ] },
-            { id: "sample_12", name: "東坡肉（トンポーロー）", ingredients: [ { name: "豚バラブロック肉", amount: 500 }, { name: "長ネギの青い部分", amount: 50 }, { name: "生姜スライス", amount: 20 }, { name: "紹興酒", amount: 100 }, { name: "醤油", amount: 75 }, { name: "氷砂糖", amount: 50 }, { name: "水", amount: 400 }, { name: "八角", amount: 1 } ] }
+          { "id": "recipe_01", "name": "肉じゃが", "ingredients": [ { "name": "じゃがいも", "amount": 300 }, { "name": "牛肉", "amount": 200 }, { "name": "玉ねぎ", "amount": 150 }, { "name": "人参", "amount": 100 }, { "name": "醤油", "amount": 45 }, { "name": "砂糖", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "だし汁", "amount": 200 } ] },
+          { "id": "recipe_02", "name": "豚の生姜焼き", "ingredients": [ { "name": "豚ロース肉", "amount": 300 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "生姜（すりおろし）", "amount": 15 }, { "name": "醤油", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "酒", "amount": 15 }, { "name": "サラダ油", "amount": 15 } ] },
+          { "id": "recipe_03", "name": "親子丼", "ingredients": [ { "name": "鶏もも肉", "amount": 250 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "卵", "amount": 150 }, { "name": "だし汁", "amount": 100 }, { "name": "醤油", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "ご飯", "amount": 600 } ] },
+          { "id": "recipe_04", "name": "カレーライス", "ingredients": [ { "name": "豚肉または牛肉", "amount": 250 }, { "name": "じゃがいも", "amount": 300 }, { "name": "人参", "amount": 150 }, { "name": "玉ねぎ", "amount": 400 }, { "name": "カレールー", "amount": 100 }, { "name": "水", "amount": 800 }, { "name": "サラダ油", "amount": 15 } ] },
+          { "id": "recipe_05", "name": "鶏の唐揚げ", "ingredients": [ { "name": "鶏もも肉", "amount": 500 }, { "name": "醤油", "amount": 30 }, { "name": "酒", "amount": 15 }, { "name": "生姜（すりおろし）", "amount": 10 }, { "name": "にんにく（すりおろし）", "amount": 5 }, { "name": "片栗粉", "amount": 50 }, { "name": "揚げ油", "amount": 500 } ] },
+          { "id": "recipe_06", "name": "ハンバーグ", "ingredients": [ { "name": "合いびき肉", "amount": 400 }, { "name": "玉ねぎ", "amount": 150 }, { "name": "パン粉", "amount": 30 }, { "name": "牛乳", "amount": 45 }, { "name": "卵", "amount": 50 }, { "name": "塩", "amount": 3 }, { "name": "こしょう", "amount": 1 }, { "name": "ナツメグ", "amount": 1 } ] },
+          { "id": "recipe_07", "name": "鮭の塩焼き", "ingredients": [ { "name": "生鮭", "amount": 240 }, { "name": "塩", "amount": 2 } ] },
+          { "id": "recipe_08", "name": "筑前煮", "ingredients": [ { "name": "鶏もも肉", "amount": 200 }, { "name": "ごぼう", "amount": 100 }, { "name": "人参", "amount": 100 }, { "name": "れんこん", "amount": 150 }, { "name": "干ししいたけ", "amount": 10 }, { "name": "こんにゃく", "amount": 100 }, { "name": "だし汁", "amount": 300 }, { "name": "醤油", "amount": 45 }, { "name": "砂糖", "amount": 15 }, { "name": "みりん", "amount": 30 } ] },
+          { "id": "recipe_09", "name": "お好み焼き", "ingredients": [ { "name": "薄力粉", "amount": 100 }, { "name": "だし汁", "amount": 120 }, { "name": "キャベツ", "amount": 300 }, { "name": "豚バラ肉", "amount": 100 }, { "name": "卵", "amount": 100 }, { "name": "天かす", "amount": 20 }, { "name": "紅しょうが", "amount": 10 } ] },
+          { "id": "recipe_10", "name": "だし巻き卵", "ingredients": [ { "name": "卵", "amount": 200 }, { "name": "だし汁", "amount": 60 }, { "name": "薄口醤油", "amount": 5 }, { "name": "みりん", "amount": 5 }, { "name": "塩", "amount": 1 } ] },
+          { "id": "recipe_11", "name": "チャーハン", "ingredients": [ { "name": "ご飯", "amount": 400 }, { "name": "卵", "amount": 100 }, { "name": "長ネギ", "amount": 50 }, { "name": "焼き豚", "amount": 80 }, { "name": "醤油", "amount": 10 }, { "name": "塩", "amount": 2 }, { "name": "こしょう", "amount": 1 }, { "name": "ごま油", "amount": 10 } ] },
+          { "id": "recipe_12", "name": "東坡肉（トンポーロー）", "ingredients": [ { "name": "豚バラブロック肉", "amount": 500 }, { "name": "長ネギの青い部分", "amount": 50 }, { "name": "生姜スライス", "amount": 20 }, { "name": "紹興酒", "amount": 100 }, { "name": "醤油", "amount": 75 }, { "name": "氷砂糖", "amount": 50 }, { "name": "水", "amount": 400 }, { "name": "八角", "amount": 1 } ] },
+          { "id": "recipe_13", "name": "ペペロンチーノ", "ingredients": [ { "name": "スパゲッティ", "amount": 200 }, { "name": "オリーブオイル", "amount": 50 }, { "name": "にんにく", "amount": 10 }, { "name": "鷹の爪", "amount": 1 }, { "name": "塩", "amount": 5 } ] },
+          { "id": "recipe_14", "name": "ミネストローネ", "ingredients": [ { "name": "玉ねぎ", "amount": 100 }, { "name": "人参", "amount": 50 }, { "name": "じゃがいも", "amount": 80 }, { "name": "キャベツ", "amount": 80 }, { "name": "ベーコン", "amount": 50 }, { "name": "カットトマト缶", "amount": 200 }, { "name": "水", "amount": 300 }, { "name": "コンソメ", "amount": 5 } ] },
+          { "id": "recipe_15", "name": "麻婆豆腐", "ingredients": [ { "name": "豚ひき肉", "amount": 150 }, { "name": "豆腐", "amount": 300 }, { "name": "長ネギ", "amount": 30 }, { "name": "豆板醤", "amount": 10 }, { "name": "甜麺醤", "amount": 15 }, { "name": "鶏ガラスープ", "amount": 150 }, { "name": "片栗粉", "amount": 5 } ] },
+          { "id": "recipe_16", "name": "酢豚", "ingredients": [ { "name": "豚ロース肉", "amount": 250 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "ピーマン", "amount": 50 }, { "name": "人参", "amount": 50 }, { "name": "片栗粉", "amount": 30 }, { "name": "ケチャップ", "amount": 50 }, { "name": "酢", "amount": 40 }, { "name": "砂糖", "amount": 30 }, { "name": "醤油", "amount": 15 } ] },
+          { "id": "recipe_17", "name": "ブリの照り焼き", "ingredients": [ { "name": "ブリの切り身", "amount": 300 }, { "name": "醤油", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "酒", "amount": 15 }, { "name": "砂糖", "amount": 10 } ] },
+          { "id": "recipe_18", "name": "ポークソテー", "ingredients": [ { "name": "豚ロース肉", "amount": 300 }, { "name": "塩", "amount": 3 }, { "name": "こしょう", "amount": 1 }, { "name": "バター", "amount": 10 }, { "name": "醤油", "amount": 15 } ] },
+          { "id": "recipe_19", "name": "カツ丼", "ingredients": [ { "name": "豚カツ", "amount": 200 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "卵", "amount": 150 }, { "name": "だし汁", "amount": 100 }, { "name": "醤油", "amount": 20 }, { "name": "みりん", "amount": 20 }, { "name": "ご飯", "amount": 600 } ] },
+          { "id": "recipe_20", "name": "ポテトサラダ", "ingredients": [ { "name": "じゃがいも", "amount": 400 }, { "name": "きゅうり", "amount": 50 }, { "name": "人参", "amount": 50 }, { "name": "玉ねぎ", "amount": 30 }, { "name": "マヨネーズ", "amount": 80 }, { "name": "塩", "amount": 2 }, { "name": "こしょう", "amount": 1 } ] },
+          { "id": "recipe_21", "name": "ナポリタン", "ingredients": [ { "name": "スパゲッティ", "amount": 200 }, { "name": "玉ねぎ", "amount": 50 }, { "name": "ピーマン", "amount": 30 }, { "name": "ソーセージ", "amount": 50 }, { "name": "ケチャップ", "amount": 100 }, { "name": "バター", "amount": 10 } ] },
+          { "id": "recipe_22", "name": "餃子", "ingredients": [ { "name": "豚ひき肉", "amount": 150 }, { "name": "キャベツ", "amount": 200 }, { "name": "ニラ", "amount": 50 }, { "name": "生姜", "amount": 10 }, { "name": "ニンニク", "amount": 5 }, { "name": "醤油", "amount": 10 }, { "name": "ごま油", "amount": 10 }, { "name": "餃子の皮", "amount": 150 } ] },
+          { "id": "recipe_23", "name": "焼きそば", "ingredients": [ { "name": "中華麺", "amount": 300 }, { "name": "豚バラ肉", "amount": 100 }, { "name": "キャベツ", "amount": 150 }, { "name": "人参", "amount": 50 }, { "name": "もやし", "amount": 50 }, { "name": "焼きそばソース", "amount": 80 }, { "name": "サラダ油", "amount": 15 } ] },
+          { "id": "recipe_24", "name": "クリームシチュー", "ingredients": [ { "name": "鶏もも肉", "amount": 200 }, { "name": "じゃがいも", "amount": 150 }, { "name": "人参", "amount": 100 }, { "name": "玉ねぎ", "amount": 150 }, { "name": "牛乳", "amount": 400 }, { "name": "水", "amount": 200 }, { "name": "シチューのルー", "amount": 80 } ] },
+          { "id": "recipe_25", "name": "オムライス", "ingredients": [ { "name": "ご飯", "amount": 400 }, { "name": "鶏もも肉", "amount": 80 }, { "name": "玉ねぎ", "amount": 50 }, { "name": "ケチャップ", "amount": 50 }, { "name": "卵", "amount": 150 }, { "name": "牛乳", "amount": 15 }, { "name": "サラダ油", "amount": 15 } ] },
+          { "id": "recipe_26", "name": "味噌汁", "ingredients": [ { "name": "だし汁", "amount": 600 }, { "name": "味噌", "amount": 40 }, { "name": "豆腐", "amount": 100 }, { "name": "わかめ", "amount": 5 }, { "name": "長ネギ", "amount": 20 } ] },
+          { "id": "recipe_27", "name": "天ぷら", "ingredients": [ { "name": "海老", "amount": 150 }, { "name": "かぼちゃ", "amount": 100 }, { "name": "しそ", "amount": 10 }, { "name": "薄力粉", "amount": 80 }, { "name": "卵", "amount": 50 }, { "name": "冷水", "amount": 120 }, { "name": "揚げ油", "amount": 500 } ] },
+          { "id": "recipe_28", "name": "生春巻き", "ingredients": [ { "name": "ライスペーパー", "amount": 40 }, { "name": "海老", "amount": 100 }, { "name": "レタス", "amount": 50 }, { "name": "きゅうり", "amount": 50 }, { "name": "鶏むね肉", "amount": 50 }, { "name": "スイートチリソース", "amount": 50 } ] },
+          { "id": "recipe_29", "name": "ロールキャベツ", "ingredients": [ { "name": "キャベツ", "amount": 300 }, { "name": "合いびき肉", "amount": 200 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "パン粉", "amount": 15 }, { "name": "卵", "amount": 50 }, { "name": "コンソメ", "amount": 5 }, { "name": "水", "amount": 300 } ] },
+          { "id": "recipe_30", "name": "きんぴらごぼう", "ingredients": [ { "name": "ごぼう", "amount": 200 }, { "name": "人参", "amount": 50 }, { "name": "醤油", "amount": 20 }, { "name": "みりん", "amount": 20 }, { "name": "砂糖", "amount": 10 }, { "name": "酒", "amount": 10 }, { "name": "ごま油", "amount": 10 } ] },
+          { "id": "recipe_31", "name": "ガパオライス", "ingredients": [ { "name": "鶏ひき肉", "amount": 250 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "ピーマン", "amount": 50 }, { "name": "バジル", "amount": 10 }, { "name": "オイスターソース", "amount": 20 }, { "name": "ナンプラー", "amount": 10 }, { "name": "ご飯", "amount": 400 }, { "name": "卵", "amount": 100 } ] },
+          { "id": "recipe_32", "name": "ミートソースパスタ", "ingredients": [ { "name": "スパゲッティ", "amount": 200 }, { "name": "合いびき肉", "amount": 150 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "人参", "amount": 50 }, { "name": "カットトマト缶", "amount": 200 }, { "name": "赤ワイン", "amount": 30 }, { "name": "コンソメ", "amount": 3 } ] },
+          { "id": "recipe_33", "name": "エビチリ", "ingredients": [ { "name": "エビ", "amount": 300 }, { "name": "長ネギ", "amount": 30 }, { "name": "生姜", "amount": 10 }, { "name": "ニンニク", "amount": 5 }, { "name": "豆板醤", "amount": 10 }, { "name": "ケチャップ", "amount": 50 }, { "name": "鶏ガラスープ", "amount": 100 }, { "name": "片栗粉", "amount": 5 } ] },
+          { "id": "recipe_34", "name": "アクアパッツァ", "ingredients": [ { "name": "白身魚（切り身）", "amount": 300 }, { "name": "アサリ", "amount": 150 }, { "name": "ミニトマト", "amount": 100 }, { "name": "オリーブ", "amount": 20 }, { "name": "白ワイン", "amount": 50 }, { "name": "オリーブオイル", "amount": 30 }, { "name": "ニンニク", "amount": 10 } ] },
+          { "id": "recipe_35", "name": "サバの味噌煮", "ingredients": [ { "name": "サバ（切り身）", "amount": 300 }, { "name": "味噌", "amount": 50 }, { "name": "砂糖", "amount": 30 }, { "name": "酒", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "水", "amount": 100 }, { "name": "生姜スライス", "amount": 5 } ] },
+          { "id": "recipe_36", "name": "ビビンバ", "ingredients": [ { "name": "ご飯", "amount": 600 }, { "name": "牛ひき肉", "amount": 150 }, { "name": "ほうれん草", "amount": 100 }, { "name": "もやし", "amount": 100 }, { "name": "人参", "amount": 50 }, { "name": "コチュジャン", "amount": 20 }, { "name": "卵", "amount": 100 }, { "name": "ごま油", "amount": 15 } ] },
+          { "id": "recipe_37", "name": "クラムチャウダー", "ingredients": [ { "name": "アサリ缶", "amount": 150 }, { "name": "じゃがいも", "amount": 100 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "ベーコン", "amount": 50 }, { "name": "牛乳", "amount": 300 }, { "name": "薄力粉", "amount": 10 }, { "name": "バター", "amount": 10 } ] },
+          { "id": "recipe_38", "name": "筑前煮（だしなし）", "ingredients": [ { "name": "鶏もも肉", "amount": 200 }, { "name": "ごぼう", "amount": 100 }, { "name": "人参", "amount": 100 }, { "name": "れんこん", "amount": 150 }, { "name": "干ししいたけ", "amount": 10 }, { "name": "こんにゃく", "amount": 100 }, { "name": "水", "amount": 300 }, { "name": "醤油", "amount": 45 }, { "name": "砂糖", "amount": 15 }, { "name": "みりん", "amount": 30 } ] },
+          { "id": "recipe_39", "name": "シュウマイ", "ingredients": [ { "name": "豚ひき肉", "amount": 200 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "片栗粉", "amount": 15 }, { "name": "醤油", "amount": 10 }, { "name": "ごま油", "amount": 10 }, { "name": "酒", "amount": 10 }, { "name": "シュウマイの皮", "amount": 80 } ] },
+          { "id": "recipe_40", "name": "かぼちゃの煮物", "ingredients": [ { "name": "かぼちゃ", "amount": 400 }, { "name": "だし汁", "amount": 200 }, { "name": "醤油", "amount": 20 }, { "name": "みりん", "amount": 20 }, { "name": "砂糖", "amount": 10 } ] },
+          { "id": "recipe_41", "name": "ラタトゥイユ", "ingredients": [ { "name": "ナス", "amount": 150 }, { "name": "ズッキーニ", "amount": 150 }, { "name": "パプリカ", "amount": 100 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "カットトマト缶", "amount": 200 }, { "name": "オリーブオイル", "amount": 30 }, { "name": "ニンニク", "amount": 5 } ] },
+          { "id": "recipe_42", "name": "ひじきの煮物", "ingredients": [ { "name": "乾燥ひじき", "amount": 10 }, { "name": "油揚げ", "amount": 30 }, { "name": "人参", "amount": 50 }, { "name": "だし汁", "amount": 100 }, { "name": "醤油", "amount": 15 }, { "name": "みりん", "amount": 15 }, { "name": "砂糖", "amount": 5 } ] },
+          { "id": "recipe_43", "name": "チキンソテー", "ingredients": [ { "name": "鶏もも肉", "amount": 300 }, { "name": "塩", "amount": 3 }, { "name": "こしょう", "amount": 1 }, { "name": "オリーブオイル", "amount": 20 }, { "name": "バター", "amount": 10 }, { "name": "レモン汁", "amount": 5 } ] },
+          { "id": "recipe_44", "name": "トースト", "ingredients": [ { "name": "食パン（6枚切り）", "amount": 60 }, { "name": "バター", "amount": 10 }, { "name": "ジャム", "amount": 15 } ] },
+          { "id": "recipe_45", "name": "フレンチトースト", "ingredients": [ { "name": "食パン（6枚切り）", "amount": 60 }, { "name": "卵", "amount": 50 }, { "name": "牛乳", "amount": 50 }, { "name": "砂糖", "amount": 10 }, { "name": "バター", "amount": 10 } ] },
+          { "id": "recipe_46", "name": "ほうれん草の胡麻和え", "ingredients": [ { "name": "ほうれん草", "amount": 200 }, { "name": "すりごま", "amount": 15 }, { "name": "醤油", "amount": 10 }, { "name": "砂糖", "amount": 5 } ] },
+          { "id": "recipe_47", "name": "豚キムチ", "ingredients": [ { "name": "豚バラ肉", "amount": 200 }, { "name": "キムチ", "amount": 150 }, { "name": "玉ねぎ", "amount": 50 }, { "name": "醤油", "amount": 10 }, { "name": "ごま油", "amount": 10 } ] },
+          { "id": "recipe_48", "name": "タコライス", "ingredients": [ { "name": "ご飯", "amount": 400 }, { "name": "合いびき肉", "amount": 150 }, { "name": "レタス", "amount": 50 }, { "name": "トマト", "amount": 50 }, { "name": "チーズ", "amount": 30 }, { "name": "タコシーズニング", "amount": 10 } ] },
+          { "id": "recipe_49", "name": "ポトフ", "ingredients": [ { "name": "鶏もも肉", "amount": 150 }, { "name": "じゃがいも", "amount": 150 }, { "name": "人参", "amount": 100 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "キャベツ", "amount": 150 }, { "name": "水", "amount": 400 }, { "name": "コンソメ", "amount": 5 } ] },
+          { "id": "recipe_50", "name": "パエリア", "ingredients": [ { "name": "米", "amount": 300 }, { "name": "鶏肉", "amount": 100 }, { "name": "エビ", "amount": 100 }, { "name": "アサリ", "amount": 100 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "パプリカ", "amount": 50 }, { "name": "サフラン", "amount": 1 }, { "name": "水", "amount": 400 }, { "name": "オリーブオイル", "amount": 30 } ] }
         ];
     }
     </script>
