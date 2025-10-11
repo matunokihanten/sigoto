@@ -152,6 +152,7 @@
         .ingredient-item input[type="radio"] { flex:0 0 auto; transform:scale(1.05); margin-right:4px; width: auto; /* ラジオボタンの幅をリセット */ }
         .ingredient-item .name-input { flex:3 1 45%; min-width:80px; width: auto; }
         .ingredient-item .amount-input { flex:1 0 15%; min-width:50px; text-align:right; width: auto; }
+        .ingredient-item .unit-input { flex:0 0 70px; min-width:50px; width: auto; font-size:0.92rem; }
         .ingredient-item .unit-label { flex:0 0 auto; margin-left:4px; white-space:nowrap; font-size:0.92rem; width: auto; }
         .ingredient-item .ratio-display { flex:0 0 65px; text-align:right; font-size:0.85rem; color:#7f8c8d; white-space:nowrap; width: auto; }
         .ingredient-item .danger { flex:0 0 auto; margin-left:4px; width: auto; }
@@ -389,6 +390,10 @@
                 item.dataset.amountInG = amountValue * multiplier;
                 updateTotalsAndRatios();
             }
+            // ユーザーが単位名を編集したら「カスタム単位」を記録
+            if (e.target.classList.contains('unit-input')) {
+                item.dataset.customUnit = 'true';
+            }
         });
 
         // 基準材料のラジオボタンクリックで基準量を入力欄にセットし、計算を実行
@@ -471,17 +476,32 @@
         setUnit(currentUnit);
     }
 
-    function addIngredientRow(ingredient = { name: '', amount: 0 }, focusAfterAdd = false) {
+    function addIngredientRow(ingredient = { name: '', amount: 0, unit: null }, focusAfterAdd = false) {
         const li = document.createElement('li');
         li.className = 'ingredient-item';
         // amountはG単位でデータセットに保持
         li.dataset.amountInG = ingredient.amount || '0';
+        // カスタム単位フラグは未設定
+        if (ingredient.unit) {
+            li.dataset.customUnit = 'true';
+        }
 
         const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'baseIngredient'; radio.title = '基準にする';
         const nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.className = 'name-input'; nameInput.placeholder = '材料名'; nameInput.value = ingredient.name;
         const amountInput = document.createElement('input'); amountInput.type = 'number'; amountInput.className = 'amount-input'; amountInput.placeholder = '分量'; amountInput.min = '0';
 
-        const unitLabel = document.createElement('span'); unitLabel.className = 'unit-label';
+        // 単位表示を編集可能にするためテキスト入力に変更
+        const unitInput = document.createElement('input');
+        unitInput.type = 'text';
+        unitInput.className = 'unit-input';
+        unitInput.title = '単位を編集できます';
+        unitInput.value = ingredient.unit ? ingredient.unit : currentUnit;
+
+        // ユーザーが編集した際にカスタムフラグを立てる
+        unitInput.addEventListener('input', () => {
+            li.dataset.customUnit = 'true';
+        });
+
         const ratioDisplay = document.createElement('span'); ratioDisplay.className = 'ratio-display';
         const removeBtn = document.createElement('button'); removeBtn.textContent = '🗑️'; removeBtn.className = 'danger'; removeBtn.title = '削除';
         removeBtn.addEventListener('click', () => {
@@ -489,13 +509,14 @@
             updateTotalsAndRatios();
         });
 
-        li.append(radio, nameInput, amountInput, unitLabel, ratioDisplay, removeBtn);
+        li.append(radio, nameInput, amountInput, unitInput, ratioDisplay, removeBtn);
         ingredientsListEl.appendChild(li);
 
         if (focusAfterAdd) {
             nameInput.focus();
         }
         
+        // 初期表示の数値を unit に合わせて更新
         setUnit(currentUnit, false);
     }
 
@@ -549,7 +570,8 @@
         const ingredients = Array.from(ingredientsListEl.querySelectorAll('.ingredient-item')).map(item => {
             const nameInput = item.querySelector('.name-input').value.trim();
             const amount = parseFloat(item.dataset.amountInG);
-            return (nameInput && !isNaN(amount) && amount > 0) ? { name: nameInput, amount: amount } : null;
+            const unitText = item.querySelector('.unit-input').value.trim();
+            return (nameInput && !isNaN(amount) && amount > 0) ? { name: nameInput, amount: amount, unit: unitText || null } : null;
         }).filter(Boolean);
 
         if (ingredients.length === 0) {
@@ -609,11 +631,15 @@
         ingredientsListEl.querySelectorAll('.ingredient-item').forEach(item => {
             const amountInG = parseFloat(item.dataset.amountInG || '0');
             const input = item.querySelector('.amount-input');
-            
+            const unitInput = item.querySelector('.unit-input');
+
             if (!skipInputUpdate) {
                 input.value = (amountInG / divider).toFixed(precision);
             }
-            item.querySelector('.unit-label').textContent = unit;
+            // ユーザーが単位をカスタムしていなければ global unit を反映
+            if (!item.dataset.customUnit) {
+                if (unitInput) unitInput.value = unit;
+            }
         });
 
         const baseRadio = ingredientsListEl.querySelector('input[name=baseIngredient]:checked');
