@@ -9,9 +9,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.css">
   <style>
+    /* 🎨 PCとモバイルの両方に対応するための変数と基本設定 */
     :root {
-      --button-columns: 4;
+      /* PC用: デフォルトのボタンの列数 (JSで変更可能) */
+      --button-columns: 5;
       --button-gap: 8px;
     }
     body {
@@ -26,35 +29,72 @@
       padding-bottom: env(safe-area-inset-bottom);
       padding-left: env(safe-area-inset-left);
       padding-right: env(safe-area-inset-right);
+      box-sizing: border-box; /* paddingを含めて高さを計算 */
     }
+
+    /* --- コントロールエリア --- */
     .controls {
       padding: 10px;
       background-color: #37474F;
       display: flex;
-      flex-wrap: wrap;
-      gap: 5px; /* ボタン間の隙間を小さく */
+      flex-direction: column; /* 縦に並べる基本構造 */
+      gap: 10px; /* runBtnとbutton-rowの間の隙間 */
       position: relative;
       z-index: 10;
       box-shadow: 0 4px 8px rgba(0,0,0,0.3);
       border-bottom: 1px solid #455A64;
-      align-items: center;
     }
+
+    /* 実行ボタンのスタイル */
+    #runBtn {
+      background-color: #00A381;
+      padding: 10px 8px !important;
+      font-size: 1.2em !important;
+      font-weight: bold;
+      width: 100%;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .controls button#runBtn:hover {
+        background-color: #00b894;
+        transform: translateY(-2px);
+    }
+
+
+    /* PCでのボタン群のレイアウト (デフォルトは非モバイル) */
+    .button-row {
+      display: grid;
+      grid-template-columns: repeat(var(--button-columns), 1fr);
+      gap: 5px; /* ボタン間の隙間を小さく */
+      width: 100%;
+    }
+
+    /* 通常ボタンの基本スタイル */
     .controls button {
-      flex: 1 1 auto;
-      padding: 5px 8px; /* パディングを小さく */
+      padding: 6px 4px; /* パディングを調整 */
       cursor: pointer;
       border: none;
       border-radius: 4px;
       background-color: #546E7A;
       color: #ECEFF1;
-      font-size: 0.8em;
+      font-size: 0.85em; /* 文字サイズを少し大きく */
       font-weight: 600;
       transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
       box-shadow: 0 1px 2px rgba(0,0,0,0.2);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 4px; /* アイコンと文字の隙間を小さく */
+      gap: 4px;
+      white-space: nowrap; /* ボタンのテキストが折り返さないように */
+      text-align: center;
+      min-width: 0; /* gridアイテムとして縮小できるように */
+      box-sizing: border-box;
+    }
+    .controls button i {
+      font-size: 1.1em; /* アイコンサイズを調整 */
     }
     .controls button:hover {
       background-color: #607D8B;
@@ -65,55 +105,34 @@
       transform: translateY(0);
       box-shadow: 0 1px 2px rgba(0,0,0,0.2);
     }
-    .controls button i {
-      font-size: 1em; /* アイコンサイズを調整 */
-    }
-    .controls button#runBtn {
-        background-color: #00A381;
-        flex-grow: 1;
-        font-size: 1.2em;
-        font-weight: bold;
-        min-width: unset;
-        width: 100%;
-    }
-    .controls button#saveFavoriteBtn {
-        background-color: #FFC107;
-    }
-    .controls button#showFavoritesBtn {
-        background-color: #FF9800;
-    }
-    .controls button#clearAllBtn {
-        background-color: #D32F2F;
-    }
-    /* 追加した色付け */
-    .controls button#copyBtn {
-        background-color: #2196F3; /* 青色 */
-    }
-    .controls button#pasteBtn {
-        background-color: #9C27B0; /* 紫色 */
-    }
-    .controls button#runBtn:hover {
-        background-color: #00b894;
-        transform: translateY(-3px);
-    }
-    .controls button#saveFavoriteBtn:hover {
-        background-color: #ffca28;
-    }
-    .controls button#showFavoritesBtn:hover {
-        background-color: #ffb300;
-    }
-    .controls button#clearAllBtn:hover {
-        background-color: #e53935;
-    }
-    .controls button#copyBtn:hover {
-        background-color: #42a5f5;
-    }
-    .controls button#pasteBtn:hover {
-        background-color: #ab47bc;
-    }
+    
+    /* ボタンの色付け */
+    .controls button#saveFavoriteBtn { background-color: #FFC107; }
+    .controls button#showFavoritesBtn { background-color: #FF9800; }
+    .controls button#clearAllBtn { background-color: #D32F2F; }
+    .controls button#copyBtn { background-color: #2196F3; }
+    .controls button#pasteBtn { background-color: #9C27B0; }
+    /* hover色 */
+    .controls button#saveFavoriteBtn:hover { background-color: #ffca28; }
+    .controls button#showFavoritesBtn:hover { background-color: #ffb300; }
+    .controls button#clearAllBtn:hover { background-color: #e53935; }
+    .controls button#copyBtn:hover { background-color: #42a5f5; }
+    .controls button#pasteBtn:hover { background-color: #ab47bc; }
+
+    /* カラムセレクター */
     .column-selector {
-      display: none;
+      display: flex;
+      gap: 15px;
+      padding-top: 5px;
+      border-top: 1px solid #455A64;
     }
+    .column-selector label {
+      font-size: 0.85em;
+      cursor: pointer;
+    }
+
+
+    /* --- エディターエリア --- */
     .editor {
       flex: 1;
       overflow: hidden;
@@ -124,6 +143,7 @@
       font-size: 16px;
       line-height: 1.5;
     }
+    /* CodeMirror関連のスタイルは既存のものを維持 */
     .CodeMirror-matchingtag {
       background-color: rgba(255, 255, 0, 0.4);
       outline: 1px solid rgba(255, 255, 0, 0.6);
@@ -134,6 +154,8 @@
       font-weight: bold;
       border-radius: 2px;
     }
+
+    /* --- メッセージエリア --- */
     #messageArea {
       position: absolute;
       right: 10px;
@@ -158,15 +180,12 @@
     #messageArea:not(.show) {
         transform: translateY(-50%) translateX(20px);
     }
-    #messageArea.success {
-        background-color: #4CAF50;
-    }
-    #messageArea.error {
-        background-color: #F44336;
-    }
-    #messageArea.info {
-        background-color: #2196F3;
-    }
+    #messageArea.success { background-color: #4CAF50; }
+    #messageArea.error { background-color: #F44336; }
+    #messageArea.info { background-color: #2196F3; }
+
+    /* --- モーダル --- */
+    /* モーダル関連のスタイルは既存のものを維持 */
     .modal {
       display: none;
       position: fixed;
@@ -204,15 +223,6 @@
       text-decoration: none;
       cursor: pointer;
     }
-    .modal-content h2 {
-      margin-top: 0;
-      border-bottom: 1px solid #455A64;
-      padding-bottom: 10px;
-    }
-    #favoritesList, #helpContent {
-      list-style-type: none;
-      padding: 0;
-    }
     #favoritesList li {
       padding: 12px;
       border-bottom: 1px solid #455A64;
@@ -221,21 +231,10 @@
       align-items: center;
       transition: background-color 0.2s;
     }
-    #favoritesList li:hover {
-      background-color: #455A64;
-    }
-    #favoritesList .favorite-info {
-      cursor: pointer;
-      flex-grow: 1;
-    }
-    #favoritesList .favorite-title {
-      font-weight: bold;
-      font-size: 1.1em;
-    }
-    #favoritesList .favorite-date {
-      font-size: 0.8em;
-      color: #B0BEC5;
-    }
+    #favoritesList li:hover { background-color: #455A64; }
+    #favoritesList .favorite-info { cursor: pointer; flex-grow: 1; }
+    #favoritesList .favorite-title { font-weight: bold; font-size: 1.1em; }
+    #favoritesList .favorite-date { font-size: 0.8em; color: #B0BEC5; }
     #favoritesList .delete-btn {
       background-color: #D32F2F;
       color: white;
@@ -245,59 +244,80 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-    #favoritesList .delete-btn:hover {
-      background-color: #e53935;
-    }
+    #favoritesList .delete-btn:hover { background-color: #e53935; }
+
+
+    /* 📱 モバイル対応 (768px以下) */
     @media (max-width: 768px) {
       .controls {
         padding-top: calc(10px + env(safe-area-inset-top, 0px));
         padding-bottom: 10px;
+        gap: 8px; /* モバイルではrunBtnとbutton-rowの隙間を少し狭く */
       }
-      .controls .button-row {
-        display: flex;
-        flex-wrap: wrap;
+      
+      /* モバイルでのボタン群のレイアウト */
+      .button-row {
+        grid-template-columns: repeat(4, 1fr); /* モバイルでは4列固定 */
         gap: 5px;
-        width: 100%;
       }
+      
       .controls button {
-        flex: 1 1 auto;
-        padding: 5px;
-        font-size: 0.7em;
-        text-align: center;
+        /* モバイルではアイコンと文字を縦に並べる */
         flex-direction: column;
         justify-content: center;
-        min-width: 60px;
+        padding: 5px 3px;
+        font-size: 0.7em;
+        min-width: unset;
       }
       .controls button i {
         font-size: 1.2em;
         margin-bottom: 2px;
       }
+      
+      /* runBtnは横並びのまま */
       .controls button#runBtn {
-        flex-grow: 1;
-        width: 100%;
-        font-size: 1.1em;
-        padding: 10px;
         flex-direction: row;
         gap: 8px;
+        padding: 10px;
+        font-size: 1.1em;
       }
+
+      /* モバイルで不要なボタンを非表示にする (画面をスッキリさせるため) */
+      #selectAllBtn, #deselectAllBtn, #copyBtn, #pasteBtn,
+      #undoBtn, #redoBtn, #scrollToCursorBtn, #findBtn,
+      #replaceBtn, #commentBtn {
+        display: none !important;
+      }
+      
+      /* 非表示にした代わりに、よく使う機能ボタンは表示させる */
+      #saveFavoriteBtn, #showFavoritesBtn, #clearAllBtn, 
+      #openFileBtn, #saveBtn, #helpBtn {
+        display: flex !important; /* 強制的に表示 */
+      }
+      
+      /* カラムセレクターはモバイルでは不要なので非表示 */
       .column-selector {
         display: none;
       }
+      
+      /* モバイルでのメッセージエリアの位置調整 */
       #messageArea {
-        top: calc(70px + env(safe-area-inset-top, 0px));
+        top: calc(5px + env(safe-area-inset-top, 0px)); /* コントロールエリアのすぐ下に配置 */
         transform: translateY(0);
         left: 50%;
         transform: translateX(-50%);
         white-space: normal;
         text-align: center;
-        width: 80%;
+        width: 90%;
+        max-width: 400px;
       }
       #messageArea.show {
         transform: translateY(0) translateX(-50%);
       }
       #messageArea:not(.show) {
-        transform: translateY(0) translateX(-50%) translateY(-20px);
+        transform: translateY(-20px) translateX(-50%);
       }
+      
       .modal-content {
         width: 95%;
         margin: 5% auto;
@@ -309,6 +329,7 @@
   <div class="controls">
     <div id="messageArea"></div>
     <button id="runBtn"><i class="fas fa-play"></i> 実行</button>
+    
     <div class="button-row">
       <button id="saveFavoriteBtn"><i class="fas fa-star"></i> お気に入り</button>
       <button id="showFavoritesBtn"><i class="fas fa-list"></i> 一覧</button>
@@ -328,7 +349,7 @@
       <button id="commentBtn"><i class="fas fa-comment"></i> コメント</button>
       <button id="helpBtn"><i class="fas fa-question-circle"></i> ヘルプ</button>
     </div>
-
+    
     <div class="column-selector">
       <label>
         <input type="radio" name="columnCount" value="1" id="columns1"> 1列
@@ -337,15 +358,21 @@
         <input type="radio" name="columnCount" value="2" id="columns2"> 2列
       </label>
       <label>
-        <input type="radio" name="columnCount" value="4" id="columns4" checked> 4列
+        <input type="radio" name="columnCount" value="3" id="columns3"> 3列
+      </label>
+      <label>
+        <input type="radio" name="columnCount" value="4" id="columns4"> 4列
+      </label>
+      <label>
+        <input type="radio" name="columnCount" value="5" id="columns5" checked> 5列
       </label>
     </div>
   </div>
-
+  
   <div class="editor">
     <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
   </div>
-
+  
   <div id="favoritesModal" class="modal">
     <div class="modal-content">
       <span class="close-button">&times;</span>
@@ -354,7 +381,7 @@
       </ul>
     </div>
   </div>
-
+  
   <div id="helpModal" class="modal">
     <div class="modal-content">
       <span class="close-button">&times;</span>
@@ -381,7 +408,7 @@
       </div>
     </div>
   </div>
-
+  
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
@@ -400,7 +427,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldcode.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.css">
 
   <script>
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
@@ -527,23 +553,26 @@
       if (savedCode) {
         cm.setValue(savedCode);
       }
+      
+      // PCでのカラム数設定の読み込みと適用
+      const savedColumns = localStorage.getItem(STORAGE_KEY_COLUMNS);
+      let columnsToUse = savedColumns || '5'; // デフォルトを5列に変更
       if (window.innerWidth > 768) {
-        const savedColumns = localStorage.getItem(STORAGE_KEY_COLUMNS);
-        if (savedColumns) {
-          updateButtonColumns(savedColumns);
-          const radioToSelect = document.getElementById(`columns${savedColumns}`);
-          if (radioToSelect) {
-            radioToSelect.checked = true;
-          }
-        } else {
-          document.getElementById('columns4').checked = true;
+        updateButtonColumns(columnsToUse);
+        const radioToSelect = document.getElementById(`columns${columnsToUse}`);
+        if (radioToSelect) {
+          radioToSelect.checked = true;
         }
+      } else {
+        // モバイルの場合は非表示ボタンをCSSで制御するため、JSで特別な処理は不要
       }
+
 
       cm.on("change", () => {
         localStorage.setItem(STORAGE_KEY_CODE, cm.getValue());
       });
 
+      // --- ボタンイベントリスナー ---
       selectAllBtn.addEventListener('click', () => {
         cm.focus();
         cm.execCommand("selectAll");
@@ -571,6 +600,7 @@
       clearAllBtn.addEventListener('click', () => {
         if (confirm("本当に全削除しますか？")) {
           cm.setValue("");
+          localStorage.removeItem(STORAGE_KEY_CODE);
           showMessage("全て削除しました", "info");
         }
       });
