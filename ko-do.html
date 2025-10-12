@@ -282,17 +282,14 @@
         font-size: 1.1em;
       }
 
-      /* モバイルで不要なボタンを非表示にする (画面をスッキリさせるため) */
-      #selectAllBtn, #deselectAllBtn, #copyBtn, #pasteBtn,
-      #undoBtn, #redoBtn, #scrollToCursorBtn, #findBtn,
-      #replaceBtn, #commentBtn {
-        display: none !important;
+      /* モバイルで不要と判断していたボタンを再度表示 */
+      #selectAllBtn, #deselectAllBtn, #undoBtn, #redoBtn, #scrollToCursorBtn {
+        display: none !important; /* 頻度が低いものは非表示のまま */
       }
-      
-      /* 非表示にした代わりに、よく使う機能ボタンは表示させる */
-      #saveFavoriteBtn, #showFavoritesBtn, #clearAllBtn, 
-      #openFileBtn, #saveBtn, #helpBtn {
-        display: flex !important; /* 強制的に表示 */
+
+      /* 検索、置換、コピー、貼付けなどの実用的なボタンはモバイルでも表示 */
+      #copyBtn, #pasteBtn, #findBtn, #replaceBtn, #commentBtn {
+          display: flex !important;
       }
       
       /* カラムセレクターはモバイルでは不要なので非表示 */
@@ -375,7 +372,7 @@
   
   <div id="favoritesModal" class="modal">
     <div class="modal-content">
-      <span class="close-button">&times;</span>
+      <span class="close-button" aria-label="閉じる">&times;</span>
       <h2>お気に入り一覧 ⭐️</h2>
       <ul id="favoritesList">
       </ul>
@@ -384,7 +381,7 @@
   
   <div id="helpModal" class="modal">
     <div class="modal-content">
-      <span class="close-button">&times;</span>
+      <span class="close-button" aria-label="閉じる">&times;</span>
       <h2>ヘルプ & 使い方 💡</h2>
       <div id="helpContent">
         <p>このエディターは、ウェブ開発のための多機能ツールです。以下に主な使い方をまとめました。</p>
@@ -440,7 +437,18 @@
       highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true},
       extraKeys: {
         "Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); },
-        "Ctrl-/": "toggleComment"
+        "Ctrl-/": "toggleComment",
+        // 検索・置換のキーバインドを日本語環境でも使いやすいように設定（CodeMirrorのデフォルトを使用）
+        "Cmd-F": "find",
+        "Ctrl-F": "find",
+        "Cmd-G": "findNext",
+        "Ctrl-G": "findNext",
+        "Shift-Cmd-G": "findPrev",
+        "Shift-Ctrl-G": "findPrev",
+        "Shift-Cmd-F": "replace",
+        "Shift-Ctrl-F": "replace",
+        "Shift-Cmd-R": "replaceAll",
+        "Shift-Ctrl-R": "replaceAll"
       },
       foldGutter: true,
       gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
@@ -499,6 +507,10 @@
       }
     });
 
+    /**
+     * @param {string} msg - 表示するメッセージ
+     * @param {'info' | 'success' | 'error'} type - メッセージのタイプ
+     */
     function showMessage(msg, type = 'info') {
       messageArea.textContent = msg;
       messageArea.className = 'show ' + type;
@@ -509,6 +521,9 @@
       }, 2500);
     }
 
+    /**
+     * @param {string} columns - 設定する列数
+     */
     function updateButtonColumns(columns) {
       if (window.innerWidth <= 768) {
         return;
@@ -542,7 +557,7 @@
             <div class="favorite-title">${fav.title}</div>
             <div class="favorite-date">保存日: ${fav.date}</div>
           </div>
-          <button class="delete-btn"><i class="fas fa-trash-alt"></i></button>
+          <button class="delete-btn" title="削除"><i class="fas fa-trash-alt"></i></button>
         `;
         favoritesList.appendChild(li);
       });
@@ -554,18 +569,15 @@
         cm.setValue(savedCode);
       }
       
-      // PCでのカラム数設定の読み込みと適用
       const savedColumns = localStorage.getItem(STORAGE_KEY_COLUMNS);
-      let columnsToUse = savedColumns || '5'; // デフォルトを5列に変更
+      let columnsToUse = savedColumns || '5';
       if (window.innerWidth > 768) {
         updateButtonColumns(columnsToUse);
         const radioToSelect = document.getElementById(`columns${columnsToUse}`);
         if (radioToSelect) {
           radioToSelect.checked = true;
         }
-      } else {
-        // モバイルの場合は非表示ボタンをCSSで制御するため、JSで特別な処理は不要
-      }
+      } 
 
 
       cm.on("change", () => {
@@ -589,16 +601,22 @@
           .catch(err => showMessage("コピーに失敗しました", "error"));
       });
       pasteBtn.addEventListener('click', () => {
+        // CodeMirrorの組み込みペーストはキーボードイベント経由でのみ動作するため、
+        // navigator.clipboard.readText() を利用してエディタに直接挿入します。
         navigator.clipboard.readText()
           .then(text => {
             cm.replaceSelection(text);
             showMessage("貼り付けました", "success");
             controlsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
           })
-          .catch(err => showMessage("貼り付けに失敗しました", "error"));
+          .catch(err => {
+             // ユーザーの許可がない場合や、ブラウザの制限で失敗することがある
+             showMessage("貼り付けに失敗しました。クリップボードへのアクセスが許可されているか確認してください。", "error");
+          });
       });
       clearAllBtn.addEventListener('click', () => {
-        if (confirm("本当に全削除しますか？")) {
+        // 日本語で確認メッセージを表示
+        if (confirm("本当にエディタの内容をすべて削除しますか？")) {
           cm.setValue("");
           localStorage.removeItem(STORAGE_KEY_CODE);
           showMessage("全て削除しました", "info");
@@ -620,7 +638,8 @@
           reader.onload = (evt) => {
             cm.setValue(evt.target.result);
             const fileName = file.name.toLowerCase();
-            if (fileName.endsWith('.html') || fileName.endsWith('.htm')) cm.setOption('mode', 'htmlmixed');
+            // ファイル拡張子に基づいてモードを設定（不具合修正）
+            if (fileName.endsWith('.html') || fileName.endsWith('.htm') || fileName.endsWith('.xml')) cm.setOption('mode', 'htmlmixed');
             else if (fileName.endsWith('.css')) cm.setOption('mode', 'css');
             else if (fileName.endsWith('.js')) cm.setOption('mode', 'javascript');
             else if (fileName.endsWith('.xml')) cm.setOption('mode', 'xml');
@@ -663,9 +682,19 @@
         cm.scrollIntoView(null, 20);
         showMessage("カーソル位置へ移動しました", "info");
       });
-      findBtn.addEventListener('click', () => cm.execCommand("find"));
-      replaceBtn.addEventListener('click', () => cm.execCommand("replace"));
-      commentBtn.addEventListener('click', () => cm.toggleComment());
+      // 検索・置換機能を日本語環境で正しく呼び出すように修正
+      findBtn.addEventListener('click', () => {
+        cm.execCommand("find");
+        showMessage("検索ダイアログを表示しました", "info");
+      });
+      replaceBtn.addEventListener('click', () => {
+        cm.execCommand("replace");
+        showMessage("置換ダイアログを表示しました", "info");
+      });
+      commentBtn.addEventListener('click', () => {
+        cm.toggleComment();
+        showMessage("コメントの切り替えを行いました", "info");
+      });
       helpBtn.addEventListener('click', () => helpModal.style.display = 'block');
 
       columnRadios.forEach(radio => {
@@ -689,6 +718,8 @@
           });
           saveFavorites(favorites);
           showMessage(`「${title}」をお気に入りに追加しました`, "success");
+        } else if (title === "") {
+          showMessage("タイトルが入力されていません", "error");
         }
       });
 
