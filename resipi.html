@@ -4,31 +4,31 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>レシピ分量計算アプリ</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
     <style>
         /* ========================================================================= */
         /* --- 1. ビューポート対応と基本リセット --- */
         /* ========================================================================= */
         :root {
-            /* JavaScriptで設定される正確なvh */
             --vh: 1vh;
             --base-font: 15px;
+            --highlight-color: #f7f3e8; /* 基準材料のハイライト色 */
         }
         html, body {
             height: 100%;
             margin: 0;
             padding: 0;
-            overflow: hidden; /* ページ全体のスクロールを無効化 */
+            overflow: hidden; 
             font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
             font-size: var(--base-font);
             color: #333;
             background-color: #f4f7f9;
-            /* パフォーマンスと描画安定化 */
             -webkit-text-size-adjust: 100%;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             -webkit-tap-highlight-color: transparent;
         }
-        * { box-sizing: border-box; } /* 全要素をボックスモデルに */
+        * { box-sizing: border-box; } 
 
         /* --- 2. 全体レイアウト --- */
         body {
@@ -36,7 +36,7 @@
             justify-content: center;
             align-items: flex-start;
             min-height: calc(var(--vh) * 100);
-            padding-top: 10px; /* PC/タブレット時の上部余白 */
+            padding-top: 10px;
         }
         
         .app-container {
@@ -44,7 +44,6 @@
             display: flex;
             width: 96%;
             max-width: 1200px;
-            /* 高さをvhで指定し、モバイルアドレスバーの変動に対応 */
             height: calc(var(--vh) * 100 - 20px);
             min-height: 450px;
             background-color: #fff;
@@ -68,14 +67,13 @@
             overscroll-behavior: contain;
         }
         
-        /* プルダウンメニューのスタイルを調整 */
         #recipeSelect {
             width: 100%;
             padding: 8px 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 0.95rem;
-            margin-bottom: 8px; /* プルダウン下の余白 */
+            margin-bottom: 8px;
         }
 
         #recipeFormContainer {
@@ -84,7 +82,7 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            overflow-y: auto; /* 内部スクロール */
+            overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
         }
@@ -99,14 +97,13 @@
         label { display: block; margin-bottom: 6px; font-weight: 600; color:#2c3e50; font-size:0.95rem; }
         h2, h3 { margin: 6px 0; font-size: 1.1rem; }
         
-        input[type="text"], input[type="number"], .ingredient-item input {
+        input[type="text"], input[type="number"], .ingredient-item input:not([type="radio"]) {
             padding: 8px 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 0.95rem;
-            width: 100%; /* すべての入力要素をデフォルトで100%に */
+            width: 100%;
         }
-        #recipeName { margin-bottom: 0; }
         
         button {
             padding: 8px 10px;
@@ -129,14 +126,13 @@
 
         .control-group, .io-controls { display:flex; gap:10px; flex-wrap:wrap; }
 
-        /* --- 5. リストと選択状態 (プルダウンなのでリストのスタイルは不要) --- */
         .list-header { 
             display:flex;
             justify-content:space-between; 
             align-items:center; 
             padding-bottom:6px; 
             border-bottom:1px solid #ddd;
-            flex-wrap: wrap; /* ボタンとタイトルの折り返しに対応 */
+            flex-wrap: wrap; 
         }
         
         /* --- 6. 材料リストのレイアウト（PC/タブレット向け1行固定） --- */
@@ -147,16 +143,32 @@
             gap:8px;
             padding:4px 4px 4px 0;
             border-bottom:1px dashed #eee;
-            flex-wrap:nowrap; /* 1行を維持 */
+            flex-wrap:nowrap;
+            cursor: move; 
+            background-color: #fff; 
+            transition: background-color 0.1s;
         }
-        .ingredient-item input[type="radio"] { flex:0 0 auto; transform:scale(1.05); margin-right:4px; width: auto; /* ラジオボタンの幅をリセット */ }
-        .ingredient-item .name-input { flex:3 1 45%; min-width:80px; width: auto; }
+
+        /* 基準材料のハイライト */
+        .ingredient-item.is-base {
+            background-color: var(--highlight-color);
+            border-radius: 4px;
+        }
+
+        .ingredient-item input[type="radio"] { flex:0 0 auto; transform:scale(1.05); margin-right:4px; width: auto; }
+        .ingredient-item .handle { flex:0 0 15px; cursor: grab; color:#aaa; font-size:1.1rem; line-height:1; } 
+        .ingredient-item .name-input { flex:3 1 40%; min-width:80px; width: auto; }
         .ingredient-item .amount-input { flex:1 0 15%; min-width:50px; text-align:right; width: auto; }
         .ingredient-item .unit-input { flex:0 0 70px; min-width:50px; width: auto; font-size:0.92rem; }
-        .ingredient-item .unit-label { flex:0 0 auto; margin-left:4px; white-space:nowrap; font-size:0.92rem; width: auto; }
         .ingredient-item .ratio-display { flex:0 0 65px; text-align:right; font-size:0.85rem; color:#7f8c8d; white-space:nowrap; width: auto; }
         .ingredient-item .danger { flex:0 0 auto; margin-left:4px; width: auto; }
         .ingredients-header { display:flex; justify-content:flex-end; margin-bottom:6px; }
+
+        /* SortableJS 向けスタイル */
+        .sortable-ghost {
+            opacity: 0.4;
+            background-color: #e0f2f1;
+        }
 
         /* --- 7. スケール/合計表示 --- */
         .scale-control, .total-control { 
@@ -171,6 +183,14 @@
 
         .total-display { font-size:1rem; font-weight:700; color:#2980b9; }
         .unit-radio-group label { display:inline-flex; align-items:center; margin-bottom:0; font-weight:normal; font-size:0.95rem; }
+        
+        .precision-select {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            width: 100px;
+        }
 
         /* --- 8. モバイル専用スタイル (max-width: 768px) --- */
         @media (max-width: 768px) {
@@ -181,11 +201,10 @@
                 border-radius: 0;
                 box-shadow: none;
                 flex-direction: column;
-                transform: scale(1);
             }
             
             #recipeListContainer {
-                width: 100%; /* モバイルではプルダウンで選択するため、コンテナの高さを最小限にする */
+                width: 100%;
                 height: auto;
                 border-right: none;
                 border-bottom: 1px solid #eee;
@@ -193,26 +212,34 @@
             }
 
             #recipeFormContainer {
-                display: flex; /* モバイルでもフォームは常に表示 (プルダウンで切り替えるため) */
                 width: 100%;
                 height: 100%;
                 overflow-y: auto;
-                position: static; /* 通常フローに戻す */
-                z-index: 1;
-                background-color: #fff;
                 padding: 10px;
                 gap: 8px;
             }
-
-            /* プルダウンがあるため、モバイルでの表示切り替えロジックは無効化 */
-            .app-container.form-visible #recipeListContainer { display: flex; }
-            .mobile-controls {
-                display: none !important; /* 不要になったため非表示 */
+            
+            /* 材料行の調整 - 横スクロール防止のための主要な修正 */
+            .ingredient-item { 
+                gap: 5px; 
+                padding: 4px 0; 
+                flex-wrap: nowrap; 
+                justify-content: flex-start;
+                padding-right: 4px; 
             }
             
-            /* 材料行の調整 */
-            .ingredient-item { gap: 5px; padding: 4px 0; }
-            .ingredient-item .name-input, .ingredient-item .amount-input { padding: 6px; font-size: 0.9rem; }
+            /* 不要な要素を非表示にし、スペースを確保 */
+            .ingredient-item .handle, 
+            .ingredient-item .ratio-display,
+            .ingredient-item input[type="radio"] { 
+                display: none; 
+            }
+            
+            /* 残りの要素の幅を再配分し、全体で横幅を超えないように調整 */
+            .ingredient-item .name-input { flex: 4 1 35%; min-width: 70px; }
+            .ingredient-item .amount-input { flex: 2 1 25%; min-width: 50px; }
+            .ingredient-item .unit-input { flex: 2 1 25%; min-width: 40px; }
+            .ingredient-item .danger { flex: 0 0 auto; margin-left: 0; padding: 4px 6px; }
 
             .scale-control, .total-control { flex-wrap: wrap; justify-content: flex-start; }
             .scale-control input[type="number"], .total-control input[type="number"] { width: 80px; }
@@ -232,7 +259,7 @@
                 <option value="">-- レシピを選択してください --</option>
                 </select>
             
-            <p style="font-size: 0.8rem; color: #7f8c8d; margin: 0; padding: 0;">※新規作成ボタンで入力フォームをクリアします。</p>
+            <p style="font-size: 0.8rem; color: #7f8c8d; margin: 0; padding: 0;">※新規作成で入力フォームをクリアします。</p>
         </div>
 
         <div id="recipeFormContainer">
@@ -245,12 +272,20 @@
             <div class="form-section">
                 <label for="servings">何人分</label>
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <input type="number" id="servings" min="1" value="1" style="width: 100px;" />
+                    <input type="number" id="servings" value="1" style="width: 100px;" />
                     <span>人前</span>
+                    <label for="precisionSelect" style="margin-left: 20px; margin-bottom: 0;">小数点以下</label>
+                    <select id="precisionSelect" class="precision-select">
+                        <option value="0">0桁</option>
+                        <option value="1">1桁</option>
+                        <option value="2" selected>2桁</option>
+                        <option value="3">3桁</option>
+                    </select>
                 </div>
             </div>
+
             <div class="form-section">
-                <h3 style="margin:6px 0 8px 0; font-size:1rem;">材料と分量</h3>
+                <h3 style="margin:6px 0 8px 0; font-size:1rem;">材料と分量 (1人前ベースで保存)</h3>
     
              <div class="unit-radio-group" style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
                     <input type="radio" id="unitG" name="unit" value="g" checked />
@@ -277,7 +312,7 @@
                
      <button id="calculateFromSingleIngredientBtn" class="secondary">🔄 基準量から計算</button>
                 </div>
-                <p style="font-size:0.82rem; color:#7f8c8d; margin-top:6px;">※材料横のラジオボタンで基準材料を選択してから、基準量を入力・計算してください。</p>
+                <p style="font-size:0.82rem; color:#7f8c8d; margin-top:6px;">※材料行のラジオボタンで基準材料を選択するか、**最多量の材料が自動で選択**されます。</p>
             </div>
 
             <div class="form-section">
@@ -313,8 +348,7 @@
     </div>
 
     <script>
-   
- // --- ビューポート高さの正確化（アドレスバー対策） ---
+    // --- 0. 初期設定とDOM参照 ---
     (function() {
         function setVh() {
             document.documentElement.style.setProperty('--vh', (window.innerHeight * 0.01) + 'px');
@@ -324,16 +358,15 @@
         window.addEventListener('orientationchange', function() { setTimeout(setVh, 200); });
     })();
 
-    // --- グローバル変数とDOM参照 ---
-    const RECIPES_STORAGE_KEY = 'recipesv1all_improved';
+    const RECIPES_STORAGE_KEY = 'recipesv2_final'; 
     let recipes = [];
     let currentRecipeId = null;
-    let currentUnit = 'g';
+    let currentUnit = 'g'; 
 
     const recipeSelectEl = document.getElementById('recipeSelect');
     const newRecipeBtn = document.getElementById('newRecipeBtn');
     const recipeNameEl = document.getElementById('recipeName');
-    const servingsEl = document.getElementById('servings'); // 【追加】人数のDOM参照
+    const servingsEl = document.getElementById('servings');
     const ingredientsListEl = document.getElementById('ingredientsList');
     const addIngredientBtn = document.getElementById('addIngredient');
     const saveBtn = document.getElementById('saveBtn');
@@ -352,20 +385,28 @@
     const scaleFromTotalBtn = document.getElementById('scaleFromTotalBtn');
     const totalUnitLabelEl = document.getElementById('totalUnitLabel');
     const calculateFromSingleIngredientBtn = document.getElementById('calculateFromSingleIngredientBtn');
+    const precisionSelectEl = document.getElementById('precisionSelect'); 
 
-    // --- 初期化処理 ---
+    // --- 1. 初期化処理 ---
     document.addEventListener('DOMContentLoaded', () => {
         loadRecipes();
         renderRecipeList();
         setupEventListeners();
-        clearForm();
+        clearForm(true); 
+        
         if (recipes.length > 0) {
             recipeSelectEl.value = recipes[0].id;
             selectRecipe(recipes[0].id);
         }
+        
+        new Sortable(ingredientsListEl, {
+            handle: '.handle', 
+            animation: 150,
+            ghostClass: 'sortable-ghost' 
+        });
     });
 
-    // --- イベントリスナー設定 ---
+    // --- 2. イベントリスナー設定 ---
     function setupEventListeners() {
         recipeSelectEl.addEventListener('change', e => selectRecipe(e.target.value));
         newRecipeBtn.addEventListener('click', () => {
@@ -373,7 +414,8 @@
             recipeSelectEl.value = '';
         });
         
-        servingsEl.addEventListener('input', scaleIngredientsByServings); // 【追加】人数変更時のイベント
+        servingsEl.addEventListener('input', scaleIngredientsByServings);
+        precisionSelectEl.addEventListener('change', setUnit.bind(null, currentUnit, false)); 
         addIngredientBtn.addEventListener('click', () => addIngredientRow({ name: '', amount: 0 }, true));
         saveBtn.addEventListener('click', saveRecipe);
         updateBtn.addEventListener('click', updateRecipe);
@@ -386,44 +428,52 @@
         
         scaleFromTotalBtn.addEventListener('click', scaleFromTotal);
         
-        ingredientsListEl.addEventListener('input', e => {
-            const item = e.target.closest('.ingredient-item');
-            if (!item) return;
-
-            if (e.target.classList.contains('amount-input')) {
-                const amountValue = parseFloat(e.target.value) || 0;
-                const multiplier = currentUnit === 'kg' ? 1000 : 1;
-                const servings = parseInt(servingsEl.value, 10) || 1;
-                item.dataset.amountInG = amountValue * multiplier;
-                // 【変更】手入力時は1人前の分量も更新
-                item.dataset.baseAmountInG = (amountValue * multiplier) / servings;
-                updateTotalsAndRatios();
-            }
-            if (e.target.classList.contains('unit-input')) {
-                item.dataset.customUnit = 'true';
-            }
-        });
-
-        ingredientsListEl.addEventListener('click', e => {
-            if (e.target.type === 'radio' && e.target.name === 'baseIngredient') {
-                const item = e.target.closest('.ingredient-item');
-                if (item) {
-                    const amountInG = parseFloat(item.dataset.amountInG || '0');
-                    const divider = currentUnit === 'kg' ? 1000 : 1;
-                    const precision = divider === 1000 ? 3 : 0;
-                    scaleAmountEl.value = (amountInG / divider).toFixed(precision);
-                    scaleAmountEl.focus();
-                    calculateFromSingleIngredient();
-                }
-            }
-        });
+        ingredientsListEl.addEventListener('input', handleIngredientInput);
+        ingredientsListEl.addEventListener('click', handleIngredientRadioClick);
 
         exportBtn.addEventListener('click', exportRecipesToCsv);
         importBtn.addEventListener('click', () => importFileEl.click());
         importFileEl.addEventListener('change', importRecipesFromCsv);
     }
+    
+    function handleIngredientInput(e) {
+        const item = e.target.closest('.ingredient-item');
+        if (!item) return;
 
-    // --- データ管理 ---
+        if (e.target.classList.contains('amount-input')) {
+            const amountValue = parseFloat(e.target.value) || 0;
+            const multiplier = currentUnit === 'kg' ? 1000 : 1;
+            const servings = parseInt(servingsEl.value, 10) || 1;
+            
+            const newAmountInG = amountValue * multiplier;
+            item.dataset.amountInG = newAmountInG;
+            item.dataset.baseAmountInG = newAmountInG / servings;
+
+            updateTotalsAndRatios();
+            autoSelectBaseIngredient(); 
+        }
+        if (e.target.classList.contains('unit-input')) {
+            item.dataset.customUnit = 'true';
+        }
+    }
+    
+    function handleIngredientRadioClick(e) {
+        if (e.target.type === 'radio' && e.target.name === 'baseIngredient') {
+            const item = e.target.closest('.ingredient-item');
+            if (item) {
+                ingredientsListEl.querySelectorAll('.ingredient-item').forEach(li => li.classList.remove('is-base'));
+                item.classList.add('is-base');
+                
+                const amountInG = parseFloat(item.dataset.amountInG || '0');
+                const divider = currentUnit === 'kg' ? 1000 : 1;
+                const precision = parseInt(precisionSelectEl.value, 10);
+                scaleAmountEl.value = (amountInG / divider).toFixed(precision);
+                scaleAmountEl.focus();
+            }
+        }
+    }
+
+    // --- 3. データ管理 ---
     function loadRecipes() {
         try {
             const storedRecipes = localStorage.getItem(RECIPES_STORAGE_KEY);
@@ -436,13 +486,13 @@
         if (!recipes || !Array.isArray(recipes) || recipes.length === 0) {
              recipes = generateSampleRecipes();
              saveRecipesToStorage();
-             console.log("LocalStorageにデータがないため、サンプル50件をロードしました。");
+             console.log("LocalStorageにデータがないため、サンプル3件をロードしました。");
         }
     }
     
     function saveRecipesToStorage() { localStorage.setItem(RECIPES_STORAGE_KEY, JSON.stringify(recipes)); }
 
-    // --- UI描画 ---
+    // --- 4. UI描画 ---
     function renderRecipeList() {
         recipeSelectEl.innerHTML = '<option value="">-- レシピを選択してください --</option>';
         if (recipes.length === 0) {
@@ -467,45 +517,55 @@
     function renderRecipeForm(recipe) {
         currentRecipeId = recipe.id;
         recipeNameEl.value = recipe.name;
-        servingsEl.value = 1; // 【追加】レシピ選択時に人数を1にリセット
+        
+        servingsEl.value = recipe.servings || 1; 
+        currentUnit = recipe.unitPreference || 'g'; 
+        
         ingredientsListEl.innerHTML = '';
         recipe.ingredients.forEach(ing => addIngredientRow(ing));
+        
         scaleAmountEl.value = '';
         desiredTotalAmountEl.value = '';
         updateFormState('edit');
-        setUnit(currentUnit);
+        setUnit(currentUnit); 
+        scaleIngredientsByServings(); 
+        autoSelectBaseIngredient(); 
     }
 
     function addIngredientRow(ingredient = { name: '', amount: 0, unit: null }, focusAfterAdd = false) {
         const li = document.createElement('li');
         li.className = 'ingredient-item';
-        // 【変更】1人前の分量(base)と表示用の分量(amount)をデータセットに保持
-        li.dataset.baseAmountInG = ingredient.amount || '0';
-        li.dataset.amountInG = ingredient.amount || '0';
+        
+        const servings = parseInt(servingsEl.value, 10) || 1;
+        const currentAmountInG = ingredient.amount * servings;
+
+        li.dataset.baseAmountInG = ingredient.amount || '0'; 
+        li.dataset.amountInG = currentAmountInG || '0';
         
         if (ingredient.unit) {
             li.dataset.customUnit = 'true';
         }
 
-        const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'baseIngredient';
-        radio.title = '基準にする';
+        const handle = document.createElement('span'); handle.className = 'handle'; handle.textContent = '☰';
+        const radio = document.createElement('input'); radio.type = 'radio'; radio.name = 'baseIngredient'; radio.title = '基準にする';
         const nameInput = document.createElement('input'); nameInput.type = 'text'; nameInput.className = 'name-input'; nameInput.placeholder = '材料名'; nameInput.value = ingredient.name;
         const amountInput = document.createElement('input'); amountInput.type = 'number'; amountInput.className = 'amount-input'; amountInput.placeholder = '分量'; amountInput.min = '0';
+        
         const unitInput = document.createElement('input');
         unitInput.type = 'text';
         unitInput.className = 'unit-input';
         unitInput.title = '単位を編集できます';
-        unitInput.value = ingredient.unit ? ingredient.unit : currentUnit;
-        unitInput.addEventListener('input', () => {
-            li.dataset.customUnit = 'true';
-        });
+        unitInput.value = ingredient.unit || currentUnit;
+        
         const ratioDisplay = document.createElement('span'); ratioDisplay.className = 'ratio-display';
         const removeBtn = document.createElement('button'); removeBtn.textContent = '🗑️'; removeBtn.className = 'danger'; removeBtn.title = '削除';
         removeBtn.addEventListener('click', () => {
             li.remove();
             updateTotalsAndRatios();
+            autoSelectBaseIngredient();
         });
-        li.append(radio, nameInput, amountInput, unitInput, ratioDisplay, removeBtn);
+        
+        li.append(handle, radio, nameInput, amountInput, unitInput, ratioDisplay, removeBtn);
         ingredientsListEl.appendChild(li);
 
         if (focusAfterAdd) {
@@ -521,7 +581,7 @@
         deleteBtn.style.display = state === 'edit' ? 'inline-flex' : 'none';
     }
 
-    // --- レシピ操作 ---
+    // --- 5. レシピ操作 ---
     function selectRecipe(recipeId) {
         if (!recipeId) {
             clearForm();
@@ -530,48 +590,65 @@
 
         const recipe = recipes.find(r => r.id === recipeId);
         if (recipe) {
-            const savedUnit = currentUnit;
-            currentRecipeId = recipeId;
             renderRecipeForm(recipe);
-            setUnit(savedUnit);
-            renderRecipeList();
+            renderRecipeList(); 
         }
     }
 
-    function clearForm() {
+    function clearForm(isInitialLoad = false) {
         currentRecipeId = null;
         recipeNameEl.value = '';
-        servingsEl.value = 1; // 【追加】フォームクリア時に人数を1にリセット
+        servingsEl.value = 1; // JS側でデフォルト値1を設定
         ingredientsListEl.innerHTML = '';
         scaleAmountEl.value = '';
         desiredTotalAmountEl.value = '';
-        addIngredientRow({ name: '', amount: 0 }, true);
-        addIngredientRow();
-        addIngredientRow();
-        updateFormState('new');
+        
         setUnit('g');
+        
+        if (!isInitialLoad) {
+            addIngredientRow({ name: '', amount: 0 }, true);
+            addIngredientRow();
+            addIngredientRow();
+        }
+        
+        updateFormState('new');
         recipeSelectEl.value = '';
         recipeNameEl.focus();
     }
 
     function getRecipeDataFromForm() {
         const name = recipeNameEl.value.trim();
+        // 入力が空の場合、0または1として扱うが、保存時は1未満は1に強制する
+        const servings = parseInt(servingsEl.value, 10) || 1;
+        
         if (!name) {
             alert('レシピ名を入力してください。');
             return null;
         }
+
         const ingredients = Array.from(ingredientsListEl.querySelectorAll('.ingredient-item')).map(item => {
             const nameInput = item.querySelector('.name-input').value.trim();
-            // 【変更】保存するのは1人前のbaseAmountInG
             const amount = parseFloat(item.dataset.baseAmountInG);
             const unitText = item.querySelector('.unit-input').value.trim();
-            return (nameInput && !isNaN(amount) && amount > 0) ? { name: nameInput, amount: amount, unit: unitText || null } : null;
+            
+            return (nameInput && !isNaN(amount) && amount >= 0) ? { 
+                name: nameInput, 
+                amount: amount, 
+                unit: (unitText === currentUnit || !unitText) ? null : unitText
+            } : null;
         }).filter(Boolean);
+
         if (ingredients.length === 0) {
             alert('有効な材料を1つ以上入力してください。');
             return null;
         }
-        return { name, ingredients };
+        
+        return { 
+            name, 
+            ingredients, 
+            servings: servings < 1 ? 1 : servings, // 1未満は1として保存
+            unitPreference: currentUnit 
+        };
     }
 
     function saveRecipe() {
@@ -584,12 +661,14 @@
         renderRecipeList();
         selectRecipe(newRecipe.id);
         recipeSelectEl.value = newRecipe.id;
+        alert('レシピが保存されました。');
     }
 
     function updateRecipe() {
         if (!currentRecipeId) return;
         const updatedData = getRecipeDataFromForm();
         if (!updatedData) return;
+        
         const recipeIndex = recipes.findIndex(r => r.id === currentRecipeId);
         if (recipeIndex > -1) {
             recipes[recipeIndex] = { ...recipes[recipeIndex], ...updatedData };
@@ -610,14 +689,43 @@
         }
     }
 
-    // --- 計算ロジック ---
+    // --- 6. 計算ロジック ---
+    
+    function autoSelectBaseIngredient() {
+        let maxAmountInG = -1;
+        let baseItem = null;
+        const allItems = ingredientsListEl.querySelectorAll('.ingredient-item');
 
-    // 【追加】人数に応じて材料を再計算する関数
-    function scaleIngredientsByServings() {
-        const servings = parseInt(servingsEl.value, 10);
-        if (isNaN(servings) || servings < 1) {
-            return; // 不正な値の場合は何もしない
+        allItems.forEach(li => {
+            li.classList.remove('is-base');
+            li.querySelector('input[type="radio"]').checked = false;
+        });
+
+        allItems.forEach(item => {
+            const amountInG = parseFloat(item.dataset.amountInG || '0');
+            if (item.querySelector('.name-input').value.trim() && amountInG > maxAmountInG) {
+                maxAmountInG = amountInG;
+                baseItem = item;
+            }
+        });
+
+        if (baseItem && maxAmountInG > 0) {
+            const radio = baseItem.querySelector('input[type="radio"]');
+            radio.checked = true;
+            baseItem.classList.add('is-base');
+            
+            const divider = currentUnit === 'kg' ? 1000 : 1;
+            const precision = parseInt(precisionSelectEl.value, 10);
+            scaleAmountEl.value = (maxAmountInG / divider).toFixed(precision);
+        } else {
+             scaleAmountEl.value = '';
         }
+    }
+    
+    function scaleIngredientsByServings() {
+        // 入力が空欄の場合は、0として扱い、計算時には1を代入する
+        const inputServings = parseFloat(servingsEl.value);
+        const servings = isNaN(inputServings) || inputServings <= 0 ? 1 : inputServings;
 
         ingredientsListEl.querySelectorAll('.ingredient-item').forEach(item => {
             const baseAmountInG = parseFloat(item.dataset.baseAmountInG || '0');
@@ -627,8 +735,9 @@
             }
         });
         
-        // データ更新後にUIを再描画
-        setUnit(currentUnit);
+        // setUnitの第2引数（skipInputUpdate）を省略することで、UIの分量が確実に更新される
+        setUnit(currentUnit); 
+        autoSelectBaseIngredient();
     }
 
     function setUnit(unit, skipInputUpdate = false) {
@@ -637,8 +746,9 @@
         totalAmountUnitEl.textContent = unit;
         totalUnitLabelEl.textContent = unit;
         unit === 'g' ? (unitGRadio.checked = true) : (unitKgRadio.checked = true);
+        
         const divider = unit === 'kg' ? 1000 : 1;
-        const precision = unit === 'kg' ? 3 : 0;
+        const precision = parseInt(precisionSelectEl.value, 10); 
         
         ingredientsListEl.querySelectorAll('.ingredient-item').forEach(item => {
             const amountInG = parseFloat(item.dataset.amountInG || '0');
@@ -649,14 +759,15 @@
                 input.value = (amountInG / divider).toFixed(precision);
             }
      
-            if (!item.dataset.customUnit) {
-                if (unitInput) unitInput.value = unit;
+            if (!item.dataset.customUnit || item.dataset.customUnit === 'false' || unitInput.value === 'g' || unitInput.value === 'kg') {
+                unitInput.value = unit;
+                item.dataset.customUnit = 'false'; 
             }
         });
-        const baseRadio = ingredientsListEl.querySelector('input[name=baseIngredient]:checked');
-        if (baseRadio) {
-            const item = baseRadio.closest('.ingredient-item');
-            const amountInG = parseFloat(item.dataset.amountInG || '0');
+        
+        const baseItem = ingredientsListEl.querySelector('.ingredient-item.is-base');
+        if (baseItem) {
+            const amountInG = parseFloat(baseItem.dataset.amountInG || '0');
             scaleAmountEl.value = (amountInG / divider).toFixed(precision);
         } else if (scaleAmountEl.value) {
             scaleAmountEl.value = '';
@@ -683,14 +794,14 @@
 
         const multiplier = currentUnit === 'kg' ? 1000 : 1;
         const scale = (scaleAmount * multiplier) / baseAmountInG;
-        const servings = parseInt(servingsEl.value, 10) || 1;
+        const inputServings = parseFloat(servingsEl.value);
+        const servings = isNaN(inputServings) || inputServings <= 0 ? 1 : inputServings;
 
         ingredientsListEl.querySelectorAll('.ingredient-item').forEach(item => {
             const originalAmountInG = parseFloat(item.dataset.amountInG || '0');
             if (!isNaN(originalAmountInG)) {
                 const newAmountInG = originalAmountInG * scale;
                 item.dataset.amountInG = newAmountInG;
-                // 【変更】計算結果を1人前の分量にも反映
                 item.dataset.baseAmountInG = newAmountInG / servings;
             }
         });
@@ -713,21 +824,22 @@
                 currentTotalInG += amountInG;
             }
         });
+        
         if (currentTotalInG === 0) {
-            alert('現在の合計が0のため、比率を計算できません。');
+            alert('現在の合計が0のため、比率を計算できません。有効な材料があるか確認してください。');
             return;
         }
 
         const multiplier = currentUnit === 'kg' ? 1000 : 1;
         const scale = (desiredTotal * multiplier) / currentTotalInG;
-        const servings = parseInt(servingsEl.value, 10) || 1;
+        const inputServings = parseFloat(servingsEl.value);
+        const servings = isNaN(inputServings) || inputServings <= 0 ? 1 : inputServings;
 
         items.forEach(item => {
             const originalAmountInG = parseFloat(item.dataset.amountInG || '0');
             if (!isNaN(originalAmountInG)) {
                 const newAmountInG = originalAmountInG * scale;
                 item.dataset.amountInG = newAmountInG;
-                 // 【変更】計算結果を1人前の分量にも反映
                 item.dataset.baseAmountInG = newAmountInG / servings;
             }
         });
@@ -747,29 +859,35 @@
                 amountsInG.push(0);
             }
         });
+        
         const divider = currentUnit === 'kg' ? 1000 : 1;
-        totalAmountValueEl.textContent = (totalAmountInG / divider).toFixed(divider === 1000 ? 3 : 0);
+        const precision = parseInt(precisionSelectEl.value, 10);
+
+        totalAmountValueEl.textContent = (totalAmountInG / divider).toFixed(precision);
+        
         ingredientsListEl.querySelectorAll('.ratio-display').forEach((display, index) => {
             const ratio = totalAmountInG > 0 ? (amountsInG[index] / totalAmountInG) * 100 : 0;
             display.textContent = `(${ratio.toFixed(1)}%)`;
         });
     }
 
-    // --- CSV I/O ---
+    // --- 7. CSV I/O ---
     function exportRecipesToCsv() {
         if (recipes.length === 0) {
             alert('エクスポートするレシピがありません。');
             return;
         }
 
-        let csv = 'レシピ名,材料名,分量(g)\n'; // ヘッダーは1人前基準なので変更なし
+        let csv = 'レシピ名,材料名,分量(g),カスタム単位\n'; 
         
         recipes.forEach(recipe => {
             recipe.ingredients.forEach(ing => {
                 const recipeName = `"${recipe.name.replace(/"/g, '""')}"`;
                 const ingredientName = `"${ing.name.replace(/"/g, '""')}"`;
                 const amountG = ing.amount.toString(); 
-                csv += `${recipeName},${ingredientName},${amountG}\n`;
+                const unit = ing.unit || '';
+                const customUnit = `"${unit.replace(/"/g, '""')}"`;
+                csv += `${recipeName},${ingredientName},${amountG},${customUnit}\n`;
             });
         });
         const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
@@ -813,16 +931,19 @@
                     const recipeName = row[0].trim();
                     const ingredientName = row[1].trim();
                     const amountG = parseFloat(row[2].trim());
+                    const unit = row.length > 3 ? row[3].trim() : null; 
 
-                    if (recipeName && ingredientName && !isNaN(amountG) && amountG > 0) {
+                    if (recipeName && ingredientName && !isNaN(amountG) && amountG >= 0) {
                         if (!groupedRecipes[recipeName]) {
                             groupedRecipes[recipeName] = { 
                                 id: `recipe_${Date.now()}_${Object.keys(groupedRecipes).length}`, 
                                 name: recipeName, 
-                                ingredients: [] 
+                                ingredients: [],
+                                servings: 1,
+                                unitPreference: 'g'
                             };
                         }
-                        groupedRecipes[recipeName].ingredients.push({ name: ingredientName, amount: amountG });
+                        groupedRecipes[recipeName].ingredients.push({ name: ingredientName, amount: amountG, unit: unit || null });
                     }
                 });
                 const importedRecipes = Object.values(groupedRecipes);
@@ -874,59 +995,49 @@
         return result.map(field => field.replace(/^"|"$/g, '').trim());
     }
 
-    // --- サンプルデータ生成 ---
+    // --- 8. サンプルデータ生成 ---
     function generateSampleRecipes() {
         return [
-          { "id": "recipe_01", "name": "肉じゃが", "ingredients": [ { "name": "じゃがいも", "amount": 300 }, { "name": "牛肉", "amount": 200 }, { "name": "玉ねぎ", "amount": 150 }, { "name": "人参", "amount": 100 }, { "name": "醤油", "amount": 45 }, { "name": "砂糖", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "だし汁", "amount": 200 } ] },
-          { "id": "recipe_02", "name": "豚の生姜焼き", "ingredients": [ { "name": "豚ロース肉", "amount": 300 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "生姜（すりおろし）", "amount": 15 }, { "name": "醤油", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "酒", "amount": 15 }, { "name": "サラダ油", "amount": 15 } ] },
-          { "id": "recipe_03", "name": "親子丼", "ingredients": [ { "name": "鶏もも肉", "amount": 250 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "卵", "amount": 150 }, { "name": "だし汁", "amount": 100 }, { "name": "醤油", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "ご飯", "amount": 600 } ] },
-          { "id": "recipe_04", "name": "カレーライス", "ingredients": [ { "name": "豚肉または牛肉", "amount": 250 }, { "name": "じゃがいも", "amount": 300 }, { "name": "人参", "amount": 150 }, { "name": "玉ねぎ", "amount": 400 }, { "name": "カレールー", "amount": 100 }, { "name": "水", "amount": 800 }, { "name": "サラダ油", "amount": 15 } ] },
-          { "id": "recipe_05", "name": "鶏の唐揚げ", "ingredients": [ { "name": "鶏もも肉", "amount": 500 }, { "name": "醤油", "amount": 30 }, { "name": "酒", "amount": 15 }, { "name": "生姜（すりおろし）", "amount": 10 }, { "name": "にんにく（すりおろし）", "amount": 5 }, { "name": "片栗粉", "amount": 50 }, { "name": "揚げ油", "amount": 500 } ] },
-          { "id": "recipe_06", "name": "ハンバーグ", "ingredients": [ { "name": "合いびき肉", "amount": 400 }, { "name": "玉ねぎ", "amount": 150 }, { "name": "パン粉", "amount": 30 }, { "name": "牛乳", "amount": 45 }, { "name": "卵", "amount": 50 }, { "name": "塩", "amount": 3 }, { "name": "こしょう", "amount": 1 }, { "name": "ナツメグ", "amount": 1 } ] },
-          { "id": "recipe_07", "name": "鮭の塩焼き", "ingredients": [ { "name": "生鮭", "amount": 240 }, { "name": "塩", "amount": 2 } ] },
-          { "id": "recipe_08", "name": "筑前煮", "ingredients": [ { "name": "鶏もも肉", "amount": 200 }, { "name": "ごぼう", "amount": 100 }, { "name": "人参", "amount": 100 }, { "name": "れんこん", "amount": 150 }, { "name": "干ししいたけ", "amount": 10 }, { "name": "こんにゃく", "amount": 100 }, { "name": "だし汁", "amount": 300 }, { "name": "醤油", "amount": 45 }, { "name": "砂糖", "amount": 15 }, { "name": "みりん", "amount": 30 } ] },
-          { "id": "recipe_09", "name": "お好み焼き", "ingredients": [ { "name": "薄力粉", "amount": 100 }, { "name": "だし汁", "amount": 120 }, { "name": "キャベツ", "amount": 300 }, { "name": "豚バラ肉", "amount": 100 }, { "name": "卵", "amount": 100 }, { "name": "天かす", "amount": 20 }, { "name": "紅しょうが", "amount": 10 } ] },
-          { "id": "recipe_10", "name": "だし巻き卵", "ingredients": [ { "name": "卵", "amount": 200 }, { "name": "だし汁", "amount": 60 }, { "name": "薄口醤油", "amount": 5 }, { "name": "みりん", "amount": 5 }, { "name": "塩", "amount": 1 } ] },
-          { "id": "recipe_11", "name": "チャーハン", "ingredients": [ { "name": "ご飯", "amount": 400 }, { "name": "卵", "amount": 100 }, { "name": "長ネギ", "amount": 50 }, { "name": "焼き豚", "amount": 80 }, { "name": "醤油", "amount": 10 }, { "name": "塩", "amount": 2 }, { "name": "こしょう", "amount": 1 }, { "name": "ごま油", "amount": 10 } ] },
-          { "id": "recipe_12", "name": "東坡肉（トンポーロー）", "ingredients": [ { "name": "豚バラブロック肉", "amount": 500 }, { "name": "長ネギの青い部分", "amount": 50 }, { "name": "生姜スライス", "amount": 20 }, { "name": "紹興酒", "amount": 100 }, { "name": "醤油", "amount": 75 }, { "name": "氷砂糖", "amount": 50 }, { "name": "水", "amount": 400 }, { "name": "八角", "amount": 1 } ] },
-          { "id": "recipe_13", "name": "ペペロンチーノ", "ingredients": [ { "name": "スパゲッティ", "amount": 200 }, { "name": "オリーブオイル", "amount": 50 }, { "name": "にんにく", "amount": 10 }, { "name": "鷹の爪", "amount": 1 }, { "name": "塩", "amount": 5 } ] },
-          { "id": "recipe_14", "name": "ミネストローネ", "ingredients": [ { "name": "玉ねぎ", "amount": 100 }, { "name": "人参", "amount": 50 }, { "name": "じゃがいも", "amount": 80 }, { "name": "キャベツ", "amount": 80 }, { "name": "ベーコン", "amount": 50 }, { "name": "カットトマト缶", "amount": 200 }, { "name": "水", "amount": 300 }, { "name": "コンソメ", "amount": 5 } ] },
-          { "id": "recipe_15", "name": "麻婆豆腐", "ingredients": [ { "name": "豚ひき肉", "amount": 150 }, { "name": "豆腐", "amount": 300 }, { "name": "長ネギ", "amount": 30 }, { "name": "豆板醤", "amount": 10 }, { "name": "甜麺醤", "amount": 15 }, { "name": "鶏ガラスープ", "amount": 150 }, { "name": "片栗粉", "amount": 5 } ] },
-          { "id": "recipe_16", "name": "酢豚", "ingredients": [ { "name": "豚ロース肉", "amount": 250 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "ピーマン", "amount": 50 }, { "name": "人参", "amount": 50 }, { "name": "片栗粉", "amount": 30 }, { "name": "ケチャップ", "amount": 50 }, { "name": "酢", "amount": 40 }, { "name": "砂糖", "amount": 30 }, { "name": "醤油", "amount": 15 } ] },
-          { "id": "recipe_17", "name": "ブリの照り焼き", "ingredients": [ { "name": "ブリの切り身", "amount": 300 }, { "name": "醤油", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "酒", "amount": 15 }, { "name": "砂糖", "amount": 10 } ] },
-          { "id": "recipe_18", "name": "ポークソテー", "ingredients": [ { "name": "豚ロース肉", "amount": 300 }, { "name": "塩", "amount": 3 }, { "name": "こしょう", "amount": 1 }, { "name": "バター", "amount": 10 }, { "name": "醤油", "amount": 15 } ] },
-          { "id": "recipe_19", "name": "カツ丼", "ingredients": [ { "name": "豚カツ", "amount": 200 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "卵", "amount": 150 }, { "name": "だし汁", "amount": 100 }, { "name": "醤油", "amount": 20 }, { "name": "みりん", "amount": 20 }, { "name": "ご飯", "amount": 600 } ] },
-          { "id": "recipe_20", "name": "ポテトサラダ", "ingredients": [ { "name": "じゃがいも", "amount": 400 }, { "name": "きゅうり", "amount": 50 }, { "name": "人参", "amount": 50 }, { "name": "玉ねぎ", "amount": 30 }, { "name": "マヨネーズ", "amount": 80 }, { "name": "塩", "amount": 2 }, { "name": "こしょう", "amount": 1 } ] },
-          { "id": "recipe_21", "name": "ナポリタン", "ingredients": [ { "name": "スパゲッティ", "amount": 200 }, { "name": "玉ねぎ", "amount": 50 }, { "name": "ピーマン", "amount": 30 }, { "name": "ソーセージ", "amount": 50 }, { "name": "ケチャップ", "amount": 100 }, { "name": "バター", "amount": 10 } ] },
-          { "id": "recipe_22", "name": "餃子", "ingredients": [ { "name": "豚ひき肉", "amount": 150 }, { "name": "キャベツ", "amount": 200 }, { "name": "ニラ", "amount": 50 }, { "name": "生姜", "amount": 10 }, { "name": "ニンニク", "amount": 5 }, { "name": "醤油", "amount": 10 }, { "name": "ごま油", "amount": 10 }, { "name": "餃子の皮", "amount": 150 } ] },
-          { "id": "recipe_23", "name": "焼きそば", "ingredients": [ { "name": "中華麺", "amount": 300 }, { "name": "豚バラ肉", "amount": 100 }, { "name": "キャベツ", "amount": 150 }, { "name": "人参", "amount": 50 }, { "name": "もやし", "amount": 50 }, { "name": "焼きそばソース", "amount": 80 }, { "name": "サラダ油", "amount": 15 } ] },
-          { "id": "recipe_24", "name": "クリームシチュー", "ingredients": [ { "name": "鶏もも肉", "amount": 200 }, { "name": "じゃがいも", "amount": 150 }, { "name": "人参", "amount": 100 }, { "name": "玉ねぎ", "amount": 150 }, { "name": "牛乳", "amount": 400 }, { "name": "水", "amount": 200 }, { "name": "シチューのルー", "amount": 80 } ] },
-          { "id": "recipe_25", "name": "オムライス", "ingredients": [ { "name": "ご飯", "amount": 400 }, { "name": "鶏もも肉", "amount": 80 }, { "name": "玉ねぎ", "amount": 50 }, { "name": "ケチャップ", "amount": 50 }, { "name": "卵", "amount": 150 }, { "name": "牛乳", "amount": 15 }, { "name": "サラダ油", "amount": 15 } ] },
-          { "id": "recipe_26", "name": "味噌汁", "ingredients": [ { "name": "だし汁", "amount": 600 }, { "name": "味噌", "amount": 40 }, { "name": "豆腐", "amount": 100 }, { "name": "わかめ", "amount": 5 }, { "name": "長ネギ", "amount": 20 } ] },
-          { "id": "recipe_27", "name": "天ぷら", "ingredients": [ { "name": "海老", "amount": 150 }, { "name": "かぼちゃ", "amount": 100 }, { "name": "しそ", "amount": 10 }, { "name": "薄力粉", "amount": 80 }, { "name": "卵", "amount": 50 }, { "name": "冷水", "amount": 120 }, { "name": "揚げ油", "amount": 500 } ] },
-          { "id": "recipe_28", "name": "生春巻き", "ingredients": [ { "name": "ライスペーパー", "amount": 40 }, { "name": "海老", "amount": 100 }, { "name": "レタス", "amount": 50 }, { "name": "きゅうり", "amount": 50 }, { "name": "鶏むね肉", "amount": 50 }, { "name": "スイートチリソース", "amount": 50 } ] },
-          { "id": "recipe_29", "name": "ロールキャベツ", "ingredients": [ { "name": "キャベツ", "amount": 300 }, { "name": "合いびき肉", "amount": 200 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "パン粉", "amount": 15 }, { "name": "卵", "amount": 50 }, { "name": "コンソメ", "amount": 5 }, { "name": "水", "amount": 300 } ] },
-          { "id": "recipe_30", "name": "きんぴらごぼう", "ingredients": [ { "name": "ごぼう", "amount": 200 }, { "name": "人参", "amount": 50 }, { "name": "醤油", "amount": 20 }, { "name": "みりん", "amount": 20 }, { "name": "砂糖", "amount": 10 }, { "name": "酒", "amount": 10 }, { "name": "ごま油", "amount": 10 } ] },
-          { "id": "recipe_31", "name": "ガパオライス", "ingredients": [ { "name": "鶏ひき肉", "amount": 250 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "ピーマン", "amount": 50 }, { "name": "バジル", "amount": 10 }, { "name": "オイスターソース", "amount": 20 }, { "name": "ナンプラー", "amount": 10 }, { "name": "ご飯", "amount": 400 }, { "name": "卵", "amount": 100 } ] },
-          { "id": "recipe_32", "name": "ミートソースパスタ", "ingredients": [ { "name": "スパゲッティ", "amount": 200 }, { "name": "合いびき肉", "amount": 150 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "人参", "amount": 50 }, { "name": "カットトマト缶", "amount": 200 }, { "name": "赤ワイン", "amount": 30 }, { "name": "コンソメ", "amount": 3 } ] },
-          { "id": "recipe_33", "name": "エビチリ", "ingredients": [ { "name": "エビ", "amount": 300 }, { "name": "長ネギ", "amount": 30 }, { "name": "生姜", "amount": 10 }, { "name": "ニンニク", "amount": 5 }, { "name": "豆板醤", "amount": 10 }, { "name": "ケチャップ", "amount": 50 }, { "name": "鶏ガラスープ", "amount": 100 }, { "name": "片栗粉", "amount": 5 } ] },
-          { "id": "recipe_34", "name": "アクアパッツァ", "ingredients": [ { "name": "白身魚（切り身）", "amount": 300 }, { "name": "アサリ", "amount": 150 }, { "name": "ミニトマト", "amount": 100 }, { "name": "オリーブ", "amount": 20 }, { "name": "白ワイン", "amount": 50 }, { "name": "オリーブオイル", "amount": 30 }, { "name": "ニンニク", "amount": 10 } ] },
-          { "id": "recipe_35", "name": "サバの味噌煮", "ingredients": [ { "name": "サバ（切り身）", "amount": 300 }, { "name": "味噌", "amount": 50 }, { "name": "砂糖", "amount": 30 }, { "name": "酒", "amount": 30 }, { "name": "みりん", "amount": 30 }, { "name": "水", "amount": 100 }, { "name": "生姜スライス", "amount": 5 } ] },
-          { "id": "recipe_36", "name": "ビビンバ", "ingredients": [ { "name": "ご飯", "amount": 600 }, { "name": "牛ひき肉", "amount": 150 }, { "name": "ほうれん草", "amount": 100 }, { "name": "もやし", "amount": 100 }, { "name": "人参", "amount": 50 }, { "name": "コチュジャン", "amount": 20 }, { "name": "卵", "amount": 100 }, { "name": "ごま油", "amount": 15 } ] },
-          { "id": "recipe_37", "name": "クラムチャウダー", "ingredients": [ { "name": "アサリ缶", "amount": 150 }, { "name": "じゃがいも", "amount": 100 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "ベーコン", "amount": 50 }, { "name": "牛乳", "amount": 300 }, { "name": "薄力粉", "amount": 10 }, { "name": "バター", "amount": 10 } ] },
-          { "id": "recipe_38", "name": "筑前煮（だしなし）", "ingredients": [ { "name": "鶏もも肉", "amount": 200 }, { "name": "ごぼう", "amount": 100 }, { "name": "人参", "amount": 100 }, { "name": "れんこん", "amount": 150 }, { "name": "干ししいたけ", "amount": 10 }, { "name": "こんにゃく", "amount": 100 }, { "name": "水", "amount": 300 }, { "name": "醤油", "amount": 45 }, { "name": "砂糖", "amount": 15 }, { "name": "みりん", "amount": 30 } ] },
-          { "id": "recipe_39", "name": "シュウマイ", "ingredients": [ { "name": "豚ひき肉", "amount": 200 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "片栗粉", "amount": 15 }, { "name": "醤油", "amount": 10 }, { "name": "ごま油", "amount": 10 }, { "name": "酒", "amount": 10 }, { "name": "シュウマイの皮", "amount": 80 } ] },
-          { "id": "recipe_40", "name": "かぼちゃの煮物", "ingredients": [ { "name": "かぼちゃ", "amount": 400 }, { "name": "だし汁", "amount": 200 }, { "name": "醤油", "amount": 20 }, { "name": "みりん", "amount": 20 }, { "name": "砂糖", "amount": 10 } ] },
-          { "id": "recipe_41", "name": "ラタトゥイユ", "ingredients": [ { "name": "ナス", "amount": 150 }, { "name": "ズッキーニ", "amount": 150 }, { "name": "パプリカ", "amount": 100 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "カットトマト缶", "amount": 200 }, { "name": "オリーブオイル", "amount": 30 }, { "name": "ニンニク", "amount": 5 } ] },
-          { "id": "recipe_42", "name": "ひじきの煮物", "ingredients": [ { "name": "乾燥ひじき", "amount": 10 }, { "name": "油揚げ", "amount": 30 }, { "name": "人参", "amount": 50 }, { "name": "だし汁", "amount": 100 }, { "name": "醤油", "amount": 15 }, { "name": "みりん", "amount": 15 }, { "name": "砂糖", "amount": 5 } ] },
-          { "id": "recipe_43", "name": "チキンソテー", "ingredients": [ { "name": "鶏もも肉", "amount": 300 }, { "name": "塩", "amount": 3 }, { "name": "こしょう", "amount": 1 }, { "name": "オリーブオイル", "amount": 20 }, { "name": "バター", "amount": 10 }, { "name": "レモン汁", "amount": 5 } ] },
-          { "id": "recipe_44", "name": "トースト", "ingredients": [ { "name": "食パン（6枚切り）", "amount": 60 }, { "name": "バター", "amount": 10 }, { "name": "ジャム", "amount": 15 } ] },
-          { "id": "recipe_45", "name": "フレンチトースト", "ingredients": [ { "name": "食パン（6枚切り）", "amount": 60 }, { "name": "卵", "amount": 50 }, { "name": "牛乳", "amount": 50 }, { "name": "砂糖", "amount": 10 }, { "name": "バター", "amount": 10 } ] },
-          { "id": "recipe_46", "name": "ほうれん草の胡麻和え", "ingredients": [ { "name": "ほうれん草", "amount": 200 }, { "name": "すりごま", "amount": 15 }, { "name": "醤油", "amount": 10 }, { "name": "砂糖", "amount": 5 } ] },
-          { "id": "recipe_47", "name": "豚キムチ", "ingredients": [ { "name": "豚バラ肉", "amount": 200 }, { "name": "キムチ", "amount": 150 }, { "name": "玉ねぎ", "amount": 50 }, { "name": "醤油", "amount": 10 }, { "name": "ごま油", "amount": 10 } ] },
-          { "id": "recipe_48", "name": "タコライス", "ingredients": [ { "name": "ご飯", "amount": 400 }, { "name": "合いびき肉", "amount": 150 }, { "name": "レタス", "amount": 50 }, { "name": "トマト", "amount": 50 }, { "name": "チーズ", "amount": 30 }, { "name": "タコシーズニング", "amount": 10 } ] },
-          { "id": "recipe_49", "name": "ポトフ", "ingredients": [ { "name": "鶏もも肉", "amount": 150 }, { "name": "じゃがいも", "amount": 150 }, { "name": "人参", "amount": 100 }, { "name": "玉ねぎ", "amount": 100 }, { "name": "キャベツ", "amount": 150 }, { "name": "水", "amount": 400 }, { "name": "コンソメ", "amount": 5 } ] },
-          { "id": "recipe_50", "name": "パエリア", "ingredients": [ { "name": "米", "amount": 300 }, { "name": "鶏肉", "amount": 100 }, { "name": "エビ", "amount": 100 }, { "name": "アサリ", "amount": 100 }, { "name": "玉ねぎ", "amount": 80 }, { "name": "パプリカ", "amount": 50 }, { "name": "サフラン", "amount": 1 }, { "name": "水", "amount": 400 }, { "name": "オリーブオイル", "amount": 30 } ] }
+          { 
+              "id": "recipe_01", 
+              "name": "肉じゃが (4人前ベース)", 
+              "servings": 4, 
+              "unitPreference": "g",
+              "ingredients": [ 
+                  { "name": "じゃがいも", "amount": 75 },
+                  { "name": "牛肉", "amount": 50 },
+                  { "name": "玉ねぎ", "amount": 37.5 },
+                  { "name": "人参", "amount": 25 },
+                  { "name": "醤油", "amount": 11.25 },
+                  { "name": "だし汁", "amount": 50 }
+              ] 
+          },
+          { 
+              "id": "recipe_02", 
+              "name": "ペペロンチーノ (2人前ベース)", 
+              "servings": 2, 
+              "unitPreference": "g",
+              "ingredients": [ 
+                  { "name": "スパゲッティ", "amount": 100 },
+                  { "name": "オリーブオイル", "amount": 25, "unit": "cc" },
+                  { "name": "にんにく", "amount": 5 }, 
+                  { "name": "鷹の爪", "amount": 0.5, "unit": "個" },
+                  { "name": "塩", "amount": 2.5 } 
+              ] 
+          },
+          { 
+              "id": "recipe_03", 
+              "name": "味噌汁 (2人前ベース)", 
+              "servings": 2, 
+              "unitPreference": "g",
+              "ingredients": [ 
+                  { "name": "だし汁", "amount": 300 },
+                  { "name": "味噌", "amount": 20 }, 
+                  { "name": "豆腐", "amount": 50 }, 
+                  { "name": "わかめ(乾燥)", "amount": 2.5 }, 
+                  { "name": "長ネギ", "amount": 10 } 
+              ] 
+          }
         ];
     }
     </script>
