@@ -18,51 +18,67 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #48c6ef 0%, #6f86d6 100%);
-            /* 下部のテンキー+フッター分の余白を確保 */
-            padding: 10px 10px 320px 10px; 
-            min-height: 100vh; 
+            /* 【調整点1】全体のフォントサイズを小さくし、高さを節約 */
+            font-size: 14px; 
+            /* 画面全体にコンテンツを合わせるため、padding-bottomを削除し、コンテナ側のmarginで制御 */
+            padding: 5px; 
+            min-height: 100vh;
+            /* スクロールを無効化 */
+            overflow: hidden; 
         }
 
         .container {
             background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            padding: 20px;
+            border-radius: 10px; /* 角を小さく */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            padding: 10px; /* パディングを小さく */
             max-width: 400px;
             width: 100%;
-            margin: 0 auto; /* 中央揃え */
+            margin: 0 auto;
+            /* 【調整点2】全体の高さをvhで設定し、下部のフッターとキーパッドの分だけ引く */
+            /* 100vh - (フッター高さ + キーパッド高さ + マージン) = 100vh - (40px + 270px + 10px) = 68vh */
+            height: calc(100vh - 320px); 
+            display: flex;
+            flex-direction: column;
         }
 
         /* 2. ヘッダーとタイトル */
         h1 {
             text-align: center;
             color: #2c3e50;
-            margin-bottom: 5px;
-            font-size: 24px;
+            margin-bottom: 2px;
+            font-size: 22px; /* 縮小 */
             font-weight: 700;
         }
         
         .subtitle {
             text-align: center;
             color: #7f8c8d;
-            margin-bottom: 15px;
-            font-size: 14px;
+            margin-bottom: 8px; /* 縮小 */
+            font-size: 12px; /* 縮小 */
         }
 
         /* 3. セクションとグリッド */
         .section-title {
-            font-size: 16px;
+            font-size: 15px; /* 縮小 */
             color: #48c6ef;
-            margin: 15px 0 8px 0;
+            margin: 5px 0 3px 0; /* 縮小 */
             font-weight: 700;
             border-bottom: 1px solid #ecf0f1;
-            padding-bottom: 3px;
+            padding-bottom: 2px;
+        }
+        
+        /* 【調整点3】金種一覧コンテナをスクロール可能にし、残りのスペースを埋める */
+        .input-scroll-area {
+            flex-grow: 1; /* 残りのスペースを全て占有 */
+            overflow-y: scroll; /* スクロール可能にする */
+            padding-right: 5px; /* スクロールバー分のスペース */
         }
         
         .denominations-grid {
             display: grid;
             grid-template-columns: 1fr; 
-            gap: 8px;
+            gap: 5px; /* 縮小 */
         }
 
         /* 4. 入力グループと枚数表示 */
@@ -70,58 +86,58 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 15px; /* パディングを調整 */
+            padding: 8px 10px; /* パディングを縮小 */
             background: #ecf0f1;
             border-radius: 6px;
-            cursor: pointer; /* クリック可能であることを示す */
-            border: 2px solid transparent; /* アクティブ表示用 */
+            cursor: pointer;
+            border: 2px solid transparent;
             transition: background 0.1s, border-color 0.2s;
         }
         
         .input-group.active {
-            background: #d4edff; /* アクティブ時の背景色 */
-            border-color: #48c6ef; /* アクティブ時のボーダー */
+            background: #d4edff;
+            border-color: #48c6ef;
         }
         
         .denomination-label {
             flex-grow: 1;
             font-weight: 600;
             color: #2c3e50;
-            font-size: 16px; 
+            font-size: 14px; /* 縮小 */
         }
         
         .label-currency {
-            font-size: 12px;
+            font-size: 11px; /* 縮小 */
             color: #7f8c8d;
             margin-left: 5px;
         }
         
         .count-display {
-            font-size: 18px;
+            font-size: 16px; /* 縮小 */
             font-weight: 700;
             color: #2c3e50;
-            min-width: 50px;
+            min-width: 45px; /* 縮小 */
             text-align: right;
-            padding: 2px 5px;
+            padding: 2px 4px; /* 縮小 */
             background: white;
             border-radius: 4px;
         }
 
         /* 5. 入力フィールド (非表示化) */
         input[type="number"] {
-            display: none; /* 入力窓を完全に非表示 */
+            display: none;
         }
 
         /* 6. リセットボタン */
         .reset-button-container {
             text-align: center;
-            margin-top: 10px; 
-            margin-bottom: 20px; 
+            margin-top: 5px; /* 縮小 */
+            margin-bottom: 5px; /* 縮小 */
         }
         
         #reset-all {
-            padding: 8px 15px; 
-            font-size: 14px;
+            padding: 6px 12px; /* 縮小 */
+            font-size: 13px; /* 縮小 */
             background: #e74c3c;
             color: white;
             border: none;
@@ -133,30 +149,32 @@
         /* 7. 合計金額の固定フッター */
         .fixed-total-footer {
             position: fixed;
-            bottom: 250px; /* テンキーの上部に配置 */
+            /* 【調整点4】キーパッド(220px) + キーパッドのパディング(10px) + フッター自身の高さ(40px) = 270px */
+            bottom: 270px; 
             left: 0;
             width: 100%;
-            background: #f8f8f8; /* 背景色を追加 */
-            padding: 10px 0;
+            background: #f8f8f8;
+            padding: 5px 0; /* 縮小 */
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); 
             z-index: 1000;
             text-align: center;
+            height: 40px; /* 高さを固定 */
         }
         
         .total-amount-display {
             background: #2ecc71;
             color: white;
-            padding: 12px 20px;
-            border-radius: 10px;
-            font-size: 20px;
+            padding: 6px 15px; /* 縮小 */
+            border-radius: 8px; /* 縮小 */
+            font-size: 18px; /* 縮小 */
             font-weight: 700;
             display: inline-block; 
-            width: 90%;
+            width: 95%;
             max-width: 380px;
             box-shadow: 0 3px 8px rgba(46, 204, 113, 0.4);
         }
 
-        /* 8. テンキーパッド (新規) */
+        /* 8. テンキーパッド */
         .keypad-container {
             position: fixed;
             bottom: 0;
@@ -165,13 +183,14 @@
             z-index: 2000;
             background: #ecf0f1;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-            padding: 10px;
+            padding: 5px; /* 縮小 */
+            height: 270px; /* 【調整点5】キーパッドの高さを固定 */
         }
 
         .keypad {
             display: grid;
-            grid-template-columns: repeat(4, 1fr); /* 4列構成 */
-            gap: 8px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px; /* 縮小 */
             max-width: 400px;
             margin: 0 auto;
         }
@@ -180,14 +199,14 @@
             background: white;
             color: #333;
             border: none;
-            border-radius: 8px;
-            padding: 15px 0;
-            font-size: 22px;
+            border-radius: 6px; /* 縮小 */
+            padding: 10px 0; /* 縮小 */
+            font-size: 20px; /* 縮小 */
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 3px 0 #bdc3c7;
+            box-shadow: 0 2px 0 #bdc3c7; /* 縮小 */
             transition: background 0.1s;
-            height: 55px;
+            height: 50px; /* 縮小 */
         }
         
         /* 0ボタンを2列に広げる */
@@ -200,19 +219,19 @@
         .keypad button.key-back {
             background: #95a5a6;
             color: white;
-            box-shadow: 0 3px 0 #7f8c8d;
+            box-shadow: 0 2px 0 #7f8c8d;
         }
         
         /* 次へボタン (✓) の色 */
         .keypad button.key-enter {
-            background: #3498db; /* 青系統 */
+            background: #3498db;
             color: white;
-            box-shadow: 0 3px 0 #2980b9;
+            box-shadow: 0 2px 0 #2980b9;
         }
 
         .keypad button:active {
             box-shadow: 0 1px 0 #bdc3c7;
-            transform: translateY(2px);
+            transform: translateY(1px);
             background: #e0e0e0;
         }
         
@@ -233,19 +252,21 @@
         <h1>🔢 金種集計計算機</h1>
         <p class="subtitle">金種をタップし、テンキーで枚数を入力</p>
 
-        <div class="section-title">💵 お札 (Bills)</div>
-        <div class="denominations-grid" id="bills-input">
-            </div>
+        <div class="input-scroll-area">
+            <div class="section-title">💵 お札 (Bills)</div>
+            <div class="denominations-grid" id="bills-input">
+                </div>
 
-        <div class="section-title">🪙 硬貨 (Coins)</div>
-        <div class="denominations-grid" id="coins-input">
+            <div class="section-title">🪙 硬貨 (Coins)</div>
+            <div class="denominations-grid" id="coins-input">
+                </div>
+        
+            <div class="reset-button-container">
+                <button id="reset-all">全ての枚数をリセット</button>
             </div>
-        
-        <div class="reset-button-container">
-             <button id="reset-all">全ての枚数をリセット</button>
+            
+            <div class="result-section"></div>
         </div>
-        
-        <div class="result-section"></div>
     </div>
     
     <div class="fixed-total-footer">
@@ -254,20 +275,24 @@
     
     <div class="keypad-container">
         <div class="keypad">
-            <button class="key-7" data-key="7">7</button>
+  
+           <button class="key-7" data-key="7">7</button>
             <button class="key-8" data-key="8">8</button>
             <button class="key-9" data-key="9">9</button>
             <button class="key-clear" data-key="C">C</button>
             
             <button class="key-4" data-key="4">4</button>
             <button class="key-5" data-key="5">5</button>
+      
             <button class="key-6" data-key="6">6</button>
             <button class="key-back" data-key="DEL">DEL</button>
             
             <button class="key-1" data-key="1">1</button>
             <button class="key-2" data-key="2">2</button>
-            <button class="key-3" data-key="3">3</button>
-            <button class="key-enter" data-key="NEXT">✓</button> <button class="key-0" data-key="0">0</button>
+            <button class="key-3" data-key="3"></button>
+            <button class="key-enter" data-key="NEXT">✓</button> 
+            <button class="key-0" data-key="0">0</button>
+       
             <button class="key-000" data-key="000">000</button>
         </div>
     </div>
@@ -278,7 +303,6 @@
             bills: [10000, 5000, 2000, 1000],
             coins: [500, 100, 50, 10, 5, 1]
         };
-
         // DOM要素の取得
         const billsInputDiv = document.getElementById('bills-input');
         const coinsInputDiv = document.getElementById('coins-input');
@@ -286,8 +310,10 @@
         const resetButton = document.getElementById('reset-all');
         const keypad = document.querySelector('.keypad');
 
-        let allInputs = [];     // 全ての非表示input要素を格納する配列
-        let activeInput = null; // 現在入力中の金種に対応する非表示のinput要素
+        let allInputs = [];
+        // 全ての非表示input要素を格納する配列
+        let activeInput = null;
+        // 現在入力中の金種に対応する非表示のinput要素
 
         // 金種入力フィールドの生成とイベントリスナーの設定
         function setupInputs() {
@@ -296,23 +322,19 @@
                 const inputGroup = createInputGroup(denom, '札');
                 billsInputDiv.appendChild(inputGroup);
             });
-
             // 硬貨の生成
             denominations.coins.forEach(denom => {
                 const inputGroup = createInputGroup(denom, '玉');
                 coinsInputDiv.appendChild(inputGroup);
             });
-            
             // 全ての input を取得し、allInputs配列に格納
             allInputs = Array.from(document.querySelectorAll('.count-input'));
-            
             // 全ての入力グループにクリックリスナーを追加
             document.querySelectorAll('.input-group').forEach(group => {
                 group.addEventListener('click', () => {
                     setActiveInput(group.querySelector('.count-input'));
                 });
             });
-            
             // 初期アクティブ設定 (最上位の金種)
             setActiveInput(document.getElementById('denom-10000'));
         }
@@ -335,7 +357,8 @@
             input.setAttribute('data-value', value);
             input.placeholder = '0';
             input.min = '0';
-            input.value = ''; // 初期値は空
+            input.value = '';
+            // 初期値は空
 
             // 2. 枚数表示用のspan (ユーザーに見せる部分)
             const displaySpan = document.createElement('span');
@@ -344,7 +367,8 @@
             displaySpan.id = `display-${value}`;
 
             group.appendChild(label);
-            group.appendChild(input); // 非表示だが、DOMに追加
+            group.appendChild(input);
+            // 非表示だが、DOMに追加
             group.appendChild(displaySpan);
             
             return group;
@@ -363,7 +387,19 @@
             activeGroup.classList.add('active');
             
             // 画面をスクロールしてアクティブな要素が見えるようにする (UX向上)
-            activeGroup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // ※スクロールが有効になっているのは input-scroll-area の中だけなので、その中の要素でスクロールする
+            const scrollArea = activeGroup.closest('.input-scroll-area');
+            if (scrollArea) {
+                // スクロールエリア内での位置に調整
+                const groupRect = activeGroup.getBoundingClientRect();
+                const scrollAreaRect = scrollArea.getBoundingClientRect();
+                const relativeTop = groupRect.top - scrollAreaRect.top + scrollArea.scrollTop;
+                
+                // 中央に表示されるように調整 (groupRect.heightを考慮)
+                const targetScrollTop = relativeTop - (scrollAreaRect.height / 2) + (groupRect.height / 2);
+                
+                scrollArea.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+            }
         }
 
         // テンキーからの入力を処理する関数
@@ -390,7 +426,7 @@
                     }
                     break;
                 case '000':
-                     // 1桁目が0でない、かつ最大桁数を超えない
+                    // 1桁目が0でない、かつ最大桁数を超えない
                     if (currentValue !== '' && currentValue !== '0' && currentValue.length <= 7) {
                         currentValue += '000';
                     } else if (currentValue === '') {
@@ -398,10 +434,12 @@
                     }
                     break;
                 case 'C':
-                    currentValue = ''; // クリア
+                    currentValue = '';
+                    // クリア
                     break;
                 case 'DEL':
-                    currentValue = currentValue.slice(0, -1); // 最後の1文字を削除
+                    currentValue = currentValue.slice(0, -1);
+                    // 最後の1文字を削除
                     break;
                 case 'NEXT':
                     // レ点ボタンで次の金種へ移動
@@ -415,20 +453,15 @@
 
             // 値を更新
             activeInput.value = currentValue;
-            
             // 表示を更新
             const displaySpan = document.getElementById(`display-${activeInput.getAttribute('data-value')}`);
             displaySpan.textContent = (currentValue === '' ? '0' : parseInt(currentValue).toLocaleString()) + '枚';
-
             // 合計金額を計算
             calculateTotal();
         });
-
-
         // 合計金額を計算する関数 - 機能は変更せず維持
         function calculateTotal() {
             let total = 0;
-            
             document.querySelectorAll('.count-input').forEach(input => {
                 // 機能維持のため形式的に残す
                 const rawValue = input.value.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
@@ -442,7 +475,6 @@
                      total += count * value;
                 }
             });
-            
             // 合計金額を更新
             totalAmountSpan.textContent = total.toLocaleString();
         }
@@ -458,7 +490,6 @@
             calculateTotal(); 
             setActiveInput(document.getElementById('denom-10000')); // 1万円札をアクティブに
         });
-
         // 初期化
         setupInputs();
         calculateTotal();
