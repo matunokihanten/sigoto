@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スマホ最適 金種集計計算機</title>
+    <style>
+        /* 1. 基本設定とリセット */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #48c6ef 0%, #6f86d6 100%);
+            /* スクロール防止のため、最小の高さをビューポートの高さに固定 */
+            min-height: 100vh; 
+            display: flex;
+            justify-content: center;
+            align-items: center; /* 中央揃えを維持 */
+            padding: 10px; /* パディングを最小限に */
+        }
+
+        .container {
+            background: white;
+            border-radius: 15px; /* 角丸を小さく */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* 影を控えめに */
+            padding: 20px; /* 全体のパディングを最小限に */
+            max-width: 400px; /* スマホ幅に制限 */
+            width: 100%;
+        }
+
+        /* 2. ヘッダーとタイトル */
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 5px; /* 余白を削減 */
+            font-size: 24px; /* フォントサイズを小さく */
+            font-weight: 700;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 15px; /* 余白を削減 */
+            font-size: 14px;
+        }
+
+        /* 3. セクションとグリッド */
+        .section-title {
+            font-size: 16px; /* フォントサイズを小さく */
+            color: #48c6ef;
+            margin: 15px 0 8px 0; /* 余白を削減 */
+            font-weight: 700;
+            border-bottom: 1px solid #ecf0f1;
+            padding-bottom: 3px;
+        }
+        
+        /* スマホ対応: 1列表示に固定して高さを節約 */
+        .denominations-grid {
+            display: grid;
+            grid-template-columns: 1fr; /* 1列に固定 */
+            gap: 8px; /* ギャップを小さく */
+        }
+
+        /* 4. 入力グループ */
+        .input-group {
+            display: flex;
+            align-items: center;
+            padding: 8px; /* パディングを小さく */
+            background: #ecf0f1;
+            border-radius: 6px;
+        }
+
+        .denomination-label {
+            flex-grow: 1;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 15px; /* フォントサイズを小さく */
+        }
+        
+        .label-currency {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-left: 5px;
+        }
+
+        /* 5. 入力フィールド */
+        input[type="number"] {
+            width: 70px; /* 幅を小さく */
+            padding: 5px; /* パディングを小さく */
+            font-size: 15px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            text-align: right;
+            -moz-appearance: textfield;
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #48c6ef;
+        }
+
+        /* 6. 結果表示セクション */
+        .result-section {
+            margin-top: 15px; /* 余白を削減 */
+            padding-top: 10px;
+            border-top: 1px solid #bdc3c7;
+        }
+
+        .total-amount-display {
+            background: #2ecc71;
+            color: white;
+            padding: 12px; /* パディングを小さく */
+            border-radius: 10px;
+            text-align: center;
+            font-size: 20px; /* フォントサイズを小さく */
+            font-weight: 700;
+            box-shadow: 0 3px 8px rgba(46, 204, 113, 0.4);
+        }
+        
+        /* 7. リセットボタン */
+        .reset-button-container {
+            text-align: center;
+            margin-top: 10px; /* 余白を削減 */
+        }
+        
+        #reset-all {
+            padding: 8px 15px; /* パディングを小さく */
+            font-size: 14px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔢 金種集計計算機</h1>
+        <p class="subtitle">各金種の枚数を入力して合計金額を計算します</p>
+
+        <div class="section-title">💵 お札 (Bills)</div>
+        <div class="denominations-grid" id="bills-input">
+            </div>
+
+        <div class="section-title">🪙 硬貨 (Coins)</div>
+        <div class="denominations-grid" id="coins-input">
+            </div>
+
+        <div class="result-section">
+            <div class="total-amount-display">合計金額: <span id="total-amount">0</span> 円</div>
+        </div>
+        
+        <div class="reset-button-container">
+             <button id="reset-all">全ての枚数をリセット</button>
+        </div>
+    </div>
+    <script>
+        // 日本の金種 (お札と硬貨) - 機能は変更せず維持
+        const denominations = {
+            bills: [10000, 5000, 2000, 1000],
+            coins: [500, 100, 50, 10, 5, 1]
+        };
+
+        // DOM要素の取得
+        const billsInputDiv = document.getElementById('bills-input');
+        const coinsInputDiv = document.getElementById('coins-input');
+        const totalAmountSpan = document.getElementById('total-amount');
+        const resetButton = document.getElementById('reset-all');
+
+        // 金種入力フィールドの生成とイベントリスナーの設定
+        function setupInputs() {
+            // お札の生成
+            denominations.bills.forEach(denom => {
+                const inputGroup = createInputGroup(denom, '札');
+                billsInputDiv.appendChild(inputGroup);
+            });
+
+            // 硬貨の生成
+            denominations.coins.forEach(denom => {
+                const inputGroup = createInputGroup(denom, '玉');
+                coinsInputDiv.appendChild(inputGroup);
+            });
+            
+            // 全ての入力フィールドを取得し、イベントリスナーを追加
+            document.querySelectorAll('.count-input').forEach(input => {
+                input.addEventListener('input', calculateTotal);
+            });
+        }
+        
+        // 個別の入力グループを生成するヘルパー関数
+        function createInputGroup(value, type) {
+            const group = document.createElement('div');
+            group.className = 'input-group';
+            
+            const label = document.createElement('span');
+            label.className = 'denomination-label';
+            label.innerHTML = `${value.toLocaleString()}円${type} <span class="label-currency">(枚)</span>`;
+            
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.className = 'count-input';
+            input.id = `denom-${value}`;
+            input.setAttribute('data-value', value);
+            input.placeholder = '0';
+            input.min = '0';
+            
+            group.appendChild(label);
+            group.appendChild(input);
+            
+            return group;
+        }
+
+        // 合計金額を計算する関数 - 機能は変更せず維持
+        function calculateTotal() {
+            let total = 0;
+            
+            // 全ての入力フィールドをループ
+            document.querySelectorAll('.count-input').forEach(input => {
+                // 入力値を取得し、全角数字を半角に変換 (UX向上機能は維持)
+                const rawValue = input.value.replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+                
+                // 入力値は変更せず、計算のみに使用
+                
+                const count = parseInt(rawValue) || 0; // 無効な値は0として扱う
+                const value = parseInt(input.getAttribute('data-value'));
+                
+                // 負の数を防ぐ
+                if (count < 0) {
+                     // 入力は0に戻すが、計算自体は現在の値を反映させる
+                     // input.value = 0; // スムーズな入力を優先し、この行をコメントアウト
+                     total += 0;
+                } else {
+                     total += count * value;
+                }
+            });
+            
+            // 合計金額を更新
+            totalAmountSpan.textContent = total.toLocaleString();
+        }
+        
+        // リセットボタンの処理 - 機能は変更せず維持
+        resetButton.addEventListener('click', () => {
+            document.querySelectorAll('.count-input').forEach(input => {
+                input.value = ''; // 値をクリア
+            });
+            calculateTotal(); // 合計を再計算（0になる）
+            document.getElementById('denom-10000').focus(); // 1万円札にフォーカスを戻す
+        });
+
+        // 初期化
+        setupInputs();
+        calculateTotal(); // 初期表示で0円であることを確認
+    </script>
+</body>
+</html>
