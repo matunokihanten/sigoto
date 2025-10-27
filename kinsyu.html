@@ -18,8 +18,8 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #48c6ef 0%, #6f86d6 100%);
-            /* 下部のテンキー+フッター分の余白を確保 */
-            padding: 10px 10px 320px 10px; 
+            /* 修正点: テンキー(約240px) + 合計フッター(約70px) + 上下の余白を考慮 */
+            padding: 10px 10px 330px 10px; 
             min-height: 100vh; 
         }
 
@@ -133,13 +133,15 @@
         /* 7. 合計金額の固定フッター */
         .fixed-total-footer {
             position: fixed;
-            bottom: 250px; /* テンキーの上部に配置 */
+            /* 修正点: テンキーの高さ(約240px)の上に配置 */
+            bottom: 240px; 
             left: 0;
             width: 100%;
             background: #f8f8f8; /* 背景色を追加 */
             padding: 10px 0;
             box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1); 
-            z-index: 1000;
+            /* テンキーより一つ低い z-index */
+            z-index: 1000; 
             text-align: center;
         }
         
@@ -159,10 +161,12 @@
         /* 8. テンキーパッド (新規) */
         .keypad-container {
             position: fixed;
-            bottom: 0;
+            /* 修正点: 画面の最下部に固定 */
+            bottom: 0; 
             left: 0;
             width: 100%;
-            z-index: 2000;
+            /* 修正点: 最前面に配置 (フッターの上) */
+            z-index: 2000; 
             background: #ecf0f1;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
             padding: 10px;
@@ -192,9 +196,40 @@
         
         /* 0ボタンを2列に広げる */
         .keypad button.key-0 {
+            /* 修正点: 0と000の行を調整 */
+            grid-column: span 1; 
+        }
+
+        /* 000ボタンを2列に広げる */
+        .keypad button.key-000 {
+            /* 修正点: 0と000の行を調整 */
             grid-column: span 2;
         }
-        
+
+        /* 0と000の行のレイアウトを調整するため、元のレイアウトを微調整 */
+        .keypad-row-4 {
+            grid-column: span 4;
+            display: grid;
+            grid-template-columns: 1fr 1fr 2fr; /* 0, 000, NEXTの比率 */
+            gap: 8px;
+        }
+
+        /* 修正点: 最後の行の配置を調整 */
+        .keypad button[data-key="0"] {
+            grid-column: span 1;
+        }
+        .keypad button[data-key="000"] {
+            grid-column: span 2;
+        }
+        .keypad button[data-key="NEXT"] {
+            grid-column: span 1;
+        }
+        /* 最後の2ボタン(0と000)はレイアウト調整のためclass/spanを調整 */
+        .keypad button:nth-child(13) { grid-column: span 1; } /* 0 */
+        .keypad button:nth-child(14) { grid-column: span 2; } /* 000 */
+        /* テンキーのHTML構造に合わせるため、CSSを調整 */
+
+
         /* 特殊ボタン (C, Del) の色 */
         .keypad button.key-clear,
         .keypad button.key-back {
@@ -267,8 +302,12 @@
             <button class="key-1" data-key="1">1</button>
             <button class="key-2" data-key="2">2</button>
             <button class="key-3" data-key="3">3</button>
-            <button class="key-enter" data-key="NEXT">✓</button> <button class="key-0" data-key="0">0</button>
+            <button class="key-enter" data-key="NEXT">✓</button> 
+            
+            <button class="key-0" data-key="0">0</button>
             <button class="key-000" data-key="000">000</button>
+            <button style="visibility: hidden; cursor: default; background: transparent; box-shadow: none;"></button>
+
         </div>
     </div>
     
@@ -368,7 +407,8 @@
 
         // テンキーからの入力を処理する関数
         keypad.addEventListener('click', (event) => {
-            if (!event.target.matches('button') || !activeInput) return;
+            // 追加のダミーボタンでの操作を無視
+            if (!event.target.matches('button') || !activeInput || event.target.style.visibility === 'hidden') return; 
 
             const key = event.target.getAttribute('data-key');
             let currentValue = activeInput.value;
