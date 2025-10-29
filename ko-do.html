@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>豪華HTMLエディター</title>
+  <title>豪華HTMLエディター (タブ機能・改善版)</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css">
@@ -320,6 +320,88 @@
         margin: 5% auto;
       }
     }
+    
+    /* --- タブ機能のスタイル --- */
+    .tab-bar {
+      display: flex;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding: 0 10px;
+      background-color: #263238;
+      border-bottom: 1px solid #455A64;
+      white-space: nowrap;
+      scrollbar-width: none; /* Firefox */
+    }
+    .tab-bar::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+
+    .tab {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      cursor: pointer;
+      background-color: #37474F;
+      border: 1px solid #455A64;
+      border-bottom: none;
+      margin-right: 5px;
+      border-radius: 6px 6px 0 0;
+      font-size: 0.9em;
+      transition: background-color 0.2s, color 0.2s;
+      min-width: 100px;
+      max-width: 200px;
+    }
+
+    .tab.active {
+      background-color: #263238;
+      border-color: #2196F3;
+      color: #2196F3;
+      font-weight: bold;
+    }
+
+    .tab:hover:not(.active) {
+      background-color: #455A64;
+    }
+    
+    .tab-title {
+        flex-grow: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding-right: 8px;
+    }
+
+    .tab-close {
+      margin-left: 8px;
+      background: none;
+      border: none;
+      color: #B0BEC5;
+      cursor: pointer;
+      font-size: 1.1em;
+      padding: 0;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+
+    .tab-close:hover {
+      color: #ECEFF1;
+    }
+    
+    .add-tab-btn {
+      background-color: #546E7A;
+      color: #ECEFF1;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 6px 6px 0 0;
+      margin-left: auto;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-size: 1em;
+      line-height: 1;
+    }
+    .add-tab-btn:hover {
+        background-color: #607D8B;
+    }
   </style>
 </head>
 <body>
@@ -366,6 +448,10 @@
     </div>
   </div>
   
+  <div class="tab-bar" id="tabBar">
+    <button id="addTabBtn" class="add-tab-btn" title="新しいタブを追加"><i class="fas fa-plus"></i></button>
+  </div>
+  
   <div class="editor">
     <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
   </div>
@@ -393,13 +479,18 @@
           <li><strong>コピー/貼付け</strong>: エディター内のコードをクリップボードにコピー/貼付けします。</li>
           <li><strong>全削除</strong>: エディター内のコードをすべて消去します。</li>
           <li><strong>保存</strong>: 現在のコードをファイルとしてダウンロードします。</li>
+          <li><strong>タブ</strong>: 複数のファイルを切り替えて編集できます。タブをダブルクリックで名前を変更できます。</li>
+          <li><strong>⭐️新機能⭐️</strong>: HTMLコードを入力すると、自動で`&lt;title&gt;`タグの内容をタブ名に反映します。</li>
         </ul>
         <h3>エディター機能</h3>
         <ul>
           <li><strong>行番号/シンタックスハイライト</strong>: コードの種類に応じて色分け表示します。</li>
           <li><strong>コードの折りたたみ</strong>: 大量のコードをコンパクトに表示します。</li>
           <li><strong>カーソル</strong>: 画面がスクロールしていても、カーソルの位置まで自動で移動します。</li>
-          <li><strong>検索/置換</strong>: コード内の文字列を検索したり、置き換えたりできます。</li>
+          <li><strong>検索/置換</strong>: コード内の文字列を検索したり、置き換えたりできます。<br>
+            <strong>⭐️改善⭐️</strong>: 一致箇所はハイライトされ、**スクロールバーにも表示**されるため、簡単に移動できます。<br>
+            <strong>⭐️改善⭐️</strong>: 「**一括置換**」を実行すると、**置換した件数**が表示されます。
+          </li>
           <li><strong>コメント</strong>: 選択範囲やカーソル行をコメントアウト/アンコメントします。</li>
         </ul>
       </div>
@@ -426,6 +517,53 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
 
   <script>
+    // 検索・置換の件数表示機能（グローバルに関数をラップ）
+    (function() {
+        /**
+         * @param {string} query - 検索文字列
+         * @param {CodeMirror.Editor} cmInstance - CodeMirrorインスタンス
+         * @returns {number} - 一致した件数
+         */
+        function countOccurrences(query, cmInstance) {
+           if (!query || query === "") return 0;
+           let count = 0;
+           // 検索カーソルをドキュメントの最初から開始
+           const cursor = cmInstance.getSearchCursor(query, {line: 0, ch: 0});
+           while (cursor.findNext()) {
+               count++;
+           }
+           return count;
+        }
+
+        // 'replaceAll' コマンドをラップして件数を表示
+        const originalReplaceAll = CodeMirror.commands.replaceAll;
+        CodeMirror.commands.replaceAll = function(cm) {
+            let count = 0;
+            let query = "";
+            
+            // ダイアログから現在のクエリを取得
+            if (cm.state.search && cm.state.search.query) {
+                query = cm.state.search.query;
+            } else if (cm.state.dialog && cm.state.dialog.lastSearch) {
+                query = cm.state.dialog.lastSearch.query;
+            }
+            
+            if (query) {
+               count = countOccurrences(query, cm);
+            }
+
+            // 元の replaceAll を実行
+            originalReplaceAll.apply(this, arguments);
+            
+            if (count > 0) {
+                // showMessage はグローバルスコープで定義されるため、ここでは呼び出せる
+                showMessage(`${count}件を置換しました`, "success");
+            } else if (query) {
+                showMessage("置換対象は見つかりませんでした", "error");
+            }
+        };
+    })();
+
     var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
       mode: "htmlmixed",
       lineNumbers: true,
@@ -434,11 +572,11 @@
       matchBrackets: true,
       matchTags: { bothTags: true },
       styleActiveLine: true,
-      highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true},
+      // ⭐️改善⭐️: matchesonscrollbar: true でスクロールバーに一致箇所を表示
+      highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}, 
       extraKeys: {
         "Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); },
         "Ctrl-/": "toggleComment",
-        // 検索・置換のキーバインドを日本語環境でも使いやすいように設定（CodeMirrorのデフォルトを使用）
         "Cmd-F": "find",
         "Ctrl-F": "find",
         "Cmd-G": "findNext",
@@ -459,9 +597,12 @@
     }, 100);
 
     const STORAGE_KEY_FAVORITES = "advancedEditorFavorites";
-    const STORAGE_KEY_CODE = "advancedEditorCode";
+    const STORAGE_KEY_TABS = "advancedEditorTabs_v2"; // タブ機能用の新しいキー
+    const STORAGE_KEY_ACTIVE_TAB = "advancedEditorActiveTab_v2";
     const STORAGE_KEY_COLUMNS = "advancedEditorColumns";
     let autoSaveTimer;
+    let titleUpdateTimer; // ⭐️新機能⭐️: <title>タグ自動更新用デバウンスタイマー
+    const titleRegex = /<title\b[^>]*>([\s\S]*?)<\/title>/i; // ⭐️新機能⭐️: <title>タグ抽出用正規表現
 
     const controlsDiv = document.querySelector('.controls');
     const selectAllBtn = document.getElementById('selectAllBtn');
@@ -485,11 +626,19 @@
     const messageArea = document.getElementById('messageArea');
     const columnRadios = document.querySelectorAll('input[name="columnCount"]');
     const root = document.documentElement;
+    const tabBar = document.getElementById('tabBar');
+    const addTabBtn = document.getElementById('addTabBtn');
 
     const favoritesModal = document.getElementById('favoritesModal');
     const favoritesList = document.getElementById('favoritesList');
     const helpModal = document.getElementById('helpModal');
     const closeModalButtons = document.querySelectorAll('.close-button');
+
+    // --- タブ管理用変数 ---
+    let tabs = [];
+    let activeTabIndex = 0;
+    let tabIdCounter = 1;
+
 
     closeModalButtons.forEach(btn => {
       btn.addEventListener('click', () => {
@@ -518,7 +667,7 @@
       autoSaveTimer = setTimeout(() => {
         messageArea.className = '';
         messageArea.textContent = '';
-      }, 2500);
+      }, 3000); // メッセージ表示時間を3秒に延長
     }
 
     /**
@@ -563,12 +712,189 @@
       });
     }
 
-    function initialize() {
-      const savedCode = localStorage.getItem(STORAGE_KEY_CODE);
-      if (savedCode) {
-        cm.setValue(savedCode);
+    // --- タブ機能の実装 ---
+    function loadTabs() {
+      const savedTabs = localStorage.getItem(STORAGE_KEY_TABS);
+      const activeTabId = localStorage.getItem(STORAGE_KEY_ACTIVE_TAB);
+      
+      if (savedTabs) {
+        tabs = JSON.parse(savedTabs);
+        tabIdCounter = tabs.reduce((max, t) => Math.max(max, t.id), 0) + 1;
+        const activeTab = tabs.find(t => t.id == activeTabId);
+        activeTabIndex = activeTab ? tabs.indexOf(activeTab) : 0;
+      }
+
+      if (tabs.length === 0) {
+        tabs.push({ id: tabIdCounter++, title: 'Tab 1', code: '', mode: 'htmlmixed' });
+        activeTabIndex = 0;
       }
       
+      // 以前のストレージキーから移行
+      if (!savedTabs) {
+          const oldCode = localStorage.getItem("advancedEditorCode");
+          if (oldCode) {
+            tabs[0].code = oldCode;
+            localStorage.removeItem("advancedEditorCode"); // 移行完了
+          }
+      }
+    }
+    
+    /**
+     * ⭐️バグ修正⭐️: アクティブタブのコンテンツをCMにロードする処理を分離
+     */
+    function loadActiveTabContent() {
+        if (tabs[activeTabIndex]) {
+            cm.setValue(tabs[activeTabIndex].code);
+            cm.setOption('mode', tabs[activeTabIndex].mode);
+            cm.refresh();
+            cm.focus();
+        }
+    }
+
+    function saveTabs() {
+      if (tabs[activeTabIndex]) {
+          localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
+          localStorage.setItem(STORAGE_KEY_ACTIVE_TAB, tabs[activeTabIndex].id);
+      }
+    }
+
+    function switchTab(index) {
+      if (index === activeTabIndex || index < 0 || index >= tabs.length) return;
+
+      // 現在のアクティブタブの内容を保存
+      tabs[activeTabIndex].code = cm.getValue();
+      tabs[activeTabIndex].mode = cm.getOption('mode');
+
+      activeTabIndex = index;
+      
+      // 新しいタブの内容をロード (⭐️バグ修正⭐️: 分離した関数を使用)
+      loadActiveTabContent(); 
+
+      renderTabs();
+      saveTabs();
+      showMessage(`タブ「${tabs[activeTabIndex].title}」に切り替えました`, "info");
+    }
+    
+    function addTab(title = null, code = '', mode = 'htmlmixed') {
+      const newTitle = title || `Tab ${tabIdCounter}`;
+      const newTab = { id: tabIdCounter++, title: newTitle, code: code, mode: mode };
+      tabs.push(newTab);
+      switchTab(tabs.length - 1); // 新しいタブに切り替え
+    }
+
+    function removeTab(index) {
+      if (tabs.length === 1) {
+        showMessage("最後のタブは削除できません", "error");
+        return;
+      }
+      
+      const removedTitle = tabs[index].title;
+      tabs.splice(index, 1);
+      
+      if (index <= activeTabIndex) {
+        activeTabIndex = Math.max(0, activeTabIndex - 1);
+      }
+      
+      // 削除後のアクティブタブを再ロード (⭐️バグ修正⭐️: 分離した関数を使用)
+      loadActiveTabContent();
+
+      renderTabs();
+      saveTabs();
+      showMessage(`タブ「${removedTitle}」を削除しました`, "info");
+    }
+
+    function renameTab(index) {
+        const currentTitle = tabs[index].title;
+        const newTitle = prompt("新しいタブのタイトルを入力してください:", currentTitle);
+        if (newTitle && newTitle.trim() !== "" && newTitle !== currentTitle) {
+            tabs[index].title = newTitle.trim();
+            renderTabs();
+            saveTabs();
+            showMessage(`タブ名を「${newTitle.trim()}」に変更しました`, "success");
+        } else if (newTitle === "") {
+            showMessage("タイトルが入力されていません", "error");
+        }
+    }
+
+
+    function renderTabs() {
+      const tempDiv = document.createElement('div');
+      
+      tabs.forEach((tab, index) => {
+        const tabEl = document.createElement('div');
+        tabEl.className = `tab ${index === activeTabIndex ? 'active' : ''}`;
+        tabEl.dataset.index = index;
+        tabEl.title = tab.title;
+
+        tabEl.innerHTML = `<span class="tab-title">${tab.title}</span><button class="tab-close" title="閉じる">&times;</button>`;
+        
+        tabEl.addEventListener('click', (e) => {
+            if (e.target.classList.contains('tab-close')) {
+                removeTab(index);
+            } else {
+                switchTab(index);
+            }
+        });
+        
+        // ダブルクリックで名前変更
+        tabEl.addEventListener('dblclick', (e) => {
+            if (!e.target.classList.contains('tab-close')) {
+                renameTab(index);
+            }
+        });
+
+        tempDiv.appendChild(tabEl);
+      });
+      
+      // addTabBtn以外の既存要素を削除
+      while (tabBar.firstChild && tabBar.firstChild !== addTabBtn) {
+        tabBar.removeChild(tabBar.firstChild);
+      }
+      // 作成したタブ要素をaddTabBtnの前に挿入
+      tempDiv.childNodes.forEach(node => {
+        tabBar.insertBefore(node, addTabBtn);
+      });
+      
+      // アクティブなタブがスクロールビューに入るように調整
+      const activeTabEl = tabBar.querySelector('.tab.active');
+      if (activeTabEl) {
+          activeTabEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+      }
+    }
+    
+    /**
+     * ⭐️新機能⭐️: コードの内容から<title>タグを抽出し、タブ名を更新
+     * @param {string} content - CodeMirrorの現在の内容
+     * @param {number} index - 更新対象のタブのインデックス
+     */
+    function updateTabTitleFromContent(content, index) {
+        if (!tabs[index] || tabs[index].mode !== 'htmlmixed') return; // HTMLモードのときのみ実行
+
+        const match = content.match(titleRegex);
+        if (match && match[1]) {
+            let newTitle = match[1].trim();
+            
+            // タイトルが空でない、かつ現在のタブ名と異なる場合のみ更新
+            if (newTitle && newTitle !== tabs[index].title) {
+                // 長すぎるタイトルを丸める
+                if (newTitle.length > 50) newTitle = newTitle.substring(0, 50) + "...";
+                
+                tabs[index].title = newTitle;
+                renderTabs(); // UIを更新
+                saveTabs(); // 保存
+            }
+        }
+    }
+    // --- タブ機能 実装終わり ---
+
+    function initialize() {
+      // --- タブの初期化とロード (⭐️バグ修正⭐️) ---
+      loadTabs(); // 1. tabs配列を準備
+      renderTabs(); // 2. タブのUIを先に描画
+      loadActiveTabContent(); // 3. アクティブタブのコンテンツをCMにロード
+      saveTabs(); // 4. 初期状態を保存
+
+      // --- カラム設定のロード ---
       const savedColumns = localStorage.getItem(STORAGE_KEY_COLUMNS);
       let columnsToUse = savedColumns || '5';
       if (window.innerWidth > 768) {
@@ -579,11 +905,21 @@
         }
       } 
 
-
+      // --- エディタ変更時の処理（タブに保存） ---
       cm.on("change", () => {
-        localStorage.setItem(STORAGE_KEY_CODE, cm.getValue());
+        if (tabs[activeTabIndex]) {
+             tabs[activeTabIndex].code = cm.getValue();
+             tabs[activeTabIndex].mode = cm.getOption('mode');
+             saveTabs(); // タブの内容をローカルストレージに保存
+             
+             // ⭐️新機能⭐️: <title>タグの自動更新（デバウンス付き）
+             clearTimeout(titleUpdateTimer);
+             titleUpdateTimer = setTimeout(() => {
+                 updateTabTitleFromContent(tabs[activeTabIndex].code, activeTabIndex);
+             }, 1500); // 1.5秒待機
+        }
       });
-
+      
       // --- ボタンイベントリスナー ---
       selectAllBtn.addEventListener('click', () => {
         cm.focus();
@@ -601,8 +937,6 @@
           .catch(err => showMessage("コピーに失敗しました", "error"));
       });
       pasteBtn.addEventListener('click', () => {
-        // CodeMirrorの組み込みペーストはキーボードイベント経由でのみ動作するため、
-        // navigator.clipboard.readText() を利用してエディタに直接挿入します。
         navigator.clipboard.readText()
           .then(text => {
             cm.replaceSelection(text);
@@ -610,15 +944,17 @@
             controlsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
           })
           .catch(err => {
-             // ユーザーの許可がない場合や、ブラウザの制限で失敗することがある
              showMessage("貼り付けに失敗しました。クリップボードへのアクセスが許可されているか確認してください。", "error");
           });
       });
       clearAllBtn.addEventListener('click', () => {
-        // 日本語で確認メッセージを表示
         if (confirm("本当にエディタの内容をすべて削除しますか？")) {
           cm.setValue("");
-          localStorage.removeItem(STORAGE_KEY_CODE);
+          // タブの内容もクリアし、保存
+          if (tabs[activeTabIndex]) {
+              tabs[activeTabIndex].code = "";
+              saveTabs();
+          }
           showMessage("全て削除しました", "info");
         }
       });
@@ -636,15 +972,23 @@
         if (file) {
           const reader = new FileReader();
           reader.onload = (evt) => {
-            cm.setValue(evt.target.result);
-            const fileName = file.name.toLowerCase();
-            // ファイル拡張子に基づいてモードを設定（不具合修正）
-            if (fileName.endsWith('.html') || fileName.endsWith('.htm') || fileName.endsWith('.xml')) cm.setOption('mode', 'htmlmixed');
-            else if (fileName.endsWith('.css')) cm.setOption('mode', 'css');
-            else if (fileName.endsWith('.js')) cm.setOption('mode', 'javascript');
-            else if (fileName.endsWith('.xml')) cm.setOption('mode', 'xml');
-            else cm.setOption('mode', null);
-            showMessage(`ファイル「${file.name}」を開きました`, "success");
+            const content = evt.target.result;
+            const fileName = file.name;
+            let fileMode = 'htmlmixed';
+            
+            // ファイル拡張子に基づいてモードを設定
+            if (fileName.endsWith('.css')) fileMode = 'css';
+            else if (fileName.endsWith('.js')) fileMode = 'javascript';
+            else if (fileName.endsWith('.xml')) fileMode = 'xml';
+            else if (!fileName.endsWith('.html') && !fileName.endsWith('.htm')) fileMode = null;
+            
+            // 新規タブとしてファイルを開く
+            addTab(fileName, content, fileMode);
+            
+            // ⭐️新機能⭐️: 読み込み直後に<title>をチェック
+            updateTabTitleFromContent(content, activeTabIndex); 
+            
+            showMessage(`ファイル「${fileName}」を開きました`, "success");
             controlsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
           };
           reader.readAsText(file);
@@ -653,14 +997,26 @@
       });
       saveBtn.addEventListener('click', () => {
         const currentMode = cm.getOption('mode');
-        let fileName, fileType;
-        switch (currentMode) {
-          case 'css': fileName = "style.css"; fileType = "text/css"; break;
-          case 'javascript': fileName = "script.js"; fileType = "application/javascript"; break;
-          case 'xml': fileName = "document.xml"; fileType = "application/xml"; break;
+        // アクティブタブのタイトルをファイル名に利用
+        const currentTitle = tabs[activeTabIndex].title;
+        let fileName = currentTitle, fileType;
+        
+        let inferredMode = currentMode;
+        
+        // モードまたはタブのタイトルからファイルタイプを推測
+        if (currentTitle.toLowerCase().endsWith('.css')) { inferredMode = 'css'; }
+        else if (currentTitle.toLowerCase().endsWith('.js')) { inferredMode = 'javascript'; }
+        else if (currentTitle.toLowerCase().endsWith('.xml')) { inferredMode = 'xml'; }
+        else if (currentTitle.toLowerCase().endsWith('.html') || currentTitle.toLowerCase().endsWith('.htm')) { inferredMode = 'htmlmixed'; }
+
+        switch (inferredMode) {
+          case 'css': fileName = currentTitle.endsWith('.css') ? currentTitle : currentTitle.split('.')[0] + ".css"; fileType = "text/css"; break;
+          case 'javascript': fileName = currentTitle.endsWith('.js') ? currentTitle : currentTitle.split('.')[0] + ".js"; fileType = "application/javascript"; break;
+          case 'xml': fileName = currentTitle.endsWith('.xml') ? currentTitle : currentTitle.split('.')[0] + ".xml"; fileType = "application/xml"; break;
           case 'htmlmixed':
-          default: fileName = "index.html"; fileType = "text/html"; break;
+          default: fileName = (currentTitle.endsWith('.html') || currentTitle.endsWith('.htm')) ? currentTitle : currentTitle.split('.')[0] + ".html"; fileType = "text/html"; break;
         }
+
         const blob = new Blob([cm.getValue()], { type: fileType });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -682,15 +1038,17 @@
         cm.scrollIntoView(null, 20);
         showMessage("カーソル位置へ移動しました", "info");
       });
-      // 検索・置換機能を日本語環境で正しく呼び出すように修正
+      
+      // ⭐️検索・置換機能の改善⭐️
       findBtn.addEventListener('click', () => {
         cm.execCommand("find");
-        showMessage("検索ダイアログを表示しました", "info");
+        showMessage("検索ダイアログを表示。一致箇所はハイライトされ、スクロールバーに表示されます。", "info");
       });
       replaceBtn.addEventListener('click', () => {
         cm.execCommand("replace");
-        showMessage("置換ダイアログを表示しました", "info");
+        showMessage("置換ダイアログを表示。一致箇所はハイライトされ、スクロールバーに表示されます。", "info");
       });
+
       commentBtn.addEventListener('click', () => {
         cm.toggleComment();
         showMessage("コメントの切り替えを行いました", "info");
@@ -702,7 +1060,7 @@
       });
 
       saveFavoriteBtn.addEventListener('click', () => {
-        const title = prompt("お気に入りのタイトルを入力してください:");
+        const title = prompt("お気に入りのタイトルを入力してください:", tabs[activeTabIndex].title); // ⭐️タブ名をデフォルトに
         if (title) {
           const favorites = loadFavorites();
           favorites.unshift({
@@ -744,11 +1102,29 @@
         } else {
           const favorites = loadFavorites();
           const selectedCode = favorites[index].code;
-          cm.setValue(selectedCode);
+          const title = favorites[index].title;
+          
+          let favMode = 'htmlmixed';
+          // ファイル名からモードを推測（簡易的）
+          if (title.toLowerCase().endsWith('.css')) favMode = 'css';
+          else if (title.toLowerCase().endsWith('.js')) favMode = 'javascript';
+          else if (title.toLowerCase().endsWith('.xml')) favMode = 'xml';
+          else if (!title.toLowerCase().endsWith('.html') && !title.toLowerCase().endsWith('.htm')) favMode = null;
+
+          // お気に入りを新しいタブとして開く
+          addTab(title, selectedCode, favMode);
+          
+          // ⭐️新機能⭐️: 読み込み直後に<title>をチェック
+          updateTabTitleFromContent(selectedCode, activeTabIndex);
+
           favoritesModal.style.display = 'none';
-          showMessage(`「${favorites[index].title}」を読み込みました`, "success");
+          showMessage(`「${title}」を新しいタブに読み込みました`, "success");
         }
       });
+      
+      // --- タブボタンのイベントリスナー ---
+      addTabBtn.addEventListener('click', () => addTab());
+      
     }
 
     initialize();
