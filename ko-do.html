@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>豪華HTMLエディター (タブ機能・改善版)</title>
+  <title>豪華HTMLエディター (検索移動追加版)</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css">
@@ -247,31 +247,31 @@
     #favoritesList .delete-btn:hover { background-color: #e53935; }
 
 
-    /* 📱 モバイル対応 (768px以下) */
+    /* 📱 モバイル対応 (768px以下) - 縦画面向けUI調整を適用 */
     @media (max-width: 768px) {
       .controls {
         padding-top: calc(10px + env(safe-area-inset-top, 0px));
         padding-bottom: 10px;
-        gap: 8px; /* モバイルではrunBtnとbutton-rowの隙間を少し狭く */
+        gap: 8px;
       }
       
-      /* モバイルでのボタン群のレイアウト */
+      /* ⭐️UI調整⭐️: モバイルでのボタン群のレイアウトを3列に変更 */
       .button-row {
-        grid-template-columns: repeat(4, 1fr); /* モバイルでは4列固定 */
-        gap: 5px;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px; /* 隙間を広げ、タップしやすくする */
       }
       
+      /* ⭐️UI調整⭐️: ボタンの高さを確保し、タップしやすいように調整 */
       .controls button {
-        /* モバイルではアイコンと文字を縦に並べる */
         flex-direction: column;
         justify-content: center;
-        padding: 5px 3px;
-        font-size: 0.7em;
+        padding: 8px 3px; /* 縦方向のパディングを増やす */
+        font-size: 0.8em; /* 文字サイズを少し大きく */
         min-width: unset;
       }
       .controls button i {
-        font-size: 1.2em;
-        margin-bottom: 2px;
+        font-size: 1.3em; /* アイコンサイズを大きく */
+        margin-bottom: 3px;
       }
       
       /* runBtnは横並びのまま */
@@ -282,24 +282,14 @@
         font-size: 1.1em;
       }
 
-      /* モバイルで不要と判断していたボタンを再度表示 */
-      #selectAllBtn, #deselectAllBtn, #undoBtn, #redoBtn, #scrollToCursorBtn {
-        display: none !important; /* 頻度が低いものは非表示のまま */
-      }
-
-      /* 検索、置換、コピー、貼付けなどの実用的なボタンはモバイルでも表示 */
-      #copyBtn, #pasteBtn, #findBtn, #replaceBtn, #commentBtn {
-          display: flex !important;
-      }
-      
-      /* カラムセレクターはモバイルでは不要なので非表示 */
+      /* カラムセレクターはモバイルでは非表示を維持 */
       .column-selector {
         display: none;
       }
       
-      /* モバイルでのメッセージエリアの位置調整 */
+      /* メッセージエリアの位置調整を維持 */
       #messageArea {
-        top: calc(5px + env(safe-area-inset-top, 0px)); /* コントロールエリアのすぐ下に配置 */
+        top: calc(5px + env(safe-area-inset-top, 0px));
         transform: translateY(0);
         left: 50%;
         transform: translateX(-50%);
@@ -318,6 +308,20 @@
       .modal-content {
         width: 95%;
         margin: 5% auto;
+      }
+
+      /* 非表示ボタンは維持 */
+      #selectAllBtn, #deselectAllBtn, #undoBtn, #redoBtn, #scrollToCursorBtn {
+        display: none !important;
+      }
+      
+      /* ⭐️表示ボタンを明示的に指定 (新規追加ボタンを含む)⭐️ */
+      #copyBtn, #pasteBtn, #findBtn, #replaceBtn, #commentBtn, #saveFavoriteBtn, #showFavoritesBtn, #clearAllBtn, #openFileBtn, #saveBtn, #helpBtn, #findPrevBtn, #findNextBtn {
+          display: flex !important;
+      }
+
+      .tab {
+          padding: 10px 12px;
       }
     }
     
@@ -425,6 +429,8 @@
       <button id="scrollToCursorBtn"><i class="fas fa-location-arrow"></i> カーソル</button>
       <button id="findBtn"><i class="fas fa-search"></i> 検索</button>
       <button id="replaceBtn"><i class="fas fa-exchange-alt"></i> 置換</button>
+      <button id="findPrevBtn"><i class="fas fa-chevron-up"></i> 前へ</button>
+      <button id="findNextBtn"><i class="fas fa-chevron-down"></i> 次へ</button>
       <button id="commentBtn"><i class="fas fa-comment"></i> コメント</button>
       <button id="helpBtn"><i class="fas fa-question-circle"></i> ヘルプ</button>
     </div>
@@ -480,7 +486,7 @@
           <li><strong>全削除</strong>: エディター内のコードをすべて消去します。</li>
           <li><strong>保存</strong>: 現在のコードをファイルとしてダウンロードします。</li>
           <li><strong>タブ</strong>: 複数のファイルを切り替えて編集できます。タブをダブルクリックで名前を変更できます。</li>
-          <li><strong>⭐️新機能⭐️</strong>: HTMLコードを入力すると、自動で`&lt;title&gt;`タグの内容をタブ名に反映します。</li>
+          <li>**自動タブ名** : HTMLコードを入力すると、自動で`&lt;title&gt;`タグの内容をタブ名に反映します。</li>
         </ul>
         <h3>エディター機能</h3>
         <ul>
@@ -488,8 +494,9 @@
           <li><strong>コードの折りたたみ</strong>: 大量のコードをコンパクトに表示します。</li>
           <li><strong>カーソル</strong>: 画面がスクロールしていても、カーソルの位置まで自動で移動します。</li>
           <li><strong>検索/置換</strong>: コード内の文字列を検索したり、置き換えたりできます。<br>
-            <strong>⭐️改善⭐️</strong>: 一致箇所はハイライトされ、**スクロールバーにも表示**されるため、簡単に移動できます。<br>
-            <strong>⭐️改善⭐️</strong>: 「**一括置換**」を実行すると、**置換した件数**が表示されます。
+            **✅改善点**: 一致箇所はハイライトされ、スクロールバーのマークをクリックで移動できます。<br>
+            **✅新機能**: 「**前へ/次へ**」ボタンで、見つかった複数の結果間を簡単に移動できます。<br>
+            **✅改善点**: 「**一括置換**」を実行すると、**置換した件数**が表示されます。
           </li>
           <li><strong>コメント</strong>: 選択範囲やカーソル行をコメントアウト/アンコメントします。</li>
         </ul>
@@ -527,7 +534,6 @@
         function countOccurrences(query, cmInstance) {
            if (!query || query === "") return 0;
            let count = 0;
-           // 検索カーソルをドキュメントの最初から開始
            const cursor = cmInstance.getSearchCursor(query, {line: 0, ch: 0});
            while (cursor.findNext()) {
                count++;
@@ -549,6 +555,7 @@
             }
             
             if (query) {
+               // 置換実行前に件数をカウント
                count = countOccurrences(query, cm);
             }
 
@@ -557,7 +564,7 @@
             
             if (count > 0) {
                 // showMessage はグローバルスコープで定義されるため、ここでは呼び出せる
-                showMessage(`${count}件を置換しました`, "success");
+                showMessage(`✅ ${count}件を置換しました`, "success");
             } else if (query) {
                 showMessage("置換対象は見つかりませんでした", "error");
             }
@@ -572,7 +579,7 @@
       matchBrackets: true,
       matchTags: { bothTags: true },
       styleActiveLine: true,
-      // ⭐️改善⭐️: matchesonscrollbar: true でスクロールバーに一致箇所を表示
+      // 検索結果をスクロールバーにハイライト表示
       highlightSelectionMatches: {showToken: /\w/, annotateScrollbar: true}, 
       extraKeys: {
         "Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); },
@@ -597,12 +604,12 @@
     }, 100);
 
     const STORAGE_KEY_FAVORITES = "advancedEditorFavorites";
-    const STORAGE_KEY_TABS = "advancedEditorTabs_v2"; // タブ機能用の新しいキー
+    const STORAGE_KEY_TABS = "advancedEditorTabs_v2"; 
     const STORAGE_KEY_ACTIVE_TAB = "advancedEditorActiveTab_v2";
     const STORAGE_KEY_COLUMNS = "advancedEditorColumns";
     let autoSaveTimer;
-    let titleUpdateTimer; // ⭐️新機能⭐️: <title>タグ自動更新用デバウンスタイマー
-    const titleRegex = /<title\b[^>]*>([\s\S]*?)<\/title>/i; // ⭐️新機能⭐️: <title>タグ抽出用正規表現
+    let titleUpdateTimer; // <title>タグ自動更新用デバウンスタイマー
+    const titleRegex = /<title\b[^>]*>([\s\S]*?)<\/title>/i; // <title>タグ抽出用正規表現
 
     const controlsDiv = document.querySelector('.controls');
     const selectAllBtn = document.getElementById('selectAllBtn');
@@ -619,6 +626,10 @@
     const scrollToCursorBtn = document.getElementById('scrollToCursorBtn');
     const findBtn = document.getElementById('findBtn');
     const replaceBtn = document.getElementById('replaceBtn');
+    // ⭐️新規追加⭐️
+    const findPrevBtn = document.getElementById('findPrevBtn');
+    const findNextBtn = document.getElementById('findNextBtn');
+    // ----------------
     const commentBtn = document.getElementById('commentBtn');
     const saveFavoriteBtn = document.getElementById('saveFavoriteBtn');
     const showFavoritesBtn = document.getElementById('showFavoritesBtn');
@@ -662,12 +673,26 @@
      */
     function showMessage(msg, type = 'info') {
       messageArea.textContent = msg;
+      // モバイル時に位置を調整
+      if (window.innerWidth <= 768 && type !== 'error') {
+          // エラー以外は中央上部に表示されるようにクラスを上書き
+          messageArea.style.top = 'calc(5px + env(safe-area-inset-top, 0px))';
+          messageArea.style.transform = 'translateY(0) translateX(-50%)';
+      } else {
+          // PCまたはエラー時は右端に表示（エラーは特に目立たせる）
+          messageArea.style.top = '50%';
+          messageArea.style.transform = 'translateY(-50%) translateX(0)';
+      }
+
       messageArea.className = 'show ' + type;
       clearTimeout(autoSaveTimer);
       autoSaveTimer = setTimeout(() => {
         messageArea.className = '';
         messageArea.textContent = '';
-      }, 3000); // メッセージ表示時間を3秒に延長
+        // スタイルをリセット（次のメッセージ表示に備える）
+        messageArea.style.top = ''; 
+        messageArea.style.transform = '';
+      }, 3000); 
     }
 
     /**
@@ -739,9 +764,6 @@
       }
     }
     
-    /**
-     * ⭐️バグ修正⭐️: アクティブタブのコンテンツをCMにロードする処理を分離
-     */
     function loadActiveTabContent() {
         if (tabs[activeTabIndex]) {
             cm.setValue(tabs[activeTabIndex].code);
@@ -767,7 +789,7 @@
 
       activeTabIndex = index;
       
-      // 新しいタブの内容をロード (⭐️バグ修正⭐️: 分離した関数を使用)
+      // 新しいタブの内容をロード
       loadActiveTabContent(); 
 
       renderTabs();
@@ -795,7 +817,7 @@
         activeTabIndex = Math.max(0, activeTabIndex - 1);
       }
       
-      // 削除後のアクティブタブを再ロード (⭐️バグ修正⭐️: 分離した関数を使用)
+      // 削除後のアクティブタブを再ロード
       loadActiveTabContent();
 
       renderTabs();
@@ -863,7 +885,7 @@
     }
     
     /**
-     * ⭐️新機能⭐️: コードの内容から<title>タグを抽出し、タブ名を更新
+     * コードの内容から<title>タグを抽出し、タブ名を更新
      * @param {string} content - CodeMirrorの現在の内容
      * @param {number} index - 更新対象のタブのインデックス
      */
@@ -888,11 +910,11 @@
     // --- タブ機能 実装終わり ---
 
     function initialize() {
-      // --- タブの初期化とロード (⭐️バグ修正⭐️) ---
-      loadTabs(); // 1. tabs配列を準備
-      renderTabs(); // 2. タブのUIを先に描画
-      loadActiveTabContent(); // 3. アクティブタブのコンテンツをCMにロード
-      saveTabs(); // 4. 初期状態を保存
+      // --- タブの初期化とロード ---
+      loadTabs(); 
+      renderTabs(); 
+      loadActiveTabContent(); 
+      saveTabs(); 
 
       // --- カラム設定のロード ---
       const savedColumns = localStorage.getItem(STORAGE_KEY_COLUMNS);
@@ -912,7 +934,7 @@
              tabs[activeTabIndex].mode = cm.getOption('mode');
              saveTabs(); // タブの内容をローカルストレージに保存
              
-             // ⭐️新機能⭐️: <title>タグの自動更新（デバウンス付き）
+             // <title>タグの自動更新（デバウンス付き）
              clearTimeout(titleUpdateTimer);
              titleUpdateTimer = setTimeout(() => {
                  updateTabTitleFromContent(tabs[activeTabIndex].code, activeTabIndex);
@@ -985,7 +1007,7 @@
             // 新規タブとしてファイルを開く
             addTab(fileName, content, fileMode);
             
-            // ⭐️新機能⭐️: 読み込み直後に<title>をチェック
+            // 読み込み直後に<title>をチェック
             updateTabTitleFromContent(content, activeTabIndex); 
             
             showMessage(`ファイル「${fileName}」を開きました`, "success");
@@ -1039,15 +1061,26 @@
         showMessage("カーソル位置へ移動しました", "info");
       });
       
-      // ⭐️検索・置換機能の改善⭐️
+      // 検索・置換機能のイベントリスナー
       findBtn.addEventListener('click', () => {
         cm.execCommand("find");
-        showMessage("検索ダイアログを表示。一致箇所はハイライトされ、スクロールバーに表示されます。", "info");
+        showMessage("検索ダイアログを表示。ハイライトと移動ボタンで結果を追えます。", "info");
       });
       replaceBtn.addEventListener('click', () => {
         cm.execCommand("replace");
-        showMessage("置換ダイアログを表示。一致箇所はハイライトされ、スクロールバーに表示されます。", "info");
+        showMessage("置換ダイアログを表示。ハイライトと移動ボタンで結果を追えます。", "info");
       });
+      
+      // ⭐️新規追加⭐️: 検索結果移動ボタンのイベントリスナー
+      findPrevBtn.addEventListener('click', () => {
+        cm.execCommand("findPrev");
+        showMessage("前の検索結果へ移動しました", "info");
+      });
+      findNextBtn.addEventListener('click', () => {
+        cm.execCommand("findNext");
+        showMessage("次の検索結果へ移動しました", "info");
+      });
+      // ---------------------------------------------
 
       commentBtn.addEventListener('click', () => {
         cm.toggleComment();
@@ -1060,7 +1093,7 @@
       });
 
       saveFavoriteBtn.addEventListener('click', () => {
-        const title = prompt("お気に入りのタイトルを入力してください:", tabs[activeTabIndex].title); // ⭐️タブ名をデフォルトに
+        const title = prompt("お気に入りのタイトルを入力してください:", tabs[activeTabIndex].title);
         if (title) {
           const favorites = loadFavorites();
           favorites.unshift({
@@ -1114,7 +1147,7 @@
           // お気に入りを新しいタブとして開く
           addTab(title, selectedCode, favMode);
           
-          // ⭐️新機能⭐️: 読み込み直後に<title>をチェック
+          // 読み込み直後に<title>をチェック
           updateTabTitleFromContent(selectedCode, activeTabIndex);
 
           favoritesModal.style.display = 'none';
