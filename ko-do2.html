@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>高度HTMLエディタ (日本語ラベル版)</title>
+
+  <!-- 外部依存（CDN） -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+
+  <style>
+    :root{
+      --control-cols: 5;
+      --control-gap: 6px;
+      --control-padding: 10px;
+      --bg-primary: #1e1e1e;
+      --bg-secondary: #2d2d2d;
+      --bg-editor: #252526;
+      --text-primary: #e6e6e6;
+      --text-secondary: #bdbdbd;
+      --border-color: #444;
+      --highlight-yellow: #ffeb3b;
+      --touch-size: 44px;
+      --touch-padding: 10px;
+    }
+    [data-theme="light"]{
+      --bg-primary: #f7f7f7;
+      --bg-secondary: #e9e9e9;
+      --bg-editor: #fff;
+      --text-primary: #222;
+      --text-secondary: #666;
+      --border-color: #ddd;
+      --highlight-yellow: #fff176;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:var(--bg-primary);
+      color:var(--text-primary);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    .controls{
+      padding:var(--control-padding);
+      display:grid;
+      grid-template-columns: repeat(var(--control-cols), 1fr);
+      gap:var(--control-gap);
+      background:var(--bg-secondary);
+      border-bottom:1px solid var(--border-color);
+      align-items:center;
+      position:relative;
+      z-index:50;
+    }
+    .controls button{
+      background:var(--bg-editor);
+      border:1px solid var(--border-color);
+      color:var(--text-primary);
+      padding:8px 10px;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:0.9rem;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .controls button i { width:18px; text-align:center; }
+    .controls button:active{ transform: translateY(1px); }
+
+    .controls button.prominent{ background:#007bff; border-color:#007bff; color:#fff; }
+    .controls button#runBtn{ background:#28a745; border-color:#28a745; color:#fff; font-weight:600; }
+    .controls button#clearAllBtn{ background:#dc3545; border-color:#dc3545; color:#fff; }
+    .controls button#themeToggle{ background:#6f42c1; border-color:#6f42c1; color:#fff; }
+
+    #searchBar{ grid-column:1 / -1; display:flex; gap:8px; align-items:center; padding-top:6px; border-top:1px solid var(--border-color); }
+    #searchInput{ flex:1; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-editor); color:var(--text-primary); }
+
+    .tab-bar{ display:flex; gap:8px; padding:8px 10px; background:var(--bg-secondary); align-items:center; overflow:auto; border-bottom:1px solid var(--border-color); }
+    .tab{ padding:8px 12px; background:var(--bg-editor); border-radius:8px; border:1px solid var(--border-color); display:flex; gap:8px; align-items:center; min-width:120px; cursor:pointer; color:var(--text-primary); }
+    .tab.active{ background:var(--bg-primary); color:#007bff; border-color:#007bff; font-weight:600; }
+    .tab-close{ background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.1rem; }
+
+    .main-content{ display:flex; flex:1; min-height:0; }
+    .sidebar{ width:260px; background:var(--bg-secondary); border-right:1px solid var(--border-color); display:flex; flex-direction:column; transition:width 0.2s ease; }
+    .sidebar.hidden{ width:0; overflow:hidden; }
+    .sidebar-header{ padding:10px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); color:var(--text-primary); }
+    .file-tree{ padding:10px; overflow:auto; flex:1; }
+
+    .editor{ flex:1; display:flex; flex-direction:column; min-width:0; }
+    .CodeMirror{ height:100%; font-size:12px; line-height:1.4; border-top:1px solid var(--border-color); }
+
+    .preview-panel{ width:50%; min-width:320px; border-left:1px solid var(--border-color); display:flex; flex-direction:column; background:#fff; color:#000; transition:all 0.2s ease; }
+    .preview-panel.hidden{ display:none; }
+    .preview-header{ padding:8px; background:var(--bg-secondary); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; color:var(--text-primary); }
+    .preview-iframe{ width:100%; height:100%; border:0; flex:1; background:#fff; }
+
+    .console-panel{ height:160px; background:var(--bg-editor); border-top:1px solid var(--border-color); display:flex; flex-direction:column; font-family:monospace; font-size:0.85rem; color:var(--text-primary); }
+    .console-header{ padding:6px; display:flex; justify-content:space-between; align-items:center; background:var(--bg-secondary); border-bottom:1px solid var(--border-color); }
+    .console-output{ padding:10px; overflow:auto; white-space:pre-wrap; flex:1; }
+
+    .stats-bar{ padding:6px 10px; background:var(--bg-secondary); border-top:1px solid var(--border-color); display:flex; justify-content:space-between; color:var(--text-secondary); font-size:0.9rem; }
+
+    .float-controls{
+      display:none;
+      position:fixed;
+      right:12px;
+      bottom:18px;
+      z-index:120;
+      gap:10px;
+      flex-direction:column;
+      align-items:center;
+    }
+    .float-controls button{
+      width:56px; height:56px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center; background:#007bff; color:#fff; border:none; box-shadow:0 6px 14px rgba(0,0,0,0.25);
+      font-size:18px; cursor:pointer;
+    }
+
+    @media (max-width:900px){
+      :root{ --control-cols: 4; }
+      .controls{ padding:8px; gap:8px; }
+      .controls button{ padding:8px; font-size:0.88rem; border-radius:10px; }
+      .tab-bar{ padding:6px; gap:6px; }
+      .tab{ min-width:90px; padding:10px 14px; border-radius:12px; font-size:0.95rem; }
+      .sidebar{ position:absolute; z-index:80; height:calc(100vh - 150px); left:0; top:120px; background:var(--bg-secondary); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+      .preview-panel{ display:none; }
+      .preview-panel.hidden{ display:none; }
+      .float-controls{ display:flex; }
+      .controls button, .tab, .controls .add-tab-btn { min-height: var(--touch-size); padding: var(--touch-padding); font-size:1rem; }
+      #searchInput{ height:44px; font-size:1rem; }
+      #searchBar{ gap:6px; }
+      .controls{ overflow-x:auto; white-space:nowrap; -webkit-overflow-scrolling:touch; }
+    }
+
+    @media (max-width:420px){
+      :root{ --control-cols: 3; }
+      .controls button span{ display:none; }
+      .tab{ min-width:84px; padding:10px; font-size:0.95rem; }
+      .controls button{ padding:8px; }
+      .tab-bar{ padding:6px; }
+      .tab .tab-close{ display:none; }
+    }
+
+    #messageArea{
+      position:absolute; right:12px; top:12px; background:rgba(0,0,0,0.6); padding:8px 12px; border-radius:8px; color:#fff; display:none; z-index:200;
+    }
+  </style>
+</head>
+<body data-theme="dark">
+
+  <div class="controls" id="controlsPanel">
+    <div id="messageArea" aria-live="polite"></div>
+
+    <button id="selectAllBtn" title="全て選択"><i class="fas fa-mouse-pointer"></i> <span>全選択</span></button>
+    <button id="copyBtn" title="クリップボードにコピー"><i class="fas fa-copy"></i> <span>コピー</span></button>
+    <button id="pasteBtn" class="prominent" title="クリップボードから貼り付け"><i class="fas fa-paste"></i> <span>貼り付け</span></button>
+    <button id="clearAllBtn" class="prominent" title="エディタを全て消去"><i class="fas fa-trash-alt"></i> <span>全クリア</span></button>
+    <button id="openFileBtn" title="ファイルを開く"><i class="fas fa-folder-open"></i> <span>開く</span></button>
+
+    <input type="file" id="fileInput" accept=".html,.htm,.css,.js,.txt,.xml,.json,.py,.php,.rb" style="display:none" multiple>
+
+    <button id="saveBtn" title="現在のタブをHTMLとして保存"><i class="fas fa-save"></i> <span>保存(HTML)</span></button>
+    <button id="saveTxtBtn" title="現在のタブをテキストとして保存"><i class="fas fa-file-alt"></i> <span>保存(TXT)</span></button>
+
+    <button id="formatBtn" class="format-btn" title="コードを整形"><i class="fas fa-magic"></i> <span>フォーマット</span></button>
+    <button id="minifyBtn" title="コードを簡易的に圧縮"><i class="fas fa-compress"></i> <span>ミニファイ</span></button>
+    <button id="runBtn" title="新しいウィンドウで実行"><i class="fas fa-play"></i> <span>実行</span></button>
+
+    <button id="undoBtn" title="取り消し"><i class="fas fa-undo"></i> <span>アンドゥ</span></button>
+    <button id="redoBtn" title="やり直し"><i class="fas fa-redo"></i> <span>リドゥ</span></button>
+    <button id="searchBtn" title="検索を表示"><i class="fas fa-search"></i> <span>検索</span></button>
+    <button id="replaceBtn" title="置換を表示"><i class="fas fa-exchange-alt"></i> <span>置換</span></button>
+
+    <button id="themeToggle" title="テーマ切替"><i class="fas fa-moon"></i> <span>テーマ</span></button>
+    <button id="sidebarToggle" title="ファイル一覧を表示/非表示"><i class="fas fa-bars"></i> <span>サイドバー</span></button>
+
+    <div id="searchBar" style="display:none;">
+      <input type="text" id="searchInput" placeholder="検索文字列">
+      <button id="searchPrevBtn" title="前の一致へ"><i class="fas fa-arrow-up"></i></button>
+      <button id="searchNextBtn" title="次の一致へ"><i class="fas fa-arrow-down"></i></button>
+      <button id="replaceOneBtn" disabled title="現在の一致を置換">置換</button>
+      <button id="replaceAllBtn" disabled title="すべて置換">すべて置換</button>
+      <span id="searchStats" aria-hidden="true">0/0</span>
+      <button id="closeSearchBtn" title="検索バーを閉じる"><i class="fas fa-times"></i></button>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tabBar" aria-label="タブ一覧">
+    <button id="addTabBtn" class="tab" title="新しいタブを追加"><i class="fas fa-plus"></i> <span>新規タブ</span></button>
+  </div>
+
+  <div class="main-content">
+    <div class="sidebar" id="sidebar" aria-label="ファイルエクスプローラー">
+      <div class="sidebar-header">
+        <span>ファイルエクスプローラー</span>
+        <button class="sidebar-toggle" id="sidebarClose" title="サイドバーを閉じる"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="file-tree" id="fileTree"></div>
+    </div>
+
+    <div class="editor">
+      <textarea id="htmlCode" placeholder="HTML/CSS/JS をここに記述..."></textarea>
+    </div>
+
+    <div class="preview-panel" id="previewPanel" aria-label="プレビュー">
+      <div class="preview-header">
+        <span>プレビュー</span>
+        <button class="preview-toggle" id="togglePreview" title="プレビューの表示/非表示">非表示</button>
+      </div>
+      <iframe class="preview-iframe" id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
+    </div>
+  </div>
+
+  <div class="console-panel" id="consolePanel" style="display:none;">
+    <div class="console-header">
+      <span>コンソール</span>
+      <button class="console-clear" id="clearConsole" title="コンソールをクリア">クリア</button>
+    </div>
+    <div class="console-output" id="consoleOutput" aria-live="polite"></div>
+  </div>
+
+  <div class="stats-bar" id="statsBar">
+    <span id="charCount">文字数: 0</span>
+    <span id="lineCount">行数: 1</span>
+  </div>
+
+  <div class="float-controls" id="floatControls" aria-hidden="true">
+    <button id="floatPreviewBtn" title="プレビューを開く"><i class="fas fa-eye"></i></button>
+    <button id="floatSidebarBtn" title="ファイル一覧を開く"><i class="fas fa-folder"></i></button>
+    <button id="floatSettingsBtn" title="設定を開く"><i class="fas fa-cog"></i></button>
+  </div>
+
+  <div id="settingsPanel" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:300; place-content:center; align-items:center;">
+    <div id="settingsContent" style="background:var(--bg-primary); padding:18px; border-radius:10px; width:360px; color:var(--text-primary);">
+      <h3 style="margin-top:0">設定</h3>
+      <label>フォントサイズ: <input type="number" id="fontSize" min="8" max="20" value="12" style="width:70px; margin-left:8px;"></label>
+      <label style="display:block; margin-top:8px;">テーマ:
+        <select id="themeSelect" style="margin-left:8px;">
+          <option value="dark">ダーク</option>
+          <option value="light">ライト</option>
+          <option value="material">マテリアル</option>
+        </select>
+      </label>
+      <label style="display:block; margin-top:8px;">自動保存間隔 (秒): <input type="number" id="autoSaveInterval" min="1" max="300" value="5" style="width:80px; margin-left:8px;"></label>
+      <div style="margin-top:12px; text-align:right;">
+        <button id="closeSettings" style="background:#28a745; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;" title="設定を保存して閉じる">保存して閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/json/json.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/php/php.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/ruby/ruby.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/search.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/jump-to-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchtags.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/trailingspace.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/brace-fold.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/indent-fold.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/comment-fold.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/html-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/css-hint.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/javascript-hint.min.js"></script>
+
+  <!-- Prettier（整形） -->
+  <script src="https://unpkg.com/prettier@2.8.8/standalone.js"></script>
+  <script src="https://unpkg.com/prettier@2.8.8/parser-html.js"></script>
+  <script src="https://unpkg.com/prettier@2.8.8/parser-babel.js"></script>
+  <script src="https://unpkg.com/prettier@2.8.8/parser-postcss.js"></script>
+
+  <script>
+    // 既存機能は変更せず、ラベルだけ日本語に統一しています（内部ロジックは元のまま）
+    const STORAGE_KEY_TABS = "editorTabs_v5";
+    const STORAGE_KEY_ACTIVE_TAB = "editorActiveTab_v5";
+    const STORAGE_KEY_SETTINGS = "editorSettings_v2";
+    const STORAGE_KEY_PROJECT = "editorProject_v1";
+    const titleRegex = /<title\b[^>]*>([\s\S]*?)<\/title>/i;
+
+    let tabs = [];
+    let activeTabIndex = 0;
+    let tabIdCounter = 1;
+    let currentTheme = 'dark';
+    let autoSaveTimerHandle = null;
+    let previewUrlToRevoke = null;
+    let previewDebounce = null;
+    let updateTitleDebounce = null;
+
+    const cmOptions = {
+      theme: 'material-darker',
+      mode: 'htmlmixed',
+      lineNumbers: true,
+      autofocus: true,
+      matchBrackets: true,
+      autoCloseBrackets: true,
+      autoCloseTags: true,
+      matchTags: { bothTags: true },
+      styleActiveLine: true,
+      showTrailingSpace: true,
+      foldGutter: true,
+      gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
+      highlightSelectionMatches: { showToken: /\w/, annotateScrollbar: true },
+      indentUnit: 2,
+      tabSize: 2,
+      indentWithTabs: false,
+      extraKeys: {
+        "Ctrl-Space": "autocomplete",
+        "F11": (cm) => toggleFullscreen(cm),
+        "Ctrl-Shift-F": () => formatCode(),
+        "Ctrl-Alt-M": () => minifyCode()
+      },
+      hintOptions: { completeSingle: false }
+    };
+
+    // DOM要素
+    const messageArea = document.getElementById('messageArea');
+    const tabBar = document.getElementById('tabBar');
+    const addTabBtn = document.getElementById('addTabBtn');
+    const fileInput = document.getElementById('fileInput');
+    const openFileBtn = document.getElementById('openFileBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const saveTxtBtn = document.getElementById('saveTxtBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const copyBtn = document.getElementById('copyBtn');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const formatBtn = document.getElementById('formatBtn');
+    const minifyBtn = document.getElementById('minifyBtn');
+    const runBtn = document.getElementById('runBtn');
+    const undoBtn = document.getElementById('undoBtn');
+    const redoBtn = document.getElementById('redoBtn');
+    const searchBtn = document.getElementById('searchBtn');
+    const replaceBtn = document.getElementById('replaceBtn');
+    const searchBar = document.getElementById('searchBar');
+    const searchInput = document.getElementById('searchInput');
+    const searchStats = document.getElementById('searchStats');
+    const searchPrevBtn = document.getElementById('searchPrevBtn');
+    const searchNextBtn = document.getElementById('searchNextBtn');
+    const replaceOneBtn = document.getElementById('replaceOneBtn');
+    const replaceAllBtn = document.getElementById('replaceAllBtn');
+    const closeSearchBtn = document.getElementById('closeSearchBtn');
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const sidebarToggleBtn = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarClose = document.getElementById('sidebarClose');
+    const fileTree = document.getElementById('fileTree');
+    const previewFrame = document.getElementById('previewFrame');
+    const togglePreviewBtn = document.getElementById('togglePreview');
+    const previewPanel = document.getElementById('previewPanel');
+    const consolePanel = document.getElementById('consolePanel');
+    const consoleOutput = document.getElementById('consoleOutput');
+    const clearConsoleBtn = document.getElementById('clearConsole');
+    const charCount = document.getElementById('charCount');
+    const lineCount = document.getElementById('lineCount');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const fontSizeInput = document.getElementById('fontSize');
+    const themeSelect = document.getElementById('themeSelect');
+    const autoSaveIntervalInput = document.getElementById('autoSaveInterval');
+    const closeSettingsBtn = document.getElementById('closeSettings');
+
+    const floatControls = document.getElementById('floatControls');
+    const floatPreviewBtn = document.getElementById('floatPreviewBtn');
+    const floatSidebarBtn = document.getElementById('floatSidebarBtn');
+    const floatSettingsBtn = document.getElementById('floatSettingsBtn');
+
+    const cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), cmOptions);
+
+    function showMessage(msg, type = 'info', duration = 2200){
+      messageArea.textContent = msg;
+      messageArea.style.display = 'block';
+      messageArea.style.background = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : 'rgba(23,162,184,0.95)';
+      clearTimeout(messageArea._hideTimer);
+      messageArea._hideTimer = setTimeout(()=> {
+        messageArea.style.display = 'none';
+      }, duration);
+    }
+
+    function safeRevoke(url){
+      try{ if(url) URL.revokeObjectURL(url); }catch(e){}
+    }
+
+    function updatePreview(){
+      const code = cm.getValue();
+      try{
+        safeRevoke(previewUrlToRevoke);
+        const blob = new Blob([code], {type:'text/html;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        previewUrlToRevoke = url;
+        previewFrame.src = url;
+        previewFrame.onload = () => {
+          try{
+            const iframeDoc = previewFrame.contentWindow.document;
+            if(!iframeDoc.head.querySelector('script[data-injected-console]')){
+              const s = iframeDoc.createElement('script');
+              s.setAttribute('data-injected-console','1');
+              s.textContent = `
+                (function(){
+                  try{
+                    const originalLog = console.log.bind(console);
+                    console.log = function(...args){
+                      try{ parent.postMessage({type:'console', data: args.map(a=> (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')}, '*'); } catch(e){}
+                      originalLog(...args);
+                    };
+                  }catch(e){}
+                })();
+              `;
+              iframeDoc.head.appendChild(s);
+            }
+          }catch(e){}
+        };
+      }catch(e){}
+    }
+
+    function saveTabsToStorage(){
+      if(tabs[activeTabIndex]){ tabs[activeTabIndex].code = cm.getValue(); tabs[activeTabIndex].mode = cm.getOption('mode'); }
+      localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
+      localStorage.setItem(STORAGE_KEY_ACTIVE_TAB, tabs[activeTabIndex] ? tabs[activeTabIndex].id : 0);
+    }
+
+    function loadTabsFromStorage(){
+      const saved = localStorage.getItem(STORAGE_KEY_TABS);
+      const project = JSON.parse(localStorage.getItem(STORAGE_KEY_PROJECT) || '[]');
+      if(saved){
+        try{ tabs = JSON.parse(saved); tabIdCounter = tabs.reduce((m,t) => Math.max(m, t.id||0), 0) + 1; }catch(e){ tabs = []; }
+      }
+      if(tabs.length === 0){ tabs.push({ id: tabIdCounter++, title: 'タブ 1', code: '', mode: 'htmlmixed' }); }
+      const activeId = localStorage.getItem(STORAGE_KEY_ACTIVE_TAB);
+      if(activeId){ const found = tabs.findIndex(t => String(t.id) === String(activeId)); activeTabIndex = found >= 0 ? found : 0; } else activeTabIndex = 0;
+      updateFileTree(project.length ? project : tabs.map(t => ({name: t.title, content: t.code})));
+    }
+
+    function renderTabs(){
+      Array.from(tabBar.children).forEach(node => { if(node !== addTabBtn) node.remove(); });
+      tabs.forEach((t, idx) => {
+        const el = document.createElement('div');
+        el.className = 'tab' + (idx === activeTabIndex ? ' active' : '');
+        el.title = t.title || '無題';
+        el.dataset.index = idx;
+        const title = document.createElement('span'); title.textContent = t.title || '無題'; title.style.flex='1'; title.style.overflow='hidden'; title.style.textOverflow='ellipsis'; title.style.whiteSpace='nowrap';
+        const closeBtn = document.createElement('button'); closeBtn.className = 'tab-close'; closeBtn.title='タブを閉じる'; closeBtn.innerHTML = '×';
+        el.appendChild(title); el.appendChild(closeBtn);
+        el.addEventListener('click', (e) => { if(e.target !== closeBtn) switchTab(idx); });
+        el.addEventListener('dblclick', (e) => { if(e.target !== closeBtn){ const newName = prompt('タブ名を入力:', t.title || ''); if(newName !== null && newName.trim() !== ''){ tabs[idx].title = newName.trim(); renderTabs(); saveTabsToStorage(); showMessage('タブ名を変更しました','success'); } } });
+        closeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeTab(idx); });
+        tabBar.insertBefore(el, addTabBtn);
+      });
+      const activeEl = tabBar.querySelector('.tab.active'); if(activeEl) activeEl.scrollIntoView({behavior:'smooth', inline:'nearest'});
+    }
+
+    function switchTab(index){
+      if(index < 0 || index >= tabs.length) return;
+      if(tabs[activeTabIndex]) tabs[activeTabIndex].code = cm.getValue();
+      activeTabIndex = index;
+      const tab = tabs[activeTabIndex];
+      cm.setValue(tab.code || '');
+      cm.setOption('mode', tab.mode || 'htmlmixed');
+      cm.clearHistory && cm.getDoc().clearHistory && cm.getDoc().clearHistory();
+      renderTabs();
+      saveTabsToStorage();
+      updatePreview();
+      updateStats();
+      showMessage(`タブ "${tab.title}" に切り替え`, 'info');
+    }
+
+    function addTab(title=null, code='', mode='htmlmixed'){
+      const newTitle = title || `タブ ${tabIdCounter}`;
+      const newTab = { id: tabIdCounter++, title: newTitle, code: code, mode: mode };
+      tabs.push(newTab);
+      switchTab(tabs.length - 1);
+    }
+
+    function removeTab(index){
+      if(tabs.length <= 1){ showMessage('最後のタブは削除できません', 'error'); return; }
+      const removed = tabs.splice(index,1);
+      activeTabIndex = Math.max(0, activeTabIndex - (index <= activeTabIndex ? 1 : 0));
+      renderTabs();
+      switchTab(activeTabIndex);
+      saveTabsToStorage();
+      showMessage(`タブ "${removed[0].title}" を削除しました`, 'info');
+    }
+
+    function updateTabTitleFromContent(content, index){
+      if(!content || typeof content !== 'string') return;
+      const match = content.match(titleRegex);
+      if(match && match[1]){
+        let newTitle = match[1].trim();
+        if(newTitle.length > 60) newTitle = newTitle.slice(0,60) + '...';
+        if(tabs[index] && tabs[index].title !== newTitle){ tabs[index].title = newTitle; renderTabs(); saveTabsToStorage(); }
+      }
+    }
+
+    let searchState = { query: null, matches: [], current: -1 };
+
+    function startSearch(replace=false){
+      searchBar.style.display = 'flex';
+      searchInput.focus();
+      replaceOneBtn.style.display = replace ? 'inline-block' : 'none';
+      replaceAllBtn.style.display = replace ? 'inline-block' : 'none';
+      if(cm.somethingSelected()) searchInput.value = cm.getSelection();
+      findMatches(searchInput.value || '');
+    }
+
+    function hideSearch(){
+      searchBar.style.display = 'none';
+      searchState = { query: null, matches: [], current: -1 };
+      try{ cm.execCommand && cm.execCommand('clearSearch'); }catch(e){}
+      cm.focus();
+    }
+
+    function findMatches(q){
+      searchState.matches = []; searchState.current = -1;
+      if(!q){ updateSearchStats(0,0); return; }
+      searchState.query = q;
+      const cursor = cm.getSearchCursor(q, {line:0, ch:0}, {caseFold:true, multiline:true});
+      const matches = [];
+      while(cursor.findNext()) matches.push({from: cursor.from(), to: cursor.to()});
+      searchState.matches = matches;
+      if(matches.length){
+        if(typeof CodeMirror.showMatchesOnScrollbar === 'function'){
+          try{ CodeMirror.showMatchesOnScrollbar(cm, q); }catch(e){}
+        }
+        let nearestIndex = 0;
+        const cur = cm.getCursor();
+        for(let i=0;i<matches.length;i++){ if(CodeMirror.cmpPos(matches[i].from, cur) >= 0){ nearestIndex = i; break; } }
+        goToMatch(nearestIndex);
+      }else updateSearchStats(0,0);
+    }
+
+    function updateSearchStats(current,total){
+      searchStats.textContent = `${current}/${total}`;
+      const disabled = total === 0;
+      searchPrevBtn.disabled = disabled; searchNextBtn.disabled = disabled; replaceOneBtn.disabled = disabled; replaceAllBtn.disabled = disabled;
+    }
+
+    function goToMatch(index){
+      if(!searchState.matches.length) return;
+      index = ((index % searchState.matches.length) + searchState.matches.length) % searchState.matches.length;
+      const m = searchState.matches[index];
+      searchState.current = index;
+      cm.setSelection(m.from, m.to);
+      cm.scrollIntoView({from:m.from, to:m.to}, 100);
+      updateSearchStats(index+1, searchState.matches.length);
+    }
+
+    function nextMatch(){ if(searchState.matches.length) goToMatch(searchState.current + 1); else findMatches(searchInput.value); }
+    function prevMatch(){ if(searchState.matches.length) goToMatch(searchState.current - 1); else findMatches(searchInput.value); }
+
+    function replaceOne(){
+      if(searchState.current < 0) return;
+      const replacement = prompt('置換文字列を入力:', '');
+      if(replacement === null) return;
+      const m = searchState.matches[searchState.current];
+      cm.replaceRange(replacement, m.from, m.to);
+      findMatches(searchState.query);
+      showMessage('1箇所置換しました', 'success');
+    }
+
+    function replaceAll(){
+      if(!searchState.matches.length) return;
+      const replacement = prompt('置換文字列を入力:', '');
+      if(replacement === null) return;
+      let count = 0;
+      cm.operation(()=> {
+        const cur = cm.getSearchCursor(searchState.query, {line:0,ch:0}, {caseFold:true, multiline:true});
+        while(cur.findNext()){ cur.replace(replacement); count++; }
+      });
+      findMatches(searchState.query);
+      showMessage(`${count} 箇所を置換しました`, 'success');
+    }
+
+    function formatCode(){
+      const code = cm.getValue();
+      const mode = cm.getOption('mode');
+      try{
+        const plugins = window.prettierPlugins || [];
+        let formatted = code;
+        if(mode === 'htmlmixed' || mode === 'text/html'){ formatted = prettier.format(code, { parser: 'html', plugins }); }
+        else if(mode === 'javascript' || mode === 'application/javascript'){ formatted = prettier.format(code, { parser: 'babel', plugins }); }
+        else if(mode === 'css'){ formatted = prettier.format(code, { parser: 'css', plugins }); }
+        else { showMessage('このモードはフォーマット非対応です','error'); return; }
+        cm.setValue(formatted); updatePreview(); showMessage('フォーマット完了','success');
+      }catch(e){ showMessage('フォーマット時にエラーが発生しました','error'); console.warn(e); }
+    }
+
+    function minifyCode(){
+      const code = cm.getValue(); const mode = cm.getOption('mode');
+      try{
+        let minified = code;
+        if(mode === 'htmlmixed'){ minified = code.replace(/>\s+</g,'><').replace(/\s{2,}/g,' ').trim(); }
+        else if(mode === 'javascript' || mode === 'css'){ minified = code.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'').replace(/\n+/g,'').replace(/\s{2,}/g,' ').trim(); }
+        else { showMessage('このモードはミニファイ非対応です','error'); return; }
+        cm.setValue(minified); updatePreview(); showMessage('ミニファイ完了','success');
+      }catch(e){ showMessage('ミニファイ中にエラー','error'); }
+    }
+
+    function updateStats(){ const v = cm.getValue(); charCount.textContent = `文字数: ${v.length}`; lineCount.textContent = `行数: ${v.split('\n').length}`; }
+
+    function logToConsole(msg){ consoleOutput.textContent += msg + '\n'; consoleOutput.scrollTop = consoleOutput.scrollHeight; if(consolePanel.style.display === 'none') consolePanel.style.display = 'flex'; }
+    window.addEventListener('message', (e) => { try{ if(e && e.data && e.data.type === 'console'){ logToConsole(e.data.data); } }catch(e){} });
+
+    function updateFileTree(files){ fileTree.innerHTML = ''; (files||[]).forEach((f, idx) => { const item = document.createElement('div'); item.className='file-item'; item.textContent = f.name || `file${idx+1}`; item.style.padding='6px'; item.style.borderRadius='4px'; item.style.cursor='pointer'; item.addEventListener('click', ()=>{ addTab(f.name, f.content || '', 'htmlmixed'); document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active')); item.classList.add('active'); }); fileTree.appendChild(item); }); }
+
+    function saveProject(){ const projectFiles = tabs.map(t => ({ name: t.title, content: t.code })); localStorage.setItem(STORAGE_KEY_PROJECT, JSON.stringify(projectFiles)); updateFileTree(projectFiles); showMessage('プロジェクトを保存しました','success'); }
+
+    function openSettings(){ const s = JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}'); fontSizeInput.value = s.fontSize || 12; themeSelect.value = s.theme || 'dark'; autoSaveIntervalInput.value = s.autoSaveInterval || 5; settingsPanel.style.display = 'grid'; }
+    function saveSettings(){ const settings = { fontSize: parseInt(fontSizeInput.value) || 12, theme: themeSelect.value || 'dark', autoSaveInterval: parseInt(autoSaveIntervalInput.value) || 5 }; localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings)); applySettings(settings); settingsPanel.style.display = 'none'; showMessage('設定を保存しました','success'); }
+    function applySettings(settings){
+      if(settings.fontSize) cm.getWrapperElement().style.fontSize = settings.fontSize + 'px';
+      currentTheme = settings.theme || 'dark';
+      document.body.setAttribute('data-theme', currentTheme);
+      cm.setOption('theme', currentTheme === 'dark' ? 'material-darker' : currentTheme === 'light' ? 'default' : 'material');
+      if(autoSaveTimerHandle) clearInterval(autoSaveTimerHandle);
+      autoSaveTimerHandle = setInterval(()=> { saveTabsToStorage(); saveProject(); updatePreview(); }, (settings.autoSaveInterval || 5)*1000);
+      themeToggleBtn.innerHTML = `<i class="fas fa-${currentTheme === 'dark' ? 'sun' : 'moon'}"></i> ${currentTheme}`;
+    }
+
+    function initialize(){
+      loadTabsFromStorage();
+      renderTabs();
+      switchTab(activeTabIndex);
+      const savedSettings = JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}');
+      applySettings(savedSettings);
+      cm.on('change', () => {
+        if(tabs[activeTabIndex]) tabs[activeTabIndex].code = cm.getValue();
+        clearTimeout(updateTitleDebounce);
+        updateTitleDebounce = setTimeout(()=> updateTabTitleFromContent(cm.getValue(), activeTabIndex), 900);
+        clearTimeout(previewDebounce);
+        previewDebounce = setTimeout(updatePreview, 450);
+        updateStats();
+        saveTabsToStorage();
+      });
+
+      selectAllBtn.addEventListener('click', ()=>{ cm.execCommand && cm.execCommand('selectAll'); showMessage('全選択しました'); });
+      copyBtn.addEventListener('click', async ()=> { try{ const text = cm.getSelection() || cm.getValue(); await navigator.clipboard.writeText(text); showMessage('コピーしました','success'); }catch(e){ showMessage('コピーに失敗しました','error'); } });
+      pasteBtn.addEventListener('click', async ()=> { try{ const text = await navigator.clipboard.readText(); cm.replaceSelection(text); showMessage('貼り付けました','success'); updatePreview(); }catch(e){ showMessage('貼り付けに失敗しました','error'); } });
+      clearAllBtn.addEventListener('click', ()=> { if(confirm('全クリアしますか？')){ cm.setValue(''); updatePreview(); showMessage('エディタをクリアしました','info'); } });
+
+      openFileBtn.addEventListener('click', ()=> fileInput.click());
+      fileInput.addEventListener('change', (e)=> {
+        Array.from(e.target.files).forEach(file => {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const content = ev.target.result;
+            const name = file.name;
+            let mode = 'htmlmixed';
+            if(name.endsWith('.css')) mode='css';
+            else if(name.endsWith('.js')) mode='javascript';
+            else if(name.endsWith('.json')) mode='application/json';
+            else if(name.endsWith('.py')) mode='python';
+            else if(name.endsWith('.php')) mode='php';
+            else if(name.endsWith('.rb')) mode='ruby';
+            else if(!name.endsWith('.htm') && !name.endsWith('.html')) mode='text/plain';
+            addTab(name, content, mode);
+            showMessage(`${name} を読み込みました`,'success');
+          };
+          reader.readAsText(file);
+        });
+        fileInput.value = '';
+      });
+
+      saveBtn.addEventListener('click', ()=> {
+        const title = (tabs[activeTabIndex] && tabs[activeTabIndex].title) || 'untitled';
+        const name = (title.endsWith('.html')||title.endsWith('.htm')) ? title : (title + '.html');
+        const blob = new Blob([cm.getValue()], {type:'text/html;charset=utf-8'});
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        safeRevoke(url);
+        showMessage('HTMLを保存しました','success');
+      });
+
+      saveTxtBtn.addEventListener('click', ()=> {
+        const title = (tabs[activeTabIndex] && tabs[activeTabIndex].title) || 'untitled';
+        const name = title.endsWith('.txt') ? title : (title + '.txt');
+        const blob = new Blob([cm.getValue()], {type:'text/plain;charset=utf-8'});
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        safeRevoke(url);
+        showMessage('テキストを保存しました','success');
+      });
+
+      runBtn.addEventListener('click', ()=> {
+        const blob = new Blob([cm.getValue()], {type:'text/html;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(()=> safeRevoke(url), 2000);
+        showMessage('新しいウィンドウで実行しました','info');
+      });
+
+      undoBtn.addEventListener('click', ()=> { cm.undo(); updatePreview(); showMessage('取り消しました'); });
+      redoBtn.addEventListener('click', ()=> { cm.redo(); updatePreview(); showMessage('やり直しました'); });
+
+      formatBtn.addEventListener('click', formatCode);
+      minifyBtn.addEventListener('click', minifyCode);
+
+      addTabBtn.addEventListener('click', ()=> addTab());
+
+      searchBtn.addEventListener('click', ()=> startSearch(false));
+      replaceBtn.addEventListener('click', ()=> startSearch(true));
+      searchNextBtn.addEventListener('click', nextMatch);
+      searchPrevBtn.addEventListener('click', prevMatch);
+      closeSearchBtn.addEventListener('click', hideSearch);
+      replaceOneBtn.addEventListener('click', replaceOne);
+      replaceAllBtn.addEventListener('click', replaceAll);
+      searchInput.addEventListener('input', (e)=> findMatches(e.target.value));
+      searchInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); nextMatch(); } if(e.key === 'Escape'){ hideSearch(); } });
+
+      themeToggleBtn.addEventListener('click', toggleTheme);
+      sidebarToggleBtn.addEventListener('click', ()=> sidebar.classList.toggle('hidden'));
+      sidebarClose.addEventListener('click', ()=> sidebar.classList.add('hidden'));
+
+      togglePreviewBtn.addEventListener('click', ()=> {
+        const isHidden = previewPanel.classList.contains('hidden') || previewPanel.style.display === 'none';
+        if(isHidden){ previewPanel.classList.remove('hidden'); togglePreviewBtn.textContent = '非表示'; } else { previewPanel.classList.add('hidden'); togglePreviewBtn.textContent = '表示'; }
+      });
+
+      clearConsoleBtn.addEventListener('click', ()=> { consoleOutput.textContent = ''; });
+
+      document.addEventListener('keydown', (e)=> { if((e.ctrlKey||e.metaKey) && e.key === ','){ e.preventDefault(); openSettings(); } });
+      closeSettingsBtn.addEventListener('click', saveSettings);
+
+      cm.setOption('extraKeys', Object.assign({}, cm.getOption('extraKeys'), {
+        "Cmd-F": () => startSearch(false),
+        "Ctrl-F": () => startSearch(false),
+        "Cmd-H": () => startSearch(true),
+        "Ctrl-H": () => startSearch(true),
+        "Cmd-G": () => nextMatch(),
+        "Ctrl-G": () => nextMatch(),
+        "Shift-Cmd-G": () => prevMatch(),
+        "Shift-Ctrl-G": () => prevMatch(),
+        "Esc": () => { if(searchBar.style.display === 'flex') hideSearch(); },
+        "Cmd-P": () => updatePreview(),
+        "Ctrl-P": () => updatePreview(),
+        "Cmd-S": () => { saveTabsToStorage(); saveProject(); showMessage('保存しました','success'); },
+        "Ctrl-S": () => { saveTabsToStorage(); saveProject(); showMessage('保存しました','success'); }
+      }));
+
+      CodeMirror.commands.autocomplete = function(cmInst){
+        const mode = cmInst.getOption('mode');
+        const hintName = mode === 'htmlmixed' ? 'html' : (mode === 'css' ? 'css' : 'javascript');
+        CodeMirror.showHint(cmInst, CodeMirror.hint[hintName]);
+      };
+
+      cm.refresh(); updatePreview(); updateStats();
+
+      floatPreviewBtn.addEventListener('click', ()=> {
+        const isHidden = previewPanel.classList.contains('hidden') || previewPanel.style.display === 'none';
+        if(isHidden){ previewPanel.classList.remove('hidden'); previewPanel.style.display = 'flex'; previewPanel.scrollIntoView({behavior:'smooth'}); } else { previewPanel.classList.add('hidden'); previewPanel.style.display = 'none'; }
+      });
+      floatSidebarBtn.addEventListener('click', ()=> {
+        const isHidden = sidebar.classList.contains('hidden');
+        if(isHidden) sidebar.classList.remove('hidden'); else sidebar.classList.add('hidden');
+      });
+      floatSettingsBtn.addEventListener('click', openSettings);
+
+      function updateMobileUI(){
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        const isPortrait = h > w;
+        if(w <= 900 && isPortrait){
+          previewPanel.classList.add('hidden');
+          previewPanel.style.display = 'none';
+          sidebar.classList.add('hidden');
+          floatControls.setAttribute('aria-hidden','false');
+          floatControls.style.display = 'flex';
+        } else {
+          floatControls.setAttribute('aria-hidden','true');
+          floatControls.style.display = 'none';
+          previewPanel.classList.remove('hidden');
+          previewPanel.style.display = '';
+        }
+      }
+      window.addEventListener('resize', updateMobileUI);
+      window.addEventListener('orientationchange', updateMobileUI);
+      updateMobileUI();
+
+      const project = JSON.parse(localStorage.getItem(STORAGE_KEY_PROJECT) || '[]');
+      if(project.length) updateFileTree(project);
+      showMessage('エディタを初期化しました','success');
+    }
+
+    function toggleFullscreen(cmInstance){
+      if(document.fullscreenElement){ document.exitFullscreen(); cmInstance.getWrapperElement().style.position = ''; cmInstance.getWrapperElement().style.width = ''; cmInstance.getWrapperElement().style.height = ''; }
+      else { document.documentElement.requestFullscreen().catch(()=>{}); const wrapper = cmInstance.getWrapperElement(); wrapper.style.position = 'fixed'; wrapper.style.zIndex = 9999; wrapper.style.top = 0; wrapper.style.left = 0; wrapper.style.width = '100%'; wrapper.style.height = '100%'; }
+      setTimeout(()=> cmInstance.refresh(), 60);
+    }
+
+    function toggleTheme(){
+      const themes = ['dark','light','material'];
+      const idx = themes.indexOf(currentTheme);
+      currentTheme = themes[(idx + 1) % themes.length];
+      applySettings({ fontSize: parseInt(fontSizeInput.value) || 12, theme: currentTheme, autoSaveInterval: parseInt(autoSaveIntervalInput.value) || 5 });
+      showMessage(`テーマを${currentTheme}に変更しました`,'success');
+    }
+
+    document.addEventListener('DOMContentLoaded', initialize);
+  </script>
+</body>
+</html>
