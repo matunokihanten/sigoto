@@ -1,826 +1,964 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>高度HTMLエディタ (日本語ラベル版)</title>
-
-  <!-- 外部依存（CDN） -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>シンプルHTMLエディター</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/material-darker.min.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-
+  
   <style>
-    :root{
-      --control-cols: 5;
-      --control-gap: 6px;
-      --control-padding: 10px;
-      --bg-primary: #1e1e1e;
-      --bg-secondary: #2d2d2d;
-      --bg-editor: #252526;
-      --text-primary: #e6e6e6;
-      --text-secondary: #bdbdbd;
-      --border-color: #444;
-      --highlight-yellow: #ffeb3b;
-      --touch-size: 44px;
-      --touch-padding: 10px;
-    }
-    [data-theme="light"]{
-      --bg-primary: #f7f7f7;
-      --bg-secondary: #e9e9e9;
-      --bg-editor: #fff;
-      --text-primary: #222;
-      --text-secondary: #666;
-      --border-color: #ddd;
-      --highlight-yellow: #fff176;
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
 
-    html,body{
-      height:100%;
-      margin:0;
-      font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background:var(--bg-primary);
-      color:var(--text-primary);
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
+    /* タブバー */
+    .tab-bar {
+      display: flex;
+      background-color: #d0d0d0;
+      border-bottom: 2px solid #999;
+      overflow-x: auto;
+      overflow-y: hidden;
+      flex-shrink: 0;
+    }
+    .tab-bar::-webkit-scrollbar {
+      height: 6px;
+    }
+    .tab-bar::-webkit-scrollbar-thumb {
+      background-color: #888;
+      border-radius: 3px;
+    }
+    .tab {
+      padding: 10px 15px;
+      background-color: #e0e0e0;
+      border: 1px solid #999;
+      border-bottom: none;
+      cursor: pointer;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 120px;
+      max-width: 200px;
+      position: relative;
+      transition: background-color 0.2s;
+    }
+    .tab:hover {
+      background-color: #d5d5d5;
+    }
+    .tab.active {
+      background-color: #f0f0f0;
+      border-bottom: 2px solid #f0f0f0;
+      margin-bottom: -2px;
+      font-weight: bold;
+    }
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tab-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 16px;
+      color: #666;
+      padding: 0;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 3px;
+    }
+    .tab-close:hover {
+      background-color: #c0c0c0;
+      color: #000;
+    }
+    .new-tab-btn {
+      padding: 10px 15px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: bold;
+      min-width: 40px;
+      transition: background-color 0.2s;
+    }
+    .new-tab-btn:hover {
+      background-color: #0056b3;
     }
 
-    .controls{
-      padding:var(--control-padding);
-      display:grid;
-      grid-template-columns: repeat(var(--control-cols), 1fr);
-      gap:var(--control-gap);
-      background:var(--bg-secondary);
-      border-bottom:1px solid var(--border-color);
-      align-items:center;
-      position:relative;
-      z-index:50;
+    /* 操作パネルのスタイル */
+    .controls {
+      padding: 10px;
+      background-color: #f0f0f0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .controls button{
-      background:var(--bg-editor);
-      border:1px solid var(--border-color);
-      color:var(--text-primary);
-      padding:8px 10px;
-      border-radius:8px;
-      cursor:pointer;
-      font-size:0.9rem;
-      display:inline-flex;
-      align-items:center;
-      gap:8px;
+    .controls button {
+      padding: 8px 12px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #e0e0e0;
+      transition: background-color 0.2s, box-shadow 0.2s;
     }
-    .controls button i { width:18px; text-align:center; }
-    .controls button:active{ transform: translateY(1px); }
-
-    .controls button.prominent{ background:#007bff; border-color:#007bff; color:#fff; }
-    .controls button#runBtn{ background:#28a745; border-color:#28a745; color:#fff; font-weight:600; }
-    .controls button#clearAllBtn{ background:#dc3545; border-color:#dc3545; color:#fff; }
-    .controls button#themeToggle{ background:#6f42c1; border-color:#6f42c1; color:#fff; }
-
-    #searchBar{ grid-column:1 / -1; display:flex; gap:8px; align-items:center; padding-top:6px; border-top:1px solid var(--border-color); }
-    #searchInput{ flex:1; padding:8px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-editor); color:var(--text-primary); }
-
-    .tab-bar{ display:flex; gap:8px; padding:8px 10px; background:var(--bg-secondary); align-items:center; overflow:auto; border-bottom:1px solid var(--border-color); }
-    .tab{ padding:8px 12px; background:var(--bg-editor); border-radius:8px; border:1px solid var(--border-color); display:flex; gap:8px; align-items:center; min-width:120px; cursor:pointer; color:var(--text-primary); }
-    .tab.active{ background:var(--bg-primary); color:#007bff; border-color:#007bff; font-weight:600; }
-    .tab-close{ background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:1.1rem; }
-
-    .main-content{ display:flex; flex:1; min-height:0; }
-    .sidebar{ width:260px; background:var(--bg-secondary); border-right:1px solid var(--border-color); display:flex; flex-direction:column; transition:width 0.2s ease; }
-    .sidebar.hidden{ width:0; overflow:hidden; }
-    .sidebar-header{ padding:10px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--border-color); color:var(--text-primary); }
-    .file-tree{ padding:10px; overflow:auto; flex:1; }
-
-    .editor{ flex:1; display:flex; flex-direction:column; min-width:0; }
-    .CodeMirror{ height:100%; font-size:12px; line-height:1.4; border-top:1px solid var(--border-color); }
-
-    .preview-panel{ width:50%; min-width:320px; border-left:1px solid var(--border-color); display:flex; flex-direction:column; background:#fff; color:#000; transition:all 0.2s ease; }
-    .preview-panel.hidden{ display:none; }
-    .preview-header{ padding:8px; background:var(--bg-secondary); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; color:var(--text-primary); }
-    .preview-iframe{ width:100%; height:100%; border:0; flex:1; background:#fff; }
-
-    .console-panel{ height:160px; background:var(--bg-editor); border-top:1px solid var(--border-color); display:flex; flex-direction:column; font-family:monospace; font-size:0.85rem; color:var(--text-primary); }
-    .console-header{ padding:6px; display:flex; justify-content:space-between; align-items:center; background:var(--bg-secondary); border-bottom:1px solid var(--border-color); }
-    .console-output{ padding:10px; overflow:auto; white-space:pre-wrap; flex:1; }
-
-    .stats-bar{ padding:6px 10px; background:var(--bg-secondary); border-top:1px solid var(--border-color); display:flex; justify-content:space-between; color:var(--text-secondary); font-size:0.9rem; }
-
-    .float-controls{
-      display:none;
-      position:fixed;
-      right:12px;
-      bottom:18px;
-      z-index:120;
-      gap:10px;
-      flex-direction:column;
-      align-items:center;
+    .controls button:hover {
+      background-color: #d0d0d0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
-    .float-controls button{
-      width:56px; height:56px; border-radius:50%;
-      display:flex; align-items:center; justify-content:center; background:#007bff; color:#fff; border:none; box-shadow:0 6px 14px rgba(0,0,0,0.25);
-      font-size:18px; cursor:pointer;
+    .controls button.prominent {
+      padding: 12px 20px;
+      font-size: 1.1em;
+      font-weight: bold;
+      background-color: #007bff;
+      color: white;
+      border-color: #007bff;
+    }
+    .controls button.prominent:hover {
+      background-color: #0056b3;
+      border-color: #0056b3;
+    }
+    .controls button#clearAllBtn.prominent {
+      background-color: #dc3545;
+      border-color: #dc3545;
+    }
+    .controls button#clearAllBtn.prominent:hover {
+      background-color: #c82333;
+      border-color: #c82333;
     }
 
-    @media (max-width:900px){
-      :root{ --control-cols: 4; }
-      .controls{ padding:8px; gap:8px; }
-      .controls button{ padding:8px; font-size:0.88rem; border-radius:10px; }
-      .tab-bar{ padding:6px; gap:6px; }
-      .tab{ min-width:90px; padding:10px 14px; border-radius:12px; font-size:0.95rem; }
-      .sidebar{ position:absolute; z-index:80; height:calc(100vh - 150px); left:0; top:120px; background:var(--bg-secondary); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
-      .preview-panel{ display:none; }
-      .preview-panel.hidden{ display:none; }
-      .float-controls{ display:flex; }
-      .controls button, .tab, .controls .add-tab-btn { min-height: var(--touch-size); padding: var(--touch-padding); font-size:1rem; }
-      #searchInput{ height:44px; font-size:1rem; }
-      #searchBar{ gap:6px; }
-      .controls{ overflow-x:auto; white-space:nowrap; -webkit-overflow-scrolling:touch; }
+    /* 検索・置換パネル */
+    .search-panel {
+      padding: 10px;
+      background-color: #e8f4f8;
+      border-bottom: 1px solid #b0d4e0;
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .search-panel.active {
+      display: flex;
+    }
+    .search-panel input {
+      padding: 6px 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      min-width: 150px;
+    }
+    .search-panel button {
+      padding: 6px 12px;
+      cursor: pointer;
+      border: 1px solid #007bff;
+      border-radius: 4px;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.2s;
+    }
+    .search-panel button:hover {
+      background-color: #0056b3;
+    }
+    .search-panel button.close-btn {
+      background-color: #6c757d;
+      border-color: #6c757d;
+    }
+    .search-panel button.close-btn:hover {
+      background-color: #5a6268;
+    }
+    .search-panel .search-info {
+      font-size: 13px;
+      color: #555;
+      margin: 0 5px;
     }
 
-    @media (max-width:420px){
-      :root{ --control-cols: 3; }
-      .controls button span{ display:none; }
-      .tab{ min-width:84px; padding:10px; font-size:0.95rem; }
-      .controls button{ padding:8px; }
-      .tab-bar{ padding:6px; }
-      .tab .tab-close{ display:none; }
+    /* エディター領域 */
+    .editor {
+      flex: 1;
+      overflow: hidden;
+    }
+    .CodeMirror {
+      height: 100%;
+      border: 1px solid #ddd;
+      border-top: none;
     }
 
-    #messageArea{
-      position:absolute; right:12px; top:12px; background:rgba(0,0,0,0.6); padding:8px 12px; border-radius:8px; color:#fff; display:none; z-index:200;
+    /* 検索ハイライト */
+    .cm-searching {
+      background-color: yellow;
+      color: black;
+    }
+    .cm-searching-current {
+      background-color: #ff9632;
+      color: black;
+      font-weight: bold;
+    }
+
+    /* メッセージエリア */
+    #messageArea {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 8px 15px;
+      font-size: 0.85em;
+      white-space: nowrap;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: white;
+      border-radius: 5px;
+      opacity: 0;
+      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
+      z-index: 100;
+      pointer-events: none;
+    }
+    #messageArea.show {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
+    #messageArea:not(.show) {
+        transform: translateY(-50%) translateX(20px);
+    }
+    #messageArea.success {
+        background-color: #28a745;
+    }
+    #messageArea.error {
+        background-color: #dc3545;
+    }
+    #messageArea.info {
+        background-color: #17a2b8;
+    }
+
+    /* スマートフォンでの表示調整 */
+    @media (max-width: 768px) {
+        .controls {
+            padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px));
+            padding-bottom: 10px;
+        }
+        #messageArea {
+            top: calc(70px + env(safe-area-inset-top, 0px));
+            transform: translateY(0);
+        }
+        #messageArea.show {
+            transform: translateY(0) translateX(0);
+        }
+        #messageArea:not(.show) {
+            transform: translateY(0) translateX(20px);
+        }
+        .search-panel input {
+          min-width: 120px;
+        }
+        .tab {
+          min-width: 100px;
+          max-width: 150px;
+        }
     }
   </style>
 </head>
-<body data-theme="dark">
+<body>
+  <!-- タブバー -->
+  <div class="tab-bar" id="tabBar">
+    <button class="new-tab-btn" id="newTabBtn">✚</button>
+  </div>
 
   <div class="controls" id="controlsPanel">
-    <div id="messageArea" aria-live="polite"></div>
-
-    <button id="selectAllBtn" title="全て選択"><i class="fas fa-mouse-pointer"></i> <span>全選択</span></button>
-    <button id="copyBtn" title="クリップボードにコピー"><i class="fas fa-copy"></i> <span>コピー</span></button>
-    <button id="pasteBtn" class="prominent" title="クリップボードから貼り付け"><i class="fas fa-paste"></i> <span>貼り付け</span></button>
-    <button id="clearAllBtn" class="prominent" title="エディタを全て消去"><i class="fas fa-trash-alt"></i> <span>全クリア</span></button>
-    <button id="openFileBtn" title="ファイルを開く"><i class="fas fa-folder-open"></i> <span>開く</span></button>
-
-    <input type="file" id="fileInput" accept=".html,.htm,.css,.js,.txt,.xml,.json,.py,.php,.rb" style="display:none" multiple>
-
-    <button id="saveBtn" title="現在のタブをHTMLとして保存"><i class="fas fa-save"></i> <span>保存(HTML)</span></button>
-    <button id="saveTxtBtn" title="現在のタブをテキストとして保存"><i class="fas fa-file-alt"></i> <span>保存(TXT)</span></button>
-
-    <button id="formatBtn" class="format-btn" title="コードを整形"><i class="fas fa-magic"></i> <span>フォーマット</span></button>
-    <button id="minifyBtn" title="コードを簡易的に圧縮"><i class="fas fa-compress"></i> <span>ミニファイ</span></button>
-    <button id="runBtn" title="新しいウィンドウで実行"><i class="fas fa-play"></i> <span>実行</span></button>
-
-    <button id="undoBtn" title="取り消し"><i class="fas fa-undo"></i> <span>アンドゥ</span></button>
-    <button id="redoBtn" title="やり直し"><i class="fas fa-redo"></i> <span>リドゥ</span></button>
-    <button id="searchBtn" title="検索を表示"><i class="fas fa-search"></i> <span>検索</span></button>
-    <button id="replaceBtn" title="置換を表示"><i class="fas fa-exchange-alt"></i> <span>置換</span></button>
-
-    <button id="themeToggle" title="テーマ切替"><i class="fas fa-moon"></i> <span>テーマ</span></button>
-    <button id="sidebarToggle" title="ファイル一覧を表示/非表示"><i class="fas fa-bars"></i> <span>サイドバー</span></button>
-
-    <div id="searchBar" style="display:none;">
-      <input type="text" id="searchInput" placeholder="検索文字列">
-      <button id="searchPrevBtn" title="前の一致へ"><i class="fas fa-arrow-up"></i></button>
-      <button id="searchNextBtn" title="次の一致へ"><i class="fas fa-arrow-down"></i></button>
-      <button id="replaceOneBtn" disabled title="現在の一致を置換">置換</button>
-      <button id="replaceAllBtn" disabled title="すべて置換">すべて置換</button>
-      <span id="searchStats" aria-hidden="true">0/0</span>
-      <button id="closeSearchBtn" title="検索バーを閉じる"><i class="fas fa-times"></i></button>
-    </div>
+    <div id="messageArea"></div>
+    <button id="selectAllBtn">全選択</button>
+    <button id="copyBtn">コピー</button>
+    <button id="pasteBtn" class="prominent">貼付け</button>
+    <button id="clearAllBtn" class="prominent">全削除</button>
+    <button id="openFileBtn">開く</button>
+    <input type="file" id="fileInput" accept=".html" style="display:none">
+    <button id="saveBtn">保存 (HTML)</button>
+    <button id="saveTxtBtn">保存 (TXT)</button>
+    <button id="undoBtn">元に戻す</button>
+    <button id="redoBtn">やり直し</button>
+    <button id="searchBtn" class="prominent">検索</button>
+    <button id="organizeTabsBtn">タブ整理</button>
+    <button id="saveAllBtn" class="prominent">全保存 (JSON)</button>
+    <button id="loadAllBtn" class="prominent">全読込 (JSON)</button>
+    <input type="file" id="jsonInput" accept=".json" style="display:none">
+    <button id="runBtn" class="prominent">実行</button>
   </div>
 
-  <div class="tab-bar" id="tabBar" aria-label="タブ一覧">
-    <button id="addTabBtn" class="tab" title="新しいタブを追加"><i class="fas fa-plus"></i> <span>新規タブ</span></button>
+  <div class="search-panel" id="searchPanel">
+    <input type="text" id="searchInput" placeholder="検索...">
+    <button id="prevBtn">◀ 前へ</button>
+    <button id="nextBtn">次へ ▶</button>
+    <span class="search-info" id="searchInfo"></span>
+    <input type="text" id="replaceInput" placeholder="置換後...">
+    <button id="replaceBtn">置換</button>
+    <button id="replaceAllBtn">全て置換</button>
+    <button id="closeSearchBtn" class="close-btn">✕ 閉じる</button>
   </div>
 
-  <div class="main-content">
-    <div class="sidebar" id="sidebar" aria-label="ファイルエクスプローラー">
-      <div class="sidebar-header">
-        <span>ファイルエクスプローラー</span>
-        <button class="sidebar-toggle" id="sidebarClose" title="サイドバーを閉じる"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="file-tree" id="fileTree"></div>
-    </div>
-
-    <div class="editor">
-      <textarea id="htmlCode" placeholder="HTML/CSS/JS をここに記述..."></textarea>
-    </div>
-
-    <div class="preview-panel" id="previewPanel" aria-label="プレビュー">
-      <div class="preview-header">
-        <span>プレビュー</span>
-        <button class="preview-toggle" id="togglePreview" title="プレビューの表示/非表示">非表示</button>
-      </div>
-      <iframe class="preview-iframe" id="previewFrame" sandbox="allow-scripts allow-same-origin"></iframe>
-    </div>
+  <div class="editor">
+    <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
   </div>
 
-  <div class="console-panel" id="consolePanel" style="display:none;">
-    <div class="console-header">
-      <span>コンソール</span>
-      <button class="console-clear" id="clearConsole" title="コンソールをクリア">クリア</button>
-    </div>
-    <div class="console-output" id="consoleOutput" aria-live="polite"></div>
-  </div>
-
-  <div class="stats-bar" id="statsBar">
-    <span id="charCount">文字数: 0</span>
-    <span id="lineCount">行数: 1</span>
-  </div>
-
-  <div class="float-controls" id="floatControls" aria-hidden="true">
-    <button id="floatPreviewBtn" title="プレビューを開く"><i class="fas fa-eye"></i></button>
-    <button id="floatSidebarBtn" title="ファイル一覧を開く"><i class="fas fa-folder"></i></button>
-    <button id="floatSettingsBtn" title="設定を開く"><i class="fas fa-cog"></i></button>
-  </div>
-
-  <div id="settingsPanel" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:300; place-content:center; align-items:center;">
-    <div id="settingsContent" style="background:var(--bg-primary); padding:18px; border-radius:10px; width:360px; color:var(--text-primary);">
-      <h3 style="margin-top:0">設定</h3>
-      <label>フォントサイズ: <input type="number" id="fontSize" min="8" max="20" value="12" style="width:70px; margin-left:8px;"></label>
-      <label style="display:block; margin-top:8px;">テーマ:
-        <select id="themeSelect" style="margin-left:8px;">
-          <option value="dark">ダーク</option>
-          <option value="light">ライト</option>
-          <option value="material">マテリアル</option>
-        </select>
-      </label>
-      <label style="display:block; margin-top:8px;">自動保存間隔 (秒): <input type="number" id="autoSaveInterval" min="1" max="300" value="5" style="width:80px; margin-left:8px;"></label>
-      <div style="margin-top:12px; text-align:right;">
-        <button id="closeSettings" style="background:#28a745; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer;" title="設定を保存して閉じる">保存して閉じる</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/json/json.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/python/python.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/php/php.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/ruby/ruby.min.js"></script>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/search.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/dialog/dialog.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/jump-to-line.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchbrackets.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closebrackets.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/closetag.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/matchtags.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/edit/trailingspace.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/selection/active-line.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/foldgutter.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/brace-fold.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/xml-fold.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/indent-fold.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/fold/comment-fold.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/show-hint.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/html-hint.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/css-hint.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/hint/javascript-hint.min.js"></script>
-
-  <!-- Prettier（整形） -->
-  <script src="https://unpkg.com/prettier@2.8.8/standalone.js"></script>
-  <script src="https://unpkg.com/prettier@2.8.8/parser-html.js"></script>
-  <script src="https://unpkg.com/prettier@2.8.8/parser-babel.js"></script>
-  <script src="https://unpkg.com/prettier@2.8.8/parser-postcss.js"></script>
 
   <script>
-    // 既存機能は変更せず、ラベルだけ日本語に統一しています（内部ロジックは元のまま）
-    const STORAGE_KEY_TABS = "editorTabs_v5";
-    const STORAGE_KEY_ACTIVE_TAB = "editorActiveTab_v5";
-    const STORAGE_KEY_SETTINGS = "editorSettings_v2";
-    const STORAGE_KEY_PROJECT = "editorProject_v1";
-    const titleRegex = /<title\b[^>]*>([\s\S]*?)<\/title>/i;
-
+    // タブ管理
     let tabs = [];
-    let activeTabIndex = 0;
-    let tabIdCounter = 1;
-    let currentTheme = 'dark';
-    let autoSaveTimerHandle = null;
-    let previewUrlToRevoke = null;
-    let previewDebounce = null;
-    let updateTitleDebounce = null;
+    let currentTabId = null;
+    let nextTabId = 1;
 
-    const cmOptions = {
-      theme: 'material-darker',
-      mode: 'htmlmixed',
+    // CodeMirror インスタンス
+    var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
+      mode: "htmlmixed",
       lineNumbers: true,
-      autofocus: true,
-      matchBrackets: true,
-      autoCloseBrackets: true,
-      autoCloseTags: true,
-      matchTags: { bothTags: true },
-      styleActiveLine: true,
-      showTrailingSpace: true,
-      foldGutter: true,
-      gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"],
-      highlightSelectionMatches: { showToken: /\w/, annotateScrollbar: true },
-      indentUnit: 2,
-      tabSize: 2,
-      indentWithTabs: false,
-      extraKeys: {
-        "Ctrl-Space": "autocomplete",
-        "F11": (cm) => toggleFullscreen(cm),
-        "Ctrl-Shift-F": () => formatCode(),
-        "Ctrl-Alt-M": () => minifyCode()
-      },
-      hintOptions: { completeSingle: false }
-    };
+      theme: "default"
+    });
 
-    // DOM要素
-    const messageArea = document.getElementById('messageArea');
-    const tabBar = document.getElementById('tabBar');
-    const addTabBtn = document.getElementById('addTabBtn');
-    const fileInput = document.getElementById('fileInput');
-    const openFileBtn = document.getElementById('openFileBtn');
-    const saveBtn = document.getElementById('saveBtn');
-    const saveTxtBtn = document.getElementById('saveTxtBtn');
+    // 各ボタン要素の取得
     const selectAllBtn = document.getElementById('selectAllBtn');
     const copyBtn = document.getElementById('copyBtn');
     const pasteBtn = document.getElementById('pasteBtn');
     const clearAllBtn = document.getElementById('clearAllBtn');
-    const formatBtn = document.getElementById('formatBtn');
-    const minifyBtn = document.getElementById('minifyBtn');
-    const runBtn = document.getElementById('runBtn');
+    const openFileBtn = document.getElementById('openFileBtn');
+    const fileInput = document.getElementById('fileInput');
+    const saveBtn = document.getElementById('saveBtn');
+    const saveTxtBtn = document.getElementById('saveTxtBtn');
     const undoBtn = document.getElementById('undoBtn');
     const redoBtn = document.getElementById('redoBtn');
     const searchBtn = document.getElementById('searchBtn');
-    const replaceBtn = document.getElementById('replaceBtn');
-    const searchBar = document.getElementById('searchBar');
+    const runBtn = document.getElementById('runBtn');
+    const messageArea = document.getElementById('messageArea');
+    const controlsPanel = document.getElementById('controlsPanel');
+    const newTabBtn = document.getElementById('newTabBtn');
+    const tabBar = document.getElementById('tabBar');
+    const organizeTabsBtn = document.getElementById('organizeTabsBtn');
+    const saveAllBtn = document.getElementById('saveAllBtn');
+    const loadAllBtn = document.getElementById('loadAllBtn');
+    const jsonInput = document.getElementById('jsonInput');
+
+    // 検索関連の要素
+    const searchPanel = document.getElementById('searchPanel');
     const searchInput = document.getElementById('searchInput');
-    const searchStats = document.getElementById('searchStats');
-    const searchPrevBtn = document.getElementById('searchPrevBtn');
-    const searchNextBtn = document.getElementById('searchNextBtn');
-    const replaceOneBtn = document.getElementById('replaceOneBtn');
+    const replaceInput = document.getElementById('replaceInput');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const replaceBtn = document.getElementById('replaceBtn');
     const replaceAllBtn = document.getElementById('replaceAllBtn');
     const closeSearchBtn = document.getElementById('closeSearchBtn');
-    const themeToggleBtn = document.getElementById('themeToggle');
-    const sidebarToggleBtn = document.getElementById('sidebarToggle');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarClose = document.getElementById('sidebarClose');
-    const fileTree = document.getElementById('fileTree');
-    const previewFrame = document.getElementById('previewFrame');
-    const togglePreviewBtn = document.getElementById('togglePreview');
-    const previewPanel = document.getElementById('previewPanel');
-    const consolePanel = document.getElementById('consolePanel');
-    const consoleOutput = document.getElementById('consoleOutput');
-    const clearConsoleBtn = document.getElementById('clearConsole');
-    const charCount = document.getElementById('charCount');
-    const lineCount = document.getElementById('lineCount');
-    const settingsPanel = document.getElementById('settingsPanel');
-    const fontSizeInput = document.getElementById('fontSize');
-    const themeSelect = document.getElementById('themeSelect');
-    const autoSaveIntervalInput = document.getElementById('autoSaveInterval');
-    const closeSettingsBtn = document.getElementById('closeSettings');
+    const searchInfo = document.getElementById('searchInfo');
 
-    const floatControls = document.getElementById('floatControls');
-    const floatPreviewBtn = document.getElementById('floatPreviewBtn');
-    const floatSidebarBtn = document.getElementById('floatSidebarBtn');
-    const floatSettingsBtn = document.getElementById('floatSettingsBtn');
+    // 検索状態の管理
+    let searchState = {
+      query: '',
+      matches: [],
+      currentIndex: -1,
+      markers: []
+    };
 
-    const cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), cmOptions);
-
-    function showMessage(msg, type = 'info', duration = 2200){
+    /**
+     * メッセージ表示関数
+     */
+    function showMessage(msg, type = 'info') {
       messageArea.textContent = msg;
-      messageArea.style.display = 'block';
-      messageArea.style.background = type === 'error' ? '#dc3545' : type === 'success' ? '#28a745' : 'rgba(23,162,184,0.95)';
-      clearTimeout(messageArea._hideTimer);
-      messageArea._hideTimer = setTimeout(()=> {
-        messageArea.style.display = 'none';
-      }, duration);
+      messageArea.className = 'show ' + type;
+      setTimeout(() => {
+        messageArea.className = '';
+        messageArea.textContent = '';
+      }, 2500);
     }
 
-    function safeRevoke(url){
-      try{ if(url) URL.revokeObjectURL(url); }catch(e){}
+    /**
+     * HTMLからタイトルを抽出
+     */
+    function extractTitle(html) {
+      const match = html.match(/<title>(.*?)<\/title>/i);
+      return match ? match[1].trim() : '無題';
     }
 
-    function updatePreview(){
-      const code = cm.getValue();
-      try{
-        safeRevoke(previewUrlToRevoke);
-        const blob = new Blob([code], {type:'text/html;charset=utf-8'});
-        const url = URL.createObjectURL(blob);
-        previewUrlToRevoke = url;
-        previewFrame.src = url;
-        previewFrame.onload = () => {
-          try{
-            const iframeDoc = previewFrame.contentWindow.document;
-            if(!iframeDoc.head.querySelector('script[data-injected-console]')){
-              const s = iframeDoc.createElement('script');
-              s.setAttribute('data-injected-console','1');
-              s.textContent = `
-                (function(){
-                  try{
-                    const originalLog = console.log.bind(console);
-                    console.log = function(...args){
-                      try{ parent.postMessage({type:'console', data: args.map(a=> (typeof a === 'object' ? JSON.stringify(a) : String(a))).join(' ')}, '*'); } catch(e){}
-                      originalLog(...args);
-                    };
-                  }catch(e){}
-                })();
-              `;
-              iframeDoc.head.appendChild(s);
-            }
-          }catch(e){}
+    /**
+     * 新しいタブを作成
+     */
+    function createTab(content = '', title = null) {
+      const tabId = nextTabId++;
+      const tabTitle = title || extractTitle(content) || '無題';
+      
+      const tab = {
+        id: tabId,
+        content: content,
+        title: tabTitle
+      };
+      
+      tabs.push(tab);
+      renderTabs();
+      switchToTab(tabId);
+      saveTabsToStorage();
+      return tabId;
+    }
+
+    /**
+     * タブをレンダリング
+     */
+    function renderTabs() {
+      // 既存のタブ要素を削除（新規タブボタン以外）
+      const existingTabs = tabBar.querySelectorAll('.tab');
+      existingTabs.forEach(tab => tab.remove());
+
+      // タブを作成
+      tabs.forEach(tab => {
+        const tabElement = document.createElement('div');
+        tabElement.className = 'tab' + (tab.id === currentTabId ? ' active' : '');
+        tabElement.dataset.tabId = tab.id;
+        
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'tab-title';
+        titleSpan.textContent = tab.title;
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'tab-close';
+        closeBtn.textContent = '✕';
+        closeBtn.onclick = (e) => {
+          e.stopPropagation();
+          closeTab(tab.id);
         };
-      }catch(e){}
-    }
-
-    function saveTabsToStorage(){
-      if(tabs[activeTabIndex]){ tabs[activeTabIndex].code = cm.getValue(); tabs[activeTabIndex].mode = cm.getOption('mode'); }
-      localStorage.setItem(STORAGE_KEY_TABS, JSON.stringify(tabs));
-      localStorage.setItem(STORAGE_KEY_ACTIVE_TAB, tabs[activeTabIndex] ? tabs[activeTabIndex].id : 0);
-    }
-
-    function loadTabsFromStorage(){
-      const saved = localStorage.getItem(STORAGE_KEY_TABS);
-      const project = JSON.parse(localStorage.getItem(STORAGE_KEY_PROJECT) || '[]');
-      if(saved){
-        try{ tabs = JSON.parse(saved); tabIdCounter = tabs.reduce((m,t) => Math.max(m, t.id||0), 0) + 1; }catch(e){ tabs = []; }
-      }
-      if(tabs.length === 0){ tabs.push({ id: tabIdCounter++, title: 'タブ 1', code: '', mode: 'htmlmixed' }); }
-      const activeId = localStorage.getItem(STORAGE_KEY_ACTIVE_TAB);
-      if(activeId){ const found = tabs.findIndex(t => String(t.id) === String(activeId)); activeTabIndex = found >= 0 ? found : 0; } else activeTabIndex = 0;
-      updateFileTree(project.length ? project : tabs.map(t => ({name: t.title, content: t.code})));
-    }
-
-    function renderTabs(){
-      Array.from(tabBar.children).forEach(node => { if(node !== addTabBtn) node.remove(); });
-      tabs.forEach((t, idx) => {
-        const el = document.createElement('div');
-        el.className = 'tab' + (idx === activeTabIndex ? ' active' : '');
-        el.title = t.title || '無題';
-        el.dataset.index = idx;
-        const title = document.createElement('span'); title.textContent = t.title || '無題'; title.style.flex='1'; title.style.overflow='hidden'; title.style.textOverflow='ellipsis'; title.style.whiteSpace='nowrap';
-        const closeBtn = document.createElement('button'); closeBtn.className = 'tab-close'; closeBtn.title='タブを閉じる'; closeBtn.innerHTML = '×';
-        el.appendChild(title); el.appendChild(closeBtn);
-        el.addEventListener('click', (e) => { if(e.target !== closeBtn) switchTab(idx); });
-        el.addEventListener('dblclick', (e) => { if(e.target !== closeBtn){ const newName = prompt('タブ名を入力:', t.title || ''); if(newName !== null && newName.trim() !== ''){ tabs[idx].title = newName.trim(); renderTabs(); saveTabsToStorage(); showMessage('タブ名を変更しました','success'); } } });
-        closeBtn.addEventListener('click', (e) => { e.stopPropagation(); removeTab(idx); });
-        tabBar.insertBefore(el, addTabBtn);
+        
+        tabElement.appendChild(titleSpan);
+        tabElement.appendChild(closeBtn);
+        
+        tabElement.onclick = () => switchToTab(tab.id);
+        
+        tabBar.insertBefore(tabElement, newTabBtn);
       });
-      const activeEl = tabBar.querySelector('.tab.active'); if(activeEl) activeEl.scrollIntoView({behavior:'smooth', inline:'nearest'});
     }
 
-    function switchTab(index){
-      if(index < 0 || index >= tabs.length) return;
-      if(tabs[activeTabIndex]) tabs[activeTabIndex].code = cm.getValue();
-      activeTabIndex = index;
-      const tab = tabs[activeTabIndex];
-      cm.setValue(tab.code || '');
-      cm.setOption('mode', tab.mode || 'htmlmixed');
-      cm.clearHistory && cm.getDoc().clearHistory && cm.getDoc().clearHistory();
-      renderTabs();
-      saveTabsToStorage();
-      updatePreview();
-      updateStats();
-      showMessage(`タブ "${tab.title}" に切り替え`, 'info');
-    }
-
-    function addTab(title=null, code='', mode='htmlmixed'){
-      const newTitle = title || `タブ ${tabIdCounter}`;
-      const newTab = { id: tabIdCounter++, title: newTitle, code: code, mode: mode };
-      tabs.push(newTab);
-      switchTab(tabs.length - 1);
-    }
-
-    function removeTab(index){
-      if(tabs.length <= 1){ showMessage('最後のタブは削除できません', 'error'); return; }
-      const removed = tabs.splice(index,1);
-      activeTabIndex = Math.max(0, activeTabIndex - (index <= activeTabIndex ? 1 : 0));
-      renderTabs();
-      switchTab(activeTabIndex);
-      saveTabsToStorage();
-      showMessage(`タブ "${removed[0].title}" を削除しました`, 'info');
-    }
-
-    function updateTabTitleFromContent(content, index){
-      if(!content || typeof content !== 'string') return;
-      const match = content.match(titleRegex);
-      if(match && match[1]){
-        let newTitle = match[1].trim();
-        if(newTitle.length > 60) newTitle = newTitle.slice(0,60) + '...';
-        if(tabs[index] && tabs[index].title !== newTitle){ tabs[index].title = newTitle; renderTabs(); saveTabsToStorage(); }
-      }
-    }
-
-    let searchState = { query: null, matches: [], current: -1 };
-
-    function startSearch(replace=false){
-      searchBar.style.display = 'flex';
-      searchInput.focus();
-      replaceOneBtn.style.display = replace ? 'inline-block' : 'none';
-      replaceAllBtn.style.display = replace ? 'inline-block' : 'none';
-      if(cm.somethingSelected()) searchInput.value = cm.getSelection();
-      findMatches(searchInput.value || '');
-    }
-
-    function hideSearch(){
-      searchBar.style.display = 'none';
-      searchState = { query: null, matches: [], current: -1 };
-      try{ cm.execCommand && cm.execCommand('clearSearch'); }catch(e){}
-      cm.focus();
-    }
-
-    function findMatches(q){
-      searchState.matches = []; searchState.current = -1;
-      if(!q){ updateSearchStats(0,0); return; }
-      searchState.query = q;
-      const cursor = cm.getSearchCursor(q, {line:0, ch:0}, {caseFold:true, multiline:true});
-      const matches = [];
-      while(cursor.findNext()) matches.push({from: cursor.from(), to: cursor.to()});
-      searchState.matches = matches;
-      if(matches.length){
-        if(typeof CodeMirror.showMatchesOnScrollbar === 'function'){
-          try{ CodeMirror.showMatchesOnScrollbar(cm, q); }catch(e){}
+    /**
+     * タブを切り替え
+     */
+    function switchToTab(tabId) {
+      // 現在のタブの内容を保存
+      if (currentTabId !== null) {
+        const currentTab = tabs.find(t => t.id === currentTabId);
+        if (currentTab) {
+          currentTab.content = cm.getValue();
+          currentTab.title = extractTitle(currentTab.content);
         }
-        let nearestIndex = 0;
-        const cur = cm.getCursor();
-        for(let i=0;i<matches.length;i++){ if(CodeMirror.cmpPos(matches[i].from, cur) >= 0){ nearestIndex = i; break; } }
-        goToMatch(nearestIndex);
-      }else updateSearchStats(0,0);
-    }
+      }
 
-    function updateSearchStats(current,total){
-      searchStats.textContent = `${current}/${total}`;
-      const disabled = total === 0;
-      searchPrevBtn.disabled = disabled; searchNextBtn.disabled = disabled; replaceOneBtn.disabled = disabled; replaceAllBtn.disabled = disabled;
-    }
-
-    function goToMatch(index){
-      if(!searchState.matches.length) return;
-      index = ((index % searchState.matches.length) + searchState.matches.length) % searchState.matches.length;
-      const m = searchState.matches[index];
-      searchState.current = index;
-      cm.setSelection(m.from, m.to);
-      cm.scrollIntoView({from:m.from, to:m.to}, 100);
-      updateSearchStats(index+1, searchState.matches.length);
-    }
-
-    function nextMatch(){ if(searchState.matches.length) goToMatch(searchState.current + 1); else findMatches(searchInput.value); }
-    function prevMatch(){ if(searchState.matches.length) goToMatch(searchState.current - 1); else findMatches(searchInput.value); }
-
-    function replaceOne(){
-      if(searchState.current < 0) return;
-      const replacement = prompt('置換文字列を入力:', '');
-      if(replacement === null) return;
-      const m = searchState.matches[searchState.current];
-      cm.replaceRange(replacement, m.from, m.to);
-      findMatches(searchState.query);
-      showMessage('1箇所置換しました', 'success');
-    }
-
-    function replaceAll(){
-      if(!searchState.matches.length) return;
-      const replacement = prompt('置換文字列を入力:', '');
-      if(replacement === null) return;
-      let count = 0;
-      cm.operation(()=> {
-        const cur = cm.getSearchCursor(searchState.query, {line:0,ch:0}, {caseFold:true, multiline:true});
-        while(cur.findNext()){ cur.replace(replacement); count++; }
-      });
-      findMatches(searchState.query);
-      showMessage(`${count} 箇所を置換しました`, 'success');
-    }
-
-    function formatCode(){
-      const code = cm.getValue();
-      const mode = cm.getOption('mode');
-      try{
-        const plugins = window.prettierPlugins || [];
-        let formatted = code;
-        if(mode === 'htmlmixed' || mode === 'text/html'){ formatted = prettier.format(code, { parser: 'html', plugins }); }
-        else if(mode === 'javascript' || mode === 'application/javascript'){ formatted = prettier.format(code, { parser: 'babel', plugins }); }
-        else if(mode === 'css'){ formatted = prettier.format(code, { parser: 'css', plugins }); }
-        else { showMessage('このモードはフォーマット非対応です','error'); return; }
-        cm.setValue(formatted); updatePreview(); showMessage('フォーマット完了','success');
-      }catch(e){ showMessage('フォーマット時にエラーが発生しました','error'); console.warn(e); }
-    }
-
-    function minifyCode(){
-      const code = cm.getValue(); const mode = cm.getOption('mode');
-      try{
-        let minified = code;
-        if(mode === 'htmlmixed'){ minified = code.replace(/>\s+</g,'><').replace(/\s{2,}/g,' ').trim(); }
-        else if(mode === 'javascript' || mode === 'css'){ minified = code.replace(/\/\*[\s\S]*?\*\//g,'').replace(/\/\/.*$/gm,'').replace(/\n+/g,'').replace(/\s{2,}/g,' ').trim(); }
-        else { showMessage('このモードはミニファイ非対応です','error'); return; }
-        cm.setValue(minified); updatePreview(); showMessage('ミニファイ完了','success');
-      }catch(e){ showMessage('ミニファイ中にエラー','error'); }
-    }
-
-    function updateStats(){ const v = cm.getValue(); charCount.textContent = `文字数: ${v.length}`; lineCount.textContent = `行数: ${v.split('\n').length}`; }
-
-    function logToConsole(msg){ consoleOutput.textContent += msg + '\n'; consoleOutput.scrollTop = consoleOutput.scrollHeight; if(consolePanel.style.display === 'none') consolePanel.style.display = 'flex'; }
-    window.addEventListener('message', (e) => { try{ if(e && e.data && e.data.type === 'console'){ logToConsole(e.data.data); } }catch(e){} });
-
-    function updateFileTree(files){ fileTree.innerHTML = ''; (files||[]).forEach((f, idx) => { const item = document.createElement('div'); item.className='file-item'; item.textContent = f.name || `file${idx+1}`; item.style.padding='6px'; item.style.borderRadius='4px'; item.style.cursor='pointer'; item.addEventListener('click', ()=>{ addTab(f.name, f.content || '', 'htmlmixed'); document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active')); item.classList.add('active'); }); fileTree.appendChild(item); }); }
-
-    function saveProject(){ const projectFiles = tabs.map(t => ({ name: t.title, content: t.code })); localStorage.setItem(STORAGE_KEY_PROJECT, JSON.stringify(projectFiles)); updateFileTree(projectFiles); showMessage('プロジェクトを保存しました','success'); }
-
-    function openSettings(){ const s = JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}'); fontSizeInput.value = s.fontSize || 12; themeSelect.value = s.theme || 'dark'; autoSaveIntervalInput.value = s.autoSaveInterval || 5; settingsPanel.style.display = 'grid'; }
-    function saveSettings(){ const settings = { fontSize: parseInt(fontSizeInput.value) || 12, theme: themeSelect.value || 'dark', autoSaveInterval: parseInt(autoSaveIntervalInput.value) || 5 }; localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings)); applySettings(settings); settingsPanel.style.display = 'none'; showMessage('設定を保存しました','success'); }
-    function applySettings(settings){
-      if(settings.fontSize) cm.getWrapperElement().style.fontSize = settings.fontSize + 'px';
-      currentTheme = settings.theme || 'dark';
-      document.body.setAttribute('data-theme', currentTheme);
-      cm.setOption('theme', currentTheme === 'dark' ? 'material-darker' : currentTheme === 'light' ? 'default' : 'material');
-      if(autoSaveTimerHandle) clearInterval(autoSaveTimerHandle);
-      autoSaveTimerHandle = setInterval(()=> { saveTabsToStorage(); saveProject(); updatePreview(); }, (settings.autoSaveInterval || 5)*1000);
-      themeToggleBtn.innerHTML = `<i class="fas fa-${currentTheme === 'dark' ? 'sun' : 'moon'}"></i> ${currentTheme}`;
-    }
-
-    function initialize(){
-      loadTabsFromStorage();
-      renderTabs();
-      switchTab(activeTabIndex);
-      const savedSettings = JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS) || '{}');
-      applySettings(savedSettings);
-      cm.on('change', () => {
-        if(tabs[activeTabIndex]) tabs[activeTabIndex].code = cm.getValue();
-        clearTimeout(updateTitleDebounce);
-        updateTitleDebounce = setTimeout(()=> updateTabTitleFromContent(cm.getValue(), activeTabIndex), 900);
-        clearTimeout(previewDebounce);
-        previewDebounce = setTimeout(updatePreview, 450);
-        updateStats();
+      // 新しいタブを読み込み
+      currentTabId = tabId;
+      const tab = tabs.find(t => t.id === tabId);
+      if (tab) {
+        cm.setValue(tab.content);
+        renderTabs();
         saveTabsToStorage();
-      });
+      }
+    }
 
-      selectAllBtn.addEventListener('click', ()=>{ cm.execCommand && cm.execCommand('selectAll'); showMessage('全選択しました'); });
-      copyBtn.addEventListener('click', async ()=> { try{ const text = cm.getSelection() || cm.getValue(); await navigator.clipboard.writeText(text); showMessage('コピーしました','success'); }catch(e){ showMessage('コピーに失敗しました','error'); } });
-      pasteBtn.addEventListener('click', async ()=> { try{ const text = await navigator.clipboard.readText(); cm.replaceSelection(text); showMessage('貼り付けました','success'); updatePreview(); }catch(e){ showMessage('貼り付けに失敗しました','error'); } });
-      clearAllBtn.addEventListener('click', ()=> { if(confirm('全クリアしますか？')){ cm.setValue(''); updatePreview(); showMessage('エディタをクリアしました','info'); } });
+    /**
+     * タブを閉じる
+     */
+    function closeTab(tabId) {
+      if (tabs.length === 1) {
+        showMessage("最後のタブは閉じられません", "error");
+        return;
+      }
 
-      openFileBtn.addEventListener('click', ()=> fileInput.click());
-      fileInput.addEventListener('change', (e)=> {
-        Array.from(e.target.files).forEach(file => {
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            const content = ev.target.result;
-            const name = file.name;
-            let mode = 'htmlmixed';
-            if(name.endsWith('.css')) mode='css';
-            else if(name.endsWith('.js')) mode='javascript';
-            else if(name.endsWith('.json')) mode='application/json';
-            else if(name.endsWith('.py')) mode='python';
-            else if(name.endsWith('.php')) mode='php';
-            else if(name.endsWith('.rb')) mode='ruby';
-            else if(!name.endsWith('.htm') && !name.endsWith('.html')) mode='text/plain';
-            addTab(name, content, mode);
-            showMessage(`${name} を読み込みました`,'success');
-          };
-          reader.readAsText(file);
-        });
-        fileInput.value = '';
-      });
+      const index = tabs.findIndex(t => t.id === tabId);
+      if (index === -1) return;
 
-      saveBtn.addEventListener('click', ()=> {
-        const title = (tabs[activeTabIndex] && tabs[activeTabIndex].title) || 'untitled';
-        const name = (title.endsWith('.html')||title.endsWith('.htm')) ? title : (title + '.html');
-        const blob = new Blob([cm.getValue()], {type:'text/html;charset=utf-8'});
-        const a = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-        safeRevoke(url);
-        showMessage('HTMLを保存しました','success');
-      });
+      tabs.splice(index, 1);
 
-      saveTxtBtn.addEventListener('click', ()=> {
-        const title = (tabs[activeTabIndex] && tabs[activeTabIndex].title) || 'untitled';
-        const name = title.endsWith('.txt') ? title : (title + '.txt');
-        const blob = new Blob([cm.getValue()], {type:'text/plain;charset=utf-8'});
-        const a = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-        safeRevoke(url);
-        showMessage('テキストを保存しました','success');
-      });
+      // 閉じたタブがアクティブだった場合
+      if (currentTabId === tabId) {
+        const newActiveTab = tabs[Math.max(0, index - 1)];
+        switchToTab(newActiveTab.id);
+      } else {
+        renderTabs();
+        saveTabsToStorage();
+      }
+    }
 
-      runBtn.addEventListener('click', ()=> {
-        const blob = new Blob([cm.getValue()], {type:'text/html;charset=utf-8'});
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(()=> safeRevoke(url), 2000);
-        showMessage('新しいウィンドウで実行しました','info');
-      });
+    /**
+     * タブを整理（空のタブを削除）
+     */
+    function organizeTabs() {
+      const beforeCount = tabs.length;
+      tabs = tabs.filter(tab => tab.content.trim() !== '');
+      
+      if (tabs.length === 0) {
+        // すべて空だった場合、1つ作成
+        createTab();
+        showMessage("すべて空だったため、新しいタブを作成しました", "info");
+        return;
+      }
 
-      undoBtn.addEventListener('click', ()=> { cm.undo(); updatePreview(); showMessage('取り消しました'); });
-      redoBtn.addEventListener('click', ()=> { cm.redo(); updatePreview(); showMessage('やり直しました'); });
+      const deletedCount = beforeCount - tabs.length;
+      
+      // 現在のタブが削除された場合
+      if (!tabs.find(t => t.id === currentTabId)) {
+        currentTabId = tabs[0].id;
+      }
 
-      formatBtn.addEventListener('click', formatCode);
-      minifyBtn.addEventListener('click', minifyCode);
+      renderTabs();
+      switchToTab(currentTabId);
+      
+      if (deletedCount > 0) {
+        showMessage(`${deletedCount}個の空のタブを削除しました`, "success");
+      } else {
+        showMessage("削除する空のタブはありませんでした", "info");
+      }
+    }
 
-      addTabBtn.addEventListener('click', ()=> addTab());
+    /**
+     * すべてのタブをJSON形式で保存
+     */
+    function saveAllAsJSON() {
+      // 現在のタブの内容を保存
+      if (currentTabId !== null) {
+        const currentTab = tabs.find(t => t.id === currentTabId);
+        if (currentTab) {
+          currentTab.content = cm.getValue();
+          currentTab.title = extractTitle(currentTab.content);
+        }
+      }
 
-      searchBtn.addEventListener('click', ()=> startSearch(false));
-      replaceBtn.addEventListener('click', ()=> startSearch(true));
-      searchNextBtn.addEventListener('click', nextMatch);
-      searchPrevBtn.addEventListener('click', prevMatch);
-      closeSearchBtn.addEventListener('click', hideSearch);
-      replaceOneBtn.addEventListener('click', replaceOne);
-      replaceAllBtn.addEventListener('click', replaceAll);
-      searchInput.addEventListener('input', (e)=> findMatches(e.target.value));
-      searchInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter'){ e.preventDefault(); nextMatch(); } if(e.key === 'Escape'){ hideSearch(); } });
-
-      themeToggleBtn.addEventListener('click', toggleTheme);
-      sidebarToggleBtn.addEventListener('click', ()=> sidebar.classList.toggle('hidden'));
-      sidebarClose.addEventListener('click', ()=> sidebar.classList.add('hidden'));
-
-      togglePreviewBtn.addEventListener('click', ()=> {
-        const isHidden = previewPanel.classList.contains('hidden') || previewPanel.style.display === 'none';
-        if(isHidden){ previewPanel.classList.remove('hidden'); togglePreviewBtn.textContent = '非表示'; } else { previewPanel.classList.add('hidden'); togglePreviewBtn.textContent = '表示'; }
-      });
-
-      clearConsoleBtn.addEventListener('click', ()=> { consoleOutput.textContent = ''; });
-
-      document.addEventListener('keydown', (e)=> { if((e.ctrlKey||e.metaKey) && e.key === ','){ e.preventDefault(); openSettings(); } });
-      closeSettingsBtn.addEventListener('click', saveSettings);
-
-      cm.setOption('extraKeys', Object.assign({}, cm.getOption('extraKeys'), {
-        "Cmd-F": () => startSearch(false),
-        "Ctrl-F": () => startSearch(false),
-        "Cmd-H": () => startSearch(true),
-        "Ctrl-H": () => startSearch(true),
-        "Cmd-G": () => nextMatch(),
-        "Ctrl-G": () => nextMatch(),
-        "Shift-Cmd-G": () => prevMatch(),
-        "Shift-Ctrl-G": () => prevMatch(),
-        "Esc": () => { if(searchBar.style.display === 'flex') hideSearch(); },
-        "Cmd-P": () => updatePreview(),
-        "Ctrl-P": () => updatePreview(),
-        "Cmd-S": () => { saveTabsToStorage(); saveProject(); showMessage('保存しました','success'); },
-        "Ctrl-S": () => { saveTabsToStorage(); saveProject(); showMessage('保存しました','success'); }
-      }));
-
-      CodeMirror.commands.autocomplete = function(cmInst){
-        const mode = cmInst.getOption('mode');
-        const hintName = mode === 'htmlmixed' ? 'html' : (mode === 'css' ? 'css' : 'javascript');
-        CodeMirror.showHint(cmInst, CodeMirror.hint[hintName]);
+      const data = {
+        tabs: tabs.map(tab => ({
+          title: tab.title,
+          content: tab.content
+        })),
+        currentTabIndex: tabs.findIndex(t => t.id === currentTabId)
       };
 
-      cm.refresh(); updatePreview(); updateStats();
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "editor-tabs.json";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showMessage(`${tabs.length}個のタブをJSONで保存しました`, "success");
+    }
 
-      floatPreviewBtn.addEventListener('click', ()=> {
-        const isHidden = previewPanel.classList.contains('hidden') || previewPanel.style.display === 'none';
-        if(isHidden){ previewPanel.classList.remove('hidden'); previewPanel.style.display = 'flex'; previewPanel.scrollIntoView({behavior:'smooth'}); } else { previewPanel.classList.add('hidden'); previewPanel.style.display = 'none'; }
-      });
-      floatSidebarBtn.addEventListener('click', ()=> {
-        const isHidden = sidebar.classList.contains('hidden');
-        if(isHidden) sidebar.classList.remove('hidden'); else sidebar.classList.add('hidden');
-      });
-      floatSettingsBtn.addEventListener('click', openSettings);
+    /**
+     * JSONファイルからすべてのタブを読み込み
+     */
+    function loadAllFromJSON(file) {
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = JSON.parse(evt.target.result);
+          
+          if (!data.tabs || !Array.isArray(data.tabs)) {
+            showMessage("無効なJSONフォーマットです", "error");
+            return;
+          }
 
-      function updateMobileUI(){
-        const w = window.innerWidth;
-        const h = window.innerHeight;
-        const isPortrait = h > w;
-        if(w <= 900 && isPortrait){
-          previewPanel.classList.add('hidden');
-          previewPanel.style.display = 'none';
-          sidebar.classList.add('hidden');
-          floatControls.setAttribute('aria-hidden','false');
-          floatControls.style.display = 'flex';
-        } else {
-          floatControls.setAttribute('aria-hidden','true');
-          floatControls.style.display = 'none';
-          previewPanel.classList.remove('hidden');
-          previewPanel.style.display = '';
+          // 既存のタブをクリア
+          tabs = [];
+          nextTabId = 1;
+
+          // タブを読み込み
+          data.tabs.forEach((tabData, index) => {
+            const tabId = nextTabId++;
+            tabs.push({
+              id: tabId,
+              content: tabData.content || '',
+              title: tabData.title || '無題'
+            });
+          });
+
+          if (tabs.length === 0) {
+            createTab();
+          } else {
+            const activeIndex = data.currentTabIndex >= 0 && data.currentTabIndex < tabs.length 
+              ? data.currentTabIndex 
+              : 0;
+            currentTabId = tabs[activeIndex].id;
+            renderTabs();
+            switchToTab(currentTabId);
+          }
+
+          showMessage(`${tabs.length}個のタブを読み込みました`, "success");
+        } catch (err) {
+          showMessage("JSONの読み込みに失敗しました: " + err.message, "error");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    /**
+     * タブをlocalStorageに保存
+     */
+    function saveTabsToStorage() {
+      try {
+        const data = {
+          tabs: tabs.map(tab => ({
+            id: tab.id,
+            content: tab.content,
+            title: tab.title
+          })),
+          currentTabId: currentTabId,
+          nextTabId: nextTabId
+        };
+        localStorage.setItem("editorTabs", JSON.stringify(data));
+      } catch (err) {
+        console.error("タブの保存に失敗:", err);
+      }
+    }
+
+    /**
+     * タブをlocalStorageから復元
+     */
+    function loadTabsFromStorage() {
+      try {
+        const stored = localStorage.getItem("editorTabs");
+        if (stored) {
+          const data = JSON.parse(stored);
+          tabs = data.tabs || [];
+          currentTabId = data.currentTabId;
+          nextTabId = data.nextTabId || 1;
+          
+          if (tabs.length > 0) {
+            renderTabs();
+            switchToTab(currentTabId);
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("タブの復元に失敗:", err);
+      }
+      
+      // 復元失敗時は新規タブを作成
+      createTab();
+    }
+
+    // CodeMirrorの変更を監視
+    cm.on("change", function() {
+      if (currentTabId !== null) {
+        const currentTab = tabs.find(t => t.id === currentTabId);
+        if (currentTab) {
+          currentTab.content = cm.getValue();
+          const newTitle = extractTitle(currentTab.content);
+          if (newTitle !== currentTab.title) {
+            currentTab.title = newTitle;
+            renderTabs();
+          }
+          saveTabsToStorage();
         }
       }
-      window.addEventListener('resize', updateMobileUI);
-      window.addEventListener('orientationchange', updateMobileUI);
-      updateMobileUI();
+    });
 
-      const project = JSON.parse(localStorage.getItem(STORAGE_KEY_PROJECT) || '[]');
-      if(project.length) updateFileTree(project);
-      showMessage('エディタを初期化しました','success');
+    // 新規タブボタン
+    newTabBtn.addEventListener('click', function() {
+      createTab();
+      showMessage("新しいタブを作成しました", "success");
+    });
+
+    // タブ整理ボタン
+    organizeTabsBtn.addEventListener('click', organizeTabs);
+
+    // 全保存ボタン
+    saveAllBtn.addEventListener('click', saveAllAsJSON);
+
+    // 全読込ボタン
+    loadAllBtn.addEventListener('click', function() {
+      jsonInput.click();
+    });
+
+    jsonInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        loadAllFromJSON(file);
+      }
+      jsonInput.value = '';
+    });
+
+    // 全選択ボタン
+    selectAllBtn.addEventListener('click', function() {
+      cm.focus();
+      cm.execCommand("selectAll");
+      showMessage("全選択しました", "info");
+    });
+
+    // コピーボタン
+    copyBtn.addEventListener('click', function() {
+      if (!cm.somethingSelected()) {
+        cm.focus();
+        cm.execCommand("selectAll");
+      }
+      var text = cm.getSelection();
+      navigator.clipboard.writeText(text)
+        .then(() => showMessage("コピーしました", "success"))
+        .catch(err => showMessage("コピーに失敗しました: " + err, "error"));
+    });
+
+    // 貼付けボタン
+    pasteBtn.addEventListener('click', function() {
+      navigator.clipboard.readText()
+        .then(text => {
+          cm.replaceSelection(text);
+          showMessage("貼り付けました", "success");
+          controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        })
+        .catch(err => showMessage("貼り付けに失敗しました: " + err, "error"));
+    });
+
+    // 全削除ボタン
+    clearAllBtn.addEventListener('click', function() {
+      if (confirm("本当に全削除しますか？")) {
+        cm.setValue("");
+        showMessage("全て削除しました", "info");
+        controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+
+    // ファイルを開くボタン
+    openFileBtn.addEventListener('click', function() {
+      fileInput.click();
+    });
+
+    // ファイルが選択されたら読み込み
+    fileInput.addEventListener('change', function(e) {
+      var file = e.target.files[0];
+      if (file) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          cm.setValue(evt.target.result);
+          showMessage(`ファイル「${file.name}」を開きました`, "success");
+        }
+        reader.readAsText(file);
+      }
+      fileInput.value = '';
+    });
+
+    // HTMLファイル保存ボタン
+    saveBtn.addEventListener('click', function() {
+      var blob = new Blob([cm.getValue()], { type: "text/html" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "index.html";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showMessage("HTMLとして保存しました", "success");
+    });
+
+    // TXTファイル保存ボタン
+    saveTxtBtn.addEventListener('click', function() {
+      var blob = new Blob([cm.getValue()], { type: "text/plain;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "index.txt";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showMessage("TXTとして保存しました", "success");
+    });
+
+    // 元に戻すボタン
+    undoBtn.addEventListener('click', function() {
+      if (cm.historySize().undo > 0) {
+        cm.undo();
+        showMessage("元に戻しました", "info");
+      } else {
+        showMessage("これ以上元に戻せません", "error");
+      }
+    });
+
+    // やり直しボタン
+    redoBtn.addEventListener('click', function() {
+      if (cm.historySize().redo > 0) {
+        cm.redo();
+        showMessage("やり直しました", "info");
+      } else {
+        showMessage("これ以上やり直せません", "error");
+      }
+    });
+
+    // 検索ボタン
+    searchBtn.addEventListener('click', function() {
+      searchPanel.classList.toggle('active');
+      if (searchPanel.classList.contains('active')) {
+        searchInput.focus();
+      } else {
+        clearSearchHighlights();
+      }
+    });
+
+    // 検索パネルを閉じる
+    closeSearchBtn.addEventListener('click', function() {
+      searchPanel.classList.remove('active');
+      clearSearchHighlights();
+    });
+
+    // 検索ハイライトをクリア
+    function clearSearchHighlights() {
+      searchState.markers.forEach(marker => marker.clear());
+      searchState.markers = [];
+      searchState.matches = [];
+      searchState.currentIndex = -1;
+      searchInfo.textContent = '';
     }
 
-    function toggleFullscreen(cmInstance){
-      if(document.fullscreenElement){ document.exitFullscreen(); cmInstance.getWrapperElement().style.position = ''; cmInstance.getWrapperElement().style.width = ''; cmInstance.getWrapperElement().style.height = ''; }
-      else { document.documentElement.requestFullscreen().catch(()=>{}); const wrapper = cmInstance.getWrapperElement(); wrapper.style.position = 'fixed'; wrapper.style.zIndex = 9999; wrapper.style.top = 0; wrapper.style.left = 0; wrapper.style.width = '100%'; wrapper.style.height = '100%'; }
-      setTimeout(()=> cmInstance.refresh(), 60);
+    // 検索を実行
+    function performSearch() {
+      clearSearchHighlights();
+      const query = searchInput.value;
+      if (!query) {
+        searchInfo.textContent = '';
+        return;
+      }
+
+      searchState.query = query;
+      const cursor = cm.getSearchCursor(query);
+      let match;
+      
+      while (match = cursor.findNext()) {
+        const from = cursor.from();
+        const to = cursor.to();
+        searchState.matches.push({ from, to });
+        
+        const marker = cm.markText(from, to, {
+          className: 'cm-searching'
+        });
+        searchState.markers.push(marker);
+      }
+
+      if (searchState.matches.length > 0) {
+        searchState.currentIndex = 0;
+        highlightCurrentMatch();
+        searchInfo.textContent = `${searchState.matches.length}件見つかりました`;
+      } else {
+        searchInfo.textContent = '見つかりませんでした';
+      }
     }
 
-    function toggleTheme(){
-      const themes = ['dark','light','material'];
-      const idx = themes.indexOf(currentTheme);
-      currentTheme = themes[(idx + 1) % themes.length];
-      applySettings({ fontSize: parseInt(fontSizeInput.value) || 12, theme: currentTheme, autoSaveInterval: parseInt(autoSaveIntervalInput.value) || 5 });
-      showMessage(`テーマを${currentTheme}に変更しました`,'success');
+    // 現在のマッチをハイライト
+    function highlightCurrentMatch() {
+      if (searchState.currentIndex >= 0 && searchState.currentIndex < searchState.matches.length) {
+        // 前の現在マッチのマーカーをクリア
+        searchState.markers.forEach(marker => {
+          if (marker.className === 'cm-searching-current') {
+            marker.clear();
+          }
+        });
+
+        const match = searchState.matches[searchState.currentIndex];
+        const marker = cm.markText(match.from, match.to, {
+          className: 'cm-searching-current'
+        });
+        searchState.markers.push(marker);
+
+        // 現在のマッチまでスクロール
+        cm.scrollIntoView(match.from, 100);
+        cm.setCursor(match.from);
+        
+        searchInfo.textContent = `${searchState.currentIndex + 1} / ${searchState.matches.length}`;
+      }
     }
 
-    document.addEventListener('DOMContentLoaded', initialize);
+    // 検索入力時
+    searchInput.addEventListener('input', performSearch);
+
+    // 次へボタン
+    nextBtn.addEventListener('click', function() {
+      if (searchState.matches.length === 0) return;
+      searchState.currentIndex = (searchState.currentIndex + 1) % searchState.matches.length;
+      highlightCurrentMatch();
+    });
+
+    // 前へボタン
+    prevBtn.addEventListener('click', function() {
+      if (searchState.matches.length === 0) return;
+      searchState.currentIndex = (searchState.currentIndex - 1 + searchState.matches.length) % searchState.matches.length;
+      highlightCurrentMatch();
+    });
+
+    // 置換ボタン
+    replaceBtn.addEventListener('click', function() {
+      if (searchState.currentIndex >= 0 && searchState.currentIndex < searchState.matches.length) {
+        const match = searchState.matches[searchState.currentIndex];
+        const replaceText = replaceInput.value;
+        cm.replaceRange(replaceText, match.from, match.to);
+        showMessage("置換しました", "success");
+        performSearch(); // 再検索
+      }
+    });
+
+    // 全て置換ボタン
+    replaceAllBtn.addEventListener('click', function() {
+      const query = searchInput.value;
+      const replaceText = replaceInput.value;
+      if (!query) return;
+
+      const count = searchState.matches.length;
+      if (count === 0) {
+        showMessage("置換対象が見つかりません", "error");
+        return;
+      }
+
+      // 後ろから置換していく（位置がずれないように）
+      for (let i = searchState.matches.length - 1; i >= 0; i--) {
+        const match = searchState.matches[i];
+        cm.replaceRange(replaceText, match.from, match.to);
+      }
+
+      showMessage(`${count}件置換しました`, "success");
+      performSearch(); // 再検索
+    });
+
+    // 実行ボタン
+    runBtn.addEventListener('click', function() {
+      var blob = new Blob([cm.getValue()], { type: "text/html" });
+      var url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+      showMessage("コードを実行しました", "info");
+      controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    // キーボードショートカット
+    document.addEventListener('keydown', function(e) {
+      // Ctrl+F または Cmd+F で検索パネルを開く
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault();
+        searchPanel.classList.add('active');
+        searchInput.focus();
+      }
+      // Escapeで検索パネルを閉じる
+      if (e.key === 'Escape' && searchPanel.classList.contains('active')) {
+        searchPanel.classList.remove('active');
+        clearSearchHighlights();
+      }
+    });
+
+    // 初期化：タブを復元または新規作成
+    loadTabsFromStorage();
   </script>
 </body>
 </html>
