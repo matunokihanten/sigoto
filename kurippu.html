@@ -1,0 +1,497 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>ネオン クリップボード — Single HTML</title>
+<style>
+  :root{
+    --bg:#0b0f14;
+    --panel:#0f1720;
+    --accent:#00fff6;
+    --accent2:#ff3dcb;
+    --muted:#9aa6b2;
+    --glass: rgba(255,255,255,0.03);
+    --success:#6ef08a;
+  }
+  html,body{height:100%;margin:0;font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  body{
+    background:
+      radial-gradient(1200px 400px at 10% 10%, rgba(0,255,246,0.04), transparent 10%),
+      radial-gradient(900px 300px at 90% 90%, rgba(255,61,203,0.03), transparent 10%),
+      var(--bg);
+    color:#e6f7ff;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    padding:16px;
+    box-sizing:border-box;
+  }
+
+  /* container */
+  .app{
+    max-width:980px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns: 360px 1fr;
+    gap:18px;
+    align-items:start;
+  }
+
+  /* responsive for narrow / vertical phones */
+  @media (max-width:900px){
+    .app{grid-template-columns:1fr; padding-bottom:80px;}
+  }
+
+  header{
+    grid-column:1/-1;
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:6px;
+  }
+  .logo{
+    background:linear-gradient(45deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    font-weight:700;font-size:18px;
+  }
+  .subtitle{color:var(--muted); font-size:13px;}
+
+  /* left pane */
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.03);
+    padding:14px;
+    border-radius:12px;
+    box-shadow: 0 6px 30px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+  }
+  .left{min-height:320px;}
+  .right{min-height:320px; display:flex; flex-direction:column; gap:12px;}
+
+  /* inputs */
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px;}
+  input[type="text"], textarea, select{
+    width:100%;
+    padding:10px 12px;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,0.03);
+    background:transparent;
+    color:inherit;
+    box-sizing:border-box;
+    outline:none;
+  }
+  textarea{min-height:110px; resize:vertical;}
+  .row{display:flex;gap:10px;align-items:center;}
+  .row > *{flex:1}
+
+  /* list */
+  .list{margin-top:12px; display:flex; flex-direction:column; gap:8px; max-height:64vh; overflow:auto; padding-right:6px;}
+  .item{
+    display:flex; gap:8px; align-items:flex-start;
+    padding:10px; border-radius:10px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+    border:1px solid rgba(255,255,255,0.02);
+  }
+  .meta{flex:1; min-width:0;}
+  .title{font-weight:700; color:var(--accent); font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .tags{font-size:12px;color:var(--muted); margin-top:6px;}
+  .actions{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  button, .btn{
+    background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.03);
+    color:var(--accent); padding:8px 10px; border-radius:8px; cursor:pointer; font-weight:600; font-size:13px;
+  }
+  .btn.ghost{color:var(--muted); border:1px dashed rgba(255,255,255,0.03)}
+  .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#071018; border:none;}
+  .btn.copy{background:linear-gradient(90deg,#052224, #2a0033); color:var(--accent); border:1px solid rgba(255,255,255,0.04);}
+
+  /* utility */
+  .top-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .search{display:flex; gap:8px; align-items:center; margin-top:6px;}
+  .search input{padding-left:36px}
+  .search .icon{position:relative; left:30px; color:var(--muted); pointer-events:none; font-size:14px}
+  .footer{font-size:12px;color:var(--muted);margin-top:8px}
+
+  /* neon accents */
+  .neon-border{
+    box-shadow: 0 0 12px rgba(0,255,246,0.06), 0 0 24px rgba(255,61,203,0.02);
+    border:1px solid rgba(0,255,246,0.12);
+  }
+
+  /* mobile friendly larger touch targets */
+  @media (max-width:480px){
+    button, .btn{padding:12px 14px; font-size:15px;border-radius:12px;}
+    .item{padding:12px;}
+    .list{max-height:55vh}
+  }
+
+  /* small helpers */
+  .small{font-size:12px;color:var(--muted)}
+  .tag-pill{display:inline-block;padding:4px 8px;background:rgba(255,255,255,0.02);border-radius:999px;margin-right:6px;font-size:12px;color:var(--muted)}
+  .fav{color:var(--accent2); font-weight:700}
+  .hidden{display:none}
+  .status{font-size:13px;padding:6px;border-radius:8px;background:rgba(0,0,0,0.25);color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div>
+        <div class="logo">NEON CLIP</div>
+        <div class="subtitle">プロンプト・スニペットをCSVで管理 — オフライン単体HTML</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        <div class="small">配布: matunokihanten@googlegroups.com</div>
+      </div>
+    </header>
+
+    <!-- left: editor + controls -->
+    <section class="panel left neon-border" aria-label="editor">
+      <label for="title">タイトル</label>
+      <input id="title" type="text" placeholder="例: 翻訳テンプレート" />
+
+      <label for="tags">タグ（カンマ区切り）</label>
+      <input id="tags" type="text" placeholder="例: 翻訳,営業,接客" />
+
+      <label for="content">内容（プロンプト / コマンド / スニペット）</label>
+      <textarea id="content" placeholder="ここにコマンドやプロンプトを保存します。$VAR のようなプレースホルダー可。"></textarea>
+
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button id="addBtn" class="btn primary">保存</button>
+        <button id="updateBtn" class="btn ghost hidden">更新</button>
+        <button id="clearBtn" class="btn ghost">クリア</button>
+        <button id="exportBtn" class="btn copy">CSV保存</button>
+        <label class="btn ghost" for="importFile" style="margin-left:auto;cursor:pointer">CSV読込<input id="importFile" type="file" accept=".csv" class="hidden" /></label>
+      </div>
+
+      <div class="footer small">
+        CSVフォーマット: title, tags, content  
+        プレースホルダー: $VAR, $USER など。コピー時はそのまま貼れます。
+      </div>
+    </section>
+
+    <!-- right: list + search -->
+    <section class="panel right" aria-label="list">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div>
+          <div class="small">スニペット一覧</div>
+          <div class="search">
+            <span class="icon">🔎</span>
+            <input id="search" type="text" placeholder="検索またはタグでフィルタ (例: 翻訳)" />
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="pasteBtn" class="btn copy">貼り付け（フォーカス先へ）</button>
+        </div>
+      </div>
+
+      <div id="list" class="list" role="list"></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+        <div class="status" id="status">ロード済み</div>
+        <div style="display:flex;gap:8px">
+          <button id="importSample" class="btn ghost">サンプル読み込み</button>
+          <button id="clearAll" class="btn ghost">全削除</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+<script>
+/*
+ Single-file Neon Clipboard
+ CSV format: title,tags,content  (content may include commas; during export we quote)
+ - Local in-memory store (array)
+ - Export -> trigger download of CSV
+ - Import -> parse CSV (supports quoted fields)
+ - Mobile-friendly; avoids fixed-size elements so vertical phones ok
+ - Keyboard shortcuts:
+    Ctrl+Enter -> 保存
+    Ctrl+Shift+P -> スニペット一覧を検索にフォーカス
+    Alt+C -> 直前のスニペットをすばやくコピー（最後にコピーしたもの）
+*/
+
+(function(){
+  // storage
+  let items = [];
+  let lastCopiedIndex = null;
+  const $ = id => document.getElementById(id);
+
+  // elements
+  const titleEl = $('title');
+  const tagsEl = $('tags');
+  const contentEl = $('content');
+  const addBtn = $('addBtn');
+  const updateBtn = $('updateBtn');
+  const clearBtn = $('clearBtn');
+  const exportBtn = $('exportBtn');
+  const importFile = $('importFile');
+  const listEl = $('list');
+  const searchEl = $('search');
+  const statusEl = $('status');
+  const pasteBtn = $('pasteBtn');
+  const importSample = $('importSample');
+  const clearAll = $('clearAll');
+
+  // helpers
+  function uuid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function now(){ return new Date().toISOString(); }
+
+  // render
+  function renderList(filterText=''){
+    listEl.innerHTML = '';
+    const q = filterText.trim().toLowerCase();
+    items.forEach((it, idx) => {
+      const inTitle = it.title.toLowerCase().includes(q);
+      const inTags = it.tags.join(',').toLowerCase().includes(q);
+      const inContent = it.content.toLowerCase().includes(q);
+      if(q && !(inTitle||inTags||inContent)) return;
+
+      const item = document.createElement('div');
+      item.className='item';
+      const meta = document.createElement('div'); meta.className='meta';
+      const t = document.createElement('div'); t.className='title'; t.textContent = it.title || '(無題)';
+      const tg = document.createElement('div'); tg.className='tags';
+      tg.innerHTML = it.tags.map(s => '<span class="tag-pill">'+escapeHtml(s)+'</span>').join('');
+      const snippetPreview = document.createElement('div'); snippetPreview.className='small';
+      snippetPreview.style.marginTop='8px';
+      snippetPreview.textContent = (it.content.length>200)? it.content.slice(0,200)+'…' : it.content;
+      meta.appendChild(t); meta.appendChild(tg); meta.appendChild(snippetPreview);
+
+      const actions = document.createElement('div'); actions.className='actions';
+      const copyBtn = document.createElement('button'); copyBtn.className='btn copy'; copyBtn.textContent='コピー';
+      copyBtn.onclick = ()=>{ doCopy(idx); };
+      const editBtn = document.createElement('button'); editBtn.className='btn'; editBtn.textContent='編集';
+      editBtn.onclick = ()=>{ loadToEditor(idx); };
+      const delBtn = document.createElement('button'); delBtn.className='btn ghost'; delBtn.textContent='削除';
+      delBtn.onclick = ()=>{ if(confirm('削除しますか？')){ items.splice(idx,1); saveToLocal(); renderList(searchEl.value); status('削除しました'); }};
+
+      const favBtn = document.createElement('button'); favBtn.className='btn'; favBtn.textContent = it.fav ? '★' : '☆';
+      favBtn.style.color = it.fav ? 'var(--accent2)' : 'var(--muted)';
+      favBtn.onclick = ()=>{ it.fav = !it.fav; saveToLocal(); renderList(searchEl.value); };
+
+      actions.appendChild(copyBtn);
+      actions.appendChild(editBtn);
+      actions.appendChild(favBtn);
+      actions.appendChild(delBtn);
+
+      item.appendChild(meta);
+      item.appendChild(actions);
+      listEl.appendChild(item);
+    });
+  }
+
+  function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // copy handling
+  async function doCopy(idx){
+    const text = items[idx].content;
+    try{
+      await navigator.clipboard.writeText(text);
+      lastCopiedIndex = idx;
+      status('クリップボードにコピーしました');
+      flashCopied(idx);
+    }catch(e){
+      // fallback: textarea temporary
+      const ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); status('コピーしました (フォールバック)'); }
+      catch(e2){ status('コピーに失敗しました'); }
+      document.body.removeChild(ta);
+      lastCopiedIndex = idx;
+    }
+  }
+
+  function flashCopied(idx){
+    // small visual cue: briefly change status
+    statusEl.textContent = '最後にコピー: ' + (items[idx].title || '(無題)');
+    setTimeout(()=> statusEl.textContent = 'ロード済み', 2500);
+  }
+
+  // editor actions
+  function clearEditor(){
+    titleEl.value=''; tagsEl.value=''; contentEl.value=''; updateBtn.classList.add('hidden'); addBtn.classList.remove('hidden');
+  }
+
+  function loadToEditor(idx){
+    const it = items[idx];
+    titleEl.value = it.title;
+    tagsEl.value = it.tags.join(',');
+    contentEl.value = it.content;
+    updateBtn.classList.remove('hidden'); addBtn.classList.add('hidden');
+    updateBtn.onclick = ()=>{ items[idx].title = titleEl.value.trim(); items[idx].tags = parseTags(tagsEl.value); items[idx].content = contentEl.value; items[idx].updated = now(); saveToLocal(); renderList(searchEl.value); clearEditor(); status('更新しました'); };
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function parseTags(s){ return s.split(',').map(x=>x.trim()).filter(Boolean); }
+
+  addBtn.onclick = ()=>{
+    const t = titleEl.value.trim() || '(無題)';
+    const tg = parseTags(tagsEl.value);
+    const c = contentEl.value || '';
+    items.unshift({id:uuid(),title:t,tags:tg,content:c,created:now(),updated:now(),fav:false});
+    saveToLocal(); renderList(searchEl.value); clearEditor(); status('保存しました');
+  };
+  clearBtn.onclick = ()=>clearEditor();
+
+  // CSV export/import
+  function exportCSV(){
+    const rows = [['title','tags','content']];
+    items.forEach(it=>{
+      // tags join by semicolon to avoid comma confusion (CSV fields are quoted)
+      const tagsJoined = it.tags.join(';');
+      rows.push([it.title, tagsJoined, it.content]);
+    });
+    const csv = rows.map(r => r.map(field => `"${String(field).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'neon_clip_export_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'-') + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    status('CSVを保存しました');
+  }
+  exportBtn.onclick = exportCSV;
+
+  importFile.addEventListener('change', (e)=>{
+    const f = e.target.files[0]; if(!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = parseCSV(reader.result);
+        // parsed is array of arrays; expect header row
+        if(parsed.length<=1){ status('CSVが空です'); return; }
+        const header = parsed[0].map(h=>h.toLowerCase().trim());
+        const ti = header.indexOf('title'), ta = header.indexOf('tags'), co = header.indexOf('content');
+        if(ti<0 || ta<0 || co<0){ status('CSVに必要なヘッダがありません (title,tags,content)'); return; }
+        let imported = 0;
+        for(let i=1;i<parsed.length;i++){
+          const row = parsed[i];
+          const title = row[ti] || '(無題)';
+          const tags = (row[ta]||'').split(';').map(x=>x.trim()).filter(Boolean);
+          const content = row[co]||'';
+          items.unshift({id:uuid(),title:title,tags:tags,content:content,created:now(),updated:now(),fav:false});
+          imported++;
+        }
+        saveToLocal(); renderList(searchEl.value); status(imported + '件をインポートしました');
+      }catch(err){
+        status('CSVの読み込みに失敗しました');
+        console.error(err);
+      }
+    };
+    reader.readAsText(f,'utf-8'); importFile.value='';
+  });
+
+  function parseCSV(text){
+    // RFC4180-ish simple parser supporting quoted fields with commas and CRLF
+    const lines = [];
+    let cur = '', inQuotes = false;
+    for(let i=0;i<text.length;i++){
+      const ch = text[i];
+      const next = text[i+1];
+      if(ch === '"' ){ 
+        if(inQuotes && next === '"'){ cur += '"'; i++; continue; }
+        inQuotes = !inQuotes;
+        continue;
+      }
+      if(!inQuotes && (ch === '\r' || ch === '\n')){
+        if(ch === '\r' && next === '\n'){ i++; } // skip LF after CR
+        lines.push(cur);
+        cur = '';
+        continue;
+      }
+      cur += ch;
+    }
+    if(cur.length) lines.push(cur);
+    return lines.map(l => splitCSVLine(l));
+  }
+  function splitCSVLine(line){
+    // split by comma, but careful with quoted values already handled by parseCSV (quotes removed)
+    // here we simply split on commas
+    const arr = [];
+    let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch = line[i];
+      if(ch === '"'){ inQ = !inQ; continue; }
+      if(ch === ',' && !inQ){ arr.push(cur); cur=''; continue; }
+      cur += ch;
+    }
+    arr.push(cur);
+    return arr.map(s=>s.replace(/^"(.*)"$/,'$1'));
+  }
+
+  // local persistence (optional, helpful)
+  function saveToLocal(){ try{ localStorage.setItem('neon_clip_items', JSON.stringify(items)); }catch(e){} }
+  function loadFromLocal(){ try{ const raw = localStorage.getItem('neon_clip_items'); if(raw){ items = JSON.parse(raw); } }catch(e){} }
+
+  // sample data
+  importSample.onclick = ()=>{
+    items.unshift(
+      {id:uuid(),title:'英訳（接客丁寧）',tags:['翻訳','接客'],content:'Please translate the following into polite English: $TEXT',created:now(),updated:now(),fav:true},
+      {id:uuid(),title:'git pull main',tags:['git','dev'],content:'git fetch origin && git checkout main && git pull',created:now(),updated:now(),fav:false},
+      {id:uuid(),title:'メニュー説明テンプレ',tags:['メニュー','文書'],content:'「$料理名」の特徴を3つ挙げて、最後におすすめの食べ方を記載してください。',created:now(),updated:now(),fav:false}
+    );
+    saveToLocal(); renderList(); status('サンプルを追加しました');
+  };
+
+  // clear all
+  clearAll.onclick = ()=>{
+    if(!confirm('全てのスニペットを削除します。よろしいですか？')) return;
+    items = []; saveToLocal(); renderList(); status('全削除しました');
+  };
+
+  // search
+  searchEl.addEventListener('input', ()=> renderList(searchEl.value));
+
+  // keyboard shortcuts
+  document.addEventListener('keydown', (e)=>{
+    if(e.ctrlKey && e.key === 'Enter'){ e.preventDefault(); addBtn.click(); }
+    if(e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')){ e.preventDefault(); searchEl.focus(); searchEl.select(); }
+    if(e.altKey && (e.key === 'c' || e.key === 'C')){ if(lastCopiedIndex!==null) doCopy(lastCopiedIndex); }
+    // quick paste to focused input (pasteBtn alternative)
+  });
+
+  // paste button: attempts to paste clipboard into active element
+  pasteBtn.onclick = async ()=>{
+    try{
+      const text = await navigator.clipboard.readText();
+      const active = document.activeElement;
+      if(active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)){
+        const start = active.selectionStart || 0;
+        const end = active.selectionEnd || start;
+        const val = active.value || '';
+        const newVal = val.slice(0,start) + text + val.slice(end);
+        active.value = newVal;
+        if(active.setSelectionRange) active.setSelectionRange(start + text.length, start + text.length);
+        active.focus();
+        status('クリップボードを貼り付けました');
+      }else{
+        // fallback: copy to editor content field
+        contentEl.value = (contentEl.value ? contentEl.value + '\n' : '') + text;
+        contentEl.focus();
+        status('エディタに貼り付けました');
+      }
+    }catch(e){
+      status('貼り付けに失敗しました');
+    }
+  };
+
+  // status
+  function status(s){ statusEl.textContent = s; setTimeout(()=> statusEl.textContent = 'ロード済み', 3000); }
+
+  // local load on start
+  function init(){
+    loadFromLocal();
+    renderList();
+    // fix for some mobile browsers where input may be zoomed: set meta viewport above; also keep UI flexible
+    status('Ready');
+  }
+  init();
+
+  // ensure numbers/buttons visible on narrow screens:
+  // avoid fixed heights; ensure list scrollable and editor reachable
+  // (UI is CSS-driven; no extra JS needed)
+
+})();
+</script>
+</body>
+</html>
