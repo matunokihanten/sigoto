@@ -3,95 +3,202 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>テキスト→CSV 変換ツール</title>
+  <title>テキスト→CSV/XLSX 変換・整形ツール (高機能版)</title>
+  <script src="https://cdn.jsdelivr.net/npm/encoding-japanese@1.0.30/encoding.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
   <style>
     :root{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","メイリオ",sans-serif;color:#111}
-    body{max-width:900px;margin:28px auto;padding:18px;background:#f7f9fb;border:1px solid #e1e7ee;border-radius:10px}
-    h3{margin:0 0 12px 0;font-size:1.1rem}
+    body{max-width:1000px;margin:28px auto;padding:18px;background:#f7f9fb;border:1px solid #e1e7ee;border-radius:10px}
+    h3{margin:0 0 12px 0;font-size:1.3rem}
     label{display:block;margin:12px 0 6px 0;font-weight:600}
     textarea{width:100%;min-height:160px;padding:10px;border:1px solid #cdd7e3;border-radius:6px;background:#fff;resize:vertical}
     .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-    button{background:#0b69ff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+    button{background:#0b69ff;color:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer;transition:background .2s}
+    button:hover{background:#005ae0}
     button.secondary{background:#6b7280}
+    button.secondary:hover{background:#545a64}
+    button.red{background:#dc3545;}
+    button.red:hover{background:#c82333;}
     button:disabled{opacity:.5;cursor:not-allowed}
-    .dropzone{border:2px dashed #c6d2e3;border-radius:8px;padding:10px;text-align:center;color:#61707e;background:#f3f7fb}
-    .preview{margin-top:12px;background:#fff;border:1px solid #e0e6ee;padding:10px;border-radius:6px;white-space:pre-wrap;font-family:monospace}
+    .dropzone{border:2px dashed #c6d2e3;border-radius:8px;padding:10px;text-align:center;color:#61707e;background:#f3f7fb;cursor:pointer;}
     .rowcount{margin-left:auto;color:#3b4b66;font-size:.95rem;align-self:center}
     .options{display:flex;gap:12px;align-items:center;margin-top:8px;flex-wrap:wrap}
-    input[type="text"]{padding:8px;border:1px solid #cdd7e3;border-radius:6px}
+    input[type="text"], select{padding:8px;border:1px solid #cdd7e3;border-radius:6px}
     small{color:#58606b}
     footer{margin-top:18px;color:#6b7280;font-size:.9rem}
-    @media (max-width:560px){.controls{flex-direction:column}.rowcount{margin-left:0}}
+
+    /* プレビューテーブルのスタイル */
+    .preview-container{margin-top:12px;overflow-x:auto;}
+    .preview-table{width:100%;border-collapse:collapse;font-size:0.9rem;background:#fff;border:1px solid #e0e6ee;border-radius:6px;}
+    .preview-table th, .preview-table td{padding:8px 12px;border:1px solid #e0e6ee;text-align:left;vertical-align:top;}
+    .preview-table th{background:#f3f7fb;font-weight:600;white-space:nowrap;position:sticky;top:0;cursor:grab;}
+    .preview-table tr:nth-child(even){background:#f9f9f9;}
+    .col-header-tools{display:flex;justify-content:space-between;align-items:center;min-width: 50px;}
+    .col-header-tools button{padding:2px 5px;font-size:0.8rem;line-height:1;margin-left:8px;background:#dc3545;cursor:pointer;}
+    .col-header-tools button:hover{background:#c82333;}
+    .col-header-tools input{padding:4px;font-size:0.9rem;width:100%;border:1px solid #ccc;background:transparent;}
+
+    /* トグルエリア */
+    .toggle-area{border:1px solid #cdd7e3;border-radius:6px;padding:10px;margin-top:10px;background:#fff;}
+    .toggle-header{font-weight:600;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+    .toggle-content{margin-top:10px;padding-top:10px;border-top:1px solid #eee;display:none;}
+    .active .toggle-content{display:block;}
+    .chevron::after{content:'▼';margin-left:8px;font-size:0.8rem;transition:transform 0.2s;}
+    .active .chevron::after{transform:rotate(180deg);}
+
+    /* find and replace style */
+    .fr-controls{display:flex;gap:8px;margin-top:10px;align-items:center;}
+    .fr-controls input{flex-grow:1;}
+    .fr-controls button{margin-left:8px;}
+
+    /* 列追加ボタン */
+    .add-col-btn{background:#28a745;color:#fff;padding:4px 8px;border-radius:4px;font-size:0.8rem;cursor:pointer;}
+    .add-col-btn:hover{background:#218838;}
+
+    /* エディタブルヘッダー */
+    .editable-header{cursor:text;}
+    .editable-header.editing input{display:block;}
+    .editable-header span{display:block;}
+    .editable-header input{display:none;}
+
+    @media (max-width:600px){.controls{flex-direction:column}.rowcount{margin-left:0} .options{flex-direction:column;align-items:flex-start;}}
   </style>
 </head>
 <body>
-  <h3>テキストをCSVに変換する単一ファイルアプリ</h3>
+  <h3>テキスト→CSV/XLSX 変換・整形ツール</h3>
 
-  <label for="input">入力（コピーしたメニューを貼り付けてください）</label>
-  <div class="dropzone" id="dropzone" tabindex="0">ここにファイルをドラッグ＆ドロップ、またはクリックして貼り付け</div>
+  <label for="input">入力（コピー＆ペースト、またはファイルドロップ/選択）</label>
+  <input type="file" id="fileInput" accept=".txt,.csv" style="display:none;" />
+  <div class="dropzone" id="dropzone" tabindex="0">ここにファイルをドラッグ＆ドロップ、またはクリックしてファイルを選択 (.txt, .csv)</div>
   <textarea id="input" placeholder="例:
-品名,価格（円）
-小えびのチリソース煮,1450
-小えびと野菜の塩味炒め,1450
-中華エビマヨ,1450
-いかの甘酢辛し炒め,1750"></textarea>
+品名	価格（円）
+小えびのチリソース煮	1450円
+小えびと野菜の塩味炒め	1450円
+中華エビマヨ	1450円
+いかの甘酢辛し炒め	1750円
+大えびのチリソース煮	1900円
+※デリミタ入力欄を空にすると、タブ文字やスペースが自動検出されます。"></textarea>
 
   <div class="options">
     <label style="display:flex;gap:8px;align-items:center">
       <input type="checkbox" id="hasHeader" checked /> <span>先頭行をヘッダとして扱う</span>
     </label>
     <label style="display:flex;gap:8px;align-items:center">
+      <input type="checkbox" id="autoHeader" /> <span>**初期ヘッダーを自動挿入**</span>
+    </label>
+    <label style="display:flex;gap:8px;align-items:center">
       区切り文字
-      <input type="text" id="delimiter" value="," style="width:54px" />
+      <input type="text" id="delimiter" value="" style="width:54px" />
     </label>
     <label style="display:flex;gap:8px;align-items:center">
       文字コード
       <select id="encoding">
-        <option value="utf-8" selected>UTF-8</option>
+        <option value="utf-8" selected>UTF-8 (BOMあり)</option>
         <option value="shift_jis">Shift_JIS</option>
       </select>
     </label>
     <div class="rowcount" id="rowcount">0 行</div>
   </div>
+  
+  <div class="toggle-area">
+    <div class="toggle-header" id="frToggle">
+      テキスト整形（検索・置換）
+      <span class="chevron"></span>
+    </div>
+    <div class="toggle-content">
+      <div class="fr-controls">
+        <button id="applyMenuFix" class="secondary" style="margin-left:0;">「円」を削除して整形</button>
+        <small style="margin-left:12px;">※入力テキスト内の「円」や「,」などを一括で削除します。</small>
+      </div>
+      <div class="fr-controls" style="margin-top:12px;">
+        <input type="text" id="frSearch" placeholder="検索するテキストまたは正規表現" />
+        <input type="text" id="frReplace" placeholder="置換後のテキスト" />
+        <button id="frExecute" class="secondary" style="min-width: 90px;">一括置換実行</button>
+      </div>
+      <div class="fr-controls">
+        <label style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="frRegex" /> <span>正規表現を使用</span>
+        </label>
+        <label style="display:flex;gap:8px;align-items:center">
+          <input type="checkbox" id="frGlobal" checked /> <span>すべて置換 (gフラグ)</span>
+        </label>
+      </div>
+    </div>
+  </div>
 
   <div class="controls">
     <button id="previewBtn">プレビュー更新</button>
-    <button id="downloadBtn">CSVとしてダウンロード</button>
+    <button id="addColBtn" class="secondary">列追加</button>
+    <button id="downloadCsvBtn">CSVとしてダウンロード</button>
+    <button id="downloadXlsxBtn">XLSXとしてダウンロード</button>
     <button id="clearBtn" class="secondary">クリア</button>
     <input type="text" id="filename" value="menu.csv" style="padding:8px;border-radius:6px;border:1px solid #cdd7e3" />
   </div>
 
-  <label style="margin-top:12px">CSV プレビュー</label>
-  <div class="preview" id="preview" aria-live="polite"></div>
+  <label style="margin-top:12px">CSV プレビュー（ヘッダをドラッグ＆ドロップで並び替え、×で除外、クリックでリネーム）</label>
+  <div class="preview-container">
+    <table class="preview-table" id="previewTable">
+    </table>
+  </div>
 
   <footer>
-    入力例のように「品名,価格（円）」を含む行を貼り付ければ、そのままCSVに変換できます。Shift_JISで保存したい場合は文字コードを選択してください。
+    <small>Shift_JIS/XLSX出力にはインターネット接続が必要です。列リネームとデータ型推測で高精度出力。</small>
   </footer>
 
   <script>
-    // 要素
+    // =========================================
+    // 1. 要素と定数
+    // =========================================
     const input = document.getElementById('input');
-    const preview = document.getElementById('preview');
+    const previewTable = document.getElementById('previewTable');
     const previewBtn = document.getElementById('previewBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
+    const addColBtn = document.getElementById('addColBtn');
+    const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+    const downloadXlsxBtn = document.getElementById('downloadXlsxBtn');
     const clearBtn = document.getElementById('clearBtn');
     const hasHeader = document.getElementById('hasHeader');
+    const autoHeader = document.getElementById('autoHeader');
     const delimiter = document.getElementById('delimiter');
     const encoding = document.getElementById('encoding');
     const filenameInput = document.getElementById('filename');
     const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
     const rowcountEl = document.getElementById('rowcount');
+    const applyMenuFix = document.getElementById('applyMenuFix');
+
+    // Find & Replace Elements
+    const frToggle = document.getElementById('frToggle');
+    const frSearch = document.getElementById('frSearch');
+    const frReplace = document.getElementById('frReplace');
+    const frExecute = document.getElementById('frExecute');
+    const frRegex = document.getElementById('frRegex');
+    const frGlobal = document.getElementById('frGlobal');
+
+    // グローバル変数：現在のデータとカラム情報を保持（列の並び替え・除外・リネームに使用）
+    let currentRawData = [];
+    let currentColOrder = [];
+    let currentColNames = []; // リネームされたヘッダー名を保持
+    let currentColTypes = []; // 各列のデータ型を保持
+    let currentDelimiter = ''; // UI上の設定を反映
+
+    // 初期ヘッダー設定
+    const DEFAULT_HEADER = ['品名', '価格（円）'];
+
+
+    // =========================================
+    // 2. ユーティリティ関数
+    // =========================================
 
     // 改行と余白を正規化して行配列を返す
     function getLines(text) {
       if (!text) return [];
-      // CRLF, CR を LF に統一し、先頭末尾の空白行をトリム
-      const normalized = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').replace(/^\s+|\s+$/g,'');
-      const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length>0);
+      const normalized = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim();
+      const lines = normalized.split('\n').filter(l => l.trim().length > 0);
       return lines;
     }
 
-    // CSV用に各セルをエスケープする（" を二重にして、必要なら "で囲む）
+    // CSV用に各セルをエスケープする
     function csvEscapeCell(cell, sep=',') {
       const needsQuote = cell.includes('"') || cell.includes(sep) || cell.includes('\n') || /^\s|\s$/.test(cell);
       let v = String(cell).replace(/"/g,'""');
@@ -99,65 +206,140 @@
       return v;
     }
 
-    // テキストをCSV形式に変換
-    function convertToCSV(text, sep=',', headerExists=true) {
-      const lines = getLines(text);
-      if (lines.length === 0) return { csv: '', rows: 0, message: '入力が空です' };
-      const rows = [];
-      // 各行をsepで分割（ただしセルにsepが含まれる可能性が低い前提。必要なら高度なパーサに拡張）
-      for (let i=0;i<lines.length;i++){
-        // 既にカンマ区切りの行ならそのまま、そうでなければ空白で分割して結合検出
-        let parts = lines[i].split(sep);
-        if (parts.length === 1 && sep !== ',' ) {
-          // if custom sep yields one part, fallback to any common separators
-          parts = lines[i].split(/[,、\t]/);
+    // 区切り文字の自動検出（スペース/タブを優先度低で追加）
+    function detectDelimiter(line) {
+      const candidates = [
+        { sep: ',', count: line.split(',').length },
+        { sep: '\t', count: line.split('\t').length },
+        { sep: '|', count: line.split('|').length },
+        { sep: ';', count: line.split(';').length },
+        // 正規表現で「1つ以上のスペース」を区切り文字として試す
+        { sep: ' ', count: line.split(/\s+/).filter(p => p.length > 0).length } 
+      ];
+
+      let bestSep = '';
+      let maxCount = 0;
+
+      // カウントが最も大きいデリミタを選ぶ
+      candidates.forEach(c => {
+        // 2カラム以上で、現在の最大値より大きければ更新
+        if (c.count > 1 && c.count > maxCount) {
+          maxCount = c.count;
+          bestSep = c.sep;
         }
-        // トリム
-        parts = parts.map(p => p.trim());
-        rows.push(parts);
+      });
+      return bestSep || ','; // 検出できなければカンマをデフォルトとする
+    }
+
+    // =========================================
+    // 3. CSV変換ロジック
+    // =========================================
+
+    // テキストを生の二次元配列データに変換
+    function parseTextToData(text, sep, headerExists) {
+      let lines = getLines(text);
+      if (lines.length === 0) return { data: [], message: '入力が空です' };
+
+      let effectiveSep = sep;
+      let detected = false;
+      // 区切り文字が空であれば、自動検出を試みる
+      if (!effectiveSep || effectiveSep.trim() === '') {
+        effectiveSep = detectDelimiter(lines[0]);
+        delimiter.value = effectiveSep === ' ' ? '' : effectiveSep; // スペース区切りの場合、UIは空欄のままにしておく
+        detected = true;
       }
-      // 簡易検証: 全行のカラム数を揃える（ヘッダがある場合はその幅に合わせる）
-      let maxCols = rows.reduce((m,r)=>Math.max(m,r.length),0);
-      if (headerExists) {
-        maxCols = Math.max(maxCols, rows[0].length);
+      currentDelimiter = effectiveSep;
+
+      // 既存データ（ヘッダーがあるかどうかにかかわらず）からカラム数を決定する
+      let rawData = [];
+      for (const line of lines){
+        let parts;
+        if (currentDelimiter === ' ' || currentDelimiter === '\t') {
+          // スペース/タブ区切り（1つ以上の連続スペース/タブを1つの区切りとして扱う）
+          parts = line.trim().split(/\s+/).filter(p => p.length > 0);
+        } else {
+          // 指定された文字区切り
+          parts = line.split(currentDelimiter).map(p => p.trim());
+        }
+        rawData.push(parts);
       }
-      // 正規化（不足セルは空文字で埋める）
-      const normalized = rows.map(r=>{
+      
+      // ヘッダーを自動挿入する（autoHeader.checked が ON で、データにヘッダー行がない場合）
+      if (autoHeader.checked && rawData.length > 0) {
+        // ヘッダー行が存在しないと見なせる場合（または強制的に挿入したい場合）
+        if (!headerExists || rawData.length < 2) {
+             // データの先頭にヘッダーを挿入
+             rawData.unshift(DEFAULT_HEADER.slice(0, rawData[0].length));
+             headerExists = true; // ヘッダーが挿入されたので、以降はヘッダーありとして扱う
+        }
+      }
+
+      // カラム数正規化
+      let maxCols = rawData.reduce((m,r)=>Math.max(m,r.length),0);
+      if (headerExists && rawData.length > 0) {
+        // ヘッダ行がある場合、ヘッダ行の列幅を優先
+        maxCols = Math.max(maxCols, rawData[0].length);
+      }
+
+      const normalized = rawData.map(r=>{
         const copy = r.slice();
         while (copy.length < maxCols) copy.push('');
-        return copy;
+        return copy.slice(0, maxCols); // 超過分をカット
       });
-      // CSV生成
-      const csvLines = normalized.map(r => r.map(cell => csvEscapeCell(cell, sep)).join(sep));
-      return { csv: csvLines.join('\r\n'), rows: normalized.length, message: 'OK' };
-    }
-
-    // Shift_JISエンコード（ブラウザでの実装はTextEncoderがShift_JIS未対応のため、簡易対応としては外部libが必要）
-    // ここではUTF-8とShift_JIS両対応するため、Shift_JISのときは代替手段として EUC-JP/Shift_JIS を扱えるライブラリが必要だが
-    // 簡潔化のため、Shift_JIS選択時はBOMつきのSJISを想定した実装は行わず、代わりにJSで実現可能な範囲でUTF-8とShift_JIS用の簡易CSVをBlobで作成します。
-    // 実運用で確実にShift_JISが必要な場合はサーバー側変換か外部ライブラリの組み込みを推奨します。
-    function downloadCSV(csvText, fileName, encodingName='utf-8') {
-      if (encodingName === 'utf-8') {
-        // UTF-8 BOM を付けるとExcelでの文字化け対策になる場合があるためオプションで付与
-        const BOM = new Uint8Array([0xEF,0xBB,0xBF]);
-        const csvBuffer = new TextEncoder().encode(csvText);
-        const blob = new Blob([BOM, csvBuffer], {type: 'text/csv;charset=utf-8'});
-        triggerDownload(blob, fileName);
-      } else if (encodingName === 'shift_jis') {
-        // ブラウザだけで完璧なShift_JIS変換を行うには外部ライブラリ（Encoding.jsやiconv-lite相当）が必要。
-        // 簡易的な代替：UTF-8として保存し、ファイル名に_sjisと付けて警告を出す。
-        // ここでは実用性を優先してUTF-8で保存し、ユーザーに選択を通知する。
-        const BOM = new Uint8Array([0xEF,0xBB,0xBF]);
-        const csvBuffer = new TextEncoder().encode(csvText);
-        const blob = new Blob([BOM, csvBuffer], {type: 'text/csv;charset=utf-8'});
-        triggerDownload(blob, fileName.replace(/\.csv$/i,'_utf8.csv'));
-        alert('Shift_JISを選択しましたが、ブラウザ内で確実にShift_JISへ変換するには追加ライブラリが必要です。\n代わりにUTF-8で出力しました。必要なら教えてください。');
-      } else {
-        const blob = new Blob([csvText], {type: 'text/csv;charset=utf-8'});
-        triggerDownload(blob, fileName);
+      
+      // 初回解析時、またはカラム数変更時にカラム情報を初期化
+      if (currentColOrder.length !== maxCols) {
+        currentColOrder = Array.from({length: maxCols}, (_, i) => i);
+        // ヘッダー名を設定
+        if (headerExists && normalized.length > 0) {
+             currentColNames = normalized[0].slice();
+        } else {
+             currentColNames = Array.from({length: maxCols}, (_, i) => `Col${i+1}`);
+        }
+        currentColTypes = Array(maxCols).fill('Text');
       }
+
+      return { data: normalized, message: 'OK' };
+    }
+    
+    // データを現在のカラム順序とヘッダー設定で最終的な二次元配列に整形
+    function finalizeData(rawData, headerExists) {
+      if (rawData.length === 0) return [];
+      
+      // 1. ヘッダーを抽出（リネーム反映）
+      // currentColNamesはrawDataの元の列順序に基づく
+      const header = currentColNames;
+      const dataRows = headerExists ? rawData.slice(1) : rawData;
+
+      // 2. 現在の列順序に従ってデータを整形
+      const finalRows = [];
+
+      // ヘッダー行を最初に追加 (並び替える)
+      const finalHeader = currentColOrder.map(colIndex => header[colIndex]);
+      finalRows.push(finalHeader);
+
+      // データ行を追加
+      for (const row of dataRows) {
+        // rawDataの元の列順序から、現在の列順序で値を取得
+        const newRow = currentColOrder.map(colIndex => row[colIndex] !== undefined ? row[colIndex] : '');
+        finalRows.push(newRow);
+      }
+
+      return finalRows;
     }
 
+    // =========================================
+    // 4. ダウンロードと出力
+    // =========================================
+
+    // データをCSV文字列に変換（エスケープと列順序を適用）
+    function convertDataToCSV(finalData, sep) {
+      const downloadSep = ','; 
+      const csvLines = finalData.map(r => r.map(cell => csvEscapeCell(cell, downloadSep)).join(downloadSep));
+      return csvLines.join('\r\n');
+    }
+    
+    // ダウンロードトリガー
     function triggerDownload(blob, fileName) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -169,79 +351,246 @@
       setTimeout(()=>URL.revokeObjectURL(url), 1000);
     }
 
-    function updatePreview() {
-      const text = input.value;
-      const sep = delimiter.value || ',';
-      const header = hasHeader.checked;
-      const result = convertToCSV(text, sep, header);
-      preview.textContent = result.csv || result.message;
-      rowcountEl.textContent = result.rows + ' 行';
-      downloadBtn.disabled = !result.csv;
+    // CSVダウンロード処理（Shift_JIS対応）
+    function downloadCSV(csvText, fileName, encodingName='utf-8') {
+      let blob;
+
+      if (encodingName === 'shift_jis' && typeof Encoding !== 'undefined') {
+        const sjisArray = Encoding.convert(
+          Encoding.stringToCode(csvText),
+          'SJIS', 
+          'UTF8'
+        );
+        const uint8Array = new Uint8Array(sjisArray);
+        blob = new Blob([uint8Array], {type: 'text/csv;charset=shift_jis'});
+        triggerDownload(blob, fileName);
+      } else {
+        const BOM = new Uint8Array([0xEF,0xBB,0xBF]);
+        const csvBuffer = new TextEncoder().encode(csvText);
+        blob = new Blob([BOM, csvBuffer], {type: 'text/csv;charset=utf-8'});
+        triggerDownload(blob, fileName);
+      }
     }
-
-    // 初回プレビュー
-    updatePreview();
-
-    previewBtn.addEventListener('click', () => updatePreview());
-
-    downloadBtn.addEventListener('click', () => {
-      const text = input.value;
-      const sep = delimiter.value || ',';
-      const header = hasHeader.checked;
-      const fileName = filenameInput.value.trim() || 'menu.csv';
-      const enc = encoding.value;
-      const result = convertToCSV(text, sep, header);
-      if (!result.csv) {
-        alert('CSVデータが生成できません。入力を確認してください。');
+    
+    // XLSXダウンロード処理（データ型反映）
+    function downloadXLSX(finalData, fileName) {
+      if (typeof XLSX === 'undefined') {
+        alert('XLSXライブラリが読み込まれていません。インターネット接続を確認してください。');
         return;
       }
-      downloadCSV(result.csv, fileName, enc);
-    });
+      
+      const header = finalData[0];
+      const data = finalData.slice(1);
 
+      const wsData = [header];
+      data.forEach(row => {
+        const typedRow = row.map((cell, colIdx) => {
+          const origColIdx = currentColOrder[colIdx];
+          const type = currentColTypes[origColIdx];
+          if (type === 'Number') {
+            const num = parseFloat(cell.replace(/,/g, ''));
+            return { t: 'n', v: isNaN(num) ? 0 : num };
+          } else if (type === 'Date') {
+            const date = new Date(cell);
+            const dateNum = XLSX.utils.date_to_num(date);
+            return { t: 'n', v: dateNum, z: XLSX.utils.format_table_type(date) || 'yyyy/mm/dd' }; 
+          }
+          return { t: 's', v: cell };
+        });
+        wsData.push(typedRow);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+      
+      if (!fileName.toLowerCase().endsWith('.xlsx')) {
+        fileName = fileName.replace(/\.csv$/i, '') + '.xlsx';
+      }
+
+      XLSX.writeFile(wb, fileName);
+    }
+
+    // =========================================
+    // 5. プレビューの描画と操作
+    // =========================================
+
+    // プレビューテーブルの描画
+    function renderPreviewTable(data) {
+      previewTable.innerHTML = '';
+      if (data.length === 0) return;
+      
+      const thead = previewTable.createTHead();
+      const headerRow = thead.insertRow();
+      headerRow.id = 'headerRow'; // ドラッグ＆ドロップ用ID
+
+      data[0].forEach((colName, index) => {
+        const th = document.createElement('th');
+        const origColIdx = currentColOrder[index];
+
+        th.setAttribute('data-col-index', origColIdx); 
+        th.setAttribute('draggable', true);
+        th.classList.add('editable-header');
+        
+        const displayColName = currentColNames[origColIdx] || `Col${origColIdx + 1}`;
+        
+        th.innerHTML = `
+          <div class="col-header-tools">
+            <span data-col-name="${displayColName}">${displayColName}</span>
+            <input type="text" value="${displayColName}" />
+            <button class="add-col-btn" style="margin-left:4px;" onclick="addColumnAfter(${index})">+</button>
+            <button class="col-remove-btn red" data-index="${index}">×</button>
+          </div>
+          <small>Type: <span id="type-${origColIdx}">${currentColTypes[origColIdx]}</span></small>
+        `;
+        headerRow.appendChild(th);
+      });
+      
+      const tbody = previewTable.createTBody();
+      data.slice(1).forEach((row) => {
+        const tr = tbody.insertRow();
+        row.forEach(cell => {
+          const td = tr.insertCell();
+          td.textContent = cell;
+        });
+      });
+
+      inferColumnTypes(data.slice(1));
+      
+      setupColumnDragAndDrop();
+      setupColumnRemove();
+      setupColumnRename();
+    }
+
+    // 列追加関数
+    window.addColumnAfter = function(index) {
+      // 現在の最大の元のインデックス
+      const maxOrigIndex = currentColNames.length;
+      
+      // 表示順の配列に新しい列の元のインデックスを追加
+      currentColOrder.splice(index + 1, 0, maxOrigIndex);
+
+      // 元の列名の配列に新しい名前を追加
+      currentColNames.push(`New Col ${maxOrigIndex + 1}`); 
+      currentColTypes.push('Text'); 
+
+      // rawDataの各行の末尾に空文字列を追加
+      currentRawData = currentRawData.map(row => [...row, '']);
+
+      updatePreview();
+    }
+
+    // データ型の推測
+    function inferColumnTypes(dataRows) {
+      if (dataRows.length === 0) return;
+      
+      const visibleCols = currentColOrder.length; 
+
+      for (let i = 0; i < visibleCols; i++) {
+        const origColIdx = currentColOrder[i]; 
+        let isNumber = true;
+        let isDate = true;
+        
+        for (let j = 0; j < Math.min(dataRows.length, 100); j++) {
+          const cell = dataRows[j][i].trim();
+          if (cell === '') continue;
+
+          if (!/^-?\d+(,?\d*)*(\.\d+)?$/.test(cell.replace(/,/g, ''))) isNumber = false;
+          if (isNaN(Date.parse(cell))) isDate = false;
+
+          if (!isNumber && !isDate) break;
+        }
+        
+        let type = 'Text';
+        if (isNumber) type = 'Number';
+        else if (isDate) type = 'Date';
+
+        currentColTypes[origColIdx] = type;
+
+        const typeEl = document.getElementById(`type-${origColIdx}`);
+        if (typeEl) typeEl.textContent = type;
+      }
+    }
+
+    // =========================================
+    // 6. メイン処理とイベントハンドラ
+    // =========================================
+
+    function updatePreview() {
+      const text = input.value;
+      const sep = delimiter.value;
+      const header = hasHeader.checked;
+
+      const result = parseTextToData(text, sep, header);
+      currentRawData = result.data;
+
+      if (result.data.length === 0) {
+        previewTable.innerHTML = '<tr><td>' + result.message + '</td></tr>';
+        rowcountEl.textContent = '0 行';
+        downloadCsvBtn.disabled = true;
+        downloadXlsxBtn.disabled = true;
+        return;
+      }
+
+      const finalData = finalizeData(currentRawData, header);
+      renderPreviewTable(finalData);
+
+      const dataRowsCount = finalData.length > 0 ? finalData.length - 1 : 0;
+      rowcountEl.textContent = `${dataRowsCount} データ行 / ${currentColOrder.length} カラム`;
+      downloadCsvBtn.disabled = false;
+      downloadXlsxBtn.disabled = false;
+    }
+
+    function handleDownload(type) {
+      const header = hasHeader.checked;
+      let fileName = filenameInput.value.trim() || 'data.csv';
+      const enc = encoding.value;
+
+      const finalData = finalizeData(currentRawData, header);
+      
+      if (finalData.length < 1) {
+        alert('出力するデータがありません。');
+        return;
+      }
+
+      if (type === 'csv') {
+        if (!fileName.toLowerCase().endsWith('.csv')) fileName = fileName.replace(/\.xlsx$/i, '') + '.csv';
+        const csvText = convertDataToCSV(finalData, ',');
+        downloadCSV(csvText, fileName, enc);
+      } else if (type === 'xlsx') {
+        downloadXLSX(finalData, fileName);
+      }
+    }
+
+    // 初期化
+    updatePreview();
+    downloadCsvBtn.disabled = true;
+    downloadXlsxBtn.disabled = true;
+
+    // コントロールイベント
+    previewBtn.addEventListener('click', updatePreview);
+    addColBtn.addEventListener('click', () => { addColumnAfter(currentColOrder.length - 1); });
+    downloadCsvBtn.addEventListener('click', () => handleDownload('csv'));
+    downloadXlsxBtn.addEventListener('click', () => handleDownload('xlsx'));
     clearBtn.addEventListener('click', () => {
       input.value = '';
-      preview.textContent = '';
+      previewTable.innerHTML = '';
       rowcountEl.textContent = '0 行';
-      downloadBtn.disabled = true;
+      downloadCsvBtn.disabled = true;
+      downloadXlsxBtn.disabled = true;
+      currentColOrder = [];
+      currentRawData = [];
+      currentColNames = [];
+      currentColTypes = [];
     });
-
-    // ドラッグ＆ドロップ、クリックでファイル読み取り
-    ;(function setupDropzone(){
-      dropzone.addEventListener('click', ()=> input.focus());
-      ['dragenter','dragover'].forEach(evt=>{
-        dropzone.addEventListener(evt, e => {
-          e.preventDefault();
-          dropzone.style.background = '#eaf2ff';
-        });
-      });
-      ['dragleave','drop'].forEach(evt=>{
-        dropzone.addEventListener(evt, e => {
-          e.preventDefault();
-          dropzone.style.background = '';
-        });
-      });
-      dropzone.addEventListener('drop', async e => {
-        const dt = e.dataTransfer;
-        if (!dt) return;
-        const f = dt.files && dt.files[0];
-        if (!f) {
-          // テキストの直接ドロップ（選択範囲のテキスト）
-          const text = dt.getData('text/plain');
-          if (text) {
-            input.value = text;
-            updatePreview();
-          }
-          return;
-        }
-        const text = await f.text();
-        input.value = text;
-        updatePreview();
-      });
-      // ペースト対応
-      input.addEventListener('paste', (e)=>{
-        setTimeout(()=> updatePreview(), 50);
-      });
-    })();
+    
+    // ヘッダー関連のオプション変更時
+    hasHeader.addEventListener('change', () => {
+         autoHeader.disabled = !hasHeader.checked;
+         if (!hasHeader.checked) autoHeader.checked = false;
+         updatePreview();
+    });
+    autoHeader.addEventListener('change', updatePreview);
 
     // テキスト変更で自動プレビュー（遅延）
     let typingTimer;
@@ -250,10 +599,209 @@
       typingTimer = setTimeout(updatePreview, 400);
     });
 
-    // 初期有効化
-    downloadBtn.disabled = true;
-    // 簡易サンプルを残すため、生成可能なら有効化
-    if (input.value.trim()) updatePreview();
+    delimiter.addEventListener('input', updatePreview);
+
+    // --- ドラッグ＆ドロップ/ファイル選択/ペースト ---
+    ;(function setupDropzone(){
+      dropzone.addEventListener('click', ()=> fileInput.click()); 
+      fileInput.addEventListener('change', async (e) => {
+        const f = e.target.files && e.target.files[0];
+        if (!f) return;
+        filenameInput.value = f.name.replace(/\.txt|\.csv/i, '.csv');
+        const text = await f.text();
+        input.value = text;
+        updatePreview();
+        e.target.value = null; 
+      });
+
+      ['dragenter','dragover'].forEach(evt=>{
+        dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.style.background = '#eaf2ff'; });
+      });
+      ['dragleave','drop'].forEach(evt=>{
+        dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.style.background = ''; });
+      });
+      dropzone.addEventListener('drop', async e => {
+        const dt = e.dataTransfer;
+        const f = dt.files && dt.files[0];
+        if (f) {
+          filenameInput.value = f.name.replace(/\.txt|\.csv/i, '.csv');
+          const text = await f.text();
+          input.value = text;
+          updatePreview();
+        } else {
+          const text = dt.getData('text/plain');
+          if (text) { input.value = text; updatePreview(); }
+        }
+      });
+
+      input.addEventListener('paste', ()=> setTimeout(updatePreview, 50));
+    })();
+    
+    // --- カラム操作（ドラッグ＆ドロップ）---
+    let dragSrcEl = null;
+
+    function handleDragStart(e) {
+      dragSrcEl = this;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.innerHTML);
+    }
+
+    function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+
+    function handleDrop(e) {
+      e.stopPropagation();
+      if (dragSrcEl !== this) {
+        const fromIndex = Array.from(this.parentNode.children).indexOf(dragSrcEl);
+        const toIndex = Array.from(this.parentNode.children).indexOf(this);
+        
+        const [removed] = currentColOrder.splice(fromIndex, 1);
+        currentColOrder.splice(toIndex, 0, removed);
+        
+        updatePreview();
+      }
+    }
+
+    function setupColumnDragAndDrop() {
+      const cols = previewTable.querySelectorAll('#headerRow th');
+      cols.forEach(col => {
+        col.addEventListener('dragstart', handleDragStart);
+        col.addEventListener('dragover', handleDragOver);
+        col.addEventListener('drop', handleDrop);
+        col.addEventListener('dragenter', (e) => e.preventDefault());
+      });
+    }
+
+    // --- カラム除外 ---
+    function setupColumnRemove() {
+      previewTable.querySelectorAll('.col-remove-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const colIndex = parseInt(e.target.dataset.index, 10); 
+
+          if (currentColOrder.length > 1) {
+            const removedOrigIdx = currentColOrder[colIndex];
+            currentColOrder.splice(colIndex, 1);
+            
+            // rawDataから列を削除
+            if (currentRawData.length > 0) {
+              currentRawData = currentRawData.map(row => {
+                const newRow = row.slice();
+                newRow.splice(removedOrigIdx, 1);
+                return newRow;
+              });
+
+              // 削除された元のインデックスより大きい全てのインデックスを1つ減らす
+              currentColOrder = currentColOrder.map(idx => (idx > removedOrigIdx ? idx - 1 : idx));
+              currentColNames.splice(removedOrigIdx, 1);
+              currentColTypes.splice(removedOrigIdx, 1);
+
+              const newMaxCols = currentRawData.length > 0 ? currentRawData[0].length : 0;
+              currentColOrder = Array.from({length: newMaxCols}, (_, i) => i);
+            }
+            updatePreview();
+          } else {
+            alert('最後のカラムは削除できません。');
+          }
+        });
+      });
+    }
+
+    // --- カラムリネーム ---
+    function setupColumnRename() {
+      const headers = previewTable.querySelectorAll('.editable-header');
+      headers.forEach((header, index) => {
+        header.addEventListener('click', (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON' || e.target.tagName === 'SMALL' || e.target.parentNode.tagName === 'SMALL') return;
+          header.classList.add('editing');
+          const input = header.querySelector('input');
+          input.focus();
+          input.select();
+        });
+
+        const input = header.querySelector('input');
+        input.addEventListener('blur', () => {
+          header.classList.remove('editing');
+          const origColIdx = currentColOrder[index];
+          const newName = input.value.trim() || `Col${origColIdx + 1}`;
+          currentColNames[origColIdx] = newName;
+          const span = header.querySelector('span[data-col-name]');
+          span.textContent = newName;
+          input.value = newName;
+        });
+
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            input.blur();
+          }
+        });
+      });
+    }
+    
+    // --- Find & Replace ---
+    frToggle.addEventListener('click', () => {
+      frToggle.parentNode.classList.toggle('active');
+    });
+
+    // 「円」を削除して整形
+    applyMenuFix.addEventListener('click', () => {
+        const regex = new RegExp('円|,', 'g');
+        const replacement = input.value.replace(regex, '');
+        
+        if (input.value !== replacement) {
+          input.value = replacement;
+          
+          // ヘッダーを自動挿入ONにし、デリミタを空にする
+          delimiter.value = '';
+          hasHeader.checked = true;
+          autoHeader.checked = true;
+
+          updatePreview();
+          alert('「円」と「,」の削除および初期ヘッダーの自動挿入が完了しました。');
+        } else {
+          alert('「円」または「,」は見つかりませんでした。');
+        }
+    });
+
+
+    frExecute.addEventListener('click', () => {
+      const searchStr = frSearch.value;
+      const replaceStr = frReplace.value;
+      const useRegex = frRegex.checked;
+      const isGlobal = frGlobal.checked;
+      
+      if (!searchStr) {
+        alert('検索文字列を入力してください。');
+        return;
+      }
+
+      let targetText = input.value;
+      let replacement;
+      
+      try {
+        if (useRegex) {
+          const flags = isGlobal ? 'g' : '';
+          const regex = new RegExp(searchStr, flags);
+          replacement = targetText.replace(regex, replaceStr);
+        } else {
+          if (isGlobal) {
+            const escapedSearch = searchStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const regex = new RegExp(escapedSearch, 'g');
+            replacement = targetText.replace(regex, replaceStr);
+          } else {
+            replacement = targetText.replace(searchStr, replaceStr);
+          }
+        }
+
+        if (targetText !== replacement) {
+          input.value = replacement;
+          updatePreview();
+          alert('置換が完了しました。');
+        } else {
+          alert('一致する箇所は見つかりませんでした。');
+        }
+      } catch (e) {
+        alert('置換エラー: ' + e.message);
+      }
+    });
   </script>
 </body>
 </html>
