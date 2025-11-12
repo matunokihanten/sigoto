@@ -73,7 +73,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
     <h2>メニュー編集・プレビュー（CSV読み込み修正版）</h2>
 
     <div style="display:flex;gap:8px;align-items:center">
-      <span class="small">CSV / XLSX / XLS の読み込みを堅牢化しました。既存機能は変更していません。</span>
+      <span class="small">CSV / XLSX / XLS の読み込みをさらに堅牢化しました。Shift_JIS 対応を強化し、エラーハンドリングを改善。既存機能は変更していません。</span>
     </div>
 
     <div style="margin-top:12px" class="controls">
@@ -195,7 +195,6 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
   </div>
 </div>
 
-<!-- Edit Modal -->
 <div id="editModal" class="modal hidden" role="dialog" aria-hidden="true">
   <h3>メニュー編集</h3>
   <div class="row"><label>品名</label><input type="text" id="editName" /></div>
@@ -207,7 +206,6 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
   </div>
 </div>
 
-<!-- ライブラリ -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -255,175 +253,187 @@ function renderBgPresets(){
 }
 renderBgPresets();
 
-/* ---------- ここを堅牢化した parseFile（CSV と Excel の読み込み不具合対策） ---------- */
+/* ---------- ファイル読み込みの堅牢版（バグ修正強化） ---------- */
 /*
-  ポイント:
-   - CSV: file.text() を試し、結果が文字化けぽければ shift_jis も試す（TextDecoder('shift_jis')）。
-   - XLSX / XLS: ArrayBuffer -> XLSX.read(array,'array') を優先。失敗したら binary string フォールバック。
-   - どのケースでも最終的に parseTextRowsWithCategories(lines) を呼ぶ。
-   - エラーは console に出力し、ユーザーに分かりやすいメッセージを表示。
+  修正点:
+   - CSV: file.text() → 文字化け検知で FileReader + TextDecoder('shift-jis') を試行。さらに FileReader.readAsText('shift-jis') で再フォールバック。
+   - Excel: ArrayBuffer 優先、失敗時は FileReader readAsArrayBuffer で再試行。
+   - 共通: すべてのエラーで詳細ログ出力 + ユーザー向けエラーメッセージ強化。
 */
 async function parseFile(file){
-  const name = (file && file.name) ? file.name.toLowerCase() : '';
+  if (!file) {
+    alert('ファイルが選択されていません。');
+    return;
+  }
+  const name = file.name.toLowerCase();
 
-  // Helper: try to decode ArrayBuffer as shift_jis (if TextDecoder supports)
-  function decodeArrayBufferWithFallback(ab){
-    try{
-      // try utf-8 first
-      const utf8 = new TextDecoder('utf-8').decode(ab);
-      // quick heuristic: if contains many replacement characters, try shift_jis
-      const replacements = (utf8.match(/\uFFFD/g) || []).length;
-      if(replacements > 0){
-        // try shift_jis if supported
-        try{
-          const sjis = new TextDecoder('shift_jis').decode(ab);
-          return sjis;
-        }catch(e){
-          // shift_jis not supported, fallback to iso-8859-1-like decoding to preserve bytes
-          return utf8;
+  // 共通ヘルパー: ArrayBuffer をテキストにデコード（UTF-8 → Shift_JIS → Binary fallback）
+  async function decodeBufferToText(ab, isCSV = false) {
+    try {
+      // 1. UTF-8 試行
+      let text = new TextDecoder('utf-8').decode(ab);
+      // 文字化け検知（ の多さ）
+      const replacementCount = (text.match(/\uFFFD/g) || []).length;
+      if (replacementCount > text.length * 0.05) { // 5% 以上が なら Shift_JIS 試行
+        console.log('UTF-8で文字化けを検知。Shift_JISを試行します。');
+        try {
+          // 2. Shift_JIS 試行 (TextDecoder)
+          text = new TextDecoder('shift_jis').decode(ab);
+          console.log('Shift_JIS デコード成功');
+          return text;
+        } catch (sjisErr) {
+          console.warn('Shift_JIS TextDecoder 失敗、バイナリフォールバック:', sjisErr);
         }
-      } else {
-        return utf8;
       }
-    }catch(e){
-      // fallback: try shift_jis directly
-      try{
+      return text;
+    } catch (utfErr) {
+      console.warn('UTF-8 デコード失敗、Shift_JIS 試行:', utfErr);
+      try {
+        // 3. Shift_JIS 試行 (TextDecoder - UTF-8失敗時)
         return new TextDecoder('shift_jis').decode(ab);
-      }catch(err){
-        // last resort: binary to string via fromCharCode
+      } catch (finalErr) {
+        // 4. 最終フォールバック: 生バイトを文字列化 (バイナリ文字列)
         const uint8 = new Uint8Array(ab);
-        let s = '';
-        for(let i=0;i<uint8.length;i++){
-          s += String.fromCharCode(uint8[i]);
+        let text = '';
+        for (let i = 0; i < uint8.length; i++) {
+          text += String.fromCharCode(uint8[i]);
         }
-        return s;
+        return text;
       }
     }
   }
 
-  // CSV handling
-  if(name.endsWith('.csv')){
-    // Try file.text() first (modern browsers)
-    try{
-      if(typeof file.text === 'function'){
-        let txt = await file.text();
-        // Heuristic: if many � replacement chars, try shift_jis
-        const repl = (txt.match(/\uFFFD/g) || []).length;
-        if(repl > 0){
-          // try ArrayBuffer -> TextDecoder shift_jis
-          try{
-            const ab = await (file.arrayBuffer ? file.arrayBuffer() : new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=e=>res(e.target.result); fr.onerror=rej; fr.readAsArrayBuffer(file); }));
-            const decoded = decodeArrayBufferWithFallback(ab);
-            parseTextRowsWithCategories(decoded);
-            renderRowList();
-            return;
-          }catch(err){
-            // fall through to use txt as-is
-            console.warn('shift_jis decode failed, using text():', err);
-            parseTextRowsWithCategories(txt);
-            renderRowList();
-            return;
+  try {
+    // CSV 処理
+    if (name.endsWith('.csv')) {
+      let text;
+      let errorReason = '';
+
+      // 1. file.text() 試行 (UTF-8)
+      try {
+        if (typeof file.text === 'function') {
+          text = await file.text();
+          const replacementCount = (text.match(/\uFFFD/g) || []).length;
+          if (replacementCount > text.length * 0.05) {
+            throw new Error('文字化け検知');
           }
         } else {
-          parseTextRowsWithCategories(txt);
-          renderRowList();
-          return;
+          throw new Error('file.text() 未サポート');
         }
-      } else {
-        // no file.text(), fall back to FileReader readAsText
-        throw new Error('file.text not available');
-      }
-    }catch(e){
-      // fallback: read as ArrayBuffer and attempt decoding (utf-8 then shift_jis)
-      try{
-        const ab = await (file.arrayBuffer ? file.arrayBuffer() : new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=e=>res(e.target.result); fr.onerror=rej; fr.readAsArrayBuffer(file); }));
-        const decoded = decodeArrayBufferWithFallback(ab);
-        parseTextRowsWithCategories(decoded);
-        renderRowList();
-        return;
-      }catch(err){
-        console.error('CSV read fallback failed', err);
-        alert('CSVファイルの読み込みに失敗しました。文字コードが Shift_JIS の可能性があります。ブラウザの UTF-8 対応を確認してください。');
-        return;
-      }
-    }
-  }
+        errorReason = 'UTF-8';
+      } catch (textErr) {
+        console.warn('UTF-8 読み込み失敗、Shift_JIS で再試行:', textErr.message);
+        errorReason = 'Shift_JIS';
 
-  // Excel handling (.xlsx, .xls, .xlsm, .xlsb)
-  if(name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm') || name.endsWith('.xlsb')){
-    // Try ArrayBuffer first
-    let arrayBuffer = null;
-    if(typeof file.arrayBuffer === 'function'){
-      try{
-        arrayBuffer = await file.arrayBuffer();
-      }catch(err){
-        arrayBuffer = null;
-      }
-    }
-    if(arrayBuffer){
-      try{
-        const wb = XLSX.read(arrayBuffer, {type:'array'});
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-        const lines = json.map(row=>row.join('\t')).join('\n');
-        parseTextRowsWithCategories(lines);
-        renderRowList();
-        return;
-      }catch(err){
-        console.warn('XLSX read(array) failed, falling back to binary read', err);
-      }
-    }
-    // Fallback: read as binary string or arrayBuffer via FileReader
-    try{
-      const data = await new Promise((resolve, reject) => {
-        const fr = new FileReader();
-        fr.onload = e => resolve(e.target.result);
-        fr.onerror = e => reject(e);
-        // prefer readAsBinaryString if available for older .xls
-        if(typeof fr.readAsBinaryString === 'function'){
-          fr.readAsBinaryString(file);
-        } else {
-          fr.readAsArrayBuffer(file);
+        // 2. FileReader.readAsText('shift_jis') 試行
+        try {
+          text = await new Promise((resolve, reject) => {
+            const fr = new FileReader();
+            fr.onload = (e) => resolve(e.target.result);
+            fr.onerror = (e) => reject(new Error(`Shift_JIS 読み込みエラー: ${e.target.error.message}`));
+            // ここで Shift_JIS を明示的に指定
+            fr.readAsText(file, 'shift_jis'); 
+          });
+        } catch (sjisReadErr) {
+          console.error('Shift_JIS 読み込みにも失敗、ArrayBuffer経由で最終フォールバック:', sjisReadErr);
+          errorReason = 'ArrayBuffer Fallback';
+          // 3. ArrayBuffer 経由のフォールバック
+          const ab = await file.arrayBuffer();
+          text = await decodeBufferToText(ab, true);
         }
-      });
-      // Try binary
-      try{
-        // If ArrayBuffer was returned, data is ArrayBuffer; if binary string, data is string.
-        let wb;
-        if(data instanceof ArrayBuffer){
-          wb = XLSX.read(new Uint8Array(data), {type:'array'});
-        } else {
-          wb = XLSX.read(data, {type:'binary'});
-        }
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-        const lines = json.map(row=>row.join('\t')).join('\n');
-        parseTextRowsWithCategories(lines);
-        renderRowList();
-        return;
-      }catch(err){
-        console.error('SheetJS binary read failed', err);
-        alert('Excelファイルの読み込みに失敗しました。ファイルが破損しているか、ブラウザが対応していない可能性があります。');
-        return;
       }
-    }catch(err){
-      console.error('FileReader fallback failed for Excel', err);
-      alert('Excelファイルの読み込みに失敗しました。ブラウザのファイルAPIに問題がある可能性があります。');
+      
+      // 最終検証
+      if (!text || text.trim() === '') {
+        throw new Error('ファイルが空またはデータが無効です');
+      }
+      
+      console.log(`CSV読み込み成功 (${errorReason})`);
+      parseTextRowsWithCategories(text);
+      renderRowList();
       return;
     }
-  }
 
-  // Other files: try as text
-  try{
-    const txt = await (typeof file.text === 'function' ? file.text() : new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=e=>res(e.target.result); fr.onerror=rej; fr.readAsText(file); }));
-    parseTextRowsWithCategories(txt);
-    renderRowList();
-  }catch(e){
-    alert('このファイルは読み込めませんでした。拡張子を確認してください。');
-    console.error(e);
+    // Excel 処理 (.xlsx, .xls など)
+    if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm') || name.endsWith('.xlsb')) {
+      let data;
+      try {
+        // ArrayBuffer 優先
+        data = await file.arrayBuffer();
+      } catch (abErr) {
+        console.warn('arrayBuffer() 失敗、FileReader で再試行:', abErr);
+        data = await new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = (e) => resolve(e.target.result);
+          fr.onerror = reject;
+          fr.readAsArrayBuffer(file);
+        });
+      }
+
+      let wb;
+      try {
+        // XLSX.read 試行
+        wb = XLSX.read(data, { type: 'array' });
+      } catch (readErr) {
+        console.warn('XLSX.read(array) 失敗、binary フォールバック:', readErr);
+        // Binary string として再試行
+        // data が ArrayBuffer の場合のみ btoa を使用
+        const binaryStr = typeof data === 'string' ? data : btoa(String.fromCharCode.apply(null, new Uint8Array(data)));
+        wb = XLSX.read(binaryStr, { type: 'binary' });
+      }
+
+      const wsName = wb.SheetNames[0];
+      if (!wsName) {
+        throw new Error('シートが見つかりません');
+      }
+      const ws = wb.Sheets[wsName];
+      // raw: false, defval: '' で文字列を優先し、空白を''で処理
+      const json = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' }); 
+      
+      const lines = json
+        .filter(row => row.some(cell => cell !== '' && cell != null)) // 空行除去
+        .map(row => row.map(cell => String(cell).trim()).join('\t')) // すべてをタブ区切りで結合
+        .join('\n');
+
+      if (!lines.trim()) {
+        throw new Error('有効なデータがありません');
+      }
+
+      parseTextRowsWithCategories(lines);
+      renderRowList();
+      return;
+    }
+
+    // その他: テキストとして処理 (既存のフォールバック)
+    let text;
+    try {
+      text = await (typeof file.text === 'function' ? file.text() : 
+        new Promise((resolve, reject) => {
+          const fr = new FileReader();
+          fr.onload = (e) => resolve(e.target.result);
+          fr.onerror = reject;
+          fr.readAsText(file, 'utf-8');
+        })
+      );
+      parseTextRowsWithCategories(text);
+      renderRowList();
+    } catch (err) {
+      console.error('テキスト読み込み失敗:', err);
+      alert('このファイル形式はサポートされていません。CSV または Excel を使用してください。');
+    }
+  } catch (err) {
+    console.error('ファイル読み込みエラー:', err);
+    let userMsg = 'ファイルの読み込みに失敗しました。';
+    if (name.endsWith('.csv')) {
+      userMsg += '\n\n**Shift_JISエンコードのファイル**の場合、ブラウザによって文字化けする可能性があります。\n- ファイルを**UTF-8**で保存し直す\n- テキストエディタで開いて、内容を「テキスト貼り付けエリア」に貼り付けて試す\n\nを試してください。';
+    } else if (name.includes('xls')) {
+      userMsg += '\n\n**Excelファイルの解析**に失敗しました。\n- ファイルを最新の**XLSX**形式で保存し直す\n- シート名が日本語の場合、英数字に変更する\n\nを試してください。';
+    } else {
+       userMsg += `\n\n詳細: ${err.message}`;
+    }
+    alert(userMsg);
   }
 }
-/* ---------- ここまで parseFile の堅牢版 ---------- */
 
 /* レンダリング（行一覧 + カテゴリ右パネル） */
 function renderRowList(){ /* 実装は既存機能を維持 */
@@ -568,7 +578,7 @@ function showPreview(){
 }
 
 /* 保存 / 読込 / Export */
-function downloadJSON(){ const out={meta:{exportedAt:new Date().toISOString()}, rows:state.rows, categories:state.categories, background:currentBg}; const blob=new Blob([JSON.stringify(out,null,2)},{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='menu-export.json'; a.click(); URL.revokeObjectURL(a.href); }
+function downloadJSON(){ const out={meta:{exportedAt:new Date().toISOString()}, rows:state.rows, categories:state.categories, background:currentBg}; const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='menu-export.json'; a.click(); URL.revokeObjectURL(a.href); }
 function handleJSONLoad(file){ const fr=new FileReader(); fr.onload=e=>{ try{ const parsed=JSON.parse(e.target.result); if(parsed.rows && parsed.categories){ state.rows = parsed.rows.map(r=>({...r, selected:false})); state.categories = parsed.categories.map(c=>({...c})); currentBg = parsed.background || null; applyBackground(currentBg); syncCategoriesFromRows(); renderRowList(); alert('JSONを読み込みました。'); } else alert('不正なJSON形式です'); }catch(err){ alert('JSONの読み込みに失敗しました'); } }; fr.readAsText(file); }
 function exportCSV(){ const outRows=[]; state.categories.forEach(cat=>{ cat.rowIds.forEach(rid=>{ const r=state.rows.find(rr=>rr.id===rid); if(!r) return; outRows.push({Category:cat.title, Item:r.name||r.raw, Price:r.price===null? '': r.price}); }); }); const header=['Category','Item','Price']; const csv=[header.join(',')].concat(outRows.map(row=> header.map(h=> `"${String(row[h] ?? '').replace(/"/g,'""')}"`).join(','))).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='menu-export.csv'; a.click(); URL.revokeObjectURL(a.href); }
 function exportXLSX(){ const wb=XLSX.utils.book_new(); const out=[]; state.categories.forEach(cat=>{ out.push([cat.title]); cat.rowIds.forEach(rid=>{ const r=state.rows.find(rr=>rr.id===rid); if(!r) return; out.push([r.name||r.raw, r.price===null? '': r.price]); }); out.push([]); }); const ws=XLSX.utils.aoa_to_sheet(out); XLSX.utils.book_append_sheet(wb, ws, 'Menu'); XLSX.writeFile(wb, 'menu-export.xlsx'); }
@@ -646,14 +656,12 @@ document.getElementById('btnSavePDFPaged').addEventListener('click', async ()=>{
 renderBgPresets();
 renderRowList();
 
-/* 追加で利用する小関数（既存の parseTextRowsWithCategories を使用） */
-/* コピー： parseTextRowsWithCategories の既存実装（読み込み→カテゴリ変換） */
+/* テキスト行解析（既存） */
 function parseTextRowsWithCategories(text){
-  const lines = text.split(/\r?\n/);
+  const lines = text.split(/\r?\n/).filter(line => line.trim() !== ''); // 空行除去強化
   let currentCatId = null;
   const newRows = [];
   lines.forEach(line=>{
-    if(!line || /^\s*$/.test(line)) return;
     const {name,price,raw} = extractPriceAndName(line);
     if(price === null){
       const cat = { id: uid('cat'), title: name || raw, rowIds: [] };
