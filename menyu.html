@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="ja">
 <head>
@@ -359,7 +360,7 @@ async function parseFile(file){
       
       console.log(`CSV読み込み成功 (${errorReason})`);
       parseTextRowsWithCategories(text);
-      renderRowList();
+      // renderRowList() は parseTextRowsWithCategories の中で呼び出される
       return;
     }
 
@@ -401,12 +402,12 @@ async function parseFile(file){
       if (!lines.trim() && lines.split('\n').every(l => l.trim() === '')) {
          // Excelが完全に空行で構成されている場合、読み込み自体は成功とみなし、空のメニューリストで続行
          parseTextRowsWithCategories(lines);
-         renderRowList();
+         // renderRowList() は parseTextRowsWithCategories の中で呼び出される
          return;
       }
 
       parseTextRowsWithCategories(lines);
-      renderRowList();
+      // renderRowList() は parseTextRowsWithCategories の中で呼び出される
       return;
     }
 
@@ -422,7 +423,7 @@ async function parseFile(file){
         })
       );
       parseTextRowsWithCategories(text);
-      renderRowList();
+      // renderRowList() は parseTextRowsWithCategories の中で呼び出される
     } catch (err) {
       console.error('テキスト読み込み失敗:', err);
       alert('このファイル形式はサポートされていません。CSV または Excel を使用してください。');
@@ -442,7 +443,7 @@ async function parseFile(file){
 }
 
 /* レンダリング（行一覧 + カテゴリ右パネル） */
-function renderRowList(){ /* 実装は既存機能を維持 */
+function renderRowList(){ 
   const container = document.getElementById('rowsContainer');
   container.innerHTML = '';
   refreshCategorySelects();
@@ -499,6 +500,9 @@ function renderRowList(){ /* 実装は既存機能を維持 */
     wrap.querySelector('.btn-delete-cat').addEventListener('click', ()=>{ if(!confirm('カテゴリを削除します。カテゴリ内のメニューは未分類になります。')) return; const catId = cat.id; let def = state.categories.find(c=>c.id==='cat-unc'); if(!def){ def = { id:'cat-unc', title:'未分類', rowIds:[] }; state.categories.push(def); } const moving = cat.rowIds.slice(); moving.forEach(rid=>{ const rr = state.rows.find(rrr=>rrr.id===rid); if(rr) rr.categoryId = def.id; def.rowIds.push(rid); }); state.categories = state.categories.filter(c=>c.id!==catId); syncCategoriesFromRows(); renderRowList(); });
   });
   renderCatList();
+  // --- ⭐ 追加部分 (1/2) ⭐ ---
+  showPreview(); // 即時プレビュー更新
+  // --- ⭐ 追加部分 (1/2) ⭐ ---
 }
 
 /* カテゴリ右パネル描画（ドラッグ並び替え有効） */
@@ -535,6 +539,11 @@ function refreshCategorySelects(){
   const editSel = document.getElementById('editCat');
   const bulkSel = document.getElementById('bulkMoveCat'); // 追加
   
+  // --- ⭐ 追加部分 (2/2) ⭐ ---
+  // 現在の選択値を保持
+  const currentNewMenuCat = sel.value;
+  // --- ⭐ 追加部分 (2/2) ---
+  
   sel.innerHTML = '<option value="">（カテゴリを選択）</option>';
   if(editSel) editSel.innerHTML = '';
   if(bulkSel) bulkSel.innerHTML = ''; // 追加
@@ -544,7 +553,14 @@ function refreshCategorySelects(){
     if(editSel){ const oe=document.createElement('option'); oe.value=c.id; oe.textContent=c.title; editSel.appendChild(oe); } 
     if(bulkSel){ const ob=document.createElement('option'); ob.value=c.id; ob.textContent=c.title; bulkSel.appendChild(ob); } // 追加
   });
-  if(state.categories.length===0){ const def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.push(def); refreshCategorySelects(); }
+  if(state.categories.length===0){ const def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.push(def); refreshCategorySelects(); return; }
+  
+  // --- ⭐ 追加部分 (2/2) ⭐ ---
+  // 保持していた選択値を戻す（存在する場合）
+  if (state.categories.find(c => c.id === currentNewMenuCat)) {
+      sel.value = currentNewMenuCat;
+  }
+  // --- ⭐ 追加部分 (2/2) ---
 }
 
 /* 行/カテゴリ操作ユーティリティ */
@@ -575,6 +591,9 @@ document.getElementById('btnAddMenu').addEventListener('click', ()=>{
   const name=document.getElementById('newMenuName').value.trim(); 
   const priceRaw=document.getElementById('newMenuPrice').value.trim(); 
   const catId=document.getElementById('newMenuCat').value || null; 
+  
+  // 最後に選択されたカテゴリIDを保持
+  const lastSelectedCatId = catId;
 
   if(!name && priceRaw===''){
     // 空欄追加
@@ -584,6 +603,8 @@ document.getElementById('btnAddMenu').addEventListener('click', ()=>{
     else { const cat = state.categories.find(c=>c.id===catId); if(cat) cat.rowIds.push(row.id); } 
     document.getElementById('newMenuName').value=''; 
     document.getElementById('newMenuPrice').value=''; 
+    // カテゴリ選択を維持
+    document.getElementById('newMenuCat').value = lastSelectedCatId; 
     renderRowList(); 
     return;
   }
@@ -595,6 +616,8 @@ document.getElementById('btnAddMenu').addEventListener('click', ()=>{
     renderRowList(); 
     document.getElementById('newMenuName').value=''; 
     document.getElementById('newMenuPrice').value=''; 
+    // カテゴリ選択を維持
+    document.getElementById('newMenuCat').value = lastSelectedCatId; 
     return; 
   } 
 
@@ -606,6 +629,8 @@ document.getElementById('btnAddMenu').addEventListener('click', ()=>{
   else { const cat = state.categories.find(c=>c.id===catId); if(cat) cat.rowIds.push(row.id); } 
   document.getElementById('newMenuName').value=''; 
   document.getElementById('newMenuPrice').value=''; 
+  // カテゴリ選択を維持
+  document.getElementById('newMenuCat').value = lastSelectedCatId; 
   renderRowList(); 
 });
 
@@ -670,7 +695,21 @@ document.getElementById('editSave').addEventListener('click', ()=>{
 
 
 /* 背景処理 */
-function applyBackground(data){ currentBg = data; const preview=document.getElementById('menuPreview'); if(!preview) return; if(!data){ preview.style.backgroundImage=''; preview.style.backgroundColor=''; return; } if(data.startsWith('#')){ preview.style.backgroundImage=''; preview.style.backgroundColor=data; } else { preview.style.backgroundImage = `url(${data})`; preview.style.backgroundColor=''; } }
+function applyBackground(data){ 
+  currentBg = data; 
+  const preview=document.getElementById('menuPreview'); 
+  if(!preview) return; 
+  if(!data){ 
+    preview.style.backgroundImage=''; preview.style.backgroundColor=''; 
+  } else if(data.startsWith('#')){ 
+    preview.style.backgroundImage=''; preview.style.backgroundColor=data; 
+  } else { 
+    preview.style.backgroundImage = `url(${data})`; preview.style.backgroundColor=''; 
+  } 
+  // --- ⭐ 追加部分 (1/2) ⭐ ---
+  showPreview(); // 背景変更時にもプレビュー更新
+  // --- ⭐ 追加部分 (1/2) ---
+}
 document.getElementById('bgFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=ev=>applyBackground(ev.target.result); fr.readAsDataURL(f); e.target.value=''; });
 document.getElementById('btnLoadBg').addEventListener('click', async ()=>{ const url=document.getElementById('bgUrl').value.trim(); if(!url) return alert('URLを入力してください'); try{ const res=await fetch(url); if(!res.ok) throw new Error('取得失敗'); const blob=await res.blob(); const fr=new FileReader(); fr.onload=e=>applyBackground(e.target.result); fr.readAsDataURL(blob); }catch(err){ alert('背景画像のダウンロードに失敗しました'); } });
 document.getElementById('btnClearBg').addEventListener('click', ()=>applyBackground(null));
@@ -708,7 +747,9 @@ function showPreview(){
   html += `</div>`;
   preview.innerHTML = html;
   document.getElementById('printArea').style.display = 'block';
-  preview.scrollIntoView({behavior:'smooth'});
+  // document.getElementById('btnPreviewSmall').classList.remove('ghost'); // 簡易表示ボタンの強調を解除
+  // document.getElementById('btnPreview').classList.remove('ghost');
+  // preview.scrollIntoView({behavior:'smooth'}); // 即時更新時はスクロールは不要
 }
 
 /* 保存 / 読込 / Export */
@@ -766,7 +807,7 @@ document.getElementById('bulkMoveSave').addEventListener('click', ()=>{
   renderRowList();
 });
 
-/* JSON load trigger */
+// JSON load trigger
 document.getElementById('jsonLoad').addEventListener('change', e=>{ if(e.target.files.length) handleJSONLoad(e.target.files[0]); e.target.value=''; });
 
 /* 自動分類（既存） */
@@ -853,6 +894,10 @@ function parseTextRowsWithCategories(text){
   });
   renderRowList();
 }
+
+/* レイアウト変更時のプレビュー更新 */
+document.getElementById('colCount').addEventListener('change', showPreview);
+document.getElementById('orientation').addEventListener('change', showPreview);
 </script>
 </body>
 </html>
