@@ -1,1904 +1,748 @@
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>コラージュメニュー作成</title>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
-    <style>
-        /* Base styles */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f0f8ff;
-            min-height: 100vh;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .container {
-            max-width: 1400px;
-            width: 100%;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            overflow: hidden;
-            display: flex;
-            min-height: 800px;
-        }
-
-        .left-panel {
-            flex: 1.2;
-            padding: 30px;
-            background: #f8f9fa;
-            border-right: 1px solid #e9ecef;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            max-height: calc(100vh - 40px);
-            overflow-y: auto;
-        }
-
-        .right-panel {
-            flex: 2;
-            padding: 30px;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header h1 {
-            font-size: 2.2rem;
-            margin-bottom: 10px;
-            color: #333;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="number"],
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-            background-color: white;
-        }
-        .form-group textarea {
-            resize: vertical;
-            min-height: 60px;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus,
-        .form-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* --- File Input (変更なし) --- */
-        .file-input-wrapper {
-            position: relative;
-            display: block;
-            width: 100%;
-            border: 2px dashed #ccc;
-            border-radius: 8px;
-            padding: 5px;
-        }
-        .file-input {
-            width: 100%;
-            height: 50px;
-            opacity: 0;
-            position: absolute;
-            top: 0;
-            left: 0;
-            cursor: pointer;
-            z-index: 2;
-        }
-        .file-input-label {
-            display: block;
-            padding: 12px;
-            background: #667eea;
-            color: white;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: background 0.3s;
-            position: relative;
-            z-index: 1;
-        }
-        .file-input-label:hover { background: #5a67d8; }
-        .image-preview {
-            margin-top: 10px;
-            max-width: 150px;
-            height: auto;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-            display: block;
-        }
-
-        /* --- Buttons (変更なし) --- */
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-right: 10px;
-            margin-bottom: 10px;
-            width: 100%;
-            font-weight: bold;
-        }
-        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3); }
-        .btn-success { background: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%); color: white; }
-        .btn-success:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(86, 171, 47, 0.3); }
-        .btn-danger { background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); color: white; }
-        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 8px 16px rgba(255, 65, 108, 0.3); }
-
-        /* --- Menu List (商品 & タイトル) --- */
-        .menu-list {
-            list-style: none;
-            padding: 0;
-            margin-top: 20px;
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            background: #fff;
-        }
-        .menu-list-item {
-            display: flex;
-            align-items: center;
-            padding: 10px 15px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .menu-list-item:hover { background: #f0f0f0; }
-        .menu-list-item:last-child { border-bottom: none; }
-
-        /* 商品リストアイテム */
-        .menu-list-item.product-item {
-            cursor: grab; /* D&D のヒント */
-        }
-        .menu-list-item.product-item:active {
-            cursor: grabbing;
-        }
-        
-        /* 1. 【新機能】 D&D中のスタイル */
-        .menu-list-item.dragging {
-            opacity: 0.5;
-            background: #cce5ff;
-        }
-        .menu-list-item.drag-over-indicator {
-            border-top: 2px solid #007bff;
-        }
-
-        .menu-list-item .img-placeholder {
-            width: 50px;
-            height: 50px;
-            flex-shrink: 0;
-            background-color: #e9ecef;
-            color: #6c757d;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.7rem;
-            font-weight: bold;
-            border-radius: 5px;
-            margin-right: 10px;
-            text-align: center;
-            line-height: 1.2; 
-        }
-        .menu-list-item img {
-            width: 50px;
-            height: 50px;
-            object-fit: cover;
-            border-radius: 5px;
-            margin-right: 10px;
-        }
-        .menu-list-item .item-details {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .menu-list-item .item-details span {
-            font-size: 0.9rem;
-            color: #555;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        /* 説明文のスタイル (削除に対応し、不要だが残す) */
-        .menu-list-item .item-details small {
-            font-size: 0.75rem;
-            color: #888;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        
-        .menu-list-item .delete-list-item-btn {
-            background: none;
-            border: none;
-            color: #ff416c;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 5px;
-            transition: transform 0.2s;
-            margin-left: 10px;
-        }
-        .menu-list-item .delete-list-item-btn:hover { transform: scale(1.2); }
-
-        .editing-item {
-            background-color: #e6f7ff !important;
-            border: 2px solid #007bff;
-        }
-
-        /* --- Right Panel / Canvas (変更なし) --- */
-        .menu-output-area {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            position: relative;
-            min-height: 600px; 
-        }
-        #outputCanvas {
-            max-width: 100%;
-            max-height: calc(100vh - 100px);
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        /* 3. 【新機能】 キャンバスドラッグ中のカーソル */
-        #outputCanvas.grabbing {
-            cursor: grabbing;
-        }
-        #outputCanvas.grabbable:hover {
-            cursor: grab;
-        }
-
-        .canvas-buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        .empty-state {
-            text-align: center;
-            color: #666;
-            flex-grow: 1; 
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        .empty-state .icon { font-size: 5rem; margin-bottom: 20px; opacity: 0.5; }
-
-        /* --- Settings & Responsive --- */
-        .settings-group {
-            border: 1px solid #ddd;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            background: #fff;
-        }
-        .settings-group h4 { margin-bottom: 10px; color: #333; }
-        .radio-options { display: flex; flex-wrap: wrap; gap: 8px; }
-        .radio-options label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            font-size: 0.9rem;
-            width: calc(50% - 4px); 
-        }
-        .radio-options input { margin-right: 8px; }
-
-        /* 5. 【新機能】 アコーディオン */
-        .accordion-item {
-            margin-bottom: 10px;
-        }
-        .accordion-header {
-            width: 100%;
-            background: #e9ecef;
-            border: none;
-            padding: 12px 15px;
-            text-align: left;
-            font-size: 1.1rem;
-            font-weight: bold;
-            color: #333;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: background 0.3s;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .accordion-header:hover { background: #ddd; }
-        .accordion-header::after {
-            content: '▼';
-            font-size: 0.8rem;
-            transition: transform 0.3s;
-        }
-        .accordion-header.active::after {
-            transform: rotate(180deg);
-        }
-        .accordion-content {
-            background: #fff;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-top: none;
-            border-radius: 0 0 8px 8px;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease-out;
-        }
-
-        /* 4. 【新機能】 ローディング */
-        #loader-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        .loader-spinner {
-            width: 60px;
-            height: 60px;
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Responsive */
-        @media (max-width: 992px) { /* 992pxで変更 */
-            .container {
-                flex-direction: column;
-                min-height: auto;
-            }
-            .left-panel {
-                border-right: none;
-                border-bottom: 1px solid #e9ecef;
-                max-height: none;
-                overflow-y: visible;
-            }
-            .right-panel {
-                min-height: 400px;
-                padding-top: 20px;
-                position: relative;
-            }
-            #outputCanvas {
-                max-height: calc(100vh - 200px);
-                margin-bottom: 10px;
-            }
-            .canvas-buttons {
-                flex-direction: column;
-                width: 100%;
-                margin-top: 10px;
-            }
-            .canvas-buttons .btn { width: 100%; margin-right: 0; }
-        }
-        @media (max-width: 768px) {
-            .radio-options label { width: 100%; }
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>メニュー生成ツール（改良版：編集・追加・背景カラー）</title>
+<style>
+:root{
+  --bg:#f3f4f6; --panel:#ffffff; --muted:#6b7280; --accent:#1f6feb;
+  --maxw:1200px;
+}
+*{box-sizing:border-box}
+body{font-family:"Yu Gothic","Hiragino Kaku Gothic ProN",sans-serif;background:var(--bg);color:#111;margin:18px;display:flex;justify-content:center}
+.wrap{width:100%;max-width:var(--maxw);display:grid;grid-template-columns:1fr 380px;gap:18px}
+.left,.right{background:var(--panel);border-radius:10px;padding:16px;box-shadow:0 6px 18px rgba(15,23,42,0.06)}
+.left{min-height:640px}
+h2{margin:0 0 10px 0;font-size:18px}
+label{display:block;margin-top:8px;font-size:13px;color:var(--muted)}
+input[type=file]{display:block;margin-top:8px}
+textarea{width:100%;height:90px;margin-top:8px;padding:8px;border-radius:6px;border:1px solid #e5e7eb}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+.small{font-size:13px;color:var(--muted)}
+.controls{display:flex;flex-direction:column;gap:10px}
+.table-area{margin-top:12px;background:#fff;border-radius:8px;padding:10px;border:1px solid #eee}
+.category-panel{display:flex;flex-direction:column;gap:8px}
+.cat-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.cat-item{padding:8px;border-radius:8px;border:1px solid #eef2ff;background:linear-gradient(180deg,#ffffff,#fbfdff);display:flex;justify-content:space-between;align-items:center}
+.preview-wrap{margin-top:12px;padding:12px;background:#fff;border-radius:8px;border:1px solid #eee}
+#printArea{display:none}
+.menu-preview{width:100%;max-width:900px;margin:0 auto;padding:36px;border-radius:8px; background-size:cover; background-position:center; box-shadow:0 8px 30px rgba(2,6,23,0.06)}
+.menu-inner{background:rgba(255,255,255,0.86);padding:18px;border-radius:6px}
+.menu-category{font-size:22px;font-weight:900;letter-spacing:2px;border-bottom:2px solid #222;padding-bottom:8px;margin-top:18px;margin-bottom:8px}
+.menu-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed rgba(0,0,0,0.06);align-items:center}
+.menu-name{font-size:20px;font-weight:900} /* さらに大きく太く */
+.menu-price{font-size:18px;font-weight:900}
+.row-drag-handle{cursor:grab;padding:6px;border-radius:6px;background:#f8fafc;border:1px solid #eef2ff}
+.draggable-row{background:#fff;border-radius:6px;padding:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #f1f5f9}
+.row-left{display:flex;gap:12px;align-items:center;flex:1}
+.row-title{font-weight:700}
+.small-muted{font-size:12px;color:var(--muted)}
+.color-swatch{width:30px;height:22px;border-radius:6px;border:1px solid #ddd;cursor:pointer}
+.bg-presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.input-inline{display:flex;gap:6px;align-items:center}
+.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;padding:18px;border-radius:10px;box-shadow:0 10px 40px rgba(2,6,23,0.3);z-index:999;min-width:320px}
+.modal.hidden{display:none}
+.modal h3{margin:0 0 8px 0}
+.modal .row{margin-top:8px}
+.ghost-sm{background:#fff;color:var(--accent);border:1px solid var(--accent);padding:6px 8px;border-radius:6px}
+@media print{
+  body *{visibility:hidden}
+  #printArea, #printArea *{visibility:visible}
+  #printArea{position:fixed;left:0;top:0;width:100%}
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <div class="left-panel">
-            <div>
-                <h1 style="margin-bottom: 20px;">🖼️ コラージュメニュー (v3)</h1>
-                <p style="color: #666; margin-bottom: 30px;">商品やタイトルを追加して、美しいメニュー画像を自動生成！</p>
-                
-                <div class="settings-group" style="margin-bottom: 20px;">
-                    <h4>👑 メニュータイトル管理</h4>
-                    <div class="form-group">
-                        <label for="titleText">タイトルテキスト</label>
-                        <input type="text" id="titleText" placeholder="例: OUR SPECIAL MENU">
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-                        <div class="form-group" style="flex: 1; min-width: 60px;">
-                            <label for="titleColor">色</label>
-                            <input type="color" id="titleColor" value="#000000" style="width: 100%; height: 44px; padding: 5px; border-radius: 8px; border: 2px solid #ddd;">
-                        </div>
-                        <div class="form-group" style="flex: 1; min-width: 80px;">
-                            <label for="titleSize">サイズ (px)</label>
-                            <input type="number" id="titleSize" value="60" min="10" max="200">
-                        </div>
-                    </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
-                        <div class="form-group" style="flex: 1; min-width: 100px;">
-                            <label for="titleAlign">配置</label>
-                            <select id="titleAlign">
-                                <option value="center">中央</option>
-                                <option value="left">左</option>
-                                <option value="right">右</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="flex: 1; min-width: 100px;">
-                            <label for="titleY">Y座標 (px)</label>
-                            <input type="number" id="titleY" value="60" min="0">
-                        </div>
-                    </div>
-                    <button class="btn btn-primary" id="addOrUpdateTitleBtn" onclick="addOrUpdateMenuTitle()" style="margin-bottom: 0;">➕ タイトル追加/更新</button>
-                    <ul id="menuTitleList" class="menu-list" style="max-height: 150px; margin-top: 15px;">
-                        </ul>
-                </div>
+<div class="wrap">
+  <div class="left">
+    <h2>メニュー編集・追加・背景（改良版）</h2>
 
-                <hr style="margin: 30px 0; border: 1px solid #ddd;">
-
-                <h3 style="margin-bottom: 15px; color: #333;">📦 商品管理</h3>
-                <div class="form-group">
-                    <label for="itemName">商品名</label>
-                    <input type="text" id="itemName" placeholder="例: スペシャルコーヒー">
-                </div>
-                
-                <div class="form-group">
-                    <label for="itemPrice">価格 (円)</label>
-                    <input type="number" id="itemPrice" placeholder="例: 500">
-                </div>
-                
-                <div class="form-group">
-                    <label>商品画像 (任意)</label>
-                    <div class="file-input-wrapper" id="dropArea">
-                        <input type="file" id="itemImage" class="file-input" accept="image/*">
-                        <div class="file-input-label">📷 画像を選択 または ドラッグ＆ドロップ</div>
-                    </div>
-                    <img id="imagePreview" class="image-preview" src="" alt="画像プレビュー" style="display: none;">
-                </div>
-                
-                <button class="btn btn-primary" id="addOrUpdateBtn" onclick="addOrUpdateMenuItem()">➕ リストに追加</button>
-                
-                <hr style="margin: 30px 0; border: 1px solid #ddd;">
-
-                <h3 style="margin-bottom: 15px; color: #333;">追加済み商品 (ドラッグで並び替え)</h3>
-                <ul id="menuList" class="menu-list">
-                    </ul>
-            </div>
-
-            <div style="margin-top: 30px;">
-                
-                <div class="accordion-item">
-                    <button class="accordion-header">🎨 背景・レイアウト設定</button>
-                    <div class="accordion-content">
-                        <div class="settings-group">
-                            <h4>🎨 背景の選択</h4>
-                            <div class="radio-options">
-                                <label><input type="radio" name="backgroundChoice" value="white" checked> ホワイト</label>
-                                <label><input type="radio" name="backgroundChoice" value="beige"> ベージュ</label>
-                                <label><input type="radio" name="backgroundChoice" value="dark-slate"> ダークスレート</label>
-                                <label><input type="radio" name="backgroundChoice" value="marble"> 大理石</label>
-                                <label><input type="radio" name="backgroundChoice" value="dark-wood"> 木目</label>
-                            </div>
-                        </div>
-                        <div class="settings-group">
-                            <h4>📝 メニュー文字の色</h4>
-                            <div class="radio-options">
-                                <label><input type="radio" name="menuTextColor" value="black" checked> 黒</label>
-                                <label><input type="radio" name="menuTextColor" value="white"> 白</label>
-                            </div>
-                        </div>
-                        <div class="settings-group">
-                            <h4>📐 レイアウトの選択</h4>
-                            <div class="radio-options">
-                                <label><input type="radio" name="layoutChoice" value="collage"> コラージュ風 (ランダム)</label>
-                                <label><input type="radio" name="layoutChoice" value="grid" checked> グリッド表示</label>
-                                <label><input type="radio" name="layoutChoice" value="one-column"> 1列表示</label>
-                                <label><input type="radio" name="layoutChoice" value="two-column"> 2列表示</label>
-                                <label><input type="radio" name="layoutChoice" value="waterfall"> ウォーターフォール</label>
-                            </div>
-                        </div>
-                        <div class="settings-group">
-                            <h4>📏 メニューの向き</h4>
-                            <div class="radio-options">
-                                <label><input type="radio" name="menuOrientation" value="vertical" checked> 縦向き (A4縦)</label>
-                                <label><input type="radio" name="menuOrientation" value="horizontal"> 横向き (A4横)</label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="accordion-item">
-                    <button class="accordion-header">💾 保存 / 読み込み</button>
-                    <div class="accordion-content">
-                        <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                            <button class="btn btn-primary" onclick="saveMenuDataAsJson()">💾 JSON保存</button>
-                            <button class="btn btn-primary" onclick="saveMenuDataAsCsv()">💾 CSV保存</button>
-                        </div>
-                        <div class="form-group" style="margin-top: 10px;">
-                            <div class="file-input-wrapper" style="margin-bottom: 5px;">
-                                <input type="file" id="loadMenuJsonFile" class="file-input" accept=".json">
-                                <div class="file-input-label">📁 JSON読み込み</div>
-                            </div>
-                            <div class="file-input-wrapper">
-                                <input type="file" id="loadMenuCsvFile" class="file-input" accept=".csv">
-                                <div class="file-input-label">📁 CSV読み込み</div>
-                            </div>
-                        </div>
-                        <button class="btn btn-danger" onclick="clearAllItems()" style="margin-top: 10px;">🗑️ 全てクリア</button>
-                    </div>
-                </div>
-
-                <button class="btn btn-success" onclick="generateMenuImage()" style="margin-top: 20px;">🎨 コラージュメニューを生成</button>
-            </div>
-        </div>
-        
-        <div class="right-panel">
-            <div class="menu-output-area">
-                <canvas id="outputCanvas" style="display: none;"></canvas>
-                <div id="initialEmptyState" class="empty-state">
-                    <div class="icon">✨</div>
-                    <h3>こちらにコラージュメニューが生成されます</h3>
-                    <p>左側で商品を追加して「コラージュメニューを生成」ボタンを押してください。</p>
-                </div>
-                <div id="canvasButtons" style="display: none;">
-                    <div class="canvas-buttons">
-                        <button class="btn btn-primary" onclick="alignItemsAndRedraw()">🔄 自動整列</button>
-                        <button class="btn btn-primary" onclick="downloadFinalImage()">⬇️ 画像をダウンロード</button>
-                        <button class="btn btn-primary" onclick="downloadPdf()">📄 PDFをダウンロード</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="small">Excel/CSV 読込・書出し、編集で価格変更、価格空欄でカテゴリ化、メニュー追加</span>
     </div>
 
-    <div id="loader-overlay" style="display: none;">
-        <div class="loader-spinner"></div>
+    <div style="margin-top:12px" class="controls">
+      <div class="group">
+        <label>Excel / CSV 読込 (.xlsx .xls .csv)</label>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+        <div class="note">または下のテキストに貼り付け（行毎 / タブ区切り可）。価格が無い行はカテゴリ見出しになります。</div>
+        <textarea id="pasteArea" placeholder="例: 五目焼きそば[TAB]850 を行ごとに貼り付け"></textarea>
+        <div style="margin-top:8px" class="btns">
+          <button id="btnParse">読み込む</button>
+          <button id="btnClear" class="ghost">全クリア</button>
+          <button id="btnAutoGroup" class="ghost">自動カテゴリ推定</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>背景設定（画像 / URL / 7色プリセット）</label>
+        <input type="file" id="bgFile" accept="image/*" />
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input type="text" id="bgUrl" placeholder="画像URLを入力してダウンロード" />
+          <button id="btnLoadBg" class="ghost">ダウンロード</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button id="btnClearBg" class="ghost">背景クリア</button>
+          <button id="btnDownloadBg" class="ghost">背景をダウンロード</button>
+        </div>
+        <div class="bg-presets" id="bgPresets" title="背景プリセット">
+          <!-- 7色プリセット -->
+        </div>
+        <div class="note">プリセットは薄い紙風の色です。背景画像とプリセットは排他で適用されます。</div>
+      </div>
+
+      <div class="group">
+        <label>メニュー追加</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input type="text" id="newMenuName" placeholder="品名を入力" />
+          <input type="text" id="newMenuPrice" placeholder="価格（空白でカテゴリ見出し）" style="width:120px" />
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+          <select id="newMenuCat" style="flex:1"><option value="">（カテゴリを選択）</option></select>
+          <button id="btnAddMenu" class="ghost">追加</button>
+        </div>
+        <div class="note">価格を空白にすると「新しいカテゴリ見出し」として追加されます</div>
+      </div>
+
+      <div class="group">
+        <label>レイアウト</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <label style="min-width:110px">列数</label>
+          <select id="colCount"><option value="1">1列</option><option value="2" selected>2列</option><option value="3">3列</option></select>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <label style="min-width:110px">向き</label>
+          <select id="orientation"><option value="portrait">縦向き</option><option value="landscape">横向き</option></select>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>保存 / 読込</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="btnDownloadJSON" class="ghost">JSON保存</button>
+          <input type="file" id="jsonLoad" accept=".json" style="display:none" />
+          <button id="btnLoadJSON" class="ghost">JSON読込</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="btnExportXLSX">Excel保存 (.xlsx)</button>
+          <button id="btnExportCSV" class="ghost">CSV保存 (.csv)</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <label>プレビュー / 印刷</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button id="btnPreview" class="ghost">プレビュー表示</button>
+          <button id="btnPrint" class="ghost">印刷</button>
+        </div>
+      </div>
     </div>
 
-    <script>
-        // === グローバル変数 ===
-        const D = document;
-        const G = id => D.getElementById(id);
-        const Q = selector => D.querySelector(selector);
-        const Q_ALL = selector => D.querySelectorAll(selector);
+    <div class="table-area" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="small">読み込みプレビュー（クリックで選択、ドラッグで移動）</div>
+        <div class="small">編集で価格を空にするとカテゴリになります</div>
+      </div>
+      <div id="rowsContainer" style="margin-top:8px;max-height:420px;overflow:auto"></div>
+    </div>
+  </div>
 
-        let menuItems = [];
-        let menuTitles = []; // 7 & 9. タイトル管理用
-        let currentImageData = null;
-        let editingItemId = null;
-        let editingTitleId = null; // 7 & 9. タイトル編集用
+  <div class="right">
+    <h2>カテゴリ管理</h2>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="newCatTitle" placeholder="新規カテゴリ名" />
+      <button id="btnAddCat">追加</button>
+    </div>
+    <div class="cat-list" id="catList" style="margin-top:12px;max-height:260px;overflow:auto"></div>
 
-        let CANVAS_WIDTH = 800;
-        let CANVAS_HEIGHT = 1067;
-        
-        // 3. キャンバスD&D用
-        let isDragging = false;
-        let selectedItem = null;
-        let dragOffsetX = 0;
-        let dragOffsetY = 0;
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button id="btnSelectAll" class="ghost">全選択</button>
+      <button id="btnUnselectAll" class="ghost">解除</button>
+    </div>
 
-        // 1. リストD&D用
-        let draggedListItem = null;
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button id="btnGroupByKeyword" class="ghost">キーワードで一括割当</button>
+      <button id="btnUngroup" class="ghost">選択解除</button>
+    </div>
 
-        // === DOM要素の取得 ===
-        // 商品フォーム
-        const itemNameInput = G('itemName');
-        // const itemDescriptionInput = G('itemDescription'); // 説明文を削除
-        const itemPriceInput = G('itemPrice');
-        const itemImageInput = G('itemImage');
-        const imagePreview = G('imagePreview');
-        const fileInputLabel = Q('.file-input-label');
-        const menuList = G('menuList');
-        const dropArea = G('dropArea');
-        const addOrUpdateBtn = G('addOrUpdateBtn');
+    <div class="preview-wrap" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="small">プレビュー</div>
+        <div style="display:flex;gap:6px">
+          <button id="btnPreviewSmall" class="ghost">簡易表示</button>
+        </div>
+      </div>
+      <div id="printArea">
+        <div id="menuPreview" class="menu-preview"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        // タイトルフォーム (7 & 9)
-        const titleTextInput = G('titleText');
-        const titleColorInput = G('titleColor');
-        const titleSizeInput = G('titleSize');
-        const titleAlignInput = G('titleAlign');
-        const titleYInput = G('titleY');
-        const addOrUpdateTitleBtn = G('addOrUpdateTitleBtn');
-        const menuTitleList = G('menuTitleList');
+<!-- Modal: 編集 -->
+<div id="editModal" class="modal hidden" role="dialog" aria-hidden="true">
+  <h3>メニュー編集</h3>
+  <div class="row"><label>品名</label><input type="text" id="editName" /></div>
+  <div class="row"><label>価格（空にするとカテゴリ化）</label><input type="text" id="editPrice" /></div>
+  <div class="row"><label>割当カテゴリ</label><select id="editCat"></select></div>
+  <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+    <button id="editCancel" class="ghost-sm">キャンセル</button>
+    <button id="editSave">保存</button>
+  </div>
+</div>
 
-        // キャンバス・その他
-        const outputCanvas = G('outputCanvas');
-        const ctx = outputCanvas.getContext('2d');
-        const initialEmptyState = G('initialEmptyState');
-        const canvasButtons = G('canvasButtons');
-        const loaderOverlay = G('loader-overlay'); // 4. ローダー
-        const loadMenuJsonFile = G('loadMenuJsonFile');
-        const loadMenuCsvFile = G('loadMenuCsvFile');
+<!-- SheetJS CDN -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-        // === 初期設定 ===
-        
-        // キャンバスサイズ初期化
-        Q_ALL('input[name="menuOrientation"]').forEach(radio => {
-            radio.addEventListener('change', updateCanvasDimensions);
-        });
-        function updateCanvasDimensions() {
-            const orientation = Q('input[name="menuOrientation"]:checked').value;
-            if (orientation === 'vertical') {
-                CANVAS_WIDTH = 800; CANVAS_HEIGHT = 1067;
-            } else {
-                CANVAS_WIDTH = 1067; CANVAS_HEIGHT = 800;
-            }
-            outputCanvas.width = CANVAS_WIDTH;
-            outputCanvas.height = CANVAS_HEIGHT;
+<script>
+/* データ構造 */
+let state = { rows: [], categories: [] };
+let currentBg = null; // dataURL or color string
+function uid(prefix='id'){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
+function toHalfWidth(s){ if(!s) return s; return s.replace(/[！-～]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' '); }
+function extractPriceAndName(line){
+  if(!line) return { name:null, price:null, raw:'' };
+  let raw = String(line).trim(); raw = raw.replace(/\r/g,'').replace(/\n/g,' ').trim(); raw = toHalfWidth(raw);
+  const priceRegex = /([￥¥]?\s*[\d,\.]+(?:\s*円)?\s*)$/u;
+  const m = raw.match(priceRegex);
+  if(m){
+    let pricePart = m[1]; let digits = pricePart.replace(/[￥¥\s円,]/g,''); let priceNum = Number(digits);
+    let name = raw.slice(0, m.index).trim(); if(!name) name = null;
+    if(!Number.isFinite(priceNum)) priceNum = null;
+    return { name, price: priceNum, raw };
+  }
+  const parts = raw.split(/\t|,|;/).map(p=>p.trim()).filter(Boolean);
+  if(parts.length>1){
+    let last = parts[parts.length-1]; let digits = last.replace(/[￥¥\s円,]/g,''); let priceNum = Number(digits);
+    if(Number.isFinite(priceNum)){ let name = parts.slice(0,parts.length-1).join(' '); return { name, price: priceNum, raw }; }
+  }
+  return { name: raw, price: null, raw };
+}
+
+/* ---------- 初期背景プリセット（7色） ---------- */
+const BG_PRESETS = ['#fff9f0','#f7fff6','#f6fbff','#fff6fb','#fcfff9','#fafafc','#fffdf6'];
+function renderBgPresets(){
+  const cont = document.getElementById('bgPresets');
+  BG_PRESETS.forEach(c=>{
+    const d = document.createElement('div');
+    d.className = 'color-swatch';
+    d.style.background = c;
+    d.title = c;
+    d.addEventListener('click', ()=>{ applyBackground(c); });
+    cont.appendChild(d);
+  });
+}
+renderBgPresets();
+
+/* ---------- 入出力 ---------- */
+async function parseFile(file){
+  const name = file.name || '';
+  if(name.match(/\.csv$/i)){
+    const text = await file.text();
+    parseTextRowsWithCategories(text);
+    renderRowList(); return;
+  }
+  const data = await file.arrayBuffer();
+  const wb = XLSX.read(data, {type:'array'});
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+  const lines = json.map(row=>row.join('\t')).join('\n');
+  parseTextRowsWithCategories(lines);
+  renderRowList();
+}
+
+function parseTextRowsWithCategories(text){
+  const lines = text.split(/\r?\n/);
+  let currentCatId = null;
+  const newRows = [];
+  // If state.categories already has items, continue; else start fresh categories array
+  // We'll append newly-detected categories to state.categories
+  lines.forEach(line=>{
+    if(!line || /^\s*$/.test(line)) return;
+    const {name,price,raw} = extractPriceAndName(line);
+    if(price === null){
+      // create category
+      const cat = { id: uid('cat'), title: name || raw, rowIds: [] };
+      state.categories.push(cat);
+      currentCatId = cat.id;
+    } else {
+      const row = { id: uid('r'), raw, name, price, display:true, categoryId: currentCatId, selected:false };
+      newRows.push(row);
+    }
+  });
+  if(newRows.length>0 && state.categories.length===0){
+    // ensure an uncategorized if no category found
+    const def = { id: 'cat-unc', title: '未分類', rowIds: [] }; state.categories.push(def);
+    newRows.forEach(r=> r.categoryId = def.id);
+  } else if(state.categories.length===0){
+    // nothing parsed: do nothing
+  }
+  state.rows = state.rows.concat(newRows);
+  // reconstruct category rowIds from rows
+  state.categories.forEach(c=> c.rowIds = []);
+  state.rows.forEach(r=>{
+    const cat = state.categories.find(c=>c.id===r.categoryId) || state.categories[0];
+    if(cat){ r.categoryId = cat.id; cat.rowIds.push(r.id); }
+  });
+}
+
+/* ---------- UI: 行一覧レンダリング（カテゴリ毎にドロップ可能・ドラッグで並べ替え） ---------- */
+function renderRowList(){
+  const container = document.getElementById('rowsContainer');
+  container.innerHTML = '';
+  // update "newMenuCat" select options
+  refreshCategorySelects();
+  state.categories.forEach(cat=>{
+    const wrap = document.createElement('div');
+    wrap.style.marginBottom='12px';
+    wrap.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <strong>${escapeHtml(cat.title)}</strong>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="small">(${cat.rowIds.length})</span>
+        <button class="ghost btn-delete-cat" data-id="${cat.id}">削除</button>
+      </div>
+    </div>`;
+    const list = document.createElement('div');
+    list.className = 'cat-dropzone';
+    list.dataset.cat = cat.id;
+    list.style.padding='6px';
+    list.style.minHeight='36px';
+    list.style.border='1px dashed #eef2ff';
+    list.style.borderRadius='8px';
+    list.style.background='#fff';
+    // drop to append
+    list.addEventListener('dragover', e=>{ e.preventDefault(); list.style.background='#f0f8ff'; });
+    list.addEventListener('dragleave', e=>{ list.style.background='#fff'; });
+    list.addEventListener('drop', e=>{
+      e.preventDefault(); list.style.background='#fff';
+      const payload = e.dataTransfer.getData('text/plain');
+      if(!payload) return;
+      if(payload.startsWith('row:')){
+        const rowId = payload.slice(4); assignRowToCategory(rowId, cat.id, null);
+      } else if(payload.startsWith('reorder:')){
+        const parts = payload.slice(8).split('|');
+        const rowId = parts[0], afterId = parts[1] === 'null' ? null : parts[1];
+        reorderRowInCategory(rowId, cat.id, afterId);
+      }
+    });
+    // add items
+    cat.rowIds.forEach((rid, idx)=>{
+      const r = state.rows.find(x=>x.id===rid);
+      if(!r) return;
+      const item = document.createElement('div');
+      item.className = 'draggable-row';
+      item.draggable = true;
+      item.dataset.id = r.id;
+      item.innerHTML = `<div class="row-left">
+        <div class="row-drag-handle" title="ドラッグで移動">☰</div>
+        <div>
+          <div class="row-title">${escapeHtml(r.name || r.raw)}</div>
+          <div class="small-muted">${escapeHtml(r.raw)}</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="text-align:right"><div class="menu-price">¥${r.price===null?'':r.price}</div></div>
+        <div style="display:flex;gap:6px">
+          <button class="ghost btn-edit-row" data-id="${r.id}">編集</button>
+          <button class="ghost btn-delete-row" data-id="${r.id}">削除</button>
+        </div>
+      </div>`;
+      // dragstart
+      item.addEventListener('dragstart', e=>{
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', 'row:'+r.id);
+      });
+      // dragover/drop for reordering (drop before/after)
+      item.addEventListener('dragover', e=>{ e.preventDefault(); item.style.border='2px dashed #cfe9ff'; });
+      item.addEventListener('dragleave', e=>{ item.style.border=''; });
+      item.addEventListener('drop', e=>{
+        e.preventDefault(); item.style.border='';
+        const payload = e.dataTransfer.getData('text/plain');
+        if(!payload) return;
+        if(payload.startsWith('row:')){
+          const rowId = payload.slice(4);
+          // place before this item
+          assignRowToCategory(rowId, cat.id, r.id);
+        } else if(payload.startsWith('reorder:')){
+          const parts = payload.slice(8).split('|');
+          const rowId = parts[0], afterId = parts[1] === 'null' ? null : parts[1];
+          reorderRowInCategory(rowId, cat.id, r.id);
         }
-        updateCanvasDimensions();
-
-        // 5. アコーディオン初期化
-        Q_ALL('.accordion-header').forEach(header => {
-            header.addEventListener('click', () => {
-                const content = header.nextElementSibling;
-                header.classList.toggle('active');
-                if (content.style.maxHeight) {
-                    content.style.maxHeight = null;
-                } else {
-                    content.style.maxHeight = content.scrollHeight + "px";
-                }
-            });
-        });
-
-        // === フォーム入力関連 ===
-
-        // ドラッグ＆ドロップ (変更なし)
-        ['dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (eventName === 'dragover') {
-                    dropArea.style.borderColor = '#667eea';
-                    fileInputLabel.textContent = 'ドロップして画像をアップロード';
-                } else if (eventName === 'dragleave') {
-                    dropArea.style.borderColor = '#ccc';
-                    fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
-                } else if (eventName === 'drop') {
-                    dropArea.style.borderColor = '#ccc';
-                    const files = e.dataTransfer.files;
-                    if (files.length > 0) {
-                        itemImageInput.files = files;
-                        const event = new Event('change', { bubbles: true });
-                        itemImageInput.dispatchEvent(event);
-                    }
-                }
-            });
-        });
-
-        // 画像プレビュー (変更なし)
-        itemImageInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                if (!file.type.startsWith('image/')) {
-                    alert('画像ファイルを選択してください。');
-                    clearImageInput(); return;
-                }
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    currentImageData = e.target.result;
-                    imagePreview.src = currentImageData;
-                    imagePreview.style.display = 'block';
-                    fileInputLabel.textContent = '✅ ' + file.name;
-                    fileInputLabel.style.background = '#56ab2f';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                clearImageInput();
-            }
-        });
-
-        function clearImageInput() {
-            currentImageData = null;
-            imagePreview.src = '';
-            imagePreview.style.display = 'none';
-            fileInputLabel.textContent = '📷 画像を選択 または ドラッグ＆ドロップ';
-            fileInputLabel.style.background = '#667eea';
-            itemImageInput.value = '';
-        }
-
-        // フォームクリア (itemDescriptionInputを削除)
-        function clearForm() {
-            itemNameInput.value = '';
-            // itemDescriptionInput.value = ''; // 説明文を削除
-            itemPriceInput.value = '';
-            clearImageInput(); 
-            editingItemId = null;
-            addOrUpdateBtn.textContent = '➕ リストに追加';
-            Q('.menu-list-item.editing-item')?.classList.remove('editing-item');
-        }
-
-        // Enterキーでの追加 (itemDescriptionInputを削除)
-        D.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && (e.target.id === 'itemName' || e.target.id === 'itemPrice')) {
-                e.preventDefault(); 
-                addOrUpdateMenuItem();
-            }
-        });
-
-        // === 7 & 9. メニュータイトル管理 ===
-
-        function addOrUpdateMenuTitle() {
-            const text = titleTextInput.value.trim();
-            const color = titleColorInput.value;
-            const size = parseInt(titleSizeInput.value);
-            const align = titleAlignInput.value;
-            const y = parseInt(titleYInput.value);
-
-            if (!text || isNaN(size) || size <= 0 || isNaN(y) || y < 0) {
-                alert('有効なタイトルテキスト、サイズ、Y座標を入力してください。');
-                return;
-            }
-
-            const newTitle = { id: editingTitleId || Date.now(), text, color, size, align, y };
-
-            if (editingTitleId) {
-                const index = menuTitles.findIndex(t => t.id === editingTitleId);
-                if (index !== -1) menuTitles[index] = newTitle;
-            } else {
-                menuTitles.push(newTitle);
-            }
-            
-            menuTitles.sort((a, b) => a.y - b.y); // Y座標でソート
-            renderMenuTitleList();
-            clearTitleForm();
-        }
-
-        function renderMenuTitleList() {
-            if (menuTitles.length === 0) {
-                menuTitleList.innerHTML = `<li class="empty-state" style="padding: 10px; font-size: 0.8rem; color: #888;">タイトルはありません</li>`;
-                return;
-            }
-            menuTitleList.innerHTML = menuTitles.map(title => `
-                <li class="menu-list-item" data-id="${title.id}" onclick="editMenuTitle(${title.id})">
-                    <div class="item-details">
-                        <span style="color: ${title.color}; font-weight: bold;">
-                            ${title.text}
-                        </span>
-                        <small>${title.size}px / ${title.align} / Y:${title.y}px</small>
-                    </div>
-                    <button class="delete-list-item-btn" onclick="event.stopPropagation(); deleteMenuTitle(${title.id});">×</button>
-                </li>
-            `).join('');
-        }
-
-        function editMenuTitle(id) {
-            const title = menuTitles.find(t => t.id === id);
-            if (title) {
-                titleTextInput.value = title.text;
-                titleColorInput.value = title.color;
-                titleSizeInput.value = title.size;
-                titleAlignInput.value = title.align;
-                titleYInput.value = title.y;
-                editingTitleId = id;
-                addOrUpdateTitleBtn.textContent = '✏️ タイトル更新';
-                Q('#menuTitleList .editing-item')?.classList.remove('editing-item');
-                Q(`#menuTitleList li[data-id="${id}"]`).classList.add('editing-item');
-            }
-        }
-
-        function deleteMenuTitle(id) {
-            if (confirm('このタイトルを削除しますか？')) {
-                menuTitles = menuTitles.filter(t => t.id !== id);
-                renderMenuTitleList();
-                if (editingTitleId === id) {
-                    clearTitleForm();
-                }
-            }
-        }
-
-        function clearTitleForm() {
-            titleTextInput.value = '';
-            titleColorInput.value = '#000000';
-            titleSizeInput.value = 60;
-            titleAlignInput.value = 'center';
-            titleYInput.value = 60;
-            editingTitleId = null;
-            addOrUpdateTitleBtn.textContent = '➕ タイトル追加/更新';
-            Q('#menuTitleList .editing-item')?.classList.remove('editing-item');
-        }
-
-        // === 商品アイテム管理 ===
-
-        // itemDescription を削除
-        function addOrUpdateMenuItem() {
-            const name = itemNameInput.value.trim();
-            // const description = itemDescriptionInput.value.trim(); // 説明文を削除
-            const price = parseInt(itemPriceInput.value);
-            
-            if (!name || isNaN(price) || price <= 0) {
-                alert('商品名と有効な価格を入力してください。');
-                return;
-            }
-            
-            // imgElement (キャッシュ) も追加
-            const newItem = {
-                id: editingItemId || Date.now(),
-                name: name,
-                // description: description, // 説明文を削除
-                price: price,
-                image: currentImageData,
-                x: 0, y: 0, width: 0, height: 0, rotation: 0,
-                imgElement: null // 画像キャッシュ用
-            };
-
-            if (editingItemId) {
-                const index = menuItems.findIndex(item => item.id === editingItemId);
-                if (index !== -1) {
-                    // 画像が変更されたか、DataURLが同じでもimgElementをリセット
-                    const oldImage = menuItems[index].image;
-                    const newImage = currentImageData;
-                    
-                    menuItems[index] = { 
-                        ...menuItems[index], 
-                        name: newItem.name, 
-                        // description: newItem.description, // 説明文を削除
-                        price: newItem.price, 
-                        image: currentImageData,
-                        // 画像が変更されたらキャッシュをクリア
-                        imgElement: (oldImage === newImage) ? menuItems[index].imgElement : null
-                    };
-                }
-                editingItemId = null;
-                addOrUpdateBtn.textContent = '➕ リストに追加';
-                Q('.menu-list-item.editing-item')?.classList.remove('editing-item');
-            } else {
-                menuItems.push(newItem);
-            }
-
-            renderMenuList();
-            clearForm();
-        }
-
-        // 説明文の表示部分 (<small>) を削除
-        function renderMenuList() {
-            if (menuItems.length === 0) {
-                menuList.innerHTML = `
-                    <li class="empty-state" style="padding: 20px;">
-                        <div class="icon">📝</div>
-                        <p>商品がまだありません。</p>
-                        <p>上記フォームから追加してください。</p>
-                    </li>
-                `;
-                return;
-            }
-
-            menuList.innerHTML = menuItems.map(item => `
-                <li class="menu-list-item product-item" data-id="${item.id}" draggable="true" onclick="editMenuItem(${item.id})">
-                    ${item.image 
-                        ? `<img src="${item.image}" alt="${item.name}">` 
-                        : `<div class="img-placeholder">NO<br>IMG</div>`
-                    }
-                    <div class="item-details">
-                        <span>${item.name} - ¥${item.price.toLocaleString()}</span>
-                        </div>
-                    <button class="delete-list-item-btn" onclick="event.stopPropagation(); deleteListItem(${item.id});">×</button>
-                </li>
-            `).join('');
-            // menuList.scrollTop = menuList.scrollHeight; // 追加時にスクロールするとD&Dと相性が悪いのでコメントアウト
-        }
-
-        // itemDescription の読み込みを削除
-        function editMenuItem(id) {
-            const itemToEdit = menuItems.find(item => item.id === id);
-            if (itemToEdit) {
-                itemNameInput.value = itemToEdit.name;
-                // itemDescriptionInput.value = itemToEdit.description || ''; // 説明文を削除
-                itemPriceInput.value = itemToEdit.price;
-                
-                clearImageInput(); 
-
-                if (itemToEdit.image) {
-                    imagePreview.src = itemToEdit.image;
-                    imagePreview.style.display = 'block';
-                    currentImageData = itemToEdit.image;
-                    fileInputLabel.textContent = '✅ ' + (itemToEdit.name || '画像が選択されています');
-                    fileInputLabel.style.background = '#56ab2f';
-                }
-
-                editingItemId = id;
-                addOrUpdateBtn.textContent = '✏️ 更新';
-
-                Q('.menu-list-item.editing-item')?.classList.remove('editing-item');
-                Q(`li[data-id="${id}"]`).classList.add('editing-item');
-            }
-        }
-
-        function deleteListItem(id) {
-            if (confirm('この商品をリストから削除しますか？')) {
-                menuItems = menuItems.filter(item => item.id !== id);
-                renderMenuList();
-                if (editingItemId === id) {
-                    clearForm();
-                }
-                // 自動更新（オプション）
-                if (menuItems.length > 0 && outputCanvas.style.display === 'block') {
-                    // generateMenuImage(); // 削除のたびに再生成は重いので停止
-                    alignItemsAndRedraw(); // 位置だけ再計算
-                } else if (menuItems.length === 0) {
-                    resetCanvasState();
-                }
-            }
-        }
-
-        function clearAllItems() {
-            if (confirm('すべてのメニュー項目とタイトルをクリアしますか？')) {
-                menuItems = [];
-                menuTitles = [];
-                renderMenuList();
-                renderMenuTitleList();
-                resetCanvasState();
-                clearForm();
-                clearTitleForm();
-            }
-        }
-
-        // === 1. リストD&D (並び替え) ===
-
-        // D&Dイベントをリスト(ul)に追加
-        menuList.addEventListener('dragstart', (e) => {
-            // イベントの発生元がli要素か確認
-            if (e.target.classList.contains('product-item')) {
-                draggedListItem = e.target;
-                e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', e.target.dataset.id);
-                // 少し遅れてクラスを追加（ドラッグ画像が透明になるのを防ぐ）
-                setTimeout(() => {
-                    draggedListItem.classList.add('dragging');
-                }, 0);
-            }
-        });
-
-        menuList.addEventListener('dragend', (e) => {
-            if (draggedListItem) {
-                draggedListItem.classList.remove('dragging');
-                draggedListItem = null;
-                // インジケーター(あれば)削除
-                Q('.drag-over-indicator')?.classList.remove('drag-over-indicator');
-            }
-        });
-
-        menuList.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            
-            const target = e.target.closest('.product-item');
-            if (target && target !== draggedListItem) {
-                // インジケータ(あれば)削除
-                Q('.drag-over-indicator')?.classList.remove('drag-over-indicator');
-                
-                // 上半分か下半分か
-                const rect = target.getBoundingClientRect();
-                const offset = e.clientY - rect.top;
-                
-                if (offset < rect.height / 2) {
-                    // 上に挿入
-                    target.style.borderTop = '2px solid #007bff';
-                    target.style.borderBottom = '';
-                } else {
-                    // 下に挿入
-                    target.style.borderTop = '';
-                    target.style.borderBottom = '2px solid #007bff';
-                }
-            }
-        });
-
-        menuList.addEventListener('dragleave', (e) => {
-             const target = e.target.closest('.product-item');
-             if(target){
-                target.style.borderTop = '';
-                target.style.borderBottom = '';
-             }
-        });
-
-        menuList.addEventListener('drop', (e) => {
-            e.preventDefault();
-            if (!draggedListItem) return;
-
-            const draggedId = parseFloat(e.dataTransfer.getData('text/plain'));
-            const draggedItemIndex = menuItems.findIndex(item => item.id === draggedId);
-            if (draggedItemIndex === -1) return;
-
-            const draggedItem = menuItems[draggedItemIndex];
-            
-            // ドロップターゲット
-            const dropTarget = e.target.closest('.product-item');
-            
-            // スタイルをリセット
-            if (dropTarget) {
-                dropTarget.style.borderTop = '';
-                dropTarget.style.borderBottom = '';
-            }
-            draggedListItem.classList.remove('dragging');
-
-            // 配列から一度削除
-            menuItems.splice(draggedItemIndex, 1);
-
-            let targetIndex;
-            if (dropTarget && dropTarget !== draggedListItem) {
-                const dropTargetId = parseFloat(dropTarget.dataset.id);
-                targetIndex = menuItems.findIndex(item => item.id === dropTargetId);
-
-                // 上半分か下半分か
-                const rect = dropTarget.getBoundingClientRect();
-                const offset = e.clientY - rect.top;
-                
-                if (offset < rect.height / 2) {
-                    // targetIndex の前に挿入
-                    menuItems.splice(targetIndex, 0, draggedItem);
-                } else {
-                    // targetIndex の後に挿入
-                    menuItems.splice(targetIndex + 1, 0, draggedItem);
-                }
-            } else {
-                // リストの末尾に追加 (ターゲットがない場合)
-                menuItems.push(draggedItem);
-            }
-
-            renderMenuList(); // 配列の順序変更をUIに反映
-            draggedListItem = null;
-        });
-
-
-        // === 3. キャンバスD&D (アイテム移動) ===
-        
-        // 当たり判定 (回転は無視し、矩形(x, y, width, height)で判定)
-        function isPointInItem(x, y, item) {
-            // 回転を考慮した当たり判定 (複雑)
-            if (item.rotation !== 0) {
-                const cx = item.x + item.width / 2;
-                const cy = item.y + item.height / 2;
-                
-                // 1. 点をアイテム中心基準に移動
-                const translatedX = x - cx;
-                const translatedY = y - cy;
-                
-                // 2. 点を逆回転
-                const sin = Math.sin(-item.rotation);
-                const cos = Math.cos(-item.rotation);
-                const rotatedX = translatedX * cos - translatedY * sin;
-                const rotatedY = translatedX * sin + translatedY * cos;
-                
-                // 3. 矩形内か判定
-                return (rotatedX > -item.width / 2 && rotatedX < item.width / 2 &&
-                        rotatedY > -item.height / 2 && rotatedY < item.height / 2);
-                
-            } else {
-                // 回転なし (単純な矩形)
-                return (x >= item.x && x <= item.x + item.width &&
-                        y >= item.y && y <= item.y + item.height);
-            }
-        }
-
-        outputCanvas.addEventListener('mousedown', (e) => {
-            if (outputCanvas.style.display === 'none') return;
-            
-            const rect = outputCanvas.getBoundingClientRect();
-            const scaleX = outputCanvas.width / rect.width;
-            const scaleY = outputCanvas.height / rect.height; // ✅ 修正箇所
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-
-            // 逆順 (描画が上のもの) から探す
-            selectedItem = null;
-            for (let i = menuItems.length - 1; i >= 0; i--) {
-                if (isPointInItem(x, y, menuItems[i])) {
-                    selectedItem = menuItems[i];
-                    break;
-                }
-            }
-
-            if (selectedItem) {
-                isDragging = true;
-                // オフセット計算 (回転を考慮し、アイテムの中心からの相対位置でドラッグ)
-                const cx = selectedItem.x + selectedItem.width / 2;
-                const cy = selectedItem.y + selectedItem.height / 2;
-                dragOffsetX = x - cx;
-                dragOffsetY = y - cy;
-                
-                outputCanvas.classList.add('grabbing');
-            }
-        });
-
-        outputCanvas.addEventListener('mousemove', (e) => {
-            if (outputCanvas.style.display === 'none') {
-                outputCanvas.classList.remove('grabbable');
-                return;
-            }
-
-            const rect = outputCanvas.getBoundingClientRect();
-            const scaleX = outputCanvas.width / rect.width;
-            const scaleY = outputCanvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-
-            if (isDragging && selectedItem) {
-                e.preventDefault();
-                // 新しい中心位置
-                const newCenterX = x - dragOffsetX;
-                const newCenterY = y - dragOffsetY;
-                
-                selectedItem.x = newCenterX - selectedItem.width / 2;
-                selectedItem.y = newCenterY - selectedItem.height / 2;
-                
-                redrawCanvas(); // 同期的に再描画
-            } else {
-                // ホバー判定 (カーソル変更)
-                let hoveringItem = false;
-                for (let i = menuItems.length - 1; i >= 0; i--) {
-                    if (isPointInItem(x, y, menuItems[i])) {
-                        hoveringItem = true;
-                        break;
-                    }
-                }
-                if (hoveringItem) {
-                    outputCanvas.classList.add('grabbable');
-                } else {
-                    outputCanvas.classList.remove('grabbable');
-                }
-            }
-        });
-
-        outputCanvas.addEventListener('mouseup', () => {
-            isDragging = false;
-            selectedItem = null;
-            outputCanvas.classList.remove('grabbing');
-        });
-        outputCanvas.addEventListener('mouseout', () => {
-            isDragging = false;
-            selectedItem = null;
-            outputCanvas.classList.remove('grabbing');
-        });
-
-
-        // === 保存 & 読み込み (説明文を削除) ===
-
-        // JSON保存 (descriptionを削除)
-        function saveMenuDataAsJson() {
-            if (menuItems.length === 0 && menuTitles.length === 0) {
-                alert('保存するデータがありません。'); return;
-            }
-            // descriptionを削除
-            const itemsToSave = menuItems.map(({ id, name, price, image }) => ({ id, name, price, image }));
-            const dataToSave = {
-                titles: menuTitles,
-                items: itemsToSave
-            };
-            
-            const dataStr = JSON.stringify(dataToSave, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            const link = D.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `menu_data_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            alert('メニューデータ(タイトル含む)がJSONとして保存されました！');
-        }
-
-        // CSV保存 (説明文を削除)
-        function saveMenuDataAsCsv() {
-            if (menuItems.length === 0) {
-                alert('保存する商品項目がありません。'); return;
-            }
-            // ヘッダーから説明文を削除
-            let csvContent = "商品名,価格,画像データURL\n";
-            menuItems.forEach(item => {
-                const escapeCsv = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
-                // item.description を削除
-                csvContent += `${escapeCsv(item.name)},${item.price},${escapeCsv(item.image)}\n`;
-            });
-
-            const dataBlob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], {type: 'text/csv;charset=utf-8;'}); // BOM付きUTF-8
-            const link = D.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `menu_items_data_${new Date().toISOString().split('T')[0]}.csv`;
-            link.click();
-            alert('商品データがCSVとして保存されました！ (タイトル情報はJSON保存のみ対応)');
-        }
-
-        // ファイル読み込み (説明文を削除)
-        const loadFile = (file, parser, successMsg, errorMsg) => {
-            if (!file) return;
-            loaderOverlay.style.display = 'flex'; // 4.
-            const reader = new FileReader();
-            reader.onload = async (e) => { 
-                try {
-                    const loadedData = parser(e.target.result);
-                    
-                    if (loadedData.items.length > 0 || (loadedData.titles && loadedData.titles.length > 0)) {
-                        // 少し待機（ローダーを見せるため）
-                        await new Promise(resolve => setTimeout(resolve, 50)); 
-                        
-                        // JSONの場合、タイトルも読み込む
-                        if (loadedData.titles) {
-                            menuTitles = loadedData.titles.map(t => ({...t, id: Date.now() + Math.random()}));
-                            renderMenuTitleList();
-                        }
-
-                        // 商品アイテム (description を削除)
-                        menuItems = loadedData.items.map(item => ({
-                            id: Date.now() + Math.random(),
-                            name: item.name,
-                            price: parseInt(item.price),
-                            // description: item.description || '', // 説明文を削除
-                            image: item.image || null,
-                            x: 0, y: 0, width: 0, height: 0, rotation: 0,
-                            imgElement: null // キャッシュクリア
-                        }));
-                        
-                        renderMenuList();
-                        clearForm();
-                        clearTitleForm();
-                        alert(`${loadedData.items.length}個の商品が${successMsg}から読み込まれました！`);
-                        
-                        // 読み込み後に自動生成
-                        if(menuItems.length > 0) {
-                            await generateMenuImage();
-                        }
-                    } else {
-                        alert(errorMsg);
-                    }
-                } catch (error) {
-                    console.error('File loading error:', error);
-                    alert(`ファイルの読み込みに失敗しました。${errorMsg}を確認してください。`);
-                } finally {
-                    loaderOverlay.style.display = 'none'; // 4.
-                }
-            };
-            reader.readAsText(file, 'UTF-8');
-            file.value = '';
-        };
-
-        // JSON読み込み (descriptionを削除)
-        loadMenuJsonFile.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file || !file.name.endsWith('.json')) {
-                alert('JSONファイルを選択してください。'); e.target.value = ''; return;
-            }
-            loadFile(file, (text) => {
-                const parsed = JSON.parse(text);
-                // 必須フィールドチェック (items)
-                if (parsed.items && Array.isArray(parsed.items) && parsed.items.every(item => item.name && item.price !== undefined)) {
-                    return {
-                        titles: parsed.titles || [], // タイトルは任意
-                        items: parsed.items.map(item => ({
-                            name: item.name,
-                            price: item.price,
-                            image: item.image,
-                            // description: item.description || '' // 削除
-                        }))
-                    };
-                }
-                // 旧フォーマット (items配列のみ)
-                if (Array.isArray(parsed) && parsed.every(item => item.name && item.price !== undefined)) {
-                     return { titles: [], items: parsed.map(item => ({
-                            name: item.name,
-                            price: item.price,
-                            image: item.image,
-                            // description: item.description || '' // 削除
-                        }))
-                     };
-                }
-                throw new Error('Invalid JSON format');
-            }, 'JSON', '有効なJSONデータ形式ではありません');
-        });
-        
-        // CSV読み込み (説明文を削除)
-        loadMenuCsvFile.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file || !file.name.endsWith('.csv')) {
-                alert('CSVファイルを選択してください。'); e.target.value = ''; return;
-            }
-            loadFile(file, (text) => {
-                const lines = text.split('\n').filter(line => line.trim() !== '');
-                if (lines.length <= 1) return { titles: [], items: [] };
-
-                const parseCsvLine = (line) => {
-                    const values = [];
-                    let inQuote = false;
-                    let currentVal = '';
-                    for (let i = 0; i < line.length; i++) {
-                        const char = line[i];
-                        if (char === '"') {
-                            if (i + 1 < line.length && line[i+1] === '"') {
-                                currentVal += '"'; i++;
-                            } else {
-                                inQuote = !inQuote;
-                            }
-                        } else if (char === ',' && !inQuote) {
-                            values.push(currentVal); currentVal = '';
-                        } else {
-                            currentVal += char;
-                        }
-                    }
-                    values.push(currentVal);
-                    return values.map(v => v.trim()); // 各値をtrim
-                };
-
-                const items = lines.slice(1).map(line => {
-                    const values = parseCsvLine(line);
-                    // values[2]がdescription (削除)
-                    if (values.length >= 2) {
-                        const name = values[0];
-                        const price = parseInt(values[1]);
-                        // description は削除
-                        const image = values.length >= 3 ? (values[2] || null) : null; // 画像の位置を調整 (values[3] -> values[2])
-                        
-                        if (name && !isNaN(price) && price > 0) {
-                            return { name, price, image }; // description を含まない
-                        }
-                    }
-                    return null;
-                }).filter(item => item !== null);
-                
-                return { titles: [], items: items }; // CSVは商品のみ
-
-            }, 'CSV', 'CSVファイルから有効なメニュー項目を読み込めませんでした。形式が「商品名,価格,画像データURL」になっているか確認してください');
-        });
-
-
-        // === レイアウト関数群 (変更なし) ===
-        function applyCollageLayout(items, usableArea) {
-            const placedRects = [];
-            const minPadding = 25; 
-            const shuffledItems = [...items].sort(() => Math.random() - 0.5);
-
-            shuffledItems.forEach(item => {
-                const baseItemWidth = CANVAS_WIDTH * 0.3;
-                const baseItemHeight = baseItemWidth * 0.75;
-                let placed = false;
-                for (let i = 0; i < 200; i++) {
-                    const scale = 0.8 + Math.random() * 0.4;
-                    const w = baseItemWidth * scale;
-                    const h = baseItemHeight * scale;
-                    const x = usableArea.x + Math.random() * (usableArea.width - w);
-                    const y = usableArea.y + Math.random() * (usableArea.height - h);
-                    const rotation = (Math.random() - 0.5) * 10 * Math.PI / 180;
-
-                    let overlap = placedRects.some(rect =>
-                        x < rect.x + rect.w + minPadding && x + w + minPadding > rect.x &&
-                        y < rect.y + rect.h + minPadding && y + h + minPadding > rect.y
-                    );
-
-                    if (!overlap) {
-                        item.x = x; item.y = y; item.width = w; item.height = h; item.rotation = rotation;
-                        placedRects.push({ x, y, w, h });
-                        placed = true;
-                        break;
-                    }
-                }
-                if (!placed) { 
-                    item.x = usableArea.x + Math.random() * (usableArea.width - baseItemWidth);
-                    item.y = usableArea.y + Math.random() * (usableArea.height - baseItemHeight);
-                    item.width = baseItemWidth; item.height = baseItemHeight; item.rotation = 0;
-                }
-            });
-        }
-        function applyGridLayout(items, usableArea) {
-            const count = items.length; if (count === 0) return;
-            let cols;
-            const orientation = Q('input[name="menuOrientation"]:checked').value;
-            if (count <= 4) { cols = orientation === 'vertical' ? 1 : 2; }
-            else if (count <= 10) { cols = 2; }
-            else if (count <= 18) { cols = 3; }
-            else { cols = 4; }
-            const rows = Math.ceil(count / cols);
-            const padding = 20; 
-            const totalCellWidth = usableArea.width / cols;
-            const totalCellHeight = usableArea.height / rows;
-            const itemWidth = totalCellWidth - padding;
-            const itemHeight = totalCellHeight - padding;
-            if (itemWidth <= 0 || itemHeight <= 0) {
-                items.forEach(item => { item.width=10; item.height=10; item.x=0; item.y=0; item.rotation=0; }); return;
-            }
-            items.forEach((item, i) => {
-                const row = Math.floor(i / cols);
-                const col = i % cols;
-                item.width = itemWidth; item.height = itemHeight; item.rotation = 0;
-                const cellX = usableArea.x + col * totalCellWidth;
-                const cellY = usableArea.y + row * totalCellHeight;
-                item.x = cellX + (totalCellWidth - itemWidth) / 2;
-                item.y = cellY + (totalCellHeight - itemHeight) / 2;
-            });
-        }
-        function applyOneColumnLayout(items, usableArea) {
-            if (items.length === 0) return;
-            const cols = 1; const padding = 20; const totalRows = items.length;
-            const itemWidth = usableArea.width - padding * 2;
-            const totalItemHeight = usableArea.height / totalRows;
-            const itemHeight = totalItemHeight - padding;
-            if (itemWidth <= 0 || itemHeight <= 0) {
-                items.forEach(item => { item.width=10; item.height=10; item.x=0; item.y=0; item.rotation=0; }); return;
-            }
-            items.forEach((item, i) => {
-                item.width = itemWidth; item.height = itemHeight; item.rotation = 0;
-                const cellX = usableArea.x; const cellY = usableArea.y + i * totalItemHeight;
-                item.x = cellX + (usableArea.width - itemWidth) / 2;
-                item.y = cellY + (totalItemHeight - itemHeight) / 2;
-            });
-        }
-        function applyTwoColumnLayout(items, usableArea) {
-            if (items.length === 0) return;
-            const cols = 2; const padding = 20; const totalRows = Math.ceil(items.length / 2);
-            const totalCellWidth = usableArea.width / cols;
-            const totalCellHeight = usableArea.height / totalRows;
-            const itemWidth = totalCellWidth - padding;
-            const itemHeight = totalCellHeight - padding;
-            if (itemWidth <= 0 || itemHeight <= 0) {
-                items.forEach(item => { item.width=10; item.height=10; item.x=0; item.y=0; item.rotation=0; }); return;
-            }
-            items.forEach((item, i) => {
-                const row = Math.floor(i / cols); const col = i % cols;
-                item.width = itemWidth; item.height = itemHeight; item.rotation = 0;
-                const cellX = usableArea.x + col * totalCellWidth;
-                const cellY = usableArea.y + row * totalCellHeight;
-                item.x = cellX + (totalCellWidth - itemWidth) / 2;
-                item.y = cellY + (totalCellHeight - itemHeight) / 2;
-            });
-        }
-        function applyWaterfallLayout(items, usableArea) {
-            const orientation = Q('input[name="menuOrientation"]:checked').value;
-            let cols;
-            if (orientation === 'vertical') { cols = Math.max(1, Math.min(items.length, 3)); }
-            else { cols = Math.max(2, Math.min(items.length, 5)); }
-            const padding = 20;
-            const colWidth = (usableArea.width - padding * (cols + 1)) / cols;
-            const colHeights = Array(cols).fill(usableArea.y + padding);
-            const shuffledItems = [...items].sort(() => Math.random() - 0.5);
-            shuffledItems.forEach(item => {
-                const itemWidth = colWidth;
-                const itemHeight = colWidth * (0.8 + Math.random() * 0.4);
-                const minHeight = Math.min(...colHeights);
-                const targetCol = colHeights.indexOf(minHeight);
-                item.width = itemWidth; item.height = itemHeight;
-                item.x = usableArea.x + padding + targetCol * (colWidth + padding);
-                item.y = minHeight; item.rotation = 0;
-                colHeights[targetCol] += itemHeight + padding;
-            });
-        }
-
-
-        // === キャンバス描画 (リファクタリング) ===
-
-        function resetCanvasState() {
-            initialEmptyState.style.display = 'flex';
-            outputCanvas.style.display = 'none';
-            canvasButtons.style.display = 'none';
-        }
-
-        // 1. 背景描画 (変更なし)
-        function drawBackground(ctx, backgroundChoice) {
-            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-            let drawCustomBackground = false;
-            switch (backgroundChoice) {
-                case 'white': ctx.fillStyle = '#ffffff'; break;
-                case 'beige': ctx.fillStyle = '#f5f5dc'; break;
-                case 'dark-slate': ctx.fillStyle = '#2f4f4f'; break; 
-                case 'marble':
-                    drawCustomBackground = true; ctx.fillStyle = '#f8f8f8'; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-                    ctx.save(); ctx.globalAlpha = 0.3; 
-                    for (let i = 0; i < 50; i++) {
-                        ctx.beginPath(); ctx.moveTo(Math.random() * CANVAS_WIDTH, Math.random() * CANVAS_HEIGHT);
-                        ctx.bezierCurveTo(Math.random() * CANVAS_WIDTH, Math.random() * CANVAS_HEIGHT, Math.random() * CANVAS_WIDTH, Math.random() * CANVAS_HEIGHT, Math.random() * CANVAS_WIDTH, Math.random() * CANVAS_HEIGHT);
-                        ctx.lineWidth = Math.random() * 3 + 1; ctx.strokeStyle = `rgba(180, 180, 180, ${Math.random() * 0.5 + 0.2})`; ctx.stroke();
-                    } ctx.restore(); break;
-                case 'dark-wood':
-                    drawCustomBackground = true; ctx.fillStyle = '#4a2c2a'; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-                    ctx.save(); ctx.globalAlpha = 0.2; 
-                    for (let i = 0; i < 10; i++) {
-                        ctx.beginPath(); ctx.moveTo(0, Math.random() * CANVAS_HEIGHT);
-                        ctx.bezierCurveTo(CANVAS_WIDTH * 0.3, Math.random() * CANVAS_HEIGHT, CANVAS_WIDTH * 0.7, Math.random() * CANVAS_HEIGHT, CANVAS_WIDTH, Math.random() * CANVAS_HEIGHT);
-                        ctx.lineWidth = Math.random() * 5 + 2; ctx.strokeStyle = `rgba(200, 150, 100, ${Math.random() * 0.4 + 0.1})`; ctx.stroke();
-                    } ctx.restore(); break;
-                default: ctx.fillStyle = '#ffffff'; break;
-            }
-            if (!drawCustomBackground) { 
-                ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-            }
-        }
-
-        // 2. タイトル描画 (7 & 9. 新規)
-        function drawMenuTitles(ctx) {
-            menuTitles.forEach(title => {
-                ctx.fillStyle = title.color;
-                ctx.font = `bold ${title.size}px "Impact", sans-serif`; // Impactフォントを推奨
-                ctx.textAlign = title.align;
-                ctx.textBaseline = 'top';
-                
-                let x;
-                const margin = CANVAS_WIDTH * 0.05; // 左右マージン
-                if (title.align === 'left') {
-                    x = margin;
-                } else if (title.align === 'right') {
-                    x = CANVAS_WIDTH - margin;
-                } else { // center
-                    x = CANVAS_WIDTH / 2;
-                }
-                ctx.fillText(title.text, x, title.y);
-            });
-        }
-        
-        // 3. テキスト折り返し (説明文の考慮を削除)
-        function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines, addEllipsis) {
-            if (!text) return 0;
-            
-            let words = text.split('');
-            let line = '';
-            let lineCount = 0;
-
-            for(let n = 0; n < words.length; n++) {
-                let testLine = line + words[n];
-                let metrics = ctx.measureText(testLine);
-                let testWidth = metrics.width;
-
-                if (testWidth > maxWidth && n > 0) {
-                    if (lineCount >= maxLines - 1) { // 最終行
-                        if (addEllipsis) {
-                            ctx.fillText(line.trim() + '...', x, y + lineCount * lineHeight);
-                        } else {
-                            ctx.fillText(line.trim(), x, y + lineCount * lineHeight);
-                        }
-                        return lineCount + 1; 
-                    }
-                    ctx.fillText(line.trim(), x, y + lineCount * lineHeight);
-                    line = words[n] + '';
-                    lineCount++;
-                } else {
-                    line = testLine;
-                }
-            }
-            if (line.trim() !== '') {
-                ctx.fillText(line.trim(), x, y + lineCount * lineHeight);
-                lineCount++;
-            }
-            return lineCount;
-        }
-
-        // 4. アイテム描画 (説明文の考慮を削除)
-        function drawItem(item, img, textColor) {
-            ctx.save();
-            ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
-            ctx.rotate(item.rotation);
-            
-            const itemWidth = item.width;
-            const itemHeight = item.height;
-            const maxNameWidth = itemWidth * 0.95; // テキスト描画幅
-
-            // 1. 画像の描画
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-            ctx.shadowBlur = 15; ctx.shadowOffsetX = 5; ctx.shadowOffsetY = 5;
-            ctx.drawImage(img, -itemWidth / 2, -itemHeight / 2, itemWidth, itemHeight);
-            ctx.shadowColor = 'transparent'; // テキストのために影をリセット
-            
-            // 2. テキストオーバーレイの描画
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            
-            // フォントサイズ決定
-            const priceFontSize = Math.max(12, itemWidth / 14);
-            const nameFontSize = Math.max(14, itemWidth / 12);
-            const nameLineHeight = nameFontSize * 1.2;
-
-            // 説明文を削除したため、行数は商品名のみで計算
-            let nameLines = 1;
-            // 簡易的に行数を推定 (wrapTextは重いので)
-            if(item.name.length > (maxNameWidth / nameFontSize) * 1.5) nameLines = 2;
-            
-            // テキスト背景
-            // 説明文のスペースを削除
-            const textBgHeight = (nameLineHeight * nameLines) + priceFontSize + 20; // パディング
-
-            ctx.fillStyle = (textColor === '#000000') ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)';
-            ctx.fillRect(-itemWidth/2, itemHeight/2 - textBgHeight, itemWidth, textBgHeight);
-            
-            ctx.fillStyle = textColor; 
-            let currentY = itemHeight / 2 - textBgHeight + 5; // Y座標開始位置
-
-            // 商品名 (最大2行, ...)
-            ctx.font = `bold ${nameFontSize}px Arial`;
-            const actualNameLines = wrapText(ctx, item.name, 0, currentY, maxNameWidth, nameLineHeight, 2, true);
-            currentY += (actualNameLines * nameLineHeight) + 5;
-
-            // 説明文の描画を削除
-            // if (item.description) { ... }
-
-            // 価格
-            ctx.textBaseline = 'bottom';
-            ctx.font = `bold ${priceFontSize}px Arial`;
-            ctx.fillText(`¥${item.price.toLocaleString()}`, 0, itemHeight / 2 - 5);
-
-            ctx.restore();
-        }
-        
-        // 5. プレースホルダー描画 (説明文の考慮を削除)
-        function drawNoImagePlaceholder(item, textColor) {
-            ctx.save();
-            ctx.translate(item.x + item.width / 2, item.y + item.height / 2);
-            ctx.rotate(item.rotation);
-            
-            const itemWidth = item.width;
-            const itemHeight = item.height;
-            const maxNameWidth = itemWidth * 0.8; 
-
-            // 1. 矩形
-            ctx.fillStyle = '#e9ecef'; ctx.strokeStyle = '#adb5bd'; ctx.lineWidth = 2;
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-            ctx.shadowBlur = 10; ctx.shadowOffsetX = 4; ctx.shadowOffsetY = 4;
-            ctx.fillRect(-itemWidth / 2, -itemHeight / 2, itemWidth, itemHeight);
-            ctx.strokeRect(-itemWidth / 2, -itemHeight / 2, itemWidth, itemHeight);
-            ctx.shadowColor = 'transparent';
-
-            // 2. テキスト
-            ctx.fillStyle = textColor; 
-            ctx.textAlign = 'center';
-            
-            const priceFontSize = Math.max(12, itemWidth / 12);
-            const nameFontSize = Math.max(14, itemWidth / 10);
-            const nameLineHeight = nameFontSize * 1.2;
-            
-            let currentY = -itemHeight / 2 + 20; // Y座標開始位置
-
-            // 商品名 (最大2行, ...)
-            ctx.font = `bold ${nameFontSize}px Arial`;
-            ctx.textBaseline = 'top';
-            const actualNameLines = wrapText(ctx, item.name, 0, currentY, maxNameWidth, nameLineHeight, 2, true);
-            currentY += (actualNameLines * nameLineHeight) + 5;
-            
-            // 説明文の描画を削除
-            // if (item.description) { ... }
-
-            // 価格
-            ctx.font = `bold ${priceFontSize}px Arial`;
-            ctx.textBaseline = 'bottom';
-            ctx.fillText(`¥${item.price.toLocaleString()}`, 0, itemHeight / 2 - 20); 
-
-            ctx.restore();
-        }
-
-        // 6. アイテム描画のコア (変更なし)
-        async function drawAllItems(forceReload) {
-            const menuTextColorChoice = Q('input[name="menuTextColor"]:checked').value;
-            const textColor = menuTextColorChoice === 'black' ? '#000000' : '#ffffff';
-
-            const loadedItemPromises = menuItems.map(item => {
-                return new Promise(resolve => {
-                    // 1. 画像があり、(強制リロード or キャッシュなし) の場合
-                    if (item.image && (forceReload || !item.imgElement)) {
-                        const img = new Image();
-                        img.src = item.image;
-                        img.onload = () => {
-                            item.imgElement = img; // キャッシュ
-                            drawItem(item, img, textColor);
-                            resolve();
-                        };
-                        img.onerror = () => {
-                            console.warn(`Failed to load image for: ${item.name}`);
-                            item.imgElement = null; // エラーキャッシュ
-                            drawNoImagePlaceholder(item, textColor);
-                            resolve();
-                        };
-                    } 
-                    // 2. キャッシュ (imgElement) がある場合
-                    else if (item.imgElement) {
-                        drawItem(item, item.imgElement, textColor);
-                        resolve();
-                    }
-                    // 3. 画像なし (またはエラーキャッシュ) の場合
-                    else {
-                        drawNoImagePlaceholder(item, textColor);
-                        resolve();
-                    }
-                });
-            });
-
-            await Promise.all(loadedItemPromises);
-        }
-
-        // === メニュー生成 & 再描画 ===
-
-        // (メイン) メニュー画像を生成 (レイアウト計算 + 画像読み込み)
-        async function generateMenuImage() {
-            if (menuItems.length === 0 && menuTitles.length === 0) {
-                alert('コラージュを作成する項目がありません。');
-                return;
-            }
-            
-            loaderOverlay.style.display = 'flex'; // 4. ローダー表示
-            
-            try {
-                initialEmptyState.style.display = 'none';
-                outputCanvas.style.display = 'block';
-                canvasButtons.style.display = 'block';
-
-                updateCanvasDimensions(); 
-
-                const backgroundChoice = Q('input[name="backgroundChoice"]:checked').value;
-                const layoutChoice = Q('input[name="layoutChoice"]:checked').value;
-
-                // 1. 背景描画
-                drawBackground(ctx, backgroundChoice);
-
-                // 2. タイトル描画
-                drawMenuTitles(ctx);
-                
-                // 3. レイアウト計算 (Y座標の最高値を見て usableArea を決定)
-                let highestY = 0;
-                menuTitles.forEach(t => {
-                    highestY = Math.max(highestY, t.y + t.size);
-                });
-                
-                const usableArea = { 
-                    x: CANVAS_WIDTH * 0.05,
-                    y: (highestY > 0 ? highestY : CANVAS_HEIGHT * 0.05) + 30, // タイトルの下から
-                    width: CANVAS_WIDTH * 0.9,
-                    height: CANVAS_HEIGHT - ((highestY > 0 ? highestY : CANVAS_HEIGHT * 0.05) + 30) - (CANVAS_HEIGHT * 0.05)
-                };
-
-                // 4. レイアウト適用 (x, y, width, height, rotation を設定)
-                switch(layoutChoice) {
-                    case 'one-column': applyOneColumnLayout(menuItems, usableArea); break;
-                    case 'two-column': applyTwoColumnLayout(menuItems, usableArea); break;
-                    case 'grid': applyGridLayout(menuItems, usableArea); break;
-                    case 'waterfall': applyWaterfallLayout(menuItems, usableArea); break;
-                    default: applyCollageLayout(menuItems, usableArea);
-                }
-
-                // 5. アイテム描画 (画像読み込み/キャッシュ実行)
-                await drawAllItems(true); // true = 画像強制リロード
-
-                alert('コラージュメニューが生成されました！');
-                
-            } catch (error) {
-                console.error("Error generating menu:", error);
-                alert('メニューの生成に失敗しました。');
-            } finally {
-                loaderOverlay.style.display = 'none'; // 4. ローダー非表示
-            }
-        }
-
-        // (高速) キャンバス再描画 (レイアウト計算なし、画像読み込みなし)
-        // (ドラッグ時、自動整列後に使用)
-        function redrawCanvas() {
-            if (outputCanvas.style.display === 'none') return;
-            
-            const backgroundChoice = Q('input[name="backgroundChoice"]:checked').value;
-
-            // 1. 背景
-            drawBackground(ctx, backgroundChoice);
-            // 2. タイトル
-            drawMenuTitles(ctx);
-            // 3. アイテム (キャッシュ使用)
-            // drawAllItems(false) は async なので、ドラッグ中はカクつく
-            // 同期的に描画する
-            
-            const menuTextColorChoice = Q('input[name="menuTextColor"]:checked').value;
-            const textColor = menuTextColorChoice === 'black' ? '#000000' : '#ffffff';
-            
-            menuItems.forEach(item => {
-                if (item.imgElement) {
-                    drawItem(item, item.imgElement, textColor);
-                } else {
-                    // キャッシュがない (generateMenuImageが未実行 or 画像なし)
-                    // (画像なし/エラー のプレースホルダーを描画)
-                    drawNoImagePlaceholder(item, textColor);
-                }
-            });
-        }
-
-        // 8. (新規) 自動整列
-        function alignItemsAndRedraw() {
-            if (menuItems.length === 0) {
-                alert('整列するアイテムがありません。');
-                return;
-            }
-            if (outputCanvas.style.display === 'none') {
-                alert('まず「生成」ボタンを押してキャンバスを表示してください。');
-                return;
-            }
-
-            // 1. レイアウト計算 (generateMenuImage と同じロジック)
-            const layoutChoice = Q('input[name="layoutChoice"]:checked').value;
-            
-            let highestY = 0;
-            menuTitles.forEach(t => {
-                highestY = Math.max(highestY, t.y + t.size);
-            });
-            const usableArea = { 
-                x: CANVAS_WIDTH * 0.05,
-                y: (highestY > 0 ? highestY : CANVAS_HEIGHT * 0.05) + 30,
-                width: CANVAS_WIDTH * 0.9,
-                height: CANVAS_HEIGHT - ((highestY > 0 ? highestY : CANVAS_HEIGHT * 0.05) + 30) - (CANVAS_HEIGHT * 0.05)
-            };
-
-            switch(layoutChoice) {
-                case 'one-column': applyOneColumnLayout(menuItems, usableArea); break;
-                case 'two-column': applyTwoColumnLayout(menuItems, usableArea); break;
-                case 'grid': applyGridLayout(menuItems, usableArea); break;
-                case 'waterfall': applyWaterfallLayout(menuItems, usableArea); break;
-                default: applyCollageLayout(menuItems, usableArea);
-            }
-            
-            // 2. 高速再描画
-            redrawCanvas();
-            alert('アイテムを自動整列しました。');
-        }
-
-
-        // === ダウンロード (変更なし) ===
-        function downloadFinalImage() {
-            if (menuItems.length === 0 || outputCanvas.style.display === 'none') {
-                alert('ダウンロードするメニューがありません。'); return;
-            }
-            outputCanvas.toBlob(function(blob) {
-                const link = D.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = `collage_menu_${new Date().toISOString().split('T')[0]}.png`;
-                link.click();
-                alert('コラージュメニューが画像として保存されました！');
-            }, 'image/png');
-        }
-
-        async function downloadPdf() {
-            if (menuItems.length === 0 || outputCanvas.style.display === 'none') {
-                alert('ダウンロードするメニューがありません。'); return;
-            }
-            loaderOverlay.style.display = 'flex'; // 4.
-            try {
-                const canvasImg = await html2canvas(outputCanvas, { scale: 2, useCORS: true });
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF({
-                    orientation: CANVAS_WIDTH > CANVAS_HEIGHT ? 'landscape' : 'portrait',
-                    unit: 'px',
-                    format: [CANVAS_WIDTH, CANVAS_HEIGHT] 
-                });
-                const imgData = canvasImg.toDataURL('image/png');
-                pdf.addImage(imgData, 'PNG', 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-                pdf.save(`collage_menu_${new Date().toISOString().split('T')[0]}.pdf`);
-                alert('コラージュメニューがPDFとして保存されました！');
-            } catch (error) {
-                console.error("PDF generation failed:", error);
-                alert("PDFの生成に失敗しました。");
-            } finally {
-                loaderOverlay.style.display = 'none'; // 4.
-            }
-        }
-
-        // === 初期描画 ===
-        renderMenuList();
-        renderMenuTitleList();
-    </script>
+      });
+      // delete
+      item.querySelector('.btn-delete-row').addEventListener('click', ()=>{
+        if(!confirm('このメニューを削除しますか？')) return;
+        deleteRowById(r.id);
+      });
+      // edit
+      item.querySelector('.btn-edit-row').addEventListener('click', ()=>{
+        openEditModal(r.id);
+      });
+      list.appendChild(item);
+    });
+    wrap.appendChild(list);
+    container.appendChild(wrap);
+    // delete cat
+    wrap.querySelector('.btn-delete-cat').addEventListener('click', ()=>{
+      if(!confirm('カテゴリを削除します。カテゴリ内のメニューは未分類になります。')) return;
+      const catId = cat.id;
+      let def = state.categories.find(c=>c.id==='cat-unc');
+      if(!def){ def = { id:'cat-unc', title:'未分類', rowIds:[] }; state.categories.push(def); }
+      const moving = cat.rowIds.slice();
+      moving.forEach(rid=>{ const rr = state.rows.find(rrr=>rrr.id===rid); if(rr) rr.categoryId = def.id; def.rowIds.push(rid); });
+      state.categories = state.categories.filter(c=>c.id!==catId);
+      syncCategoriesFromRows();
+      renderRowList();
+    });
+  });
+  refreshCategorySelects();
+}
+
+/* ---------- カテゴリリストサイド更新 ---------- */
+function refreshCategorySelects(){
+  const sel = document.getElementById('newMenuCat');
+  const editSel = document.getElementById('editCat');
+  sel.innerHTML = '<option value="">（カテゴリを選択）</option>';
+  if(editSel) editSel.innerHTML = '';
+  state.categories.forEach(c=>{
+    const o = document.createElement('option'); o.value = c.id; o.textContent = c.title; sel.appendChild(o);
+    if(editSel){
+      const oe = document.createElement('option'); oe.value = c.id; oe.textContent = c.title; editSel.appendChild(oe);
+    }
+  });
+  // also ensure categories array is not empty
+  if(state.categories.length===0){
+    const def = { id:'cat-unc', title:'未分類', rowIds:[] }; state.categories.push(def);
+    refreshCategorySelects();
+  }
+}
+
+/* ---------- 行/カテゴリ操作ユーティリティ ---------- */
+function assignRowToCategory(rowId, catId, beforeRowId=null){
+  const row = state.rows.find(r=>r.id===rowId);
+  if(!row) return;
+  state.categories.forEach(c=> c.rowIds = c.rowIds.filter(id=>id!==rowId));
+  row.categoryId = catId;
+  const cat = state.categories.find(c=>c.id===catId);
+  if(!cat) return;
+  if(beforeRowId === null) cat.rowIds.push(rowId);
+  else {
+    const idx = cat.rowIds.indexOf(beforeRowId);
+    if(idx === -1) cat.rowIds.push(rowId); else cat.rowIds.splice(idx, 0, rowId);
+  }
+  renderRowList();
+}
+
+function reorderRowInCategory(rowId, catId, afterRowId){
+  const cat = state.categories.find(c=>c.id===catId); if(!cat) return;
+  cat.rowIds = cat.rowIds.filter(id=>id!==rowId);
+  if(afterRowId === null) cat.rowIds.unshift(rowId);
+  else {
+    const i = cat.rowIds.indexOf(afterRowId);
+    if(i===-1) cat.rowIds.push(rowId); else cat.rowIds.splice(i+1, 0, rowId);
+  }
+  const row = state.rows.find(r=>r.id===rowId); if(row) row.categoryId = catId;
+  renderRowList();
+}
+
+function deleteRowById(rowId){
+  state.rows = state.rows.filter(r=> r.id!==rowId);
+  state.categories.forEach(c=> c.rowIds = c.rowIds.filter(id=>id!==rowId));
+  renderRowList();
+}
+
+function syncCategoriesFromRows(){
+  state.categories.forEach(c=> c.rowIds = []);
+  state.rows.forEach(r=>{
+    let cat = state.categories.find(c=>c.id===r.categoryId);
+    if(!cat){ cat = state.categories[0]; r.categoryId = cat.id; }
+    cat.rowIds.push(r.id);
+  });
+}
+
+/* ---------- メニュー追加処理 ---------- */
+document.getElementById('btnAddMenu').addEventListener('click', ()=>{
+  const name = document.getElementById('newMenuName').value.trim();
+  const priceRaw = document.getElementById('newMenuPrice').value.trim();
+  const catId = document.getElementById('newMenuCat').value || null;
+  if(!name && priceRaw==='') return alert('品名または価格を入力してください');
+  if(priceRaw === ''){
+    // create category
+    const cat = { id: uid('cat'), title: name || '新しいカテゴリ', rowIds: [] };
+    state.categories.push(cat);
+    syncCategoriesFromRows();
+    renderRowList();
+    document.getElementById('newMenuName').value = '';
+    document.getElementById('newMenuPrice').value = '';
+    return;
+  }
+  const priceNum = Number(priceRaw.replace(/[^\d]/g,''));
+  const row = { id: uid('r'), raw: name + '\t' + priceRaw, name: name || null, price: Number.isFinite(priceNum) ? priceNum : null, display:true, categoryId: catId, selected:false };
+  state.rows.push(row);
+  // if no category selected, put into uncategorized or first category
+  if(!catId){
+    let def = state.categories.find(c=>c.id==='cat-unc');
+    if(!def){ def = { id:'cat-unc', title:'未分類', rowIds:[] }; state.categories.unshift(def); }
+    row.categoryId = def.id;
+    def.rowIds.push(row.id);
+  } else {
+    const cat = state.categories.find(c=>c.id===catId);
+    if(cat) cat.rowIds.push(row.id);
+  }
+  document.getElementById('newMenuName').value = '';
+  document.getElementById('newMenuPrice').value = '';
+  renderRowList();
+});
+
+/* ---------- 編集モーダル（価格変更、価格空欄でカテゴリ化） ---------- */
+let editingRowId = null;
+function openEditModal(rowId){
+  const r = state.rows.find(x=>x.id===rowId); if(!r) return;
+  editingRowId = rowId;
+  document.getElementById('editName').value = r.name || r.raw;
+  document.getElementById('editPrice').value = r.price===null? '' : String(r.price);
+  refreshCategorySelects();
+  document.getElementById('editCat').value = r.categoryId || '';
+  document.getElementById('editModal').classList.remove('hidden');
+}
+document.getElementById('editCancel').addEventListener('click', ()=>{
+  editingRowId = null; document.getElementById('editModal').classList.add('hidden');
+});
+document.getElementById('editSave').addEventListener('click', ()=>{
+  if(!editingRowId) return;
+  const r = state.rows.find(x=>x.id===editingRowId); if(!r) return;
+  const newName = document.getElementById('editName').value.trim();
+  const newPriceRaw = document.getElementById('editPrice').value.trim();
+  const newCat = document.getElementById('editCat').value || null;
+  // If price empty -> convert this row into a category header
+  if(newPriceRaw === ''){
+    // create new category with title = newName (or raw)
+    const title = newName || r.raw || '新しいカテゴリ';
+    const cat = { id: uid('cat'), title: title, rowIds: [] };
+    // remove row from rows and place this row's remaining data as nothing
+    // we will remove the row and then reassign subsequent rows to this new category until next category appears.
+    // Simpler approach: remove the row, insert new category at the position where the row used to be, and leave other rows' categories untouched.
+    // To approximate user's expectation, we will remove the row and create category, then no automatic reassignment (user can drag).
+    state.rows = state.rows.filter(rr=> rr.id !== editingRowId);
+    state.categories.push(cat);
+    syncCategoriesFromRows();
+    editingRowId = null;
+    document.getElementById('editModal').classList.add('hidden');
+    renderRowList();
+    alert('価格が空のため新しいカテゴリを作成しました。必要に応じてメニューをドラッグで移し替えてください。');
+    return;
+  }
+  // Otherwise update row
+  r.name = newName || r.name;
+  const v = newPriceRaw.replace(/[^\d]/g,'');
+  r.price = v === '' ? null : Number(v);
+  r.categoryId = newCat || r.categoryId;
+  syncCategoriesFromRows();
+  editingRowId = null;
+  document.getElementById('editModal').classList.add('hidden');
+  renderRowList();
+});
+
+/* ---------- 背景処理（画像 / URL / プリセット / ダウンロード） ---------- */
+function applyBackground(data){
+  currentBg = data;
+  const preview = document.getElementById('menuPreview');
+  if(!preview) return;
+  if(!data) { preview.style.backgroundImage = ''; preview.style.backgroundColor = ''; return; }
+  if(data.startsWith('#')){ // color
+    preview.style.backgroundImage = '';
+    preview.style.backgroundColor = data;
+  } else {
+    preview.style.backgroundImage = `url(${data})`;
+    preview.style.backgroundColor = '';
+  }
+}
+document.getElementById('bgFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const fr = new FileReader(); fr.onload = ev=> applyBackground(ev.target.result); fr.readAsDataURL(f);
+  e.target.value = '';
+});
+document.getElementById('btnLoadBg').addEventListener('click', async ()=>{
+  const url = document.getElementById('bgUrl').value.trim();
+  if(!url) return alert('URLを入力してください');
+  try{
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('取得失敗');
+    const blob = await res.blob();
+    const fr = new FileReader(); fr.onload = e=> applyBackground(e.target.result); fr.readAsDataURL(blob);
+  }catch(err){ alert('背景画像のダウンロードに失敗しました'); }
+});
+document.getElementById('btnClearBg').addEventListener('click', ()=> applyBackground(null));
+document.getElementById('btnDownloadBg').addEventListener('click', ()=>{
+  if(!currentBg) return alert('背景が設定されていません');
+  const a = document.createElement('a'); a.href = currentBg; a.download = 'background'; a.click();
+});
+
+/* ---------- プレビュー構築 ---------- */
+function showPreview(){
+  syncCategoriesFromRows();
+  const preview = document.getElementById('menuPreview');
+  const colCount = Number(document.getElementById('colCount').value || 2);
+  const orientation = document.getElementById('orientation').value || 'portrait';
+  preview.style.width = orientation==='landscape' ? '1120px' : '800px';
+  // build inner content
+  let html = `<div class="menu-inner" style="display:grid;grid-template-columns:repeat(${colCount},1fr);gap:18px">`;
+  const blocks = [];
+  state.categories.forEach(cat=>{
+    const rows = cat.rowIds.map(rid => state.rows.find(r=>r.id===rid)).filter(Boolean).filter(r=>r.display);
+    if(rows.length===0) return;
+    let block = `<div><div class="menu-category">${escapeHtml(cat.title)}</div>`;
+    rows.forEach(r=>{
+      block += `<div class="menu-row"><div class="menu-name">${escapeHtml(r.name || r.raw)}</div><div class="menu-price">${r.price===null? '': '¥'+r.price}</div></div>`;
+    });
+    block += `</div>`;
+    blocks.push(block);
+  });
+  // distribute blocks across columns
+  const cols = Array.from({length:colCount}, ()=>'');
+  let idx = 0;
+  blocks.forEach(b=>{ cols[idx]+=b; idx=(idx+1)%colCount; });
+  cols.forEach(c=> html += `<div>${c}</div>`);
+  html += `</div>`;
+  preview.innerHTML = html;
+  document.getElementById('printArea').style.display = 'block';
+  preview.scrollIntoView({behavior:'smooth'});
+}
+
+/* ---------- 保存 / 読込 / Export ---------- */
+function downloadJSON(){
+  const out = { meta:{exportedAt:new Date().toISOString()}, rows:state.rows, categories:state.categories, background:currentBg };
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'menu-export.json'; a.click(); URL.revokeObjectURL(a.href);
+}
+function handleJSONLoad(file){
+  const fr = new FileReader();
+  fr.onload = e=>{
+    try{
+      const parsed = JSON.parse(e.target.result);
+      if(parsed.rows && parsed.categories){
+        state.rows = parsed.rows.map(r=>({...r, selected:false}));
+        state.categories = parsed.categories.map(c=>({...c}));
+        currentBg = parsed.background || null;
+        applyBackground(currentBg);
+        syncCategoriesFromRows();
+        renderRowList();
+        alert('JSONを読み込みました。');
+      } else alert('不正なJSON形式です');
+    }catch(err){ alert('JSONの読み込みに失敗しました'); }
+  };
+  fr.readAsText(file);
+}
+
+function exportCSV(){
+  const outRows = [];
+  state.categories.forEach(cat=>{
+    cat.rowIds.forEach(rid=>{
+      const r = state.rows.find(rr=>rr.id===rid);
+      if(!r) return;
+      outRows.push({ Category: cat.title, Item: r.name || r.raw, Price: r.price===null? '' : r.price });
+    });
+  });
+  const header = ['Category','Item','Price'];
+  const csv = [header.join(',')].concat(outRows.map(row=> header.map(h=> `"${String(row[h] ?? '').replace(/"/g,'""')}"`).join(','))).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'menu-export.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function exportXLSX(){
+  const wb = XLSX.utils.book_new(); const out = [];
+  state.categories.forEach(cat=>{
+    out.push([cat.title]);
+    cat.rowIds.forEach(rid=>{
+      const r = state.rows.find(rr=>rr.id===rid);
+      if(!r) return;
+      out.push([r.name || r.raw, r.price===null? '': r.price]);
+    });
+    out.push([]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(out); XLSX.utils.book_append_sheet(wb, ws, 'Menu'); XLSX.writeFile(wb, 'menu-export.xlsx');
+}
+
+/* ---------- ヘルパー & バインド ---------- */
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
+
+/* UI バインド */
+document.getElementById('btnParse').addEventListener('click', async ()=>{
+  const fi = document.getElementById('fileInput');
+  const area = document.getElementById('pasteArea').value.trim();
+  if(fi.files.length>0){ try{ await parseFile(fi.files[0]); fi.value=''; renderRowList(); }catch(err){ console.error(err); alert('ファイル読み込みに失敗しました'); } }
+  else if(area){ parseTextRowsWithCategories(area); renderRowList(); }
+  else alert('Excelファイルを選択するか、テキストを貼り付けてください');
+});
+document.getElementById('fileInput').addEventListener('change', async e=>{ if(e.target.files.length){ try{ await parseFile(e.target.files[0]); renderRowList(); }catch(err){ alert('読み込み失敗'); } e.target.value=''; } });
+document.getElementById('btnClear').addEventListener('click', ()=>{ if(!confirm('全データをクリアしますか？')) return; state.rows=[]; state.categories=[]; currentBg=null; applyBackground(null); renderRowList(); });
+document.getElementById('btnAutoGroup').addEventListener('click', ()=>{ autoGroupByKeywords(); renderRowList(); });
+document.getElementById('btnAddCat').addEventListener('click', ()=>{ const t=document.getElementById('newCatTitle').value.trim(); if(!t) return alert('カテゴリ名を入力してください'); const c={id:uid('cat'),title:t,rowIds:[]}; state.categories.push(c); document.getElementById('newCatTitle').value=''; renderRowList(); });
+document.getElementById('btnDownloadJSON').addEventListener('click', downloadJSON);
+document.getElementById('btnLoadJSON').addEventListener('click', ()=> document.getElementById('jsonLoad').click());
+document.getElementById('jsonLoad').addEventListener('change', e=>{ if(e.target.files.length) handleJSONLoad(e.target.files[0]); e.target.value=''; });
+document.getElementById('btnExportXLSX').addEventListener('click', exportXLSX);
+document.getElementById('btnExportCSV').addEventListener('click', exportCSV);
+document.getElementById('btnPreview').addEventListener('click', ()=> showPreview());
+document.getElementById('btnPreviewSmall').addEventListener('click', ()=> showPreview());
+document.getElementById('btnPrint').addEventListener('click', ()=> { showPreview(); setTimeout(()=> window.print(), 250); });
+
+document.getElementById('btnSelectAll').addEventListener('click', ()=> { state.rows.forEach(r=> r.selected=true); renderRowList(); });
+document.getElementById('btnUnselectAll').addEventListener('click', ()=> { state.rows.forEach(r=> r.selected=false); renderRowList(); });
+document.getElementById('btnGroupByKeyword').addEventListener('click', ()=> {
+  const kw = prompt('キーワード（含む）を入力: 例: ラーメン'); if(!kw) return;
+  const title = prompt('割当先カテゴリ名を入力（既存と同名ならそのカテゴリに追加）:', kw+' のカテゴリ'); if(!title) return;
+  let cat = state.categories.find(c=>c.title===title); if(!cat){ cat={id:uid('cat'),title, rowIds:[]}; state.categories.push(cat); }
+  state.rows.forEach(r=> { if(r.name && r.name.indexOf(kw)!==-1) assignRowToCategory(r.id, cat.id); });
+  renderRowList();
+});
+document.getElementById('btnUngroup').addEventListener('click', ()=> {
+  const sel = state.rows.filter(r=> r.selected);
+  if(sel.length===0) return alert('先に行を選択してください（クリックで選択）');
+  sel.forEach(r=>{ if(r.categoryId){ const old = state.categories.find(c=>c.id===r.categoryId); if(old) old.rowIds = old.rowIds.filter(id=>id!==r.id); r.categoryId = null; r.selected=false; }});
+  let def = state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.push(def); }
+  state.rows.forEach(r=> { if(!r.categoryId){ r.categoryId = def.id; def.rowIds.push(r.id); }});
+  renderRowList();
+});
+
+/* json load trigger */
+document.getElementById('jsonLoad').addEventListener('change', e=>{ if(e.target.files.length) handleJSONLoad(e.target.files[0]); e.target.value=''; });
+
+/* background download from URL button */
+document.getElementById('btnLoadBg').addEventListener('click', async ()=>{/* handled above */});
+
+/* helper: auto keyword grouping */
+function autoGroupByKeywords(){
+  const rules = [
+    {k:'ラーメン', title:'麺類'},
+    {k:'そば', title:'麺類'},
+    {k:'焼きそば', title:'麺類'},
+    {k:'デザート', title:'デザート'},
+    {k:'お子様', title:'セット'},
+    {k:'セット', title:'セット'},
+    {k:'冷麺', title:'冷麺・旬'},
+    {k:'丼', title:'丼物'},
+    {k:'チャーシュー', title:'麺類'}
+  ];
+  rules.forEach(rule=>{
+    let cat = state.categories.find(c=>c.title===rule.title);
+    if(!cat){ cat={id:uid('cat'),title:rule.title,rowIds:[]}; state.categories.push(cat); }
+    state.rows.forEach(r=>{ if(!r.categoryId && r.name && r.name.indexOf(rule.k)!==-1) assignRowToCategory(r.id, cat.id); });
+  });
+  let def = state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.unshift(def); }
+  state.rows.forEach(r=>{ if(!r.categoryId){ r.categoryId = def.id; def.rowIds.push(r.id); }});
+}
+
+/* ---------- Utility: simple initial sample (optional) ---------- */
+// (none) — start empty
+
+/* 初期レンダリング */
+renderRowList();
+
+</script>
 </body>
 </html>
