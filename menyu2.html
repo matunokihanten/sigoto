@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>メニュー生成ツール（PDF修正版）</title>
+<title>メニュー生成ツール（CSV/XLSX 読込改良版）</title>
 <style>
 :root{
   --bg:#f3f4f6; --panel:#ffffff; --muted:#6b7280; --accent:#1f6feb;
@@ -32,8 +32,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 .preview-wrap{margin-top:12px;padding:12px;background:#fff;border-radius:8px;border:1px solid #eee}
 #printArea{display:none}
 
-/* プレビュー領域：A4 幅に合わせるため、印刷時とPDF作成時に安定する幅を用意 */
-/* layout width will be toggled dynamically between portrait/landscape in script */
+/* プレビュー領域 */
 .menu-preview{margin:0 auto;padding:36px;border-radius:8px; background-size:cover; background-position:center; box-shadow:0 8px 30px rgba(2,6,23,0.06);}
 
 /* 内部コンテンツ */
@@ -59,7 +58,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 .modal .row{margin-top:8px}
 .ghost-sm{background:#fff;color:var(--accent);border:1px solid var(--accent);padding:6px 8px;border-radius:6px}
 
-/* 印刷時の安定指定（カテゴリはページ内で止める） */
+/* 印刷時の安定指定 */
 @media print{
   .menu-block{break-inside:avoid;page-break-inside:avoid}
   body *{visibility:hidden}
@@ -71,10 +70,10 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 <body>
 <div class="wrap">
   <div class="left">
-    <h2>メニュー編集・プレビュー（PDF改善版）</h2>
+    <h2>メニュー編集・プレビュー（CSV読み込み修正版）</h2>
 
     <div style="display:flex;gap:8px;align-items:center">
-      <span class="small">既存機能は変更せず、PDF出力のレイアウトを安定化しました。</span>
+      <span class="small">CSV / XLSX / XLS の読み込みを堅牢化しました。既存機能は変更していません。</span>
     </div>
 
     <div style="margin-top:12px" class="controls">
@@ -215,7 +214,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.min.js"></script>
 
 <script>
-/* --------- 既存ロジック（変更不可に準拠） ---------- */
+/* ---------- 既存ロジック（変更不可に準拠） ---------- */
 /* データ構造 */
 let state = { rows: [], categories: [] };
 let currentBg = null;
@@ -256,48 +255,175 @@ function renderBgPresets(){
 }
 renderBgPresets();
 
-/* パース（価格なし行をカテゴリとする） */
+/* ---------- ここを堅牢化した parseFile（CSV と Excel の読み込み不具合対策） ---------- */
+/*
+  ポイント:
+   - CSV: file.text() を試し、結果が文字化けぽければ shift_jis も試す（TextDecoder('shift_jis')）。
+   - XLSX / XLS: ArrayBuffer -> XLSX.read(array,'array') を優先。失敗したら binary string フォールバック。
+   - どのケースでも最終的に parseTextRowsWithCategories(lines) を呼ぶ。
+   - エラーは console に出力し、ユーザーに分かりやすいメッセージを表示。
+*/
 async function parseFile(file){
-  const name = file.name || '';
-  if(name.match(/\.csv$/i)){
-    const text = await file.text(); parseTextRowsWithCategories(text); renderRowList(); return;
-  }
-  const data = await file.arrayBuffer();
-  const wb = XLSX.read(data, {type:'array'});
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-  const lines = json.map(row=>row.join('\t')).join('\n');
-  parseTextRowsWithCategories(lines);
-  renderRowList();
-}
+  const name = (file && file.name) ? file.name.toLowerCase() : '';
 
-function parseTextRowsWithCategories(text){
-  const lines = text.split(/\r?\n/);
-  let currentCatId = null;
-  const newRows = [];
-  lines.forEach(line=>{
-    if(!line || /^\s*$/.test(line)) return;
-    const {name,price,raw} = extractPriceAndName(line);
-    if(price === null){
-      const cat = { id: uid('cat'), title: name || raw, rowIds: [] };
-      state.categories.push(cat);
-      currentCatId = cat.id;
-    } else {
-      const row = { id: uid('r'), raw, name, price, display:true, categoryId: currentCatId, selected:false };
-      newRows.push(row);
+  // Helper: try to decode ArrayBuffer as shift_jis (if TextDecoder supports)
+  function decodeArrayBufferWithFallback(ab){
+    try{
+      // try utf-8 first
+      const utf8 = new TextDecoder('utf-8').decode(ab);
+      // quick heuristic: if contains many replacement characters, try shift_jis
+      const replacements = (utf8.match(/\uFFFD/g) || []).length;
+      if(replacements > 0){
+        // try shift_jis if supported
+        try{
+          const sjis = new TextDecoder('shift_jis').decode(ab);
+          return sjis;
+        }catch(e){
+          // shift_jis not supported, fallback to iso-8859-1-like decoding to preserve bytes
+          return utf8;
+        }
+      } else {
+        return utf8;
+      }
+    }catch(e){
+      // fallback: try shift_jis directly
+      try{
+        return new TextDecoder('shift_jis').decode(ab);
+      }catch(err){
+        // last resort: binary to string via fromCharCode
+        const uint8 = new Uint8Array(ab);
+        let s = '';
+        for(let i=0;i<uint8.length;i++){
+          s += String.fromCharCode(uint8[i]);
+        }
+        return s;
+      }
     }
-  });
-  if(newRows.length>0 && state.categories.length===0){
-    const def = { id: 'cat-unc', title: '未分類', rowIds: [] }; state.categories.push(def);
-    newRows.forEach(r=> r.categoryId = def.id);
   }
-  state.rows = state.rows.concat(newRows);
-  state.categories.forEach(c=> c.rowIds = []);
-  state.rows.forEach(r=>{
-    const cat = state.categories.find(c=>c.id===r.categoryId) || state.categories[0];
-    if(cat){ r.categoryId = cat.id; cat.rowIds.push(r.id); }
-  });
+
+  // CSV handling
+  if(name.endsWith('.csv')){
+    // Try file.text() first (modern browsers)
+    try{
+      if(typeof file.text === 'function'){
+        let txt = await file.text();
+        // Heuristic: if many � replacement chars, try shift_jis
+        const repl = (txt.match(/\uFFFD/g) || []).length;
+        if(repl > 0){
+          // try ArrayBuffer -> TextDecoder shift_jis
+          try{
+            const ab = await (file.arrayBuffer ? file.arrayBuffer() : new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=e=>res(e.target.result); fr.onerror=rej; fr.readAsArrayBuffer(file); }));
+            const decoded = decodeArrayBufferWithFallback(ab);
+            parseTextRowsWithCategories(decoded);
+            renderRowList();
+            return;
+          }catch(err){
+            // fall through to use txt as-is
+            console.warn('shift_jis decode failed, using text():', err);
+            parseTextRowsWithCategories(txt);
+            renderRowList();
+            return;
+          }
+        } else {
+          parseTextRowsWithCategories(txt);
+          renderRowList();
+          return;
+        }
+      } else {
+        // no file.text(), fall back to FileReader readAsText
+        throw new Error('file.text not available');
+      }
+    }catch(e){
+      // fallback: read as ArrayBuffer and attempt decoding (utf-8 then shift_jis)
+      try{
+        const ab = await (file.arrayBuffer ? file.arrayBuffer() : new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=e=>res(e.target.result); fr.onerror=rej; fr.readAsArrayBuffer(file); }));
+        const decoded = decodeArrayBufferWithFallback(ab);
+        parseTextRowsWithCategories(decoded);
+        renderRowList();
+        return;
+      }catch(err){
+        console.error('CSV read fallback failed', err);
+        alert('CSVファイルの読み込みに失敗しました。文字コードが Shift_JIS の可能性があります。ブラウザの UTF-8 対応を確認してください。');
+        return;
+      }
+    }
+  }
+
+  // Excel handling (.xlsx, .xls, .xlsm, .xlsb)
+  if(name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm') || name.endsWith('.xlsb')){
+    // Try ArrayBuffer first
+    let arrayBuffer = null;
+    if(typeof file.arrayBuffer === 'function'){
+      try{
+        arrayBuffer = await file.arrayBuffer();
+      }catch(err){
+        arrayBuffer = null;
+      }
+    }
+    if(arrayBuffer){
+      try{
+        const wb = XLSX.read(arrayBuffer, {type:'array'});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+        const lines = json.map(row=>row.join('\t')).join('\n');
+        parseTextRowsWithCategories(lines);
+        renderRowList();
+        return;
+      }catch(err){
+        console.warn('XLSX read(array) failed, falling back to binary read', err);
+      }
+    }
+    // Fallback: read as binary string or arrayBuffer via FileReader
+    try{
+      const data = await new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = e => resolve(e.target.result);
+        fr.onerror = e => reject(e);
+        // prefer readAsBinaryString if available for older .xls
+        if(typeof fr.readAsBinaryString === 'function'){
+          fr.readAsBinaryString(file);
+        } else {
+          fr.readAsArrayBuffer(file);
+        }
+      });
+      // Try binary
+      try{
+        // If ArrayBuffer was returned, data is ArrayBuffer; if binary string, data is string.
+        let wb;
+        if(data instanceof ArrayBuffer){
+          wb = XLSX.read(new Uint8Array(data), {type:'array'});
+        } else {
+          wb = XLSX.read(data, {type:'binary'});
+        }
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+        const lines = json.map(row=>row.join('\t')).join('\n');
+        parseTextRowsWithCategories(lines);
+        renderRowList();
+        return;
+      }catch(err){
+        console.error('SheetJS binary read failed', err);
+        alert('Excelファイルの読み込みに失敗しました。ファイルが破損しているか、ブラウザが対応していない可能性があります。');
+        return;
+      }
+    }catch(err){
+      console.error('FileReader fallback failed for Excel', err);
+      alert('Excelファイルの読み込みに失敗しました。ブラウザのファイルAPIに問題がある可能性があります。');
+      return;
+    }
+  }
+
+  // Other files: try as text
+  try{
+    const txt = await (typeof file.text === 'function' ? file.text() : new Promise((res, rej)=>{ const fr=new FileReader(); fr.onload=e=>res(e.target.result); fr.onerror=rej; fr.readAsText(file); }));
+    parseTextRowsWithCategories(txt);
+    renderRowList();
+  }catch(e){
+    alert('このファイルは読み込めませんでした。拡張子を確認してください。');
+    console.error(e);
+  }
 }
+/* ---------- ここまで parseFile の堅牢版 ---------- */
 
 /* レンダリング（行一覧 + カテゴリ右パネル） */
 function renderRowList(){ /* 実装は既存機能を維持 */
@@ -404,7 +530,7 @@ document.getElementById('editCancel').addEventListener('click', ()=>{ editingRow
 document.getElementById('editSave').addEventListener('click', ()=>{ if(!editingRowId) return; const r = state.rows.find(x=>x.id===editingRowId); if(!r) return; const newName=document.getElementById('editName').value.trim(); const newPriceRaw=document.getElementById('editPrice').value.trim(); const newCat=document.getElementById('editCat').value || null; if(newPriceRaw===''){ const title=newName||r.raw||'新しいカテゴリ'; const cat={id:uid('cat'),title:title,rowIds:[]}; state.rows = state.rows.filter(rr=> rr.id !== editingRowId); state.categories.push(cat); syncCategoriesFromRows(); editingRowId=null; document.getElementById('editModal').classList.add('hidden'); renderRowList(); alert('価格が空のため新しいカテゴリを作成しました。必要に応じてメニューをドラッグで移し替えてください。'); return; } r.name = newName || r.name; const v=newPriceRaw.replace(/[^\d]/g,''); r.price = v === '' ? null : Number(v); r.categoryId = newCat || r.categoryId; syncCategoriesFromRows(); editingRowId=null; document.getElementById('editModal').classList.add('hidden'); renderRowList(); });
 
 /* 背景処理 */
-function applyBackground(data){ currentBg = data; const preview=document.getElementById('menuPreview'); if(!preview) return; if(!data){ preview.style.backgroundImage=''; preview.style.backgroundColor=''; return; } if(data.startsWith('#')){ preview.style.backgroundImage=''; preview.style.backgroundColor=data; } else { preview.style.backgroundImage=`url(${data})`; preview.style.backgroundColor=''; } }
+function applyBackground(data){ currentBg = data; const preview=document.getElementById('menuPreview'); if(!preview) return; if(!data){ preview.style.backgroundImage=''; preview.style.backgroundColor=''; return; } if(data.startsWith('#')){ preview.style.backgroundImage=''; preview.style.backgroundColor=data; } else { preview.style.backgroundImage = `url(${data})`; preview.style.backgroundColor=''; } }
 document.getElementById('bgFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=ev=>applyBackground(ev.target.result); fr.readAsDataURL(f); e.target.value=''; });
 document.getElementById('btnLoadBg').addEventListener('click', async ()=>{ const url=document.getElementById('bgUrl').value.trim(); if(!url) return alert('URLを入力してください'); try{ const res=await fetch(url); if(!res.ok) throw new Error('取得失敗'); const blob=await res.blob(); const fr=new FileReader(); fr.onload=e=>applyBackground(e.target.result); fr.readAsDataURL(blob); }catch(err){ alert('背景画像のダウンロードに失敗しました'); } });
 document.getElementById('btnClearBg').addEventListener('click', ()=>applyBackground(null));
@@ -416,12 +542,10 @@ function showPreview(){
   const preview = document.getElementById('menuPreview');
   const colCount = Number(document.getElementById('colCount').value || 2);
   const orientation = document.getElementById('orientation').value || 'portrait';
-  // A4 に近い固定幅を与える（px）。横向きは広めに
   const portraitWidth = 794; // 210mm@96dpi ≈ 794px
   const landscapeWidth = 1123; // 297mm@96dpi ≈ 1123px
   preview.style.width = (orientation==='landscape' ? landscapeWidth : portraitWidth) + 'px';
   preview.style.padding = '28px';
-  // Build inner HTML with menu-block wrappers to help page-break rules
   let html = `<div class="menu-inner" style="display:grid;grid-template-columns:repeat(${colCount},1fr);gap:18px">`;
   const blocks = [];
   state.categories.forEach(cat=>{
@@ -434,7 +558,6 @@ function showPreview(){
     block += `</div>`;
     blocks.push(block);
   });
-  // distribute blocks across columns (keep block atomic)
   const cols = Array.from({length:colCount}, ()=>''); let idx=0;
   blocks.forEach(b=>{ cols[idx]+=b; idx=(idx+1)%colCount; });
   cols.forEach(c=> html += `<div>${c || ''}</div>`);
@@ -454,7 +577,7 @@ function exportXLSX(){ const wb=XLSX.utils.book_new(); const out=[]; state.categ
 function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
 /* バインド（既存ボタン） */
-document.getElementById('btnParse').addEventListener('click', async ()=>{ const fi=document.getElementById('fileInput'); const area=document.getElementById('pasteArea').value.trim(); if(fi.files.length>0){ try{ await parseFile(fi.files[0]); fi.value=''; renderRowList(); }catch(err){ console.error(err); alert('ファイル読み込みに失敗しました'); } } else if(area){ parseTextRowsWithCategories(area); renderRowList(); } else alert('Excelファイルを選択するか、テキストを貼り付けてください'); });
+document.getElementById('btnParse').addEventListener('click', async ()=>{ const fi=document.getElementById('fileInput'); const area=document.getElementById('pasteArea').value.trim(); if(fi.files.length>0){ try{ await parseFile(fi.files[0]); fi.value=''; renderRowList(); }catch(err){ console.error(err); alert('ファイル読み込みに失敗しました'); } } else if(area){ parseTextRowsWithCategories(area); renderRowList(); } else alert('Excel/CSVファイルを選択するか、テキストを貼り付けてください'); });
 document.getElementById('fileInput').addEventListener('change', async e=>{ if(e.target.files.length){ try{ await parseFile(e.target.files[0]); renderRowList(); }catch(err){ alert('読み込み失敗'); } e.target.value=''; } });
 document.getElementById('btnClear').addEventListener('click', ()=>{ if(!confirm('全データをクリアしますか？')) return; state.rows=[]; state.categories=[]; currentBg=null; applyBackground(null); renderRowList(); });
 document.getElementById('btnAutoGroup').addEventListener('click', ()=>{ autoGroupByKeywords(); renderRowList(); });
@@ -476,27 +599,11 @@ document.getElementById('btnUngroup').addEventListener('click', ()=>{ const sel=
 /* JSON load trigger */
 document.getElementById('jsonLoad').addEventListener('change', e=>{ if(e.target.files.length) handleJSONLoad(e.target.files[0]); e.target.value=''; });
 
-/* 背景関連バインド（既存） already bound above */
-
 /* 自動分類（既存） */
 function autoGroupByKeywords(){ const rules=[{k:'ラーメン',title:'麺類'},{k:'そば',title:'麺類'},{k:'焼きそば',title:'麺類'},{k:'デザート',title:'デザート'},{k:'お子様',title:'セット'},{k:'セット',title:'セット'},{k:'冷麺',title:'冷麺・旬'},{k:'丼',title:'丼物'},{k:'チャーシュー',title:'麺類'}]; rules.forEach(rule=>{ let cat=state.categories.find(c=>c.title===rule.title); if(!cat){ cat={id:uid('cat'),title:rule.title,rowIds:[]}; state.categories.push(cat); } state.rows.forEach(r=>{ if(!r.categoryId && r.name && r.name.indexOf(rule.k)!==-1) assignRowToCategory(r.id, cat.id); }); }); let def=state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.unshift(def); } state.rows.forEach(r=>{ if(!r.categoryId){ r.categoryId=def.id; def.rowIds.push(r.id); } }); }
 
-/* ---------- PDF出力改善（ここが追加の核心） ---------- */
-
-/*
-  ボタン:
-   - #btnSavePDF : 既存の単一イメージPDFとして保存（互換維持）
-   - #btnSavePDFPaged : A4分割（カテゴリを優先してページ分割）して保存（追加）
-  
-  実装方針:
-   - プレビュー領域を先に showPreview() で A4 相当の幅にしてレンダリングする
-   - CSSでカテゴリブロック（.menu-block）に page-break-inside: avoid を付ける
-   - html2pdf の pagebreak オプションを {mode:'css', before:'.menu-category'} 等で制御
-   - html2canvas scale を高めにして文字の重なりを解消
-*/
-
+/* ---------- PDF出力（既存） ---------- */
 document.getElementById('btnSavePDF').addEventListener('click', async ()=>{
-  // 互換性維持: 単一イメージPDFの既存動作（改良は最小限）
   showPreview();
   await new Promise(r=>setTimeout(r,300));
   const element = document.getElementById('menuPreview');
@@ -514,15 +621,11 @@ document.getElementById('btnSavePDF').addEventListener('click', async ()=>{
 });
 
 document.getElementById('btnSavePDFPaged').addEventListener('click', async ()=>{
-  // A4 分割出力（カテゴリを優先してページ分割）
   showPreview();
-  await new Promise(r=>setTimeout(r,350)); // レンダリング待ち
+  await new Promise(r=>setTimeout(r,350));
   const element = document.getElementById('menuPreview');
   if(!element) return alert('プレビューがありません。先に「プレビュー表示」を押してください。');
-
-  // 重要: 見た目（幅）を A4 に合わせて確実に保持
   const orientation = document.getElementById('orientation').value === 'landscape' ? 'landscape' : 'portrait';
-  // html2pdf pagebreak options: use CSS as primary guide, and also set before selector to force breaks before big sections when necessary
   const opt = {
     margin:       [12,12,12,12],
     filename:     'menu-preview-paged.pdf',
@@ -531,11 +634,7 @@ document.getElementById('btnSavePDFPaged').addEventListener('click', async ()=>{
     jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation },
     pagebreak:    { mode: ['css', 'legacy'], before: '.menu-category', avoid: ['.menu-block'] }
   };
-
   try{
-    // html2pdf は CSS の page-break-* と pagebreak オプションを組み合わせてページ分割します。
-    // カテゴリブロック .menu-block に page-break-inside: avoid を指定してあるので、
-    // できるだけカテゴリ単位で切り分けられます。分割が必要な場合は自動でページを追加します。
     html2pdf().set(opt).from(element).save();
   }catch(err){
     console.error(err);
@@ -547,6 +646,36 @@ document.getElementById('btnSavePDFPaged').addEventListener('click', async ()=>{
 renderBgPresets();
 renderRowList();
 
+/* 追加で利用する小関数（既存の parseTextRowsWithCategories を使用） */
+/* コピー： parseTextRowsWithCategories の既存実装（読み込み→カテゴリ変換） */
+function parseTextRowsWithCategories(text){
+  const lines = text.split(/\r?\n/);
+  let currentCatId = null;
+  const newRows = [];
+  lines.forEach(line=>{
+    if(!line || /^\s*$/.test(line)) return;
+    const {name,price,raw} = extractPriceAndName(line);
+    if(price === null){
+      const cat = { id: uid('cat'), title: name || raw, rowIds: [] };
+      state.categories.push(cat);
+      currentCatId = cat.id;
+    } else {
+      const row = { id: uid('r'), raw, name, price, display:true, categoryId: currentCatId, selected:false };
+      newRows.push(row);
+    }
+  });
+  if(newRows.length>0 && state.categories.length===0){
+    const def = { id: 'cat-unc', title: '未分類', rowIds: [] }; state.categories.push(def);
+    newRows.forEach(r=> r.categoryId = def.id);
+  }
+  state.rows = state.rows.concat(newRows);
+  state.categories.forEach(c=> c.rowIds = []);
+  state.rows.forEach(r=>{
+    const cat = state.categories.find(c=>c.id===r.categoryId) || state.categories[0];
+    if(cat){ r.categoryId = cat.id; cat.rowIds.push(r.id); }
+  });
+  renderRowList();
+}
 </script>
 </body>
 </html>
