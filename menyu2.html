@@ -42,10 +42,13 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 .menu-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px dashed rgba(0,0,0,0.06);align-items:center; font-size:16px}
 .menu-name{font-size:20px;font-weight:900}
 .menu-price{font-size:18px;font-weight:900}
+.menu-spacer{height:16px; page-break-after: avoid; break-after: avoid;} /* 空欄表示用CSS */
 
 /* 行アイテム、ドラッグ系（既存機能保持） */
 .row-drag-handle{cursor:grab;padding:6px;border-radius:6px;background:#f8fafc;border:1px solid #eef2ff}
-.draggable-row{background:#fff;border-radius:6px;padding:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #f1f5f9}
+.draggable-row{background:#fff;border-radius:6px;padding:8px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #f1f5f9; cursor:pointer;}
+.draggable-row.selected{border:2px solid var(--accent); background:#f0f8ff;}
+.draggable-row.spacer-row{border:1px solid #e5e7eb; background:#f9fafb; height: 32px; padding: 4px 8px; justify-content: start; font-size: 13px; color: var(--muted);}
 .row-left{display:flex;gap:12px;align-items:center;flex:1}
 .row-title{font-weight:700}
 .small-muted{font-size:12px;color:var(--muted)}
@@ -80,7 +83,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
       <div class="group">
         <label>Excel / CSV 読込 (.xlsx .xls .csv)</label>
         <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
-        <div class="note">または下のテキストに貼り付け（行毎 / タブ区切り可）。価格が無い行はカテゴリ見出しになります。</div>
+        <div class="note">または下のテキストに貼り付け（行毎 / タブ区切り可）。価格が無い行はカテゴリ見出しになります。**品名も価格も無い行は空欄として扱われます。**</div>
         <textarea id="pasteArea" placeholder="例: 五目焼きそば[TAB]850 を行ごとに貼り付け"></textarea>
         <div style="margin-top:8px" class="btns">
           <button id="btnParse">読み込む</button>
@@ -108,13 +111,13 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
         <label>メニュー追加</label>
         <div style="display:flex;gap:8px;margin-top:6px">
           <input type="text" id="newMenuName" placeholder="品名を入力" />
-          <input type="text" id="newMenuPrice" placeholder="価格（空白でカテゴリ見出し）" style="width:120px" />
+          <input type="text" id="newMenuPrice" placeholder="価格（空白でカテゴリ見出し/空欄）" style="width:120px" />
         </div>
         <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
           <select id="newMenuCat" style="flex:1"><option value="">（カテゴリを選択）</option></select>
           <button id="btnAddMenu" class="ghost">追加</button>
         </div>
-        <div class="note">価格を空白にすると「新しいカテゴリ見出し」として追加されます</div>
+        <div class="note">価格を空白にし品名も空白にすると「空欄」として追加されます</div>
       </div>
 
       <div class="group">
@@ -155,7 +158,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 
     <div class="table-area" style="margin-top:12px">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <div class="small">読み込みプレビュー（クリックで選択、ドラッグで移動）</div>
+        <div class="small">読み込みプレビュー（**クリックで選択/解除**、ドラッグで移動）</div>
         <div class="small">編集で価格を空にするとカテゴリになります</div>
       </div>
       <div id="rowsContainer" style="margin-top:8px;max-height:420px;overflow:auto"></div>
@@ -179,7 +182,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
     <div style="margin-top:12px;display:flex;gap:8px">
       <button id="btnGroupByKeyword" class="ghost">キーワードで一括割当</button>
       <button id="btnUngroup" class="ghost">選択解除</button>
-    </div>
+      <button id="btnBulkMove" class="ghost">一括移動</button> </div>
 
     <div class="preview-wrap" style="margin-top:12px">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -206,6 +209,19 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
   </div>
 </div>
 
+<div id="bulkMoveModal" class="modal hidden" role="dialog" aria-hidden="true">
+  <h3>選択メニューの一括移動</h3>
+  <div class="row">
+    <label>移動先カテゴリ</label>
+    <select id="bulkMoveCat"></select>
+  </div>
+  <div style="margin-top:8px" class="small" id="bulkMoveCount"></div>
+  <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">
+    <button id="bulkMoveCancel" class="ghost-sm">キャンセル</button>
+    <button id="bulkMoveSave">移動</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -218,23 +234,33 @@ let state = { rows: [], categories: [] };
 let currentBg = null;
 function uid(prefix='id'){ return prefix+'-'+Math.random().toString(36).slice(2,9); }
 function toHalfWidth(s){ if(!s) return s; return s.replace(/[！-～]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/　/g,' '); }
+// 修正: name, priceが両方nullの場合、isSpacer: trueを返すように
 function extractPriceAndName(line){
-  if(!line) return { name:null, price:null, raw:'' };
+  if(!line) return { name:null, price:null, raw:'', isSpacer:true }; // 空行はスペーサー
   let raw = String(line).trim(); raw = raw.replace(/\r/g,'').replace(/\n/g,' ').trim(); raw = toHalfWidth(raw);
+  if (raw === '') return { name:null, price:null, raw:'', isSpacer:true }; // 空白のみの行もスペーサー
+  
   const priceRegex = /([￥¥]?\s*[\d,\.]+(?:\s*円)?\s*)$/u;
   const m = raw.match(priceRegex);
   if(m){
     let pricePart = m[1]; let digits = pricePart.replace(/[￥¥\s円,]/g,''); let priceNum = Number(digits);
     let name = raw.slice(0, m.index).trim(); if(!name) name = null;
     if(!Number.isFinite(priceNum)) priceNum = null;
-    return { name, price: priceNum, raw };
+    return { name, price: priceNum, raw, isSpacer:false };
   }
   const parts = raw.split(/\t|,|;/).map(p=>p.trim()).filter(Boolean);
   if(parts.length>1){
     let last = parts[parts.length-1]; let digits = last.replace(/[￥¥\s円,]/g,''); let priceNum = Number(digits);
-    if(Number.isFinite(priceNum)){ let name = parts.slice(0,parts.length-1).join(' '); return { name, price: priceNum, raw }; }
+    if(Number.isFinite(priceNum)){ let name = parts.slice(0,parts.length-1).join(' '); return { name, price: priceNum, raw, isSpacer:false }; }
   }
-  return { name: raw, price: null, raw };
+  
+  // 品名も価格も抽出できなかった場合（カテゴリ見出し、またはスペーサーの可能性）
+  if (raw && raw !== '') {
+    return { name: raw, price: null, raw, isSpacer:false }; // カテゴリ見出しと見なす
+  }
+
+  // 念のため、最終的に空行と判断
+  return { name:null, price:null, raw:'', isSpacer:true };
 }
 
 /* 背景プリセット */
@@ -253,13 +279,7 @@ function renderBgPresets(){
 }
 renderBgPresets();
 
-/* ---------- ファイル読み込みの堅牢版（バグ修正強化） ---------- */
-/*
-  修正点:
-   - CSV: file.text() → 文字化け検知で FileReader + TextDecoder('shift-jis') を試行。さらに FileReader.readAsText('shift-jis') で再フォールバック。
-   - Excel: ArrayBuffer 優先、失敗時は FileReader readAsArrayBuffer で再試行。
-   - 共通: すべてのエラーで詳細ログ出力 + ユーザー向けエラーメッセージ強化。
-*/
+/* ---------- ファイル読み込みの堅牢版（前回の修正を維持） ---------- */
 async function parseFile(file){
   if (!file) {
     alert('ファイルが選択されていません。');
@@ -267,17 +287,13 @@ async function parseFile(file){
   }
   const name = file.name.toLowerCase();
 
-  // 共通ヘルパー: ArrayBuffer をテキストにデコード（UTF-8 → Shift_JIS → Binary fallback）
   async function decodeBufferToText(ab, isCSV = false) {
     try {
-      // 1. UTF-8 試行
       let text = new TextDecoder('utf-8').decode(ab);
-      // 文字化け検知（ の多さ）
       const replacementCount = (text.match(/\uFFFD/g) || []).length;
-      if (replacementCount > text.length * 0.05) { // 5% 以上が なら Shift_JIS 試行
+      if (replacementCount > text.length * 0.05) {
         console.log('UTF-8で文字化けを検知。Shift_JISを試行します。');
         try {
-          // 2. Shift_JIS 試行 (TextDecoder)
           text = new TextDecoder('shift_jis').decode(ab);
           console.log('Shift_JIS デコード成功');
           return text;
@@ -289,10 +305,8 @@ async function parseFile(file){
     } catch (utfErr) {
       console.warn('UTF-8 デコード失敗、Shift_JIS 試行:', utfErr);
       try {
-        // 3. Shift_JIS 試行 (TextDecoder - UTF-8失敗時)
         return new TextDecoder('shift_jis').decode(ab);
       } catch (finalErr) {
-        // 4. 最終フォールバック: 生バイトを文字列化 (バイナリ文字列)
         const uint8 = new Uint8Array(ab);
         let text = '';
         for (let i = 0; i < uint8.length; i++) {
@@ -309,7 +323,6 @@ async function parseFile(file){
       let text;
       let errorReason = '';
 
-      // 1. file.text() 試行 (UTF-8)
       try {
         if (typeof file.text === 'function') {
           text = await file.text();
@@ -325,32 +338,28 @@ async function parseFile(file){
         console.warn('UTF-8 読み込み失敗、Shift_JIS で再試行:', textErr.message);
         errorReason = 'Shift_JIS';
 
-        // 2. FileReader.readAsText('shift_jis') 試行
         try {
           text = await new Promise((resolve, reject) => {
             const fr = new FileReader();
             fr.onload = (e) => resolve(e.target.result);
             fr.onerror = (e) => reject(new Error(`Shift_JIS 読み込みエラー: ${e.target.error.message}`));
-            // ここで Shift_JIS を明示的に指定
             fr.readAsText(file, 'shift_jis'); 
           });
         } catch (sjisReadErr) {
           console.error('Shift_JIS 読み込みにも失敗、ArrayBuffer経由で最終フォールバック:', sjisReadErr);
           errorReason = 'ArrayBuffer Fallback';
-          // 3. ArrayBuffer 経由のフォールバック
           const ab = await file.arrayBuffer();
           text = await decodeBufferToText(ab, true);
         }
       }
       
-      // 最終検証
       if (!text || text.trim() === '') {
         throw new Error('ファイルが空またはデータが無効です');
       }
       
       console.log(`CSV読み込み成功 (${errorReason})`);
       parseTextRowsWithCategories(text);
-      renderRowList();
+      // renderRowList() は parseTextRowsWithCategories の中で呼び出される
       return;
     }
 
@@ -358,7 +367,6 @@ async function parseFile(file){
     if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.xlsm') || name.endsWith('.xlsb')) {
       let data;
       try {
-        // ArrayBuffer 優先
         data = await file.arrayBuffer();
       } catch (abErr) {
         console.warn('arrayBuffer() 失敗、FileReader で再試行:', abErr);
@@ -372,12 +380,9 @@ async function parseFile(file){
 
       let wb;
       try {
-        // XLSX.read 試行
         wb = XLSX.read(data, { type: 'array' });
       } catch (readErr) {
         console.warn('XLSX.read(array) 失敗、binary フォールバック:', readErr);
-        // Binary string として再試行
-        // data が ArrayBuffer の場合のみ btoa を使用
         const binaryStr = typeof data === 'string' ? data : btoa(String.fromCharCode.apply(null, new Uint8Array(data)));
         wb = XLSX.read(binaryStr, { type: 'binary' });
       }
@@ -387,20 +392,21 @@ async function parseFile(file){
         throw new Error('シートが見つかりません');
       }
       const ws = wb.Sheets[wsName];
-      // raw: false, defval: '' で文字列を優先し、空白を''で処理
       const json = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' }); 
       
       const lines = json
-        .filter(row => row.some(cell => cell !== '' && cell != null)) // 空行除去
-        .map(row => row.map(cell => String(cell).trim()).join('\t')) // すべてをタブ区切りで結合
+        .map(row => row.map(cell => String(cell).trim()).join('\t')) // 空行も含むすべての行を結合
         .join('\n');
 
-      if (!lines.trim()) {
-        throw new Error('有効なデータがありません');
+      if (!lines.trim() && lines.split('\n').every(l => l.trim() === '')) {
+         // Excelが完全に空行で構成されている場合、読み込み自体は成功とみなし、空のメニューリストで続行
+         parseTextRowsWithCategories(lines);
+         // renderRowList() は parseTextRowsWithCategories の中で呼び出される
+         return;
       }
 
       parseTextRowsWithCategories(lines);
-      renderRowList();
+      // renderRowList() は parseTextRowsWithCategories の中で呼び出される
       return;
     }
 
@@ -416,7 +422,7 @@ async function parseFile(file){
         })
       );
       parseTextRowsWithCategories(text);
-      renderRowList();
+      // renderRowList() は parseTextRowsWithCategories の中で呼び出される
     } catch (err) {
       console.error('テキスト読み込み失敗:', err);
       alert('このファイル形式はサポートされていません。CSV または Excel を使用してください。');
@@ -436,7 +442,7 @@ async function parseFile(file){
 }
 
 /* レンダリング（行一覧 + カテゴリ右パネル） */
-function renderRowList(){ /* 実装は既存機能を維持 */
+function renderRowList(){ 
   const container = document.getElementById('rowsContainer');
   container.innerHTML = '';
   refreshCategorySelects();
@@ -453,12 +459,37 @@ function renderRowList(){ /* 実装は既存機能を維持 */
     list.addEventListener('drop', e=>{ e.preventDefault(); list.style.background='#fff'; const payload = e.dataTransfer.getData('text/plain'); if(!payload) return; if(payload.startsWith('row:')){ const rowId = payload.slice(4); assignRowToCategory(rowId, cat.id, null); } });
     cat.rowIds.forEach((rid, idx)=>{
       const r = state.rows.find(x=>x.id===rid); if(!r) return;
-      const item = document.createElement('div'); item.className='draggable-row'; item.draggable=true; item.dataset.id=r.id;
-      item.innerHTML = `<div class="row-left"><div class="row-drag-handle" title="ドラッグで移動">☰</div><div><div class="row-title">${escapeHtml(r.name || r.raw)}</div><div class="small-muted">${escapeHtml(r.raw)}</div></div></div><div style="display:flex;align-items:center;gap:8px"><div style="text-align:right"><div class="menu-price">¥${r.price===null?'':r.price}</div></div><div style="display:flex;gap:6px"><button class="ghost btn-edit-row" data-id="${r.id}">編集</button><button class="ghost btn-delete-row" data-id="${r.id}">削除</button></div></div>`;
+      
+      const item = document.createElement('div'); 
+      item.className='draggable-row'; 
+      item.draggable=true; 
+      item.dataset.id=r.id;
+
+      // スペーサー行の表示を調整
+      if (r.isSpacer) {
+        item.className += ' spacer-row';
+        item.innerHTML = `<div class="row-left"><div class="row-drag-handle" title="ドラッグで移動">☰</div><div>[空欄]</div></div>
+                          <div style="display:flex;align-items:center;gap:6px">
+                            <button class="ghost btn-edit-row" data-id="${r.id}">編集</button>
+                            <button class="ghost btn-delete-row" data-id="${r.id}">削除</button>
+                          </div>`;
+      } else {
+        item.innerHTML = `<div class="row-left"><div class="row-drag-handle" title="ドラッグで移動">☰</div><div><div class="row-title">${escapeHtml(r.name || r.raw)}</div><div class="small-muted">${escapeHtml(r.raw)}</div></div></div><div style="display:flex;align-items:center;gap:8px"><div style="text-align:right"><div class="menu-price">¥${r.price===null?'':r.price}</div></div><div style="display:flex;gap:6px"><button class="ghost btn-edit-row" data-id="${r.id}">編集</button><button class="ghost btn-delete-row" data-id="${r.id}">削除</button></div></div>`;
+      }
+
+      // 選択/解除機能を追加
+      if (r.selected) { item.classList.add('selected'); }
+      item.addEventListener('click', (e) => {
+        if (!e.target.closest('button')) {
+          r.selected = !r.selected;
+          renderRowList();
+        }
+      });
+
       item.addEventListener('dragstart', e=>{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', 'row:'+r.id); });
       item.addEventListener('dragover', e=>{ e.preventDefault(); item.style.border='2px dashed #cfe9ff'; });
-      item.addEventListener('dragleave', e=>{ item.style.border=''; });
-      item.addEventListener('drop', e=>{ e.preventDefault(); item.style.border=''; const payload = e.dataTransfer.getData('text/plain'); if(!payload) return; if(payload.startsWith('row:')){ const rowId = payload.slice(4); assignRowToCategory(rowId, cat.id, r.id); } });
+      item.addEventListener('dragleave', e=>{ item.style.border=r.selected ? '2px solid var(--accent)' : ''; });
+      item.addEventListener('drop', e=>{ e.preventDefault(); item.style.border=r.selected ? '2px solid var(--accent)' : ''; const payload = e.dataTransfer.getData('text/plain'); if(!payload) return; if(payload.startsWith('row:')){ const rowId = payload.slice(4); assignRowToCategory(rowId, cat.id, r.id); } });
       item.querySelector('.btn-delete-row').addEventListener('click', ()=>{ if(!confirm('このメニューを削除しますか？')) return; deleteRowById(r.id); });
       item.querySelector('.btn-edit-row').addEventListener('click', ()=>{ openEditModal(r.id); });
       list.appendChild(item);
@@ -468,6 +499,9 @@ function renderRowList(){ /* 実装は既存機能を維持 */
     wrap.querySelector('.btn-delete-cat').addEventListener('click', ()=>{ if(!confirm('カテゴリを削除します。カテゴリ内のメニューは未分類になります。')) return; const catId = cat.id; let def = state.categories.find(c=>c.id==='cat-unc'); if(!def){ def = { id:'cat-unc', title:'未分類', rowIds:[] }; state.categories.push(def); } const moving = cat.rowIds.slice(); moving.forEach(rid=>{ const rr = state.rows.find(rrr=>rrr.id===rid); if(rr) rr.categoryId = def.id; def.rowIds.push(rid); }); state.categories = state.categories.filter(c=>c.id!==catId); syncCategoriesFromRows(); renderRowList(); });
   });
   renderCatList();
+  // --- ⭐ 追加部分 (1/2) ⭐ ---
+  showPreview(); // 即時プレビュー更新
+  // --- ⭐ 追加部分 (1/2) ⭐ ---
 }
 
 /* カテゴリ右パネル描画（ドラッグ並び替え有効） */
@@ -502,10 +536,30 @@ function reorderCategories(srcId, destId){
 function refreshCategorySelects(){
   const sel = document.getElementById('newMenuCat');
   const editSel = document.getElementById('editCat');
+  const bulkSel = document.getElementById('bulkMoveCat'); // 追加
+  
+  // --- ⭐ 追加部分 (2/2) ⭐ ---
+  // 現在の選択値を保持
+  const currentNewMenuCat = sel.value;
+  // --- ⭐ 追加部分 (2/2) ---
+  
   sel.innerHTML = '<option value="">（カテゴリを選択）</option>';
   if(editSel) editSel.innerHTML = '';
-  state.categories.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.title; sel.appendChild(o); if(editSel){ const oe=document.createElement('option'); oe.value=c.id; oe.textContent=c.title; editSel.appendChild(oe); } });
-  if(state.categories.length===0){ const def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.push(def); refreshCategorySelects(); }
+  if(bulkSel) bulkSel.innerHTML = ''; // 追加
+  
+  state.categories.forEach(c=>{ 
+    const o=document.createElement('option'); o.value=c.id; o.textContent=c.title; sel.appendChild(o); 
+    if(editSel){ const oe=document.createElement('option'); oe.value=c.id; oe.textContent=c.title; editSel.appendChild(oe); } 
+    if(bulkSel){ const ob=document.createElement('option'); ob.value=c.id; ob.textContent=c.title; bulkSel.appendChild(ob); } // 追加
+  });
+  if(state.categories.length===0){ const def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.push(def); refreshCategorySelects(); return; }
+  
+  // --- ⭐ 追加部分 (2/2) ⭐ ---
+  // 保持していた選択値を戻す（存在する場合）
+  if (state.categories.find(c => c.id === currentNewMenuCat)) {
+      sel.value = currentNewMenuCat;
+  }
+  // --- ⭐ 追加部分 (2/2) ---
 }
 
 /* 行/カテゴリ操作ユーティリティ */
@@ -532,15 +586,129 @@ function deleteRowById(rowId){ state.rows = state.rows.filter(r=> r.id!==rowId);
 function syncCategoriesFromRows(){ state.categories.forEach(c=> c.rowIds = []); state.rows.forEach(r=>{ let cat = state.categories.find(c=>c.id===r.categoryId); if(!cat){ cat = state.categories[0]; r.categoryId = cat.id; } cat.rowIds.push(r.id); }); }
 
 /* メニュー追加 / 編集（モーダル） */
-document.getElementById('btnAddMenu').addEventListener('click', ()=>{ const name=document.getElementById('newMenuName').value.trim(); const priceRaw=document.getElementById('newMenuPrice').value.trim(); const catId=document.getElementById('newMenuCat').value || null; if(!name && priceRaw==='') return alert('品名または価格を入力してください'); if(priceRaw===''){ const cat={id:uid('cat'),title:name||'新しいカテゴリ',rowIds:[]}; state.categories.push(cat); syncCategoriesFromRows(); renderRowList(); document.getElementById('newMenuName').value=''; document.getElementById('newMenuPrice').value=''; return; } const priceNum=Number(priceRaw.replace(/[^\d]/g,'')); const row={id:uid('r'), raw: name + '\t' + priceRaw, name: name||null, price: Number.isFinite(priceNum)?priceNum:null, display:true, categoryId: catId, selected:false}; state.rows.push(row); if(!catId){ let def=state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.unshift(def); } row.categoryId=def.id; def.rowIds.push(row.id); } else { const cat = state.categories.find(c=>c.id===catId); if(cat) cat.rowIds.push(row.id); } document.getElementById('newMenuName').value=''; document.getElementById('newMenuPrice').value=''; renderRowList(); });
+document.getElementById('btnAddMenu').addEventListener('click', ()=>{ 
+  const name=document.getElementById('newMenuName').value.trim(); 
+  const priceRaw=document.getElementById('newMenuPrice').value.trim(); 
+  const catId=document.getElementById('newMenuCat').value || null; 
+  
+  // 最後に選択されたカテゴリIDを保持
+  const lastSelectedCatId = catId;
+
+  if(!name && priceRaw===''){
+    // 空欄追加
+    const row={id:uid('r'), raw: '', name: null, price: null, display:true, categoryId: catId, selected:false, isSpacer:true};
+    state.rows.push(row);
+    if(!catId){ let def=state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.unshift(def); } row.categoryId=def.id; def.rowIds.push(row.id); } 
+    else { const cat = state.categories.find(c=>c.id===catId); if(cat) cat.rowIds.push(row.id); } 
+    document.getElementById('newMenuName').value=''; 
+    document.getElementById('newMenuPrice').value=''; 
+    // カテゴリ選択を維持
+    document.getElementById('newMenuCat').value = lastSelectedCatId; 
+    renderRowList(); 
+    return;
+  }
+  
+  if(priceRaw===''){ 
+    // カテゴリ見出し追加
+    const cat={id:uid('cat'),title:name||'新しいカテゴリ',rowIds:[]}; state.categories.push(cat); 
+    syncCategoriesFromRows(); 
+    renderRowList(); 
+    document.getElementById('newMenuName').value=''; 
+    document.getElementById('newMenuPrice').value=''; 
+    // カテゴリ選択を維持
+    document.getElementById('newMenuCat').value = lastSelectedCatId; 
+    return; 
+  } 
+
+  // 通常メニュー追加
+  const priceNum=Number(priceRaw.replace(/[^\d]/g,'')); 
+  const row={id:uid('r'), raw: name + '\t' + priceRaw, name: name||null, price: Number.isFinite(priceNum)?priceNum:null, display:true, categoryId: catId, selected:false, isSpacer:false}; 
+  state.rows.push(row); 
+  if(!catId){ let def=state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.unshift(def); } row.categoryId=def.id; def.rowIds.push(row.id); } 
+  else { const cat = state.categories.find(c=>c.id===catId); if(cat) cat.rowIds.push(row.id); } 
+  document.getElementById('newMenuName').value=''; 
+  document.getElementById('newMenuPrice').value=''; 
+  // カテゴリ選択を維持
+  document.getElementById('newMenuCat').value = lastSelectedCatId; 
+  renderRowList(); 
+});
 
 let editingRowId = null;
-function openEditModal(rowId){ const r = state.rows.find(x=>x.id===rowId); if(!r) return; editingRowId=rowId; document.getElementById('editName').value = r.name || r.raw; document.getElementById('editPrice').value = r.price===null? '': String(r.price); refreshCategorySelects(); document.getElementById('editCat').value = r.categoryId || ''; document.getElementById('editModal').classList.remove('hidden'); }
+function openEditModal(rowId){ 
+  const r = state.rows.find(x=>x.id===rowId); if(!r) return; 
+  editingRowId=rowId; 
+  
+  if (r.isSpacer) {
+    // スペーサーの場合は品名・価格をクリアして編集を制限
+    document.getElementById('editName').value = '[空欄]';
+    document.getElementById('editPrice').value = '';
+    document.getElementById('editName').readOnly = true;
+    document.getElementById('editPrice').readOnly = true;
+  } else {
+    document.getElementById('editName').value = r.name || r.raw; 
+    document.getElementById('editPrice').value = r.price===null? '': String(r.price); 
+    document.getElementById('editName').readOnly = false;
+    document.getElementById('editPrice').readOnly = false;
+  }
+
+  refreshCategorySelects(); 
+  document.getElementById('editCat').value = r.categoryId || ''; 
+  document.getElementById('editModal').classList.remove('hidden'); 
+}
 document.getElementById('editCancel').addEventListener('click', ()=>{ editingRowId=null; document.getElementById('editModal').classList.add('hidden'); });
-document.getElementById('editSave').addEventListener('click', ()=>{ if(!editingRowId) return; const r = state.rows.find(x=>x.id===editingRowId); if(!r) return; const newName=document.getElementById('editName').value.trim(); const newPriceRaw=document.getElementById('editPrice').value.trim(); const newCat=document.getElementById('editCat').value || null; if(newPriceRaw===''){ const title=newName||r.raw||'新しいカテゴリ'; const cat={id:uid('cat'),title:title,rowIds:[]}; state.rows = state.rows.filter(rr=> rr.id !== editingRowId); state.categories.push(cat); syncCategoriesFromRows(); editingRowId=null; document.getElementById('editModal').classList.add('hidden'); renderRowList(); alert('価格が空のため新しいカテゴリを作成しました。必要に応じてメニューをドラッグで移し替えてください。'); return; } r.name = newName || r.name; const v=newPriceRaw.replace(/[^\d]/g,''); r.price = v === '' ? null : Number(v); r.categoryId = newCat || r.categoryId; syncCategoriesFromRows(); editingRowId=null; document.getElementById('editModal').classList.add('hidden'); renderRowList(); });
+document.getElementById('editSave').addEventListener('click', ()=>{ 
+  if(!editingRowId) return; 
+  const r = state.rows.find(x=>x.id===editingRowId); if(!r) return; 
+  const newName=document.getElementById('editName').value.trim(); 
+  const newPriceRaw=document.getElementById('editPrice').value.trim(); 
+  const newCat=document.getElementById('editCat').value || null; 
+
+  // スペーサーの場合はカテゴリ移動のみ
+  if (r.isSpacer) {
+    r.categoryId = newCat || r.categoryId;
+  } else if(newPriceRaw===''){ 
+    // カテゴリ化
+    const title=newName||r.raw||'新しいカテゴリ'; 
+    const cat={id:uid('cat'),title:title,rowIds:[]}; 
+    state.rows = state.rows.filter(rr=> rr.id !== editingRowId); 
+    state.categories.push(cat); 
+    syncCategoriesFromRows(); 
+    editingRowId=null; 
+    document.getElementById('editModal').classList.add('hidden'); 
+    renderRowList(); 
+    alert('価格が空のため新しいカテゴリを作成しました。必要に応じてメニューをドラッグで移し替えてください。'); 
+    return; 
+  } else {
+    // 通常メニューとして保存
+    r.name = newName || r.name; 
+    const v=newPriceRaw.replace(/[^\d]/g,''); 
+    r.price = v === '' ? null : Number(v); 
+    r.categoryId = newCat || r.categoryId; 
+  }
+
+  syncCategoriesFromRows(); 
+  editingRowId=null; 
+  document.getElementById('editModal').classList.add('hidden'); 
+  renderRowList(); 
+});
+
 
 /* 背景処理 */
-function applyBackground(data){ currentBg = data; const preview=document.getElementById('menuPreview'); if(!preview) return; if(!data){ preview.style.backgroundImage=''; preview.style.backgroundColor=''; return; } if(data.startsWith('#')){ preview.style.backgroundImage=''; preview.style.backgroundColor=data; } else { preview.style.backgroundImage = `url(${data})`; preview.style.backgroundColor=''; } }
+function applyBackground(data){ 
+  currentBg = data; 
+  const preview=document.getElementById('menuPreview'); 
+  if(!preview) return; 
+  if(!data){ 
+    preview.style.backgroundImage=''; preview.style.backgroundColor=''; 
+  } else if(data.startsWith('#')){ 
+    preview.style.backgroundImage=''; preview.style.backgroundColor=data; 
+  } else { 
+    preview.style.backgroundImage = `url(${data})`; preview.style.backgroundColor=''; 
+  } 
+  // --- ⭐ 追加部分 (1/2) ⭐ ---
+  showPreview(); // 背景変更時にもプレビュー更新
+  // --- ⭐ 追加部分 (1/2) ---
+}
 document.getElementById('bgFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=ev=>applyBackground(ev.target.result); fr.readAsDataURL(f); e.target.value=''; });
 document.getElementById('btnLoadBg').addEventListener('click', async ()=>{ const url=document.getElementById('bgUrl').value.trim(); if(!url) return alert('URLを入力してください'); try{ const res=await fetch(url); if(!res.ok) throw new Error('取得失敗'); const blob=await res.blob(); const fr=new FileReader(); fr.onload=e=>applyBackground(e.target.result); fr.readAsDataURL(blob); }catch(err){ alert('背景画像のダウンロードに失敗しました'); } });
 document.getElementById('btnClearBg').addEventListener('click', ()=>applyBackground(null));
@@ -563,7 +731,11 @@ function showPreview(){
     if(rows.length===0) return;
     let block = `<div class="menu-block"><div class="menu-category">${escapeHtml(cat.title)}</div>`;
     rows.forEach(r=>{
-      block += `<div class="menu-row"><div class="menu-name">${escapeHtml(r.name || r.raw)}</div><div class="menu-price">${r.price===null? '': '¥'+r.price}</div></div>`;
+      if (r.isSpacer) {
+        block += `<div class="menu-spacer"></div>`; // スペーサーを挿入
+      } else {
+        block += `<div class="menu-row"><div class="menu-name">${escapeHtml(r.name || r.raw)}</div><div class="menu-price">${r.price===null? '': '¥'+r.price}</div></div>`;
+      }
     });
     block += `</div>`;
     blocks.push(block);
@@ -574,7 +746,9 @@ function showPreview(){
   html += `</div>`;
   preview.innerHTML = html;
   document.getElementById('printArea').style.display = 'block';
-  preview.scrollIntoView({behavior:'smooth'});
+  // document.getElementById('btnPreviewSmall').classList.remove('ghost'); // 簡易表示ボタンの強調を解除
+  // document.getElementById('btnPreview').classList.remove('ghost');
+  // preview.scrollIntoView({behavior:'smooth'}); // 即時更新時はスクロールは不要
 }
 
 /* 保存 / 読込 / Export */
@@ -606,7 +780,33 @@ document.getElementById('btnUnselectAll').addEventListener('click', ()=>{ state.
 document.getElementById('btnGroupByKeyword').addEventListener('click', ()=>{ const kw=prompt('キーワード（含む）を入力: 例: ラーメン'); if(!kw) return; const title=prompt('割当先カテゴリ名を入力（既存と同名ならそのカテゴリに追加）:', kw+' のカテゴリ'); if(!title) return; let cat=state.categories.find(c=>c.title===title); if(!cat){ cat={id:uid('cat'),title, rowIds:[]}; state.categories.push(cat); } state.rows.forEach(r=>{ if(r.name && r.name.indexOf(kw)!==-1) assignRowToCategory(r.id, cat.id); }); renderRowList(); });
 document.getElementById('btnUngroup').addEventListener('click', ()=>{ const sel=state.rows.filter(r=> r.selected); if(sel.length===0) return alert('先に行を選択してください（クリックで選択）'); sel.forEach(r=>{ if(r.categoryId){ const old = state.categories.find(c=>c.id===r.categoryId); if(old) old.rowIds = old.rowIds.filter(id=>id!==r.id); r.categoryId = null; r.selected=false; } }); let def=state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.push(def); } state.rows.forEach(r=>{ if(!r.categoryId){ r.categoryId = def.id; def.rowIds.push(r.id); } }); renderRowList(); });
 
-/* JSON load trigger */
+// 一括移動ボタンのバインドとロジック (追加)
+document.getElementById('btnBulkMove').addEventListener('click', ()=>{
+  const selectedCount = state.rows.filter(r => r.selected).length;
+  if (selectedCount === 0) return alert('移動するメニューを選択してください。');
+
+  refreshCategorySelects();
+  document.getElementById('bulkMoveCount').textContent = `選択中のメニュー/空欄: ${selectedCount}件`;
+  document.getElementById('bulkMoveModal').classList.remove('hidden');
+});
+document.getElementById('bulkMoveCancel').addEventListener('click', ()=>{
+  document.getElementById('bulkMoveModal').classList.add('hidden');
+});
+document.getElementById('bulkMoveSave').addEventListener('click', ()=>{
+  const newCatId = document.getElementById('bulkMoveCat').value;
+  if (!newCatId) return alert('移動先カテゴリを選択してください。');
+
+  const selectedRows = state.rows.filter(r => r.selected);
+  selectedRows.forEach(r => {
+    assignRowToCategory(r.id, newCatId);
+    r.selected = false; // 移動後、選択を解除
+  });
+  
+  document.getElementById('bulkMoveModal').classList.add('hidden');
+  renderRowList();
+});
+
+// JSON load trigger
 document.getElementById('jsonLoad').addEventListener('change', e=>{ if(e.target.files.length) handleJSONLoad(e.target.files[0]); e.target.value=''; });
 
 /* 自動分類（既存） */
@@ -656,22 +856,31 @@ document.getElementById('btnSavePDFPaged').addEventListener('click', async ()=>{
 renderBgPresets();
 renderRowList();
 
-/* テキスト行解析（既存） */
+/* テキスト行解析（修正） */
 function parseTextRowsWithCategories(text){
-  const lines = text.split(/\r?\n/).filter(line => line.trim() !== ''); // 空行除去強化
+  const lines = text.split(/\r?\n/); // 空行も含むように修正
   let currentCatId = null;
   const newRows = [];
   lines.forEach(line=>{
-    const {name,price,raw} = extractPriceAndName(line);
-    if(price === null){
+    const {name,price,raw, isSpacer} = extractPriceAndName(line); // isSpacerを受け取る
+    
+    if(isSpacer){
+      // 空欄として追加
+      const row = { id: uid('r'), raw, name:null, price:null, display:true, categoryId: currentCatId, selected:false, isSpacer:true };
+      newRows.push(row);
+      // 空欄はカテゴリ見出しとしては扱わないため currentCatId は変更しない
+    } else if(price === null){
+      // カテゴリ見出し
       const cat = { id: uid('cat'), title: name || raw, rowIds: [] };
       state.categories.push(cat);
       currentCatId = cat.id;
     } else {
-      const row = { id: uid('r'), raw, name, price, display:true, categoryId: currentCatId, selected:false };
+      // 通常メニュー
+      const row = { id: uid('r'), raw, name, price, display:true, categoryId: currentCatId, selected:false, isSpacer:false };
       newRows.push(row);
     }
   });
+  
   if(newRows.length>0 && state.categories.length===0){
     const def = { id: 'cat-unc', title: '未分類', rowIds: [] }; state.categories.push(def);
     newRows.forEach(r=> r.categoryId = def.id);
@@ -684,6 +893,10 @@ function parseTextRowsWithCategories(text){
   });
   renderRowList();
 }
+
+/* レイアウト変更時のプレビュー更新 */
+document.getElementById('colCount').addEventListener('change', showPreview);
+document.getElementById('orientation').addEventListener('change', showPreview);
 </script>
 </body>
 </html>
