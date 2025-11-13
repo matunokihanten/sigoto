@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="ja">
 <head>
@@ -89,17 +88,12 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
         <div style="margin-top:8px" class="btns">
           <button id="btnParse">読み込む</button>
           <button id="btnClear" class="ghost">全クリア</button>
-          <button id="btnAutoGroup" class="ghost">自動カテゴリ推定</button>
         </div>
       </div>
 
       <div class="group">
-        <label>背景設定（画像 / URL / 7色プリセット）</label>
+        <label>背景設定（画像 / 7色プリセット）</label>
         <input type="file" id="bgFile" accept="image/*" />
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <input type="text" id="bgUrl" placeholder="画像URLを入力してダウンロード" />
-          <button id="btnLoadBg" class="ghost">ダウンロード</button>
-        </div>
         <div style="display:flex;gap:8px;margin-top:8px">
           <button id="btnClearBg" class="ghost">背景クリア</button>
           <button id="btnDownloadBg" class="ghost">背景をダウンロード</button>
@@ -118,7 +112,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
           <select id="newMenuCat" style="flex:1"><option value="">（カテゴリを選択）</option></select>
           <button id="btnAddMenu" class="ghost">追加</button>
         </div>
-        <div class="note">価格を空白にし品名も空白にすると「空欄」として追加されます</div>
+        <div class="note">価格を空白し品名も空白にすると「空欄」として追加されます</div>
       </div>
 
       <div class="group">
@@ -147,13 +141,12 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
       </div>
 
       <div class="group">
-        <label>プレビュー / 印刷 / PDF保存</label>
+        <label>プレビュー / 印刷 / 画像保存</label>
         <div style="display:flex;gap:8px;margin-top:6px">
           <button id="btnPreview" class="ghost">プレビュー表示</button>
           <button id="btnPrint" class="ghost">印刷</button>
-          <button id="btnSavePDF" class="ghost">PDF保存（単一ページイメージ）</button>
-          <button id="btnSavePDFPaged" class="ghost">PDF保存（A4 分割・カテゴリ優先）</button>
-          <button id="btnSaveImage" class="ghost">画像保存 (.png)</button> </div>
+          <button id="btnSaveImage" class="ghost">画像保存 (.png)</button>
+        </div>
       </div>
     </div>
 
@@ -225,8 +218,6 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.min.js"></script>
 
 <script>
 /* ---------- 既存ロジック（変更不可に準拠） ---------- */
@@ -265,7 +256,7 @@ function extractPriceAndName(line){
 }
 
 /* 背景プリセット */
-const BG_PRESETS = ['#fff7ed','#f5e9d4','#8b5e3c','#8aa16b','#3b5aa6','#46523b','#5a3725'];
+const BG_PRESETS = ['#f7efe2','#d9641a','#5c3a21','#7ba05b','#2b4b7c','#9aa0a6','#2b2b2b'];
 function renderBgPresets(){
   const cont = document.getElementById('bgPresets');
   cont.innerHTML = '';
@@ -500,9 +491,7 @@ function renderRowList(){
     wrap.querySelector('.btn-delete-cat').addEventListener('click', ()=>{ if(!confirm('カテゴリを削除します。カテゴリ内のメニューは未分類になります。')) return; const catId = cat.id; let def = state.categories.find(c=>c.id==='cat-unc'); if(!def){ def = { id:'cat-unc', title:'未分類', rowIds:[] }; state.categories.push(def); } const moving = cat.rowIds.slice(); moving.forEach(rid=>{ const rr = state.rows.find(rrr=>rrr.id===rid); if(rr) rr.categoryId = def.id; def.rowIds.push(rid); }); state.categories = state.categories.filter(c=>c.id!==catId); syncCategoriesFromRows(); renderRowList(); });
   });
   renderCatList();
-  // --- ⭐ 追加部分 (1/2) ⭐ ---
   showPreview(); // 即時プレビュー更新
-  // --- ⭐ 追加部分 (1/2) ⭐ ---
 }
 
 /* カテゴリ右パネル描画（ドラッグ並び替え有効） */
@@ -539,7 +528,6 @@ function refreshCategorySelects(){
   const editSel = document.getElementById('editCat');
   const bulkSel = document.getElementById('bulkMoveCat'); // 追加
   
-  // --- ⭐ 既存部分の修正を維持 ⭐ ---
   // 現在の選択値を保持
   const currentNewMenuCat = sel.value;
   // --- ⭐ 既存部分の修正を維持 ---
@@ -555,12 +543,10 @@ function refreshCategorySelects(){
   });
   if(state.categories.length===0){ const def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.push(def); refreshCategorySelects(); return; }
   
-  // --- ⭐ 既存部分の修正を維持 ⭐ ---
   // 保持していた選択値を戻す（存在する場合）
   if (state.categories.find(c => c.id === currentNewMenuCat)) {
       sel.value = currentNewMenuCat;
   }
-  // --- ⭐ 既存部分の修正を維持 ---
 }
 
 /* 行/カテゴリ操作ユーティリティ */
@@ -706,12 +692,9 @@ function applyBackground(data){
   } else { 
     preview.style.backgroundImage = `url(${data})`; preview.style.backgroundColor=''; 
   } 
-  // --- ⭐ 既存部分の修正を維持 ⭐ ---
   showPreview(); // 背景変更時にもプレビュー更新
-  // --- ⭐ 既存部分の修正を維持 ---
 }
 document.getElementById('bgFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=ev=>applyBackground(ev.target.result); fr.readAsDataURL(f); e.target.value=''; });
-document.getElementById('btnLoadBg').addEventListener('click', async ()=>{ const url=document.getElementById('bgUrl').value.trim(); if(!url) return alert('URLを入力してください'); try{ const res=await fetch(url); if(!res.ok) throw new Error('取得失敗'); const blob=await res.blob(); const fr=new FileReader(); fr.onload=e=>applyBackground(e.target.result); fr.readAsDataURL(blob); }catch(err){ alert('背景画像のダウンロードに失敗しました'); } });
 document.getElementById('btnClearBg').addEventListener('click', ()=>applyBackground(null));
 document.getElementById('btnDownloadBg').addEventListener('click', ()=>{ if(!currentBg) return alert('背景が設定されていません'); const a=document.createElement('a'); a.href=currentBg; a.download='background'; a.click(); });
 
@@ -747,16 +730,37 @@ function showPreview(){
   html += `</div>`;
   preview.innerHTML = html;
   document.getElementById('printArea').style.display = 'block';
-  // document.getElementById('btnPreviewSmall').classList.remove('ghost'); // 簡易表示ボタンの強調を解除
-  // document.getElementById('btnPreview').classList.remove('ghost');
-  // preview.scrollIntoView({behavior:'smooth'}); // 即時更新時はスクロールは不要
 }
 
 /* 保存 / 読込 / Export */
-function downloadJSON(){ const out={meta:{exportedAt:new Date().toISOString()}, rows:state.rows, categories:state.categories, background:currentBg}; const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='menu-export.json'; a.click(); URL.revokeObjectURL(a.href); }
+/* ファイル名を「一番最初のカテゴリ名」にするユーティリティ */
+function firstCategoryNameSafe(){
+  if(state.categories && state.categories.length>0 && state.categories[0].title){
+    return state.categories[0].title.replace(/[\\/:*?"<>|]/g,'_').trim() || 'menu';
+  }
+  return 'menu';
+}
+
+function downloadJSON(){ 
+  const base = firstCategoryNameSafe();
+  const out={meta:{exportedAt:new Date().toISOString()}, rows:state.rows, categories:state.categories, background:currentBg}; 
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'}); 
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download= base + '.json'; a.click(); URL.revokeObjectURL(a.href); 
+}
 function handleJSONLoad(file){ const fr=new FileReader(); fr.onload=e=>{ try{ const parsed=JSON.parse(e.target.result); if(parsed.rows && parsed.categories){ state.rows = parsed.rows.map(r=>({...r, selected:false})); state.categories = parsed.categories.map(c=>({...c})); currentBg = parsed.background || null; applyBackground(currentBg); syncCategoriesFromRows(); renderRowList(); alert('JSONを読み込みました。'); } else alert('不正なJSON形式です'); }catch(err){ alert('JSONの読み込みに失敗しました'); } }; fr.readAsText(file); }
-function exportCSV(){ const outRows=[]; state.categories.forEach(cat=>{ cat.rowIds.forEach(rid=>{ const r=state.rows.find(rr=>rr.id===rid); if(!r) return; outRows.push({Category:cat.title, Item:r.name||r.raw, Price:r.price===null? '': r.price}); }); }); const header=['Category','Item','Price']; const csv=[header.join(',')].concat(outRows.map(row=> header.map(h=> `"${String(row[h] ?? '').replace(/"/g,'""')}"`).join(','))).join('\n'); const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='menu-export.csv'; a.click(); URL.revokeObjectURL(a.href); }
-function exportXLSX(){ const wb=XLSX.utils.book_new(); const out=[]; state.categories.forEach(cat=>{ out.push([cat.title]); cat.rowIds.forEach(rid=>{ const r=state.rows.find(rr=>rr.id===rid); if(!r) return; out.push([r.name||r.raw, r.price===null? '': r.price]); }); out.push([]); }); const ws=XLSX.utils.aoa_to_sheet(out); XLSX.utils.book_append_sheet(wb, ws, 'Menu'); XLSX.writeFile(wb, 'menu-export.xlsx'); }
+function exportCSV(){ 
+  const base = firstCategoryNameSafe();
+  const outRows=[];
+  state.categories.forEach(cat=>{ cat.rowIds.forEach(rid=>{ const r=state.rows.find(rr=>rr.id===rid); if(!r) return; outRows.push({Category:cat.title, Item:r.name||r.raw, Price:r.price===null? '': r.price}); }); });
+  const header=['Category','Item','Price']; 
+  const csv=[header.join(',')].concat(outRows.map(row=> header.map(h=> `"${String(row[h] ?? '').replace(/"/g,'""')}"`).join(','))).join('\n'); 
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); 
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download= base + '.csv'; a.click(); URL.revokeObjectURL(a.href); 
+}
+function exportXLSX(){ 
+  const base = firstCategoryNameSafe();
+  const wb=XLSX.utils.book_new(); const out=[]; state.categories.forEach(cat=>{ out.push([cat.title]); cat.rowIds.forEach(rid=>{ const r=state.rows.find(rr=>rr.id===rid); if(!r) return; out.push([r.name||r.raw, r.price===null? '': r.price]); }); out.push([]); }); 
+  const ws=XLSX.utils.aoa_to_sheet(out); XLSX.utils.book_append_sheet(wb, ws, 'Menu'); XLSX.writeFile(wb, base + '.xlsx'); }
 // ⭐ 追加: 画像保存関数 ⭐
 async function saveImage(){
   showPreview();
@@ -776,7 +780,7 @@ async function saveImage(){
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = 'menu-preview.png';
+    a.download = firstCategoryNameSafe() + '.png';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -793,7 +797,7 @@ function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g,m=
 document.getElementById('btnParse').addEventListener('click', async ()=>{ const fi=document.getElementById('fileInput'); const area=document.getElementById('pasteArea').value.trim(); if(fi.files.length>0){ try{ await parseFile(fi.files[0]); fi.value=''; renderRowList(); }catch(err){ console.error(err); alert('ファイル読み込みに失敗しました'); } } else if(area){ parseTextRowsWithCategories(area); renderRowList(); } else alert('Excel/CSVファイルを選択するか、テキストを貼り付けてください'); });
 document.getElementById('fileInput').addEventListener('change', async e=>{ if(e.target.files.length){ try{ await parseFile(e.target.files[0]); renderRowList(); }catch(err){ alert('読み込み失敗'); } e.target.value=''; } });
 document.getElementById('btnClear').addEventListener('click', ()=>{ if(!confirm('全データをクリアしますか？')) return; state.rows=[]; state.categories=[]; currentBg=null; applyBackground(null); renderRowList(); });
-document.getElementById('btnAutoGroup').addEventListener('click', ()=>{ autoGroupByKeywords(); renderRowList(); });
+// 自動カテゴリ推定機能は削除済み（btnAutoGroup・autoGroupByKeywords 削除）
 document.getElementById('btnAddCat').addEventListener('click', ()=>{ const t=document.getElementById('newCatTitle').value.trim(); if(!t) return alert('カテゴリ名を入力してください'); const c={id:uid('cat'),title:t,rowIds:[]}; state.categories.push(c); document.getElementById('newCatTitle').value=''; renderRowList(); });
 document.getElementById('btnDownloadJSON').addEventListener('click', downloadJSON);
 document.getElementById('btnLoadJSON').addEventListener('click', ()=> document.getElementById('jsonLoad').click());
@@ -840,49 +844,6 @@ document.getElementById('bulkMoveSave').addEventListener('click', ()=>{
 
 // JSON load trigger (既存)
 document.getElementById('jsonLoad').addEventListener('change', e=>{ if(e.target.files.length) handleJSONLoad(e.target.files[0]); e.target.value=''; });
-
-/* 自動分類（既存） */
-function autoGroupByKeywords(){ const rules=[{k:'ラーメン',title:'麺類'},{k:'そば',title:'麺類'},{k:'焼きそば',title:'麺類'},{k:'デザート',title:'デザート'},{k:'お子様',title:'セット'},{k:'セット',title:'セット'},{k:'冷麺',title:'冷麺・旬'},{k:'丼',title:'丼物'},{k:'チャーシュー',title:'麺類'}]; rules.forEach(rule=>{ let cat=state.categories.find(c=>c.title===rule.title); if(!cat){ cat={id:uid('cat'),title:rule.title,rowIds:[]}; state.categories.push(cat); } state.rows.forEach(r=>{ if(!r.categoryId && r.name && r.name.indexOf(rule.k)!==-1) assignRowToCategory(r.id, cat.id); }); }); let def=state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.unshift(def); } state.rows.forEach(r=>{ if(!r.categoryId){ r.categoryId=def.id; def.rowIds.push(r.id); } }); }
-
-/* ---------- PDF出力（既存） ---------- */
-document.getElementById('btnSavePDF').addEventListener('click', async ()=>{
-  showPreview();
-  await new Promise(r=>setTimeout(r,300));
-  const element = document.getElementById('menuPreview');
-  if(!element) return alert('プレビューがありません。先に「プレビュー表示」を押してください。');
-  const opt = {
-    margin: 10,
-    filename: 'menu-preview.pdf',
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: null },
-    jsPDF: { unit: 'pt', format: 'a4', orientation: document.getElementById('orientation').value === 'landscape' ? 'landscape' : 'portrait' }
-  };
-  try{
-    html2pdf().set(opt).from(element).save();
-  }catch(err){ console.error(err); alert('PDF保存に失敗しました'); }
-});
-
-document.getElementById('btnSavePDFPaged').addEventListener('click', async ()=>{
-  showPreview();
-  await new Promise(r=>setTimeout(r,350));
-  const element = document.getElementById('menuPreview');
-  if(!element) return alert('プレビューがありません。先に「プレビュー表示」を押してください。');
-  const orientation = document.getElementById('orientation').value === 'landscape' ? 'landscape' : 'portrait';
-  const opt = {
-    margin:       [12,12,12,12],
-    filename:     'menu-preview-paged.pdf',
-    image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2, useCORS: true, backgroundColor: null, logging: false },
-    jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation },
-    pagebreak:    { mode: ['css', 'legacy'], before: '.menu-category', avoid: ['.menu-block'] }
-  };
-  try{
-    html2pdf().set(opt).from(element).save();
-  }catch(err){
-    console.error(err);
-    alert('マルチページPDF保存に失敗しました。コンソールを確認してください。');
-  }
-});
 
 /* ---------- 初期化 ---------- */
 renderBgPresets();
