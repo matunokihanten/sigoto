@@ -32,10 +32,6 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
 .preview-wrap{margin-top:12px;padding:12px;background:#fff;border-radius:8px;border:1px solid #eee}
 #printArea{display:none}
 
-/* --- 追加: PDF 用ラッパーで確実に中央揃え --- */
-#printArea .pdf-wrap{width:100%;display:flex;justify-content:center;align-items:flex-start;padding:12px 0}
-/* --- end 追加 --- */
-
 /* プレビュー領域 */
 .menu-preview{margin:0 auto;padding:36px;border-radius:8px; background-size:cover; background-position:center; box-shadow:0 8px 30px rgba(2,6,23,0.06);}
 
@@ -196,10 +192,7 @@ button.ghost{background:#fff;color:var(--accent);border:1px solid var(--accent)}
         </div>
       </div>
       <div id="printArea">
-        <!-- 変更点: pdf-wrap で中央揃えを安定化 -->
-        <div class="pdf-wrap">
-          <div id="menuPreview" class="menu-preview"></div>
-        </div>
+        <div id="menuPreview" class="menu-preview"></div>
       </div>
     </div>
   </div>
@@ -548,7 +541,7 @@ function refreshCategorySelects(){
   // --- ⭐ 追加部分 (2/2) ⭐ ---
   // 現在の選択値を保持
   const currentNewMenuCat = sel.value;
-  // --- ⭐ 追加部分 (2/2) ⭐---
+  // --- ⭐ 追加部分 (2/2) ---
   
   sel.innerHTML = '<option value="">（カテゴリを選択）</option>';
   if(editSel) editSel.innerHTML = '';
@@ -566,7 +559,7 @@ function refreshCategorySelects(){
   if (state.categories.find(c => c.id === currentNewMenuCat)) {
       sel.value = currentNewMenuCat;
   }
-  // --- ⭐ 追加部分 (2/2) ⭐ ---
+  // --- ⭐ 追加部分 (2/2) ---
 }
 
 /* 行/カテゴリ操作ユーティリティ */
@@ -714,7 +707,7 @@ function applyBackground(data){
   } 
   // --- ⭐ 追加部分 (1/2) ⭐ ---
   showPreview(); // 背景変更時にもプレビュー更新
-  // --- ⭐ 追加部分 (1/2) ⭐ ---
+  // --- ⭐ 追加部分 (1/2) ---
 }
 document.getElementById('bgFile').addEventListener('change', e=>{ const f=e.target.files[0]; if(!f) return; const fr=new FileReader(); fr.onload=ev=>applyBackground(ev.target.result); fr.readAsDataURL(f); e.target.value=''; });
 document.getElementById('btnLoadBg').addEventListener('click', async ()=>{ const url=document.getElementById('bgUrl').value.trim(); if(!url) return alert('URLを入力してください'); try{ const res=await fetch(url); if(!res.ok) throw new Error('取得失敗'); const blob=await res.blob(); const fr=new FileReader(); fr.onload=e=>applyBackground(e.target.result); fr.readAsDataURL(blob); }catch(err){ alert('背景画像のダウンロードに失敗しました'); } });
@@ -753,7 +746,8 @@ function showPreview(){
   html += `</div>`;
   preview.innerHTML = html;
   document.getElementById('printArea').style.display = 'block';
-  // Ensure the pdf-wrap container remains centered (no other visual changes)
+  // document.getElementById('btnPreviewSmall').classList.remove('ghost'); // 簡易表示ボタンの強調を解除
+  // document.getElementById('btnPreview').classList.remove('ghost');
   // preview.scrollIntoView({behavior:'smooth'}); // 即時更新時はスクロールは不要
 }
 
@@ -818,14 +812,11 @@ document.getElementById('jsonLoad').addEventListener('change', e=>{ if(e.target.
 /* 自動分類（既存） */
 function autoGroupByKeywords(){ const rules=[{k:'ラーメン',title:'麺類'},{k:'そば',title:'麺類'},{k:'焼きそば',title:'麺類'},{k:'デザート',title:'デザート'},{k:'お子様',title:'セット'},{k:'セット',title:'セット'},{k:'冷麺',title:'冷麺・旬'},{k:'丼',title:'丼物'},{k:'チャーシュー',title:'麺類'}]; rules.forEach(rule=>{ let cat=state.categories.find(c=>c.title===rule.title); if(!cat){ cat={id:uid('cat'),title:rule.title,rowIds:[]}; state.categories.push(cat); } state.rows.forEach(r=>{ if(!r.categoryId && r.name && r.name.indexOf(rule.k)!==-1) assignRowToCategory(r.id, cat.id); }); }); let def=state.categories.find(c=>c.id==='cat-unc'); if(!def){ def={id:'cat-unc',title:'未分類',rowIds:[]}; state.categories.unshift(def); } state.rows.forEach(r=>{ if(!r.categoryId){ r.categoryId=def.id; def.rowIds.push(r.id); } }); }
 
-/* ---------- PDF出力（既存） ----------
-   修正点: html2pdf の対象を #menuPreview -> #printArea（pdf-wrap を含む）に変更
-   これにより PDF 生成時にラッパーの中央揃えが反映され、白いメニューがずれる問題を防止します
-*/
+/* ---------- PDF出力（既存） ---------- */
 document.getElementById('btnSavePDF').addEventListener('click', async ()=>{
   showPreview();
   await new Promise(r=>setTimeout(r,300));
-  const element = document.getElementById('printArea'); // 修正: printArea に変更
+  const element = document.getElementById('menuPreview');
   if(!element) return alert('プレビューがありません。先に「プレビュー表示」を押してください。');
   const opt = {
     margin: 10,
@@ -842,7 +833,7 @@ document.getElementById('btnSavePDF').addEventListener('click', async ()=>{
 document.getElementById('btnSavePDFPaged').addEventListener('click', async ()=>{
   showPreview();
   await new Promise(r=>setTimeout(r,350));
-  const element = document.getElementById('printArea'); // 修正: printArea に変更
+  const element = document.getElementById('menuPreview');
   if(!element) return alert('プレビューがありません。先に「プレビュー表示」を押してください。');
   const orientation = document.getElementById('orientation').value === 'landscape' ? 'landscape' : 'portrait';
   const opt = {
