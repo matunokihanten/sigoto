@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>選択ファイル/フォルダをZIPにまとめるツール</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;margin:20px;background:#f7f9fc;color:#111}
+  h1{font-size:20px;margin-bottom:8px}
+  .panel{background:#fff;border:1px solid #e1e6ef;border-radius:8px;padding:16px;max-width:900px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  button,input[type="text"]{padding:8px 12px;border-radius:6px;border:1px solid #cbd6e6;background:#f8fbff}
+  button.primary{background:#0366d6;color:#fff;border-color:#0366d6}
+  #drop{border:2px dashed #cbd6e6;border-radius:8px;padding:18px;text-align:center;color:#6b7280;background:#fbfdff}
+  #fileList{margin-top:12px;max-height:320px;overflow:auto;border-radius:6px;padding:8px;background:#fbfdff;border:1px solid #eef3fb}
+  .fileItem{display:flex;justify-content:space-between;padding:6px 8px;border-bottom:1px dashed #eef3fb;font-size:13px}
+  .fileItem:last-child{border-bottom:none}
+  .meta{color:#6b7280;font-size:12px}
+  .progress{height:10px;background:#e6eefc;border-radius:6px;overflow:hidden;margin-top:8px}
+  .progress > i{display:block;height:100%;background:linear-gradient(90deg,#2b8cff,#6ad1ff);width:0%}
+  .small{font-size:13px;color:#6b7280}
+  footer{margin-top:12px;font-size:12px;color:#8b95a8}
+  .hint{margin-top:8px;color:#6b7280;font-size:13px}
+</style>
+</head>
+<body>
+  <div class="panel">
+    <h1>選択したファイル／フォルダを ZIP に圧縮するツール</h1>
+
+    <div class="controls">
+      <label>
+        <input id="fileInput" type="file" multiple style="display:none" />
+        <button id="btnFiles">ファイルを選択</button>
+      </label>
+
+      <label>
+        <!-- Chromium系ブラウザでフォルダ選択が可能 -->
+        <input id="dirInput" type="file" webkitdirectory directory multiple style="display:none" />
+        <button id="btnDir">フォルダを選択</button>
+      </label>
+
+      <button id="btnClear">選択をクリア</button>
+
+      <input id="zipName" type="text" placeholder="出力ZIP名 (例: archive.zip)" style="min-width:220px" />
+
+      <button id="btnZip" class="primary">ZIP作成・ダウンロード</button>
+    </div>
+
+    <div id="drop" aria-dropeffect="copy">
+      ファイルやフォルダをここにドラッグ＆ドロップしてください。<br>
+      （フォルダはブラウザの対応状況に依存します）
+    </div>
+
+    <div id="fileList" aria-live="polite"></div>
+
+    <div class="progress" title="進捗">
+      <i id="progressBar"></i>
+    </div>
+
+    <div class="hint">
+      対応ブラウザ: Chromium系（Chrome, Edge, Brave 等）で最も安定。Firefoxでもファイル選択は動作しますが、フォルダ選択やドラッグでのフォルダ読み取りはブラウザ差があります。
+    </div>
+
+    <footer>作成された ZIP はローカルにダウンロードされます。大きなファイルや多数のファイルはメモリを多く消費します。</footer>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script>
+/*
+  単一HTMLのZIP作成ツール
+  - fileInput: 複数ファイル選択
+  - dirInput: webkitdirectory によるフォルダ選択 (Chromium系)
+  - ドラッグ＆ドロップ: ファイルとフォルダ（可能な場合）を受け取る
+  - JSZip を使って階層を保持してZIP化、FileSaverで保存
+*/
+
+const fileInput = document.getElementById('fileInput');
+const dirInput = document.getElementById('dirInput');
+const btnFiles = document.getElementById('btnFiles');
+const btnDir = document.getElementById('btnDir');
+const btnZip = document.getElementById('btnZip');
+const btnClear = document.getElementById('btnClear');
+const drop = document.getElementById('drop');
+const fileListEl = document.getElementById('fileList');
+const progressBar = document.getElementById('progressBar');
+const zipNameInput = document.getElementById('zipName');
+
+let collectedFiles = []; // {file: File, path: string}
+
+function addFilesFromFileList(fileList){
+  // fileList: FileList or Array of File
+  for(const f of fileList){
+    // Chrome provides webkitRelativePath when directory selected
+    const rel = f.webkitRelativePath || f.relativePath || f.name;
+    collectedFiles.push({file: f, path: rel});
+  }
+  renderFileList();
+}
+
+function renderFileList(){
+  fileListEl.innerHTML = '';
+  if(collectedFiles.length === 0){
+    fileListEl.innerHTML = '<div class="small">まだファイルが選択されていません</div>';
+    return;
+  }
+  for(const item of collectedFiles){
+    const div = document.createElement('div');
+    div.className = 'fileItem';
+    const left = document.createElement('div');
+    left.innerHTML = `<strong>${escapeHtml(item.path)}</strong><div class="meta">${formatBytes(item.file.size)}</div>`;
+    const right = document.createElement('div');
+    const btn = document.createElement('button');
+    btn.textContent = '削除';
+    btn.onclick = ()=> {
+      collectedFiles = collectedFiles.filter(x => x !== item);
+      renderFileList();
+    };
+    right.appendChild(btn);
+    div.appendChild(left);
+    div.appendChild(right);
+    fileListEl.appendChild(div);
+  }
+}
+
+function formatBytes(bytes){
+  if(bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B','KB','MB','GB','TB'];
+  const i = Math.floor(Math.log(bytes)/Math.log(k));
+  return parseFloat((bytes / Math.pow(k,i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ボタン操作
+btnFiles.addEventListener('click', ()=> fileInput.click());
+btnDir.addEventListener('click', ()=> dirInput.click());
+btnClear.addEventListener('click', ()=>{
+  collectedFiles = [];
+  renderFileList();
+  progressBar.style.width = '0%';
+});
+
+// ファイル選択イベント
+fileInput.addEventListener('change', (e)=>{
+  addFilesFromFileList(e.target.files);
+  fileInput.value = '';
+});
+dirInput.addEventListener('change', (e)=>{
+  addFilesFromFileList(e.target.files);
+  dirInput.value = '';
+});
+
+// ドラッグ＆ドロップ
+;['dragenter','dragover'].forEach(ev=>{
+  drop.addEventListener(ev, (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    drop.style.borderColor = '#2b8cff';
+    drop.style.background = '#f3f9ff';
+  });
+});
+;['dragleave','drop'].forEach(ev=>{
+  drop.addEventListener(ev, (e)=>{
+    if(ev === 'drop') {
+      handleDrop(e);
+    }
+    e.preventDefault();
+    e.stopPropagation();
+    drop.style.borderColor = '#cbd6e6';
+    drop.style.background = '#fbfdff';
+  });
+});
+
+async function handleDrop(e){
+  const dt = e.dataTransfer;
+  if(!dt) return;
+  // DataTransferItemList を使ってフォルダを再帰的に読み取る（ブラウザが対応していれば）
+  const items = dt.items;
+  if(items && items.length){
+    const entries = [];
+    for(const it of items){
+      const entry = it.webkitGetAsEntry ? it.webkitGetAsEntry() : null;
+      if(entry) entries.push(entry);
+      else {
+        // フォールバック: ファイルとして扱う
+        if(it.getAsFile) {
+          const f = it.getAsFile();
+          if(f) collectedFiles.push({file: f, path: f.name});
+        }
+      }
+    }
+    if(entries.length){
+      // 再帰的にファイルを収集
+      for(const ent of entries){
+        await traverseEntry(ent, '');
+      }
+    }
+  } else {
+    // 古いブラウザや items がない場合、files を使う
+    if(dt.files && dt.files.length){
+      addFilesFromFileList(dt.files);
+    }
+  }
+  renderFileList();
+}
+
+function traverseEntry(entry, path){
+  return new Promise((resolve)=>{
+    if(entry.isFile){
+      entry.file(file => {
+        const fullPath = path ? (path + '/' + entry.name) : entry.name;
+        collectedFiles.push({file, path: fullPath});
+        resolve();
+      }, ()=> resolve());
+    } else if(entry.isDirectory){
+      const dirReader = entry.createReader();
+      const readEntries = ()=>{
+        dirReader.readEntries(async (entries)=>{
+          if(entries.length === 0){
+            resolve();
+            return;
+          }
+          for(const ent of entries){
+            await traverseEntry(ent, path ? (path + '/' + entry.name) : entry.name);
+          }
+          // 続けて読み取る（APIの仕様）
+          readEntries();
+        }, ()=> resolve());
+      };
+      readEntries();
+    } else {
+      resolve();
+    }
+  });
+}
+
+// ZIP作成
+btnZip.addEventListener('click', async ()=>{
+  if(collectedFiles.length === 0){
+    alert('まずファイルまたはフォルダを選択してください。');
+    return;
+  }
+  const zipNameRaw = zipNameInput.value.trim() || 'archive.zip';
+  const zipName = zipNameRaw.toLowerCase().endsWith('.zip') ? zipNameRaw : zipNameRaw + '.zip';
+
+  const zip = new JSZip();
+  // ファイルを追加
+  for(const item of collectedFiles){
+    // path が空ならファイル名のみ
+    const p = item.path || item.file.name;
+    zip.file(p, item.file);
+  }
+
+  // 生成（progress）
+  try {
+    progressBar.style.width = '0%';
+    const blob = await zip.generateAsync({type:'blob'}, (metadata)=>{
+      const pct = Math.floor(metadata.percent);
+      progressBar.style.width = pct + '%';
+    });
+    // ダウンロード
+    saveAs(blob, zipName);
+    progressBar.style.width = '100%';
+  } catch(err){
+    console.error(err);
+    alert('ZIP作成中にエラーが発生しました: ' + (err && err.message ? err.message : err));
+  }
+});
+
+// 初期表示
+renderFileList();
+
+</script>
+</body>
+</html>
