@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>Universal Data Editor & Converter (Pro)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root { 
+      --primary: #2563eb; 
+      --header-bg: #4472C4; /* Excel Blue */
+      --header-text: #ffffff;
+      --bg: #f1f5f9; 
+      --surface: #ffffff; 
+      --border: #cbd5e1; 
+      --text: #1e293b; 
+    }
+    body { font-family: "Meiryo", "Hiragino Kaku Gothic ProN", sans-serif; background: var(--bg); color: var(--text); padding: 24px; margin: 0; }
+    
+    h1 { font-size: 1.5rem; margin: 0 0 1rem 0; color: #0f172a; display:flex; align-items:center; gap:10px;}
+    
+    /* カードレイアウト */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    
+    /* ドロップゾーン */
+    #dropZone {
+      border: 2px dashed #94a3b8; border-radius: 8px; padding: 30px; text-align: center;
+      transition: all 0.2s; cursor: pointer; background: #f8fafc;
+    }
+    #dropZone:hover, #dropZone.dragover { border-color: var(--primary); background: #eff6ff; }
+    
+    /* コントロール */
+    .controls { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 0.85rem; font-weight: bold; color: #475569; }
+    
+    button { 
+      padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; font-size: 0.95rem; 
+      transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.98); }
+    #convertBtn { background: var(--primary); color: white; box-shadow: 0 4px 6px rgba(37,99,235,0.2); }
+    #convertBtn:hover { background: #1d4ed8; }
+    
+    /* 編集可能なテーブル */
+    #tableWrapper {
+      max-height: 70vh; /* 画面の7割まで表示 */
+      overflow: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: white;
+      position: relative;
+    }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    
+    /* ヘッダ */
+    th { 
+      background: var(--header-bg); 
+      color: var(--header-text); 
+      position: sticky; top: 0; z-index: 10; 
+      padding: 10px; border: 1px solid #365da3; 
+      white-space: nowrap; font-weight: normal;
+      min-width: 80px;
+    }
+    
+    /* データセル */
+    td { 
+      border: 1px solid #d1d5db; 
+      padding: 8px; 
+      min-width: 80px; 
+      overflow: hidden; 
+      white-space: nowrap;
+      outline: none; /* フォーカス時の枠線を消す */
+    }
+    
+    /* 編集可能であることを示す */
+    td[contenteditable="true"]:hover { background-color: #f1f5f9; cursor: text; }
+    td[contenteditable="true"]:focus { background-color: #e0f2fe; border: 2px solid var(--primary); z-index: 2; position:relative; }
+    
+    /* 行番号 */
+    td.row-num { background: #f1f5f9; text-align: center; color: #64748b; font-size: 11px; user-select: none; width: 40px; min-width: 40px; border-color: #cbd5e1; }
+    
+    /* 偶数行の背景（ストライプ） */
+    tr:nth-child(even) td:not(.row-num) { background: #fcfcfc; }
+
+    /* ステータスバッジ */
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 99px; font-size: 0.75rem; font-weight: bold; background: #e2e8f0; color: #475569; margin-left: 10px; }
+    .badge.info { background: #dbeafe; color: #1e40af; }
+    
+    /* プログレスバー */
+    #loadingOverlay {
+      position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(255,255,255,0.9); z-index: 999;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+    }
+    .spinner { width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jschardet@3.0.0/dist/jschardet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/2.0.0/encoding.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+</head>
+<body>
+
+  <h1>📊 Excel Editor & Beautiful Converter <span id="fileStatus" class="badge">ファイル未選択</span></h1>
+
+  <div class="card" id="inputArea">
+    <div id="dropZone">
+      <p style="margin:0; font-size:1.1em; color:#475569;">
+        <strong>ここにファイルをドロップ</strong><br>
+        <span style="font-size:0.85em;">(.csv, .xlsx, .txt)</span>
+      </p>
+      <input type="file" id="fileInput" accept=".csv,.txt,.xlsx,.xls" style="display:none" />
+    </div>
+  </div>
+
+  <div class="card" id="editorArea" style="display:none;">
+    <div class="controls" style="margin-bottom:15px;">
+      <div class="control-group">
+        <label>ファイル操作</label>
+        <div style="font-size:0.9rem; color:#666;">
+          現在表示されている内容をそのままExcel化します。<br>
+          <small>※セルをクリックして直接編集できます。</small>
+        </div>
+      </div>
+      <div style="flex-grow:1"></div>
+      <div class="control-group">
+        <label>オプション</label>
+        <label style="font-weight:normal; font-size:0.9rem; cursor:pointer;">
+          <input type="checkbox" id="autoClean" checked> 全角数字を半角に自動変換
+        </label>
+      </div>
+      <button id="convertBtn">✨ きれいなExcelとして保存</button>
+    </div>
+
+    <div id="tableWrapper">
+      <table id="dataTable">
+        </table>
+    </div>
+    <div style="margin-top:8px; text-align:right; font-size:0.8rem; color:#666;" id="rowCountInfo"></div>
+  </div>
+
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div style="margin-top:15px; font-weight:bold; color:#475569;" id="loadingText">処理中...</div>
+  </div>
+
+<script>
+/**
+ * コーディングパートナー: 高機能Excelエディタ・コンバータ
+ */
+
+// UI要素
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileStatus = document.getElementById('fileStatus');
+const inputArea = document.getElementById('inputArea');
+const editorArea = document.getElementById('editorArea');
+const tableWrapper = document.getElementById('tableWrapper');
+const dataTable = document.getElementById('dataTable');
+const loadingOverlay = document.getElementById('loadingOverlay');
+const loadingText = document.getElementById('loadingText');
+
+let originalFileName = 'data';
+
+// --- イベント設定 ---
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files.length) loadFile(fileInput.files[0]); });
+
+document.getElementById('convertBtn').addEventListener('click', exportBeautifulExcel);
+
+// --- ロジック ---
+
+function showLoading(show, text = '処理中...') {
+  loadingOverlay.style.display = show ? 'flex' : 'none';
+  loadingText.textContent = text;
+}
+
+// ファイル読み込み振り分け
+async function loadFile(file) {
+  originalFileName = file.name.replace(/\.[^/.]+$/, "");
+  fileStatus.textContent = file.name;
+  fileStatus.className = 'badge info';
+  
+  showLoading(true, 'ファイルを解析中...');
+
+  // UI切り替え
+  inputArea.style.display = 'none';
+  editorArea.style.display = 'block';
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const ext = file.name.split('.').pop().toLowerCase();
+    let rows = [];
+
+    if (ext === 'xlsx' || ext === 'xls') {
+      // Excel読み込み
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.load(buffer);
+      const sheet = wb.worksheets[0]; // 1シート目のみ
+      sheet.eachRow({ includeEmpty: false }, (row) => {
+        // セルの値を取得（数式の場合は結果）
+        const rowVal = [];
+        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+          // 配列インデックスを合わせるため詰め込み
+          while(rowVal.length < colNumber - 1) rowVal.push('');
+          const val = (cell.result !== undefined) ? cell.result : cell.value;
+          // オブジェクト(リッチテキスト等)の場合は文字列化
+          rowVal.push((val && typeof val === 'object' && val.text) ? val.text : val);
+        });
+        rows.push(rowVal);
+      });
+    } else {
+      // CSV/Text読み込み (自動判定)
+      const detectedEnc = detectEncoding(buffer);
+      const text = decodeText(buffer, detectedEnc);
+      const result = Papa.parse(text, { skipEmptyLines: true });
+      rows = result.data;
+    }
+
+    // 行数が多すぎる場合の警告
+    if (rows.length > 5000) {
+      if(!confirm(`データが ${rows.length} 行あります。\n全件表示するとブラウザが重くなる可能性がありますが、続行しますか？`)) {
+        location.reload();
+        return;
+      }
+    }
+
+    renderTable(rows);
+
+  } catch (err) {
+    console.error(err);
+    alert('読み込みエラー: ' + err.message);
+    location.reload();
+  } finally {
+    showLoading(false);
+  }
+}
+
+// 文字コード判定 (jschardet)
+function detectEncoding(buffer) {
+  const bytes = new Uint8Array(buffer.slice(0, 65535));
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const det = jschardet.detect(binary);
+  if (!det || !det.encoding) return 'UTF-8';
+  if (det.encoding.toUpperCase() === 'SHIFT_JIS') return 'Shift_JIS';
+  return det.encoding;
+}
+
+// デコード
+function decodeText(buffer, encoding) {
+  const uint8 = new Uint8Array(buffer);
+  try {
+    const decoder = new TextDecoder(encoding);
+    return decoder.decode(uint8);
+  } catch(e) {
+    // fallback
+    return new TextDecoder('utf-8').decode(uint8);
+  }
+}
+
+// テーブル描画（編集可能）
+function renderTable(rows) {
+  dataTable.innerHTML = '';
+  if (rows.length === 0) return;
+
+  const maxCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  const thead = document.createElement('thead');
+  const tbody = document.createElement('tbody');
+
+  // ヘッダ行 (1行目をヘッダと仮定、もしくは列番号)
+  const headerRow = document.createElement('tr');
+  // 行番号カラム
+  const thNum = document.createElement('th');
+  thNum.textContent = '#';
+  thNum.style.width = '40px';
+  headerRow.appendChild(thNum);
+
+  // データカラムヘッダ
+  for (let c = 0; c < maxCols; c++) {
+    const th = document.createElement('th');
+    // 1行目をヘッダとして扱うか、A, B, C...にするか
+    // ここでは「1行目をヘッダとして扱う」スタイルにします
+    const val = (rows[0] && rows[0][c]) ? rows[0][c] : `列 ${c+1}`;
+    th.textContent = String(val);
+    headerRow.appendChild(th);
+  }
+  thead.appendChild(headerRow);
+
+  // データ行 (2行目以降)
+  for (let r = 1; r < rows.length; r++) {
+    const tr = document.createElement('tr');
+    
+    // 行番号
+    const tdNum = document.createElement('td');
+    tdNum.className = 'row-num';
+    tdNum.textContent = r;
+    tr.appendChild(tdNum);
+
+    for (let c = 0; c < maxCols; c++) {
+      const td = document.createElement('td');
+      td.contentEditable = "true"; // ★ここで編集可能にする
+      const val = rows[r][c];
+      td.textContent = (val === null || val === undefined) ? '' : val;
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+
+  dataTable.appendChild(thead);
+  dataTable.appendChild(tbody);
+  
+  document.getElementById('rowCountInfo').textContent = `表示中: ${rows.length - 1} 件のデータ (＋ヘッダ)`;
+}
+
+// ★メイン：きれいなExcelとしてエクスポート
+async function exportBeautifulExcel() {
+  showLoading(true, 'Excelを生成中...');
+  
+  // 少し待ってUI描画させる
+  await new Promise(r => setTimeout(r, 50));
+
+  try {
+    const wb = new ExcelJS.Workbook();
+    const sheet = wb.addWorksheet('Sheet1');
+    const doClean = document.getElementById('autoClean').checked;
+
+    // テーブルからデータを吸い上げる
+    // ※ thead (0行目) と tbody (データ) を取得
+    
+    // 1. ヘッダ取得
+    const ths = dataTable.querySelectorAll('thead th');
+    const headerValues = [];
+    // 最初のthは行番号用なのでスキップ
+    for (let i = 1; i < ths.length; i++) {
+      headerValues.push(ths[i].textContent);
+    }
+    
+    // Excelに追加
+    const headerRow = sheet.addRow(headerValues);
+
+    // ★ヘッダのデザイン設定（美しい罫線と色）
+    headerRow.eachCell((cell) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF4472C4' } // Excelの青
+      };
+      cell.font = {
+        color: { argb: 'FFFFFFFF' }, // 白文字
+        bold: true,
+        name: 'Meiryo UI'
+      };
+      cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'medium' }, // ヘッダ下は少し太く
+        right: { style: 'thin' }
+      };
+    });
+    headerRow.height = 24; // 少し高さを出す
+
+    // 2. データ取得
+    const trs = dataTable.querySelectorAll('tbody tr');
+    // 列幅計算用
+    const colWidths = new Array(headerValues.length).fill(12);
+
+    for (let r = 0; r < trs.length; r++) {
+      const tds = trs[r].querySelectorAll('td');
+      const rowData = [];
+      // 最初のtdは行番号なのでスキップ
+      for (let c = 1; c < tds.length; c++) {
+        let val = tds[c].textContent; // 編集後の値を取得
+
+        if (doClean) val = cleanValue(val);
+        
+        // 数値変換
+        const num = Number(val.replace(/,/g, ''));
+        if (!isNaN(num) && val.trim() !== '') {
+          rowData.push(num);
+        } else {
+          rowData.push(val);
+        }
+        
+        // 列幅更新 (文字数ベースの簡易計算)
+        const len = (val.length * 1.5) + 2;
+        if (len > colWidths[c-1]) colWidths[c-1] = Math.min(len, 60);
+      }
+      
+      const newRow = sheet.addRow(rowData);
+      
+      // ★データ行のデザイン設定
+      const isEven = (r % 2 === 0); // 0 start -> 1行目データ(奇数行扱い)
+      
+      newRow.eachCell({ includeEmpty: true }, (cell, colNum) => {
+        // フォント
+        cell.font = { name: 'Meiryo UI', size: 10 };
+        
+        // 罫線（すべて細線）
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+          left: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+          bottom: { style: 'thin', color: { argb: 'FFBFBFBF' } },
+          right: { style: 'thin', color: { argb: 'FFBFBFBF' } }
+        };
+
+        // ストライプ（縞模様）- 視認性向上
+        if (!isEven) { // 互い違い
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF2F2F2' } // 薄いグレー
+          };
+        }
+
+        // 配置と表示形式
+        if (typeof cell.value === 'number') {
+           cell.alignment = { horizontal: 'right', vertical: 'middle' };
+           cell.numFmt = '#,##0'; // 桁区切り
+        } else {
+           cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+        }
+      });
+    }
+
+    // 列幅適用
+    sheet.columns.forEach((col, i) => {
+      col.width = colWidths[i] || 12;
+    });
+
+    // ウィンドウ枠の固定（ヘッダ固定）
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    
+    // オートフィルター設定
+    sheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: headerValues.length }
+    };
+
+    // ダウンロード処理
+    const buf = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${originalFileName}_きれいなデータ.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch(e) {
+    console.error(e);
+    alert('保存中にエラーが発生しました。\n' + e.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+// クリーニング（全角数字→半角など）
+function cleanValue(str) {
+  if (!str) return str;
+  // 全角英数変換
+  return str.replace(/[Ａ-Ｚａ-ｚ０-９]/g, function(s) {
+    return String.fromCharCode(s.charCodeAt(0) - 0xFEE0);
+  }).trim();
+}
+
+</script>
+</body>
+</html>
