@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>CSV → XLSX コンバータ（完全版）</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "メイリオ", "Yu Gothic", sans-serif; padding:18px; color:#111; }
+    h3 { margin-top:0; }
+    .controls { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+    label { font-size:14px; }
+    select, input[type="file"], button, input[type="number"], input[type="text"] { font-size:14px; padding:6px; }
+    #preview { margin-top:12px; max-height:360px; overflow:auto; border:1px solid #ddd; }
+    table { border-collapse:collapse; width:100%; font-size:13px; }
+    th, td { border:1px solid #ddd; padding:6px; white-space:nowrap; }
+    th { background:#f2f2f2; position:sticky; top:0; z-index:2; }
+    tr:nth-child(even) td { background:#fbfdff; }
+    .small { font-size:12px; color:#666; }
+    .progress { width:100%; background:#eee; height:12px; border-radius:6px; overflow:hidden; margin-top:8px; }
+    .progress > i { display:block; height:100%; background:linear-gradient(90deg,#4caf50,#2e7d32); width:0%; transition:width 0.2s; }
+    .status { margin-top:8px; font-size:13px; color:#333; }
+    .col-type { width:120px; }
+    .mapping { display:flex; gap:8px; align-items:center; }
+    .footer { margin-top:14px; color:#444; font-size:13px; }
+    .danger { color:#b00020; }
+  </style>
+
+  <!-- ライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/encoding-japanese/1.0.30/encoding.min.js"></script>
+</head>
+<body>
+  <h3>CSV → XLSX コンバータ（エンコーディング・プレビュー・大容量対応）</h3>
+
+  <div class="controls">
+    <input id="csvFile" type="file" accept=".csv,text/csv" />
+    <label>エンコーディング
+      <select id="encodingSelect">
+        <option value="auto">自動判定</option>
+        <option value="utf-8">UTF-8</option>
+        <option value="sjis">CP932 / Shift_JIS</option>
+      </select>
+    </label>
+
+    <label>区切り文字
+      <select id="delimiterSelect">
+        <option value="auto">自動</option>
+        <option value=",">カンマ</option>
+        <option value="\t">タブ</option>
+        <option value=";">セミコロン</option>
+        <option value="other">その他</option>
+      </select>
+    </label>
+    <input id="otherDelimiter" type="text" placeholder="区切り文字" style="display:none;width:80px" />
+
+    <label><input id="hasHeader" type="checkbox" checked /> 先頭行をヘッダにする</label>
+
+    <label>プレビュー行数
+      <input id="previewRows" type="number" value="100" min="10" max="1000" style="width:80px" />
+    </label>
+
+    <button id="previewBtn">プレビュー</button>
+    <button id="convertBtn">変換してダウンロード</button>
+  </div>
+
+  <div class="status" id="fileInfo">ファイル未選択</div>
+  <div class="progress" style="display:none" id="progressBar"><i></i></div>
+  <div class="status" id="progressText"></div>
+
+  <div id="preview"></div>
+
+  <div class="footer">
+    <div class="small">注意：非常に大きなファイル（数万行以上）はブラウザのメモリ制約により処理が重くなる可能性があります。必要に応じて「サンプル処理モード」を使用してください。</div>
+  </div>
+
+<script>
+/* ヘルパー関数群 */
+
+/* ArrayBuffer -> Uint8Array */
+function toUint8(buffer) {
+  if (buffer instanceof Uint8Array) return buffer;
+  return new Uint8Array(buffer);
+}
+
+/* 文字化け判定（置換文字） */
+function looksLikeMojibake(s) {
+  if (!s) return false;
+  const count = (s.match(/\uFFFD/g) || []).length;
+  return count > 0;
+}
+
+/* デコード：自動判定 or 指定エンコーディング */
+async function decodeBuffer(buffer, encodingPreference = 'auto') {
+  const uint8 = toUint8(buffer);
+  // 指定がある場合はそれを優先
+  if (encodingPreference === 'utf-8') {
+    try { return new TextDecoder('utf-8').decode(uint8); } catch(e) {}
+  }
+  if (encodingPreference === 'sjis') {
+    try {
+      const unicodeArray = Encoding.convert(uint8, { to: 'UNICODE', from: 'SJIS' });
+      return Encoding.codeToString(unicodeArray);
+    } catch(e) {}
+  }
+  // auto: try utf-8 first, then sjis
+  try {
+    const textUtf8 = new TextDecoder('utf-8', { fatal: false }).decode(uint8);
+    if (!looksLikeMojibake(textUtf8)) return textUtf8;
+  } catch(e){}
+  try {
+    const unicodeArray = Encoding.convert(uint8, { to: 'UNICODE', from: 'SJIS' });
+    const sjisText = Encoding.codeToString(unicodeArray);
+    if (!looksLikeMojibake(sjisText)) return sjisText;
+  } catch(e){}
+  // fallback
+  try { return new TextDecoder('utf-8').decode(uint8); } catch(e) { return ''; }
+}
+
+/* BOM 削除 */
+function stripBOM(s) {
+  if (!s) return s;
+  return s.replace(/^\uFEFF/, '');
+}
+
+/* 全角2/半角1 の長さ計算 */
+function displayLength(str) {
+  if (str === null || str === undefined) return 0;
+  str = String(str);
+  let len = 0;
+  for (const ch of str) {
+    len += /[^\x00-\x7F]/.test(ch) ? 2 : 1;
+  }
+  return len;
+}
+
+/* 日付判定（簡易） */
+function isDateString(s) {
+  if (!s) return false;
+  return /^\d{4}[-/]\d{1,2}[-/]\d{1,2}$/.test(s);
+}
+function toDate(s) {
+  const parts = s.split(/[-/]/).map(x => parseInt(x,10));
+  if (parts.length < 3) return null;
+  const d = new Date(parts[0], parts[1]-1, parts[2]);
+  return isNaN(d) ? null : d;
+}
+
+/* UI 要素 */
+const csvFileInput = document.getElementById('csvFile');
+const encodingSelect = document.getElementById('encodingSelect');
+const delimiterSelect = document.getElementById('delimiterSelect');
+const otherDelimiter = document.getElementById('otherDelimiter');
+const hasHeader = document.getElementById('hasHeader');
+const previewRowsInput = document.getElementById('previewRows');
+const previewBtn = document.getElementById('previewBtn');
+const convertBtn = document.getElementById('convertBtn');
+const previewDiv = document.getElementById('preview');
+const fileInfo = document.getElementById('fileInfo');
+const progressBar = document.getElementById('progressBar');
+const progressBarInner = progressBar.querySelector('i');
+const progressText = document.getElementById('progressText');
+
+delimiterSelect.addEventListener('change', () => {
+  otherDelimiter.style.display = delimiterSelect.value === 'other' ? 'inline-block' : 'none';
+});
+
+/* グローバル状態 */
+let lastParsedPreview = { rows: [], delimiter: ',', encoding: 'utf-8', totalRowsEstimate: 0 };
+
+/* ファイル情報表示 */
+csvFileInput.addEventListener('change', () => {
+  const f = csvFileInput.files[0];
+  if (!f) {
+    fileInfo.textContent = 'ファイル未選択';
+    return;
+  }
+  fileInfo.textContent = `選択: ${f.name} (${Math.round(f.size/1024)} KB)`;
+});
+
+/* プレビュー処理 */
+previewBtn.addEventListener('click', async () => {
+  const f = csvFileInput.files[0];
+  if (!f) return alert('CSVファイルを選択してください。');
+  const encPref = encodingSelect.value;
+  const delimPref = delimiterSelect.value === 'other' ? otherDelimiter.value || ',' : delimiterSelect.value;
+  const previewCount = Math.max(10, Math.min(1000, Number(previewRowsInput.value) || 100));
+
+  // 読み込み
+  fileInfo.textContent = `読み込み中: ${f.name} ...`;
+  let buffer;
+  try {
+    buffer = await f.arrayBuffer();
+  } catch (e) {
+    alert('ファイル読み込みに失敗しました。ブラウザのコンソールを確認してください。');
+    console.error(e);
+    return;
+  }
+
+  const text = stripBOM(await decodeBuffer(buffer, encPref));
+  // PapaParse で先頭 N 行だけパース（stream:false で高速）
+  const papaConfig = {
+    preview: previewCount,
+    delimiter: delimPref === 'auto' ? '' : delimPref,
+    skipEmptyLines: false
+  };
+  const parsed = Papa.parse(text, papaConfig).data;
+
+  // 推定総行数（簡易）
+  const approxRows = Math.ceil(text.length / 80);
+  lastParsedPreview = { rows: parsed, delimiter: papaConfig.delimiter || ',', encoding: encPref === 'auto' ? 'auto' : encPref, totalRowsEstimate: approxRows };
+
+  renderPreview(parsed, hasHeader.checked);
+  fileInfo.textContent = `プレビュー: ${f.name} （推定行数 ${approxRows}）`;
+});
+
+/* プレビュー描画 */
+function renderPreview(rows, headerFlag) {
+  previewDiv.innerHTML = '';
+  if (!rows || rows.length === 0) {
+    previewDiv.textContent = 'プレビューできるデータがありません';
+    return;
+  }
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const tbody = document.createElement('tbody');
+
+  // 列数を最大に合わせる
+  const maxCols = rows.reduce((m,r)=>Math.max(m, r.length), 0);
+
+  // ヘッダ行
+  const headerRow = document.createElement('tr');
+  for (let c = 0; c < maxCols; c++) {
+    const th = document.createElement('th');
+    if (headerFlag && rows[0] && rows[0][c] !== undefined) {
+      th.textContent = rows[0][c];
+    } else {
+      th.textContent = `列${c+1}`;
+    }
+    // 列型セレクト
+    const select = document.createElement('select');
+    select.className = 'col-type';
+    ['自動','文字列','数値','日付'].forEach(opt => {
+      const o = document.createElement('option'); o.value = opt; o.textContent = opt; select.appendChild(o);
+    });
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'flex';
+    wrapper.style.flexDirection = 'column';
+    wrapper.style.gap = '4px';
+    wrapper.appendChild(th);
+    wrapper.appendChild(select);
+    const thWrap = document.createElement('th');
+    thWrap.appendChild(wrapper);
+    headerRow.appendChild(thWrap);
+  }
+  thead.appendChild(headerRow);
+
+  // データ行（ヘッダを除く）
+  const startIdx = headerFlag ? 1 : 0;
+  for (let r = startIdx; r < rows.length; r++) {
+    const tr = document.createElement('tr');
+    for (let c = 0; c < maxCols; c++) {
+      const td = document.createElement('td');
+      td.textContent = rows[r] && rows[r][c] !== undefined ? rows[r][c] : '';
+      tr.appendChild(td);
+    }
+    tbody.appendChild(tr);
+  }
+
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  previewDiv.appendChild(table);
+}
+
+/* 変換処理（ストリーミング寄り） */
+convertBtn.addEventListener('click', async () => {
+  const f = csvFileInput.files[0];
+  if (!f) return alert('CSVファイルを選択してください。');
+
+  // 設定取得
+  const encPref = encodingSelect.value;
+  const delimPrefRaw = delimiterSelect.value === 'other' ? otherDelimiter.value || ',' : delimiterSelect.value;
+  const delimPref = delimPrefRaw === 'auto' ? '' : delimPrefRaw;
+  const headerFlag = hasHeader.checked;
+
+  // 読み込みバッファ
+  let buffer;
+  try {
+    buffer = await f.arrayBuffer();
+  } catch (e) {
+    alert('ファイル読み込みに失敗しました。');
+    console.error(e);
+    return;
+  }
+  const text = stripBOM(await decodeBuffer(buffer, encPref));
+
+  // 行数の概算（簡易）
+  const approxRows = Math.ceil(text.length / 80);
+  const largeThreshold = 50000; // 自動的にサンプルモードを検討する閾値
+  let useSampleMode = false;
+  let sampleLimit = 20000;
+
+  if (approxRows > largeThreshold) {
+    // 自動でサンプルモードに切り替え（UIで通知）
+    useSampleMode = true;
+    if (!confirm(`ファイルは大きそうです（推定 ${approxRows} 行）。ブラウザでの処理が重くなる可能性があります。先頭 ${sampleLimit} 行のみを変換しますか？「キャンセル」で全行処理を試みます。`)) {
+      useSampleMode = false;
+    }
+  }
+
+  // 進捗UI初期化
+  progressBar.style.display = 'block';
+  progressBarInner.style.width = '0%';
+  progressText.textContent = '変換を開始します...';
+
+  // ExcelJS ワークブック作成
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'CSVtoXLSX';
+  workbook.created = new Date();
+  const sheet = workbook.addWorksheet('Sheet1');
+
+  // 逐次パースして行を書き込む（PapaParse step）
+  let processedRows = 0;
+  let headerRowValues = null;
+  let maxCols = 0;
+  let stopProcessing = false;
+
+  // 列幅計算用配列
+  const colMaxLen = [];
+
+  // PapaParse を step モードで使うために Blob を分割してストリーム的に処理する
+  // ここでは簡潔のため text 全体を parse するが step コールバックで逐次処理する
+  const papaConfig = {
+    delimiter: delimPref,
+    skipEmptyLines: false,
+    worker: true,
+    step: function(results, parser) {
+      if (stopProcessing) { parser.abort(); return; }
+      const row = results.data;
+      // 行数制限（サンプルモード）
+      if (useSampleMode && processedRows >= sampleLimit) { stopProcessing = true; parser.abort(); return; }
+
+      // 初回行がヘッダかどうか
+      if (processedRows === 0 && headerFlag) {
+        headerRowValues = row;
+        // ヘッダ行をワークシートに書く
+        const r = sheet.getRow(1);
+        for (let c = 0; c < row.length; c++) {
+          r.getCell(c+1).value = row[c];
+          // 初期の列幅計算
+          colMaxLen[c] = Math.max(colMaxLen[c] || 0, displayLength(row[c]));
+        }
+        r.commit();
+        maxCols = Math.max(maxCols, row.length);
+        processedRows++;
+        // 進捗更新
+        if (processedRows % 100 === 0) {
+          const pct = Math.min(100, Math.round((processedRows / Math.max(approxRows,1)) * 100));
+          progressBarInner.style.width = pct + '%';
+          progressText.textContent = `読み込み中: ${processedRows} 行（ヘッダ含む）`;
+        }
+        return;
+      }
+
+      // データ行
+      const rowIndex = headerFlag ? processedRows + 1 : processedRows + 1;
+      const r = sheet.getRow(rowIndex);
+      for (let c = 0; c < row.length; c++) {
+        r.getCell(c+1).value = row[c];
+        colMaxLen[c] = Math.max(colMaxLen[c] || 0, displayLength(row[c]));
+      }
+      r.commit();
+      maxCols = Math.max(maxCols, row.length);
+      processedRows++;
+
+      // 進捗更新（頻度を抑える）
+      if (processedRows % 200 === 0) {
+        const pct = Math.min(100, Math.round((processedRows / Math.max(approxRows,1)) * 100));
+        progressBarInner.style.width = pct + '%';
+        progressText.textContent = `読み込み中: ${processedRows} 行`;
+        // イベントループを解放して UI を更新
+        // eslint-disable-next-line no-undef
+        // small pause
+        // Note: cannot await inside step; use setTimeout trick to yield
+      }
+    },
+    complete: function() {
+      // 完了時の処理は below の Promise で行う
+    },
+    error: function(err) {
+      console.error('PapaParse error', err);
+    }
+  };
+
+  // PapaParse は非同期 worker を使うため Promise で待つ
+  await new Promise((resolve, reject) => {
+    papaConfig.complete = function() { resolve(); };
+    papaConfig.error = function(err) { reject(err); };
+    Papa.parse(text, papaConfig);
+  });
+
+  // ここまでで sheet に行が入っている
+  progressText.textContent = `解析完了: ${processedRows} 行を読み込みました。書式適用中...`;
+
+  // 見出しスタイル
+  if (headerFlag) {
+    const headerRow = sheet.getRow(1);
+    headerRow.eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+      cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'} };
+    });
+    sheet.views = [{state:'frozen', ySplit:1}];
+  }
+
+  // セクション区切り（"伝票日付" を含む行）を太罫線で区切る
+  const sectionStarts = [];
+  for (let r = 1; r <= sheet.rowCount; r++) {
+    const firstCell = String(sheet.getRow(r).getCell(1).value || '');
+    if (firstCell.trim() === '伝票日付') sectionStarts.push(r);
+  }
+
+  // 全セルに罫線・書式を適用（数値/日付の自動判定）
+  for (let r = 1; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    const isHeaderRow = headerFlag && r === 1;
+    const isSectionHeader = sectionStarts.includes(r);
+    const stripe = (!isHeaderRow && !isSectionHeader && (r % 2 === 0));
+    row.eachCell({ includeEmpty: true }, (cell, c) => {
+      // 罫線
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+      if (isSectionHeader) cell.border.top = { style: 'medium' };
+      // ストライプ
+      if (stripe) cell.fill = { type:'pattern', pattern:'solid', fgColor:{argb:'FFF9FBFF'} };
+
+      const raw = cell.value;
+      if (raw !== null && raw !== undefined && raw !== '') {
+        const s = String(raw).trim();
+        if (/^-?\d{1,3}(,\d{3})*(\.\d+)?$/.test(s) || /^-?\d+(\.\d+)?$/.test(s)) {
+          const num = Number(s.replace(/,/g,''));
+          if (!isNaN(num)) {
+            cell.value = num;
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+            return;
+          }
+        }
+        if (isDateString(s)) {
+          const d = toDate(s);
+          if (d) {
+            cell.value = d;
+            cell.numFmt = 'yyyy-mm-dd';
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+            return;
+          }
+        }
+        // テキスト
+        if (!isHeaderRow && !isSectionHeader) {
+          cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+        } else {
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+        }
+      } else {
+        cell.alignment = { horizontal: 'left', vertical: 'middle' };
+      }
+    });
+    row.height = 18;
+  }
+
+  // 列幅自動調整（colMaxLen を使う）
+  const padding = 2;
+  const minWidth = 8;
+  const maxWidth = 60;
+  for (let c = 1; c <= Math.max(1, colMaxLen.length); c++) {
+    const len = colMaxLen[c-1] || 0;
+    sheet.getColumn(c).width = Math.min(maxWidth, Math.max(minWidth, Math.ceil(len) + padding));
+  }
+
+  // フィルター（ヘッダがある場合）
+  if (headerFlag && sheet.rowCount >= 1) {
+    sheet.autoFilter = {
+      from: { row: 1, column: 1 },
+      to: { row: 1, column: Math.max(1, colMaxLen.length) }
+    };
+  }
+
+  // 重要列の強化（ヘッダ名ベース）
+  if (headerFlag) {
+    const headerRow = sheet.getRow(1);
+    for (let c = 1; c <= Math.max(1, colMaxLen.length); c++) {
+      const h = String(headerRow.getCell(c).value || '').trim();
+      if (['本日入金','本日出金','本日残高','入金金額','出金金額','前日残高'].includes(h)) {
+        for (let r = 2; r <= sheet.rowCount; r++) {
+          const cell = sheet.getRow(r).getCell(c);
+          if (typeof cell.value === 'number') {
+            cell.numFmt = '#,##0';
+            cell.alignment = { horizontal: 'right', vertical: 'middle' };
+          }
+        }
+      }
+    }
+  }
+
+  // 書き出し
+  progressText.textContent = 'XLSX を生成中...';
+  try {
+    const buf = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buf], { type: 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    // ファイル名は元ファイル名に基づく
+    const baseName = (f.name || 'converted').replace(/\.[^/.]+$/, '');
+    a.download = `${baseName}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    progressBarInner.style.width = '100%';
+    progressText.textContent = `完了: ${sheet.rowCount} 行を変換しました。ダウンロードを開始しました。`;
+  } catch (err) {
+    console.error('エクスポートエラー', err);
+    progressText.textContent = 'エクスポート中にエラーが発生しました。コンソールを確認してください。';
+    alert('エクスポート中にエラーが発生しました。コンソールを確認してください。');
+  } finally {
+    // 小休止して UI を安定化
+    setTimeout(() => { progressBar.style.display = 'none'; }, 1500);
+  }
+});
+</script>
+</body>
+</html>
