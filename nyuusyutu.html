@@ -263,7 +263,6 @@
       localStorage.setItem("syncRows", JSON.stringify(syncRows));
     }
 
-    // 【修正箇所】月末残高の翌月1日への繰越を実装
     function recalcMonth() {
       const dates = Object.keys(voucherData).sort();
       
@@ -273,15 +272,21 @@
         if (!voucher) continue;
 
         // データの最初の日のprevBalance以外は、すべて前日のbalanceを反映する
-        // これにより、日々の繰越と月末から翌月への繰越をまとめて処理する
         if (i > 0) {
             const prevVoucher = voucherData[dates[i-1]];
+            const currentDateMonth = currentDate.slice(0, 7);
+            const prevDateMonth = dates[i-1].slice(0, 7);
+            
+            // 月初（-01）の日は、前月からの繰越の場合のみ自動設定。
+            // 当月1日のprevBalanceは、手動入力の可能性を考慮し、前月からの繰越値に設定するが、
+            // loadVoucherで手動入力可能にしておくことで対応。
+            // 2日目以降は無条件で前日残高を反映。
             if (prevVoucher) {
                 // 前日の最終残高を当日の前日残高として設定
+                // 1日目のprevBalanceは、前月からの繰越値がセットされる。
                 voucher.prevBalance = prevVoucher.balance;
             }
         } 
-        // データの最初の日は、prevBalanceは手動で設定された値（または初期値0）を保持
 
         recalcVoucher(currentDate);
       }
@@ -301,7 +306,6 @@
 
       voucher.deposit = totalDep;
       voucher.withdrawal = totalWithdraw;
-      // prevBalanceには、recalcMonthで設定された値（前日の残高）または手動入力値（1日目のみ）が使用される
       voucher.balance = voucher.prevBalance + totalDep - totalWithdraw; 
     }
 
@@ -348,10 +352,12 @@
 
         input.addEventListener("blur", e => {
             const numValue = parseFloat(e.target.value.replace(/,/g, '')) || 0;
-            voucher.prevBalance = numValue;
+            // 手動変更の場合、prevBalanceを更新してからrecalcMonthを呼び出す
+            if (voucher.prevBalance !== numValue) {
+                voucher.prevBalance = numValue;
+                recalcMonth();
+            }
             e.target.value = numValue.toLocaleString('ja-JP');
-            // 手動で値を変更した際は再計算を走らせ、月全体の残高を更新する
-            recalcMonth();
         });
         
         prevBalanceContainer.appendChild(input);
@@ -416,8 +422,11 @@
           autoSaveVoucherData();
           if (isFirstDayOfMonth && isSync) syncDescription(index);
         });
-        addEnterNavigation(inputDesc);
+        
+        // 【修正3: Enterと十字キーのナビゲーション適用】
         addHighlightLogic(inputDesc, tr);
+        addEnterNavigation(inputDesc);
+        addArrowKeyNavigation(inputDesc);
 
         if (keyword && (row.description && row.description.toLowerCase().includes(keyword))) tdDesc.classList.add("highlight-cell");
 
@@ -481,7 +490,10 @@
       }
       
       addHighlightLogic(input, tr);
+      // 【修正3: Enterと十字キーのナビゲーション適用】
       addEnterNavigation(input);
+      addArrowKeyNavigation(input);
+
       td.appendChild(input);
       tr.appendChild(td);
     }
@@ -493,31 +505,67 @@
       });
     }
 
+    // 【修正1: Enterで下のフィールドへ移動】
     function addEnterNavigation(inputElem) {
       inputElem.addEventListener("keydown", e => {
         if (e.key === "Enter") {
           e.preventDefault();
           const currentRow = parseInt(e.target.dataset.row);
           const currentCol = parseInt(e.target.dataset.col);
-          let nextRow = currentRow;
-          let nextCol = currentCol + 1;
-
-          if (currentCol === 2 || currentCol === 4 || currentCol === 5) {
-            nextRow = currentRow + 1;
-            nextCol = 1;
-          }
-          if (currentCol === 3) {
-            nextCol = 4;
-          }
+          
+          const nextRow = currentRow + 1;
+          const nextCol = currentCol; // 同じ列
 
           const nextInput = document.querySelector(`#voucherDetails tbody tr[data-row='${nextRow}'] input[data-col='${nextCol}']`);
           if (nextInput) {
             nextInput.focus();
-            if(nextInput.type === "text") nextInput.select();
+            if(nextInput.select) nextInput.select();
           }
         }
       });
     }
+
+    // 【修正2: 十字キーでフィールド移動】
+    function addArrowKeyNavigation(inputElem) {
+        inputElem.addEventListener("keydown", e => {
+            const currentRow = parseInt(e.target.dataset.row);
+            const currentCol = parseInt(e.target.dataset.col);
+            let nextRow = currentRow;
+            let nextCol = currentCol;
+
+            switch (e.key) {
+              case "ArrowUp":
+                e.preventDefault();
+                nextRow = currentRow - 1;
+                break;
+              case "ArrowDown":
+                e.preventDefault();
+                nextRow = currentRow + 1;
+                break;
+              case "ArrowLeft":
+                e.preventDefault();
+                nextCol = currentCol - 1;
+                break;
+              case "ArrowRight":
+                e.preventDefault();
+                nextCol = currentCol + 1;
+                break;
+              default:
+                return; // 他のキーは無視
+            }
+
+            // 列の境界チェック (1から5)
+            if (nextCol < 1) nextCol = 1;
+            if (nextCol > 5) nextCol = 5;
+
+            const nextInput = document.querySelector(`#voucherDetails tbody tr[data-row='${nextRow}'] input[data-col='${nextCol}']`);
+            if (nextInput) {
+              nextInput.focus();
+              if(nextInput.select) nextInput.select();
+            }
+        });
+    }
+
 
     /**********************************************
      * イベント処理・ボタン機能
