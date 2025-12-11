@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>入出金伝票システム（ビュー切り替え版）</title>
+  <title>入出金伝票システム（クイック入力・ビュー切り替え版）</title>
   <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
@@ -169,6 +169,13 @@
       </div>
     </form>
     <br>
+    
+    <h3>摘要クイック入力設定</h3>
+    <p><small>一行に一つの摘要を入力してください。</small></p>
+    <textarea id="quickDescInput" rows="5" style="width: 100%;"></textarea>
+    <button type="button" id="saveQuickDescBtn">摘要を保存</button>
+    <br><br>
+
     <button type="button" id="deleteAllDataBtn">全データ削除</button>
     <button type="button" id="closeSettingsBtn">閉じる</button>
   </div>
@@ -225,8 +232,9 @@
      **********************************************/
     let voucherData = {};
     let syncRows = Array(10).fill(false);
-    let currentMonth = ""; // 現在選択中の月 (YYYY-MM)
-    let currentVoucherDate = ""; // 日次ビューで選択中の日 (YYYY-MM-DD)
+    let quickDescriptions = []; // クイック入力用の摘要リスト
+    let currentMonth = ""; 
+    let currentVoucherDate = ""; 
     let viewMode = 'month'; // 'month' or 'day'
 
     /**********************************************
@@ -252,6 +260,10 @@
       if (storedSyncRows) {
         try { syncRows = JSON.parse(storedSyncRows); } catch(e) { syncRows = Array(10).fill(false); console.error(e); }
       }
+      const storedQuickDesc = localStorage.getItem("quickDescriptions");
+      if (storedQuickDesc) {
+        try { quickDescriptions = JSON.parse(storedQuickDesc); } catch(e) { quickDescriptions = []; console.error(e); }
+      }
 
       document.querySelectorAll("#syncForm input[type=checkbox]").forEach((chk, index) => {
         chk.checked = syncRows[index];
@@ -264,15 +276,13 @@
 
       ensureVoucherDataForMonth(currentMonth);
       
-      // 日次セレクターの初期化
       populateDaySelector(currentMonth);
       currentVoucherDate = currentMonth + "-01";
       document.getElementById("daySelector").value = currentVoucherDate;
 
-      // 全期間の残高を再計算
       recalcMonth();
-      // 初期ビューのレンダリング (デフォルトは月次)
       updateView();
+      renderDatalist(); // datalistの初回描画
     }
 
     function ensureVoucherDataForMonth(month) {
@@ -321,7 +331,6 @@
         option.textContent = date;
         selector.appendChild(option);
       }
-      // 現在の日付が選択肢にない場合、1日に戻す
       if (!selector.querySelector(`option[value="${currentVoucherDate}"]`)) {
         currentVoucherDate = month + "-01";
       }
@@ -331,9 +340,9 @@
     function autoSaveVoucherData() {
       localStorage.setItem("voucherData", JSON.stringify(voucherData));
       localStorage.setItem("syncRows", JSON.stringify(syncRows));
+      localStorage.setItem("quickDescriptions", JSON.stringify(quickDescriptions));
     }
 
-    // 全期間の残高を日付順に再計算し、画面を更新する
     function recalcMonth() {
       const dates = Object.keys(voucherData).sort();
       
@@ -345,26 +354,23 @@
         if (i > 0) {
             const prevVoucher = voucherData[dates[i-1]];
             if (prevVoucher) {
-                // 前日の最終残高を当日の前日残高として設定
                 voucher.prevBalance = prevVoucher.balance;
             }
         } 
         recalcVoucher(currentDate);
       }
       
-      // 再計算後、現在のビューを再描画して最新の残高を反映
       updateView(); 
       autoSaveVoucherData();
     }
 
-    // 単日の入金・出金・残高を計算する
     function recalcVoucher(date) {
       const voucher = voucherData[date];
       if (!voucher) return;
       let totalDep = 0, totalWithdraw = 0;
 
       voucher.details.forEach(row => {
-        // 文字列のカンマを削除し、数値として加算
+        // 金額は文字列で保存されている場合があるため、処理前にカンマを削除し数値化
         totalDep += parseFloat(String(row.depositAmount).replace(/,/g, '')) || 0;
         totalWithdraw += parseFloat(String(row.withdrawalAmount).replace(/,/g, '')) || 0;
       });
@@ -384,9 +390,22 @@
           voucherData[date].details[rowIndex].description = masterDescription;
         }
       });
-      // 変更を反映するため再描画
       updateView();
       autoSaveVoucherData();
+    }
+    
+    // クイック入力用の datalist を生成/更新する
+    function renderDatalist() {
+        let datalist = document.getElementById('quickDescList');
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = 'quickDescList';
+            document.body.appendChild(datalist);
+        }
+        datalist.innerHTML = quickDescriptions
+                                .filter(desc => desc.trim() !== '') // 空白を除外
+                                .map(desc => `<option value="${desc}">`)
+                                .join('');
     }
 
     /**********************************************
@@ -394,6 +413,9 @@
      **********************************************/
      
     function updateView(searchKeyword = null) {
+        // datalistの更新
+        renderDatalist();
+
         // コントロールパネルの表示切り替え
         document.getElementById('monthlyVoucherContainer').style.display = 'none';
         document.getElementById('dailyVoucherContainer').style.display = 'none';
@@ -419,7 +441,6 @@
     }
 
 
-    // --- 月次ビューのレンダリング ---
     function renderMonthView(month, searchKeyword = null) {
       const container = document.getElementById("monthlyVoucherContainer");
       container.innerHTML = "";
@@ -431,7 +452,6 @@
       const keyword = searchKeyword ? searchKeyword.toLowerCase() : null;
 
       sortedDatesForMonth.forEach(date => {
-        // renderViewDetailsを呼び出し、結果を月次コンテナに挿入
         const dailyCardHtml = renderViewDetails(date, null, keyword, true);
         const dailyCard = document.createElement("div");
         dailyCard.classList.add("daily-voucher-card");
@@ -440,33 +460,31 @@
         container.appendChild(dailyCard);
       });
       
-      // すべての入力フィールドにイベントリスナーを設定
       attachInputListeners(month);
     }
     
-    // --- 日次ビューのレンダリング (単日表示用) ---
-    // note: この関数は、月次ビューの各日をレンダリングするためにも使われます
     function renderViewDetails(date, containerId, searchKeyword = null, isMonthlyView = false) {
       const voucher = voucherData[date];
-      if (!voucher) return;
+      if (!voucher) return "";
       
       const isFirstDayOfMonth = date.endsWith("-01");
       const keyword = searchKeyword ? searchKeyword.toLowerCase() : null;
       
-      // コンテナIDが指定されている場合は、innerHTMLを直接更新
       let container = null;
       if(containerId) {
           container = document.getElementById(containerId);
           if(!container) return;
       }
       
-      // 1. サマリーのHTMLを構築
+      // 前日残高の表示値決定 (0なら空欄)
+      const prevBalanceDisplay = voucher.prevBalance === 0 ? '' : voucher.prevBalance.toLocaleString('ja-JP');
+
       let summaryHtml = `
           <div class="daily-summary-panel">
             <div>${date}</div>
             <div id="prevBalanceContainer_${date}">前日残高: 
-              ${(isFirstDayOfMonth || !isMonthlyView) ? // 1日目 or 日次ビューでは編集可能
-                `<input type="text" class="prev-balance-input" data-date="${date}" value="${voucher.prevBalance === 0 ? '' : voucher.prevBalance.toLocaleString('ja-JP')}" 
+              ${(isFirstDayOfMonth || !isMonthlyView) ? 
+                `<input type="text" class="prev-balance-input" data-date="${date}" value="${prevBalanceDisplay}" 
                     onfocus="this.value = String(this.value).replace(/,/g, ''); this.select();"
                     onblur="updatePrevBalance(this, '${date}');">` :
                 `<span id="prevBalanceField_${date}">${voucher.prevBalance.toLocaleString('ja-JP')}</span>`
@@ -478,7 +496,6 @@
           </div>
         `;
         
-        // 2. 詳細テーブルの構築
         let tableHtml = `
           <table class="voucher-details-table" data-date="${date}">
             <thead>
@@ -506,14 +523,14 @@
             }
           }
           
-          const isDescReadOnly = isSync && !date.endsWith("-01"); // 同期設定かつ1日目以外は読み取り専用
+          const isDescReadOnly = isSync && !date.endsWith("-01");
 
           tableHtml += `
             <tr data-row="${index}">
               <td${keyword && String(row.no).includes(keyword) ? ' class="highlight-cell"' : ''}>${row.no}</td>
               ${createInputCellHtml(date, "text", row.depositCategory, index, "1", keyword)}
               ${createInputCellHtml(date, "number", row.depositAmount, index, "2", keyword)}
-              ${createInputCellHtml(date, "text", descValue, index, "3", keyword, isDescReadOnly)}
+              ${createInputCellHtml(date, "text", descValue, index, "3", keyword, isDescReadOnly, true)}
               ${createInputCellHtml(date, "number", row.withdrawalAmount, index, "4", keyword)}
               ${createInputCellHtml(date, "text", row.withdrawalCategory, index, "5", keyword)}
             </tr>
@@ -529,46 +546,53 @@
         
         if (container) {
             container.innerHTML = finalHtml;
-            // 日次ビューの場合、ここでリスナーを設定
             attachInputListeners(date.slice(0, 7));
         } else {
-            return finalHtml; // 月次ビューのためにHTML文字列を返す
+            return finalHtml;
         }
     }
     
     // 単一セル用のHTMLを生成するヘルパー関数
-    function createInputCellHtml(date, type, value, rowIndex, colIndex, keyword, readOnly = false) {
-        const displayValue = (value === 0 && type === "number") 
-                           ? "" 
-                           : (type === "number" ? (parseFloat(value) || 0).toLocaleString('ja-JP') : String(value));
+    function createInputCellHtml(date, type, value, rowIndex, colIndex, keyword, readOnly = false, isDescription = false) {
+        let displayValue;
+        let numValue = (type === "number") ? parseFloat(String(value).replace(/,/g, '')) || 0 : value;
+
+        // 1. フィールドが数値で、値が0の場合は空欄を表示
+        if (type === "number") {
+            displayValue = numValue === 0 ? "" : numValue.toLocaleString('ja-JP');
+        } else {
+            displayValue = String(value);
+        }
+
         const inputType = "text"; 
         const readOnlyAttr = readOnly ? 'readonly' : '';
         const disabledClass = readOnly ? 'disabled-input' : '';
         
         const cellClass = (keyword && String(value).toLowerCase().includes(keyword.toLowerCase())) ? ' class="highlight-cell"' : '';
+        
+        const datalistAttr = isDescription ? 'list="quickDescList"' : '';
 
         return `
           <td${cellClass}>
             <input type="${inputType}" value="${displayValue}" 
                    data-date="${date}" data-row="${rowIndex}" data-col="${colIndex}" data-type="${type}"
-                   ${readOnlyAttr} class="${disabledClass}">
+                   ${readOnlyAttr} class="${disabledClass}" ${datalistAttr}>
           </td>
         `;
     }
     
-    // 前日残高の更新処理 (グローバル関数として定義)
+    // 前日残高の更新処理
     window.updatePrevBalance = function(inputElement, date) {
         const numValue = parseFloat(inputElement.value.replace(/,/g, '')) || 0;
         const voucher = voucherData[date];
         
-        // 1日目のprevBalance、または日次ビューで編集された場合のみ更新
         if ((date.endsWith("-01") || viewMode === 'day') && voucher.prevBalance !== numValue) {
             voucher.prevBalance = numValue;
-            recalcMonth(); // 全期間を再計算
+            recalcMonth(); 
         }
         
-        // 表示形式をカンマ付きに戻す
-        inputElement.value = numValue.toLocaleString('ja-JP');
+        // 0の場合は空欄、それ以外はカンマ付きに戻す
+        inputElement.value = numValue === 0 ? '' : numValue.toLocaleString('ja-JP');
     };
 
 
@@ -581,11 +605,9 @@
             const colIndex = parseInt(input.dataset.col);
             const type = input.dataset.type;
 
-            // アクティブ行のハイライト
             input.addEventListener("focus", (e) => {
                 document.querySelectorAll(".active-row").forEach(tr => tr.classList.remove("active-row"));
                 e.target.closest("tr").classList.add("active-row");
-                // 金額フィールドの場合、カンマを削除
                 if(type === "number") {
                     const rawValue = String(e.target.value).replace(/,/g, '');
                     e.target.value = rawValue;
@@ -610,10 +632,11 @@
                         changed = true;
                     }
 
-                    e.target.value = numValue.toLocaleString('ja-JP');
+                    // 0の場合は空欄、それ以外はカンマ付きに戻す
+                    e.target.value = numValue === 0 ? '' : numValue.toLocaleString('ja-JP');
 
                     if (changed) {
-                        recalcMonth(); // 全期間を再計算し、画面を再描画
+                        recalcMonth();
                     }
                 });
             } else if (type === "text") {
@@ -645,7 +668,7 @@
                 });
             }
 
-            // Enter/Arrowキーでの移動
+            // Enter/Arrowキーでの移動 (省略、前バージョンと同じロジックが使用されます)
             input.addEventListener("keydown", e => {
                 const allDates = Object.keys(voucherData).sort();
                 const currentDateIndex = allDates.indexOf(date);
@@ -693,6 +716,8 @@
                     if (nextCol > 5) nextCol = 5;
                     move = true;
                     break;
+                  default:
+                    return;
                 }
 
                 if (move) {
@@ -753,13 +778,12 @@
 
       if (year < 1950 || year > 2099) return; 
 
-      // 月が変わる場合は、まず新しい月のデータを初期化する
       if (currentMonth !== nextMonth) {
           document.getElementById("monthSelector").value = nextMonth;
           currentMonth = nextMonth;
           ensureVoucherDataForMonth(nextMonth);
           populateDaySelector(nextMonth);
-          recalcMonth(); // 移動後に再計算を走らせ、残高を更新
+          recalcMonth();
       }
 
       if (voucherData[nextDate]) {
@@ -771,11 +795,23 @@
 
     // 設定ボタンのイベントリスナー
     document.getElementById("settingsBtn").addEventListener("click", () => {
+        // 設定パネル表示時にクイック摘要をロード
+        document.getElementById("quickDescInput").value = quickDescriptions.join('\n');
         document.getElementById("settingsPanel").style.display = "block";
     });
+    
+    // クイック摘要保存ボタン
+    document.getElementById("saveQuickDescBtn").addEventListener("click", () => {
+        const input = document.getElementById("quickDescInput").value;
+        quickDescriptions = input.split('\n').map(desc => desc.trim()).filter(desc => desc !== '');
+        autoSaveVoucherData();
+        renderDatalist(); // datalistを更新
+        alert("摘要を保存しました。");
+    });
+    
     document.getElementById("closeSettingsBtn").addEventListener("click", () => {
         document.getElementById("settingsPanel").style.display = "none";
-        recalcMonth(); // 同期設定が変わる可能性があるので再計算
+        recalcMonth(); 
     });
     document.getElementById("deleteAllDataBtn").addEventListener("click", () => {
         if(confirm("全てのデータを削除してもよろしいですか？この操作は取り消せません。")) {
@@ -823,7 +859,7 @@
             });
         }
         
-        recalcMonth(); // クリア後、残高を再計算
+        recalcMonth();
     });
 
 
@@ -974,11 +1010,9 @@
             currentVoucherDate = date;
             document.getElementById("daySelector").value = currentVoucherDate;
             
-            // 検索結果から飛ぶ場合は日次ビューに切り替える方がユーザーに親切
             viewMode = 'day'; 
             recalcMonth();
             
-            // 該当伝票にスクロール（日次ビューでは不要だが、月次ビューに切り替えてから検索する場合は必要になるため残す）
             const target = document.querySelector(`.daily-voucher-card[data-date='${date}']`);
             if(target) {
                 target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -990,7 +1024,6 @@
       
       if (resultsDiv.children.length === 0) resultsDiv.textContent = "検索結果はありません。";
       else {
-          // 検索結果が表示されたら、月次ビューでハイライトを適用して再描画
           if (viewMode === 'month') {
               renderMonthView(currentMonth, keyword);
           } else {
@@ -1009,7 +1042,8 @@
     /**********************************************
      * Excel / JSON 保存・読込
      **********************************************/
-    
+    // (Excel / JSON の保存・読込ロジックは変更なし)
+
     document.getElementById("excelSaveBtn").addEventListener("click", async () => {
       showLoading("Excelファイルを作成中...");
       try {
@@ -1020,7 +1054,6 @@
           .filter(date => date.startsWith(month))
           .sort();
           
-        // --- 1. 月次サマリーシート作成（幅自動調整対応） ---
         const summarySheet = workbook.addWorksheet('月次サマリー');
         let summaryRow = 1;
         summarySheet.getRow(summaryRow++).values = ['日付', '前日残高', '本日入金', '本日出金', '本日残高'];
@@ -1050,7 +1083,6 @@
         summarySheet.columns = maxSummaryWidths.map(w => ({ width: w + 2 }));
 
 
-        // --- 2. 入出金伝票シート作成（幅自動調整対応） ---
         const voucherSheet = workbook.addWorksheet('入出金伝票');
         
         let maxDetailWidths = [5, 15, 15, 30, 15, 15]; 
@@ -1060,7 +1092,6 @@
         for (const date of sortedDatesForMonth) {
           const v = voucherData[date];
           
-          // Header (日付/残高情報)
           const headerRow = voucherSheet.getRow(currentRow);
           headerRow.values = ['伝票日付', '前日残高', '本日入金', '本日出金', '本日残高'];
           headerRow.font = { bold: true };
@@ -1091,7 +1122,6 @@
           });
           currentRow++;
 
-          // Detail Header
           const detailHeader = voucherSheet.getRow(currentRow);
           detailHeader.values = ['No.', '入金科目', '入金金額', '摘要', '出金金額', '出金科目'];
           detailHeader.font = { bold: true };
@@ -1102,13 +1132,11 @@
           });
           currentRow++;
 
-          // Details Rows
           v.details.forEach(detail => {
             const r = voucherSheet.getRow(currentRow);
             const values = [detail.no, detail.depositCategory, detail.depositAmount, detail.description, detail.withdrawalAmount, detail.withdrawalCategory];
             r.values = values;
             
-            // 幅計算 
             values.forEach((val, i) => {
                 const len = String(val).length;
                 if (len > maxDetailWidths[i]) { 
@@ -1234,7 +1262,7 @@
     });
     
     document.getElementById("jsonSaveBtn").addEventListener("click", () => {
-      const dataToSave = { voucherData: voucherData, syncRows: syncRows };
+      const dataToSave = { voucherData: voucherData, syncRows: syncRows, quickDescriptions: quickDescriptions };
       const jsonStr = JSON.stringify(dataToSave, null, 2);
       const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(jsonStr);
       const link = document.createElement("a");
@@ -1256,6 +1284,7 @@
             if (confirm("JSONからデータを復元しますか？")) {
               voucherData = loadedData.voucherData;
               if(loadedData.syncRows) syncRows = loadedData.syncRows;
+              if(loadedData.quickDescriptions) quickDescriptions = loadedData.quickDescriptions;
               autoSaveVoucherData();
               initApp();
               alert("復元しました。");
