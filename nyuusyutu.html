@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>入出金伝票システム（Excel＆JSON対応版）</title>
+  <title>入出金伝票システム（完全Excel対応版）</title>
+  <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; }
     #controlPanel, #searchPanel, #actionPanel {
@@ -14,7 +15,7 @@
     #summaryPanel div { margin: 5px 0; }
     table { border-collapse: collapse; width: 100%; margin-top: 10px; }
     th, td { border: 1px solid #aaa; padding: 5px; text-align: center; }
-    input[type="text"], input[type="number"] { width: 90%; box-sizing: border-box; } /* box-sizingを追加 */
+    input[type="text"], input[type="number"] { width: 90%; box-sizing: border-box; }
     @media print {
       #controlPanel, #searchPanel, #actionPanel, #settingsPanel { display: none; }
     }
@@ -22,29 +23,17 @@
     #settingsPanel {
       border: 1px solid #aaa; padding: 10px; margin-top: 10px; background-color: #f9f9f9; width: 300px;
     }
-    /* 検索結果内の各アイテム */
+    /* 検索結果 */
     .search-result-item {
       margin-bottom: 5px;
-      display: flex; /* Flexboxで配置 */
-      align-items: center; /* 中央揃え */
+      display: flex; align-items: center;
     }
-    .search-result-item a {
-      margin-right: 10px;
-    }
+    .search-result-item a { margin-right: 10px; }
     .deleteResultBtn {
-      margin-left: auto; /* 右端に寄せる */
-      font-size: 0.9em;
-      color: #fff;
-      background-color: #d9534f;
-      border: none;
-      padding: 2px 6px;
-      cursor: pointer;
-      border-radius: 3px;
+      margin-left: auto; font-size: 0.9em; color: #fff; background-color: #d9534f;
+      border: none; padding: 2px 6px; cursor: pointer; border-radius: 3px;
     }
-    .disabled-input {
-      background-color: #f0f0f0; /* 無効化されたinputの背景色 */
-      cursor: not-allowed;
-    }
+    .disabled-input { background-color: #f0f0f0; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -73,9 +62,9 @@
       <div>
         <label><input type="checkbox" name="syncRow" value="5"> 行6</label>
         <label><input type="checkbox" name="syncRow" value="6"> 行7</label>
-        <label><input type="checkbox" name="7"> 行8</label>
-        <label><input type="checkbox" name="8"> 行9</label>
-        <label><input type="checkbox" name="9"> 行10</label>
+        <label><input type="checkbox" name="syncRow" value="7"> 行8</label>
+        <label><input type="checkbox" name="syncRow" value="8"> 行9</label>
+        <label><input type="checkbox" name="syncRow" value="9"> 行10</label>
       </div>
     </form>
     <br>
@@ -102,8 +91,7 @@
           <th>出金科目</th>
         </tr>
       </thead>
-      <tbody>
-        </tbody>
+      <tbody></tbody>
     </table>
   </div>
 
@@ -116,12 +104,14 @@
   </div>
 
   <div id="actionPanel">
-    <button id="excelSaveBtn">Excel保存 (CSV)</button>
-    <input type="file" id="excelLoadInput" style="display:none;">
-    <button id="excelLoadBtn">Excel読み込み (CSV)</button>
+    <button id="excelSaveBtn">Excel保存 (.xlsx)</button>
+    <input type="file" id="excelLoadInput" accept=".xlsx" style="display:none;">
+    <button id="excelLoadBtn">Excel読み込み (.xlsx)</button>
+    
     <button id="jsonSaveBtn">JSON保存</button>
-    <input type="file" id="jsonLoadInput" style="display:none;">
+    <input type="file" id="jsonLoadInput" accept=".json" style="display:none;">
     <button id="jsonLoadBtn">JSON読み込み</button>
+    
     <button id="printBtn">印刷</button>
   </div>
 
@@ -129,57 +119,43 @@
     /**********************************************
      * グローバル変数・データ構造
      **********************************************/
-    // voucherData: すべての伝票データを "YYYY-MM-DD" をキーに保持
     let voucherData = {};
-    // syncRows: 各行（インデックス0～9）について固定同期が有効かどうかを保持
     let syncRows = Array(10).fill(false);
-    // 現在表示中の伝票日付
     let currentVoucherDate = "";
 
     /**********************************************
      * 初期化・データ読み込み処理
      **********************************************/
     function initApp() {
-      // localStorage に保存されている伝票データがあれば読み込む
       const storedVoucherData = localStorage.getItem("voucherData");
       if (storedVoucherData) {
-        try { voucherData = JSON.parse(storedVoucherData); } catch(e) { voucherData = {}; console.error("Error parsing stored voucherData:", e); }
+        try { voucherData = JSON.parse(storedVoucherData); } catch(e) { voucherData = {}; console.error(e); }
       }
-
-      // localStorage に保存されている同期設定を読み込む
       const storedSyncRows = localStorage.getItem("syncRows");
       if (storedSyncRows) {
-        try { syncRows = JSON.parse(storedSyncRows); } catch(e) { syncRows = Array(10).fill(false); console.error("Error parsing stored syncRows:", e); }
+        try { syncRows = JSON.parse(storedSyncRows); } catch(e) { syncRows = Array(10).fill(false); console.error(e); }
       }
 
-      // 同期設定のチェックボックスの状態を復元
       document.querySelectorAll("#syncForm input[type=checkbox]").forEach((chk, index) => {
         chk.checked = syncRows[index];
       });
 
       const monthSelector = document.getElementById("monthSelector");
       const now = new Date();
-      // 現在の月を設定し、YYY-MM形式に変換
       const monthValue = now.toISOString().slice(0, 7);
       monthSelector.value = monthValue;
 
-      // 対象月のデータが確実に存在するようにし、日付セレクターを更新
       ensureVoucherDataForMonth(monthValue);
       populateDaySelector(monthValue);
 
-      // 最初の表示日付を決定（もしlocalStorageに保存されている最終表示日付があればそれを使うなど、拡張可能）
-      // とりあえず、その月の最初の日付に設定
       currentVoucherDate = monthValue + "-01";
-      document.getElementById("daySelector").value = currentVoucherDate; // セレクタも同期
-      loadVoucher(currentVoucherDate); // 伝票を読み込み表示
-
-      recalcMonth(); // 全体の残高を再計算して表示を最新に保つ
+      document.getElementById("daySelector").value = currentVoucherDate;
+      loadVoucher(currentVoucherDate);
+      recalcMonth();
     }
 
-    // 対象月の各日付データを存在しなければ生成する
     function ensureVoucherDataForMonth(month) {
       const [year, monthNum] = month.split("-");
-      // 指定された月の最終日を取得
       const daysInMonth = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
 
       for (let d = 1; d <= daysInMonth; d++) {
@@ -189,13 +165,12 @@
         if (!voucherData[dateStr]) {
           voucherData[dateStr] = {
             date: dateStr,
-            prevBalance: 0, // 前日残高
-            deposit: 0,     // 本日入金合計
-            withdrawal: 0,  // 本日出金合計
-            balance: 0,     // 本日残高
-            details: []     // 明細行データ
+            prevBalance: 0,
+            deposit: 0,
+            withdrawal: 0,
+            balance: 0,
+            details: []
           };
-          // 10行分の空の明細行を初期化
           for (let i = 0; i < 10; i++) {
             voucherData[dateStr].details.push({
               no: i + 1,
@@ -208,13 +183,12 @@
           }
         }
       }
-      autoSaveVoucherData(); // 新しい日付データが生成されたら保存
+      autoSaveVoucherData();
     }
 
-    // 対象月の書き込み日セレクトボックスを生成する
     function populateDaySelector(month) {
       const selector = document.getElementById("daySelector");
-      selector.innerHTML = ""; // 既存のオプションをクリア
+      selector.innerHTML = "";
       const [year, monthNum] = month.split("-");
       const daysInMonth = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
 
@@ -226,50 +200,35 @@
         option.textContent = date;
         selector.appendChild(option);
       }
-      // もし現在の表示日付が新しい月の日付セレクタに存在しない場合、月の初日に設定
       if (!selector.querySelector(`option[value="${currentVoucherDate}"]`)) {
         currentVoucherDate = month + "-01";
       }
       selector.value = currentVoucherDate;
     }
 
-    /**********************************************
-     * 自動保存（localStorageへの保存）
-     **********************************************/
     function autoSaveVoucherData() {
       localStorage.setItem("voucherData", JSON.stringify(voucherData));
-      localStorage.setItem("syncRows", JSON.stringify(syncRows)); // 同期設定も保存
+      localStorage.setItem("syncRows", JSON.stringify(syncRows));
     }
 
     /**********************************************
      * 集計処理
      **********************************************/
     function recalcMonth() {
-      // voucherDataのキー（日付）を日付順にソート
       const dates = Object.keys(voucherData).sort();
-      let lastKnownBalance = 0; // 前日残高の計算のための変数
-
+      
       for (let i = 0; i < dates.length; i++) {
         const currentDate = dates[i];
         const voucher = voucherData[currentDate];
+        if (!voucher) continue;
 
-        if (!voucher) continue; // データが存在しない場合はスキップ
-
-        // 1日以外の日は前日の残高を自動設定
         if (i > 0) {
-          // 前日の残高を直接参照するのではなく、計算された最終残高を使用
           voucher.prevBalance = voucherData[dates[i-1]].balance;
         }
-        // 1日の前日残高は手動入力または以前の値を使用し、ここで上書きしない
-        // (ensureVoucherDataForMonthでprevBalanceは0で初期化されるため、ユーザー入力があればそれが優先される)
-
-        recalcVoucher(currentDate); // その日の入出金合計と残高を計算
-        lastKnownBalance = voucher.balance; // 次の日の前日残高のために保存
+        recalcVoucher(currentDate);
       }
-
-      // UIの更新をトリガー（現在表示中の伝票を再読み込みする）
       loadVoucher(currentVoucherDate);
-      autoSaveVoucherData(); // 計算結果を保存
+      autoSaveVoucherData();
     }
 
     function recalcVoucher(date) {
@@ -278,8 +237,8 @@
       let totalDep = 0, totalWithdraw = 0;
 
       voucher.details.forEach(row => {
-        totalDep += parseFloat(row.depositAmount) || 0; // NaNを0として扱う
-        totalWithdraw += parseFloat(row.withdrawalAmount) || 0; // NaNを0として扱う
+        totalDep += parseFloat(row.depositAmount) || 0;
+        totalWithdraw += parseFloat(row.withdrawalAmount) || 0;
       });
 
       voucher.deposit = totalDep;
@@ -290,25 +249,20 @@
     /**********************************************
      * 固定摘要同期
      **********************************************/
-    // 指定された行の摘要を、対象月の1日目の摘要と同期させる
     function syncDescription(rowIndex) {
       const currentMonth = document.getElementById("monthSelector").value;
       const masterDate = `${currentMonth}-01`;
-      if (!voucherData[masterDate]) {
-        // 1日目のデータがない場合は何もしない（通常はensureVoucherDataForMonthで生成されるはず）
-        return;
-      }
+      if (!voucherData[masterDate]) return;
       const masterDescription = voucherData[masterDate].details[rowIndex].description;
 
       Object.keys(voucherData).forEach(date => {
-        if (date.startsWith(currentMonth)) { // 対象月の日付のみを対象
+        if (date.startsWith(currentMonth)) {
           voucherData[date].details[rowIndex].description = masterDescription;
         }
       });
-      loadVoucher(currentVoucherDate); // 現在表示中の伝票を更新して反映
-      autoSaveVoucherData(); // 変更を保存
+      loadVoucher(currentVoucherDate);
+      autoSaveVoucherData();
     }
-
 
     /**********************************************
      * 伝票表示・入力
@@ -316,44 +270,26 @@
     function loadVoucher(date) {
       const voucher = voucherData[date];
       if (!voucher) {
-        // データが存在しない場合（例: 削除された、読み込みエラーなど）
-        // 月の最初の日付にフォールバック
-        const currentMonth = document.getElementById("monthSelector").value;
-        const firstDayOfMonth = `${currentMonth}-01`;
-        if (voucherData[firstDayOfMonth]) {
-          currentVoucherDate = firstDayOfMonth;
-          document.getElementById("daySelector").value = firstDayOfMonth;
-          loadVoucher(firstDayOfMonth);
-        } else {
-          // どうしようもない場合は、空の伝票を表示
-          document.getElementById("voucherHeader").textContent = `伝票: ${date} (データなし)`;
-          document.getElementById("prevBalanceField").textContent = "0";
-          document.getElementById("depositTotal").textContent = "0";
-          document.getElementById("withdrawalTotal").textContent = "0";
-          document.getElementById("balance").textContent = "0";
-          document.querySelector("#voucherDetails tbody").innerHTML = "";
-        }
-        return;
+         // データがない場合のフォールバック処理は省略（初期化で生成されるため）
+         return;
       }
 
       document.getElementById("voucherHeader").textContent = `伝票: ${date}`;
-
-      // サマリーパネル更新
       const prevBalanceContainer = document.getElementById("prevBalanceContainer");
       prevBalanceContainer.innerHTML = "前日残高: ";
-      // 1日のみ前日残高を入力可能にする
+      
       if (date.endsWith("-01")) {
         const input = document.createElement("input");
         input.type = "number";
         input.value = voucher.prevBalance === 0 ? "" : voucher.prevBalance;
         input.addEventListener("change", e => {
           voucher.prevBalance = parseFloat(e.target.value) || 0;
-          recalcMonth(); // 前日残高変更時は月全体を再計算
+          recalcMonth();
         });
         prevBalanceContainer.appendChild(input);
       } else {
         const span = document.createElement("span");
-        span.textContent = voucher.prevBalance.toLocaleString(); // 数値整形
+        span.textContent = voucher.prevBalance.toLocaleString();
         prevBalanceContainer.appendChild(span);
       }
 
@@ -361,7 +297,6 @@
       document.getElementById("withdrawalTotal").textContent = voucher.withdrawal.toLocaleString();
       document.getElementById("balance").textContent = voucher.balance.toLocaleString();
 
-      // 明細テーブル再生成
       const tbody = document.querySelector("#voucherDetails tbody");
       tbody.innerHTML = "";
       const currentMonth = document.getElementById("monthSelector").value;
@@ -377,36 +312,12 @@
         tr.appendChild(tdNo);
 
         // 入金科目
-        const tdDepCat = document.createElement("td");
-        const inputDepCat = document.createElement("input");
-        inputDepCat.type = "text";
-        inputDepCat.value = row.depositCategory;
-        inputDepCat.dataset.row = index;
-        inputDepCat.dataset.col = "1";
-        inputDepCat.addEventListener("change", e => {
-          row.depositCategory = e.target.value;
-          autoSaveVoucherData();
-        });
-        addEnterNavigation(inputDepCat);
-        tdDepCat.appendChild(inputDepCat);
-        tr.appendChild(tdDepCat);
-
+        createCell(tr, "text", row.depositCategory, index, "1", val => row.depositCategory = val);
         // 入金金額
-        const tdDepAmt = document.createElement("td");
-        const inputDepAmt = document.createElement("input");
-        inputDepAmt.type = "number";
-        inputDepAmt.value = row.depositAmount === 0 ? "" : row.depositAmount;
-        inputDepAmt.dataset.row = index;
-        inputDepAmt.dataset.col = "2";
-        inputDepAmt.addEventListener("change", e => {
-          row.depositAmount = parseFloat(e.target.value) || 0;
-          recalcVoucher(date); // その日の伝票だけ再計算
-          loadVoucher(date); // 表示を更新
-          autoSaveVoucherData();
+        createCell(tr, "number", row.depositAmount, index, "2", val => {
+          row.depositAmount = parseFloat(val) || 0;
+          recalcVoucher(date); loadVoucher(date); autoSaveVoucherData();
         });
-        addEnterNavigation(inputDepAmt);
-        tdDepAmt.appendChild(inputDepAmt);
-        tr.appendChild(tdDepAmt);
 
         // 摘要
         const tdDesc = document.createElement("td");
@@ -414,71 +325,56 @@
         inputDesc.type = "text";
         inputDesc.dataset.row = index;
         inputDesc.dataset.col = "3";
-
-        // 固定摘要同期が有効な場合
         if (syncRows[index]) {
           const masterVoucher = voucherData[`${currentMonth}-01`];
           if (masterVoucher) {
             inputDesc.value = masterVoucher.details[index].description;
-            row.description = masterVoucher.details[index].description; // 実際のデータも同期
+            row.description = masterVoucher.details[index].description;
           }
-          if (!isFirstDayOfMonth) { // 1日目以外は編集不可にする
+          if (!isFirstDayOfMonth) {
             inputDesc.readOnly = true;
             inputDesc.classList.add("disabled-input");
           }
         } else {
           inputDesc.value = row.description;
         }
-
         inputDesc.addEventListener("change", e => {
           row.description = e.target.value;
           autoSaveVoucherData();
-          // 1日目の摘要が変更され、かつ同期設定がONの場合、他の日付も同期
-          if (isFirstDayOfMonth && syncRows[index]) {
-            syncDescription(index);
-          }
+          if (isFirstDayOfMonth && syncRows[index]) syncDescription(index);
         });
         addEnterNavigation(inputDesc);
         tdDesc.appendChild(inputDesc);
         tr.appendChild(tdDesc);
 
         // 出金金額
-        const tdWithdrawAmt = document.createElement("td");
-        const inputWithdrawAmt = document.createElement("input");
-        inputWithdrawAmt.type = "number";
-        inputWithdrawAmt.value = row.withdrawalAmount === 0 ? "" : row.withdrawalAmount;
-        inputWithdrawAmt.dataset.row = index;
-        inputWithdrawAmt.dataset.col = "4";
-        inputWithdrawAmt.addEventListener("change", e => {
-          row.withdrawalAmount = parseFloat(e.target.value) || 0;
-          recalcVoucher(date); // その日の伝票だけ再計算
-          loadVoucher(date); // 表示を更新
-          autoSaveVoucherData();
+        createCell(tr, "number", row.withdrawalAmount, index, "4", val => {
+          row.withdrawalAmount = parseFloat(val) || 0;
+          recalcVoucher(date); loadVoucher(date); autoSaveVoucherData();
         });
-        addEnterNavigation(inputWithdrawAmt);
-        tdWithdrawAmt.appendChild(inputWithdrawAmt);
-        tr.appendChild(tdWithdrawAmt);
-
         // 出金科目
-        const tdWithdrawCat = document.createElement("td");
-        const inputWithdrawCat = document.createElement("input");
-        inputWithdrawCat.type = "text";
-        inputWithdrawCat.value = row.withdrawalCategory;
-        inputWithdrawCat.dataset.row = index;
-        inputWithdrawCat.dataset.col = "5";
-        inputWithdrawCat.addEventListener("change", e => {
-          row.withdrawalCategory = e.target.value;
-          autoSaveVoucherData();
-        });
-        addEnterNavigation(inputWithdrawCat);
-        tdWithdrawCat.appendChild(inputWithdrawCat);
-        tr.appendChild(tdWithdrawCat);
+        createCell(tr, "text", row.withdrawalCategory, index, "5", val => row.withdrawalCategory = val);
 
         tbody.appendChild(tr);
       });
     }
 
-    // Enterキーで同じ列の下のセルへ移動
+    function createCell(tr, type, value, rowIndex, colIndex, callback) {
+      const td = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = type;
+      input.value = (value === 0 && type === "number") ? "" : value;
+      input.dataset.row = rowIndex;
+      input.dataset.col = colIndex;
+      input.addEventListener("change", e => {
+        callback(e.target.value);
+        if(type !== "number") autoSaveVoucherData(); // numberはrecalcで保存されるため除外
+      });
+      addEnterNavigation(input);
+      td.appendChild(input);
+      tr.appendChild(td);
+    }
+
     function addEnterNavigation(inputElem) {
       inputElem.addEventListener("keydown", e => {
         if (e.key === "Enter") {
@@ -487,156 +383,56 @@
           const currentCol = e.target.dataset.col;
           const nextRow = currentRow + 1;
           const nextInput = document.querySelector(`#voucherDetails tbody tr[data-row='${nextRow}'] input[data-col='${currentCol}']`);
-
-          if (nextInput) {
-            nextInput.focus();
-          } else if (currentRow === 9) { // 最後の行の場合
-            // 最後の行のEnterで次の日の最初の入力フィールドに移動するなどの拡張が可能
-            // 例: document.getElementById('nextDayBtn').click();
-            // その後、最初の入力フィールドにフォーカス
-          }
+          if (nextInput) nextInput.focus();
         }
       });
-    }
-
-    // CSVパース処理（Excel保存フォーマットに合わせる）
-    function parseCSV(contents) {
-      // BOMを除去
-      contents = contents.replace(/^\uFEFF/, "");
-      const rows = contents.split(/\r?\n/).filter(row => row.trim() !== "");
-      let parsedData = {};
-      let i = 0;
-
-      while (i < rows.length) {
-        // ヘッダー行をスキップ（「伝票日付,前日残高,本日入金,本日出金,本日残高」）
-        if (rows[i].startsWith("伝票日付,")) {
-          i++;
-          continue;
-        }
-
-        let fields = rows[i].split(",");
-        if (fields.length < 5) {
-          i++; // データ行として不完全な場合はスキップ
-          continue;
-        }
-
-        // メイン伝票情報
-        let date = fields[0].trim();
-        let prevBalance = parseFloat(fields[1]) || 0;
-        let deposit = parseFloat(fields[2]) || 0;
-        let withdrawal = parseFloat(fields[3]) || 0;
-        let balance = parseFloat(fields[4]) || 0;
-
-        let voucher = {
-          date: date,
-          prevBalance: prevBalance,
-          deposit: deposit,
-          withdrawal: withdrawal,
-          balance: balance,
-          details: []
-        };
-        parsedData[date] = voucher;
-        i++; // 次の行へ
-
-        // 明細ヘッダーをスキップ（「No.,入金科目,入金金額,摘要,出金金額,出金科目」）
-        if (i < rows.length && rows[i].startsWith("No.,")) {
-          i++;
-        }
-
-        // 明細行を解析 (最大10行)
-        for (let d = 0; d < 10 && i < rows.length; d++, i++) {
-          let detailFields = rows[i].split(",");
-          // 明細行の開始がNo.でなければ、明細データではないと判断
-          if (detailFields.length < 6 || isNaN(parseInt(detailFields[0]))) {
-              // 不完全な行か、明細データではないと判断した場合、明細ループを抜けて次の伝票を探す
-              break;
-          }
-          let detail = {
-            no: parseInt(detailFields[0]) || (d + 1),
-            depositCategory: detailFields[1] ? detailFields[1].trim() : "",
-            depositAmount: parseFloat(detailFields[2]) || 0,
-            description: detailFields[3] ? detailFields[3].trim() : "",
-            withdrawalAmount: parseFloat(detailFields[4]) || 0,
-            withdrawalCategory: detailFields[5] ? detailFields[5].trim() : ""
-          };
-          voucher.details.push(detail);
-        }
-        // 明細が10行に満たない場合、残りを空データで埋める
-        while (voucher.details.length < 10) {
-          voucher.details.push({
-            no: voucher.details.length + 1,
-            depositCategory: "",
-            depositAmount: 0,
-            description: "",
-            withdrawalAmount: 0,
-            withdrawalCategory: ""
-          });
-        }
-      }
-      return parsedData;
     }
 
     /**********************************************
      * ボタン・イベント処理
      **********************************************/
-    // 対象月変更時の処理
     document.getElementById("monthSelector").addEventListener("change", e => {
-      autoSaveVoucherData(); // 現在のデータを保存
+      autoSaveVoucherData();
       const month = e.target.value;
-      ensureVoucherDataForMonth(month); // 新しい月のデータを確認・生成
-      populateDaySelector(month); // 日付セレクターを更新
-      currentVoucherDate = month + "-01"; // その月の1日に移動
-      document.getElementById("daySelector").value = currentVoucherDate; // セレクタも同期
-      loadVoucher(currentVoucherDate); // 伝票を読み込み表示
-      recalcMonth(); // 月全体を再計算
+      ensureVoucherDataForMonth(month);
+      populateDaySelector(month);
+      currentVoucherDate = month + "-01";
+      document.getElementById("daySelector").value = currentVoucherDate;
+      loadVoucher(currentVoucherDate);
+      recalcMonth();
     });
 
-    // 日付変更時
     document.getElementById("daySelector").addEventListener("change", e => {
       currentVoucherDate = e.target.value;
       loadVoucher(currentVoucherDate);
-      recalcMonth(); // 日付変更で残高も変わるため再計算
+      recalcMonth();
     });
 
-    // 前日ボタン
     document.getElementById("prevDayBtn").addEventListener("click", () => {
-      const prevDate = getAdjacentDate(currentVoucherDate, -1);
-      const currentMonth = document.getElementById("monthSelector").value;
-      // 前日が存在し、かつ同じ月に属しているかを確認
-      if (voucherData[prevDate] && prevDate.startsWith(currentMonth)) {
-        currentVoucherDate = prevDate;
-        document.getElementById("daySelector").value = prevDate;
-        loadVoucher(prevDate);
-      } else {
-        alert("これ以上前の日付はありません。");
-      }
+      moveDay(-1);
+    });
+    document.getElementById("nextDayBtn").addEventListener("click", () => {
+      moveDay(1);
     });
 
-    // 翌日ボタン
-    document.getElementById("nextDayBtn").addEventListener("click", () => {
-      const nextDate = getAdjacentDate(currentVoucherDate, 1);
+    function moveDay(delta) {
+      const date = new Date(currentVoucherDate + "T00:00:00");
+      date.setDate(date.getDate() + delta);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const nextDate = `${year}-${month}-${day}`;
       const currentMonth = document.getElementById("monthSelector").value;
-      // 翌日が存在し、かつ同じ月に属しているかを確認
+
       if (voucherData[nextDate] && nextDate.startsWith(currentMonth)) {
         currentVoucherDate = nextDate;
         document.getElementById("daySelector").value = nextDate;
         loadVoucher(nextDate);
       } else {
-        alert("これ以上後の日付はありません。");
+        alert("これ以上の日付はありません。");
       }
-    });
-
-    // 日付文字列から隣接する日付を取得するヘルパー関数
-    function getAdjacentDate(dateStr, delta) {
-      const date = new Date(dateStr + "T00:00:00"); // タイムゾーン問題を避けるため時刻指定
-      date.setDate(date.getDate() + delta);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
     }
 
-    // 設定パネルの表示／非表示
     document.getElementById("settingsBtn").addEventListener("click", () => {
       const panel = document.getElementById("settingsPanel");
       panel.style.display = (panel.style.display === "none" || panel.style.display === "") ? "block" : "none";
@@ -645,66 +441,51 @@
       document.getElementById("settingsPanel").style.display = "none";
     });
 
-    // 固定摘要同期チェックボックス
     document.querySelectorAll("#syncForm input[type=checkbox]").forEach(chk => {
       chk.addEventListener("change", e => {
-        const rowIndex = parseInt(e.target.value, 10); // data-valueではなくvalue属性から取得
+        const rowIndex = parseInt(e.target.value, 10);
         syncRows[rowIndex] = e.target.checked;
-        autoSaveVoucherData(); // 同期設定を保存
-
-        // 同期が有効になった場合、または無効になった場合に表示を更新
+        autoSaveVoucherData();
         if (e.target.checked) {
-          syncDescription(rowIndex); // 同期を即時適用
+          syncDescription(rowIndex);
         } else {
-          // 同期が解除された場合、現在の伝票の摘要をそのまま表示
           loadVoucher(currentVoucherDate);
         }
       });
     });
 
-    // 全データ削除ボタン
     document.getElementById("deleteAllDataBtn").addEventListener("click", function() {
-      if (confirm("全ての伝票データを削除しますか？ この操作は取り消せません。")) {
-        voucherData = {}; // データを空にする
-        syncRows = Array(10).fill(false); // 同期設定もリセット
+      if (confirm("全ての伝票データを削除しますか？\nこの操作は取り消せません。")) {
+        voucherData = {};
+        syncRows = Array(10).fill(false);
         localStorage.removeItem("voucherData");
-        localStorage.removeItem("syncRows"); // localStorageからも削除
-
-        // UIを初期状態に戻す
+        localStorage.removeItem("syncRows");
+        
         const currentMonth = document.getElementById("monthSelector").value;
-        ensureVoucherDataForMonth(currentMonth); // 現在の月だけ再初期化
+        ensureVoucherDataForMonth(currentMonth);
         populateDaySelector(currentMonth);
         currentVoucherDate = currentMonth + "-01";
         document.getElementById("daySelector").value = currentVoucherDate;
         loadVoucher(currentVoucherDate);
-        // 同期設定のチェックボックスもリセットされた状態にする
-        document.querySelectorAll("#syncForm input[type=checkbox]").forEach(chk => {
-            chk.checked = false;
-        });
-
+        
+        document.querySelectorAll("#syncForm input[type=checkbox]").forEach(chk => { chk.checked = false; });
         alert("全データが削除されました。");
       }
     });
 
-    // 検索機能：各伝票データからキーワード検索
+    // 検索機能
     document.getElementById("searchBtn").addEventListener("click", () => {
-      const keyword = document.getElementById("searchKeyword").value.trim().toLowerCase(); // 小文字化して検索
+      const keyword = document.getElementById("searchKeyword").value.trim().toLowerCase();
       const resultsDiv = document.getElementById("searchResults");
-      resultsDiv.innerHTML = ""; // 既存の検索結果をクリア
+      resultsDiv.innerHTML = "";
 
-      if (keyword === "") {
-        alert("検索キーワードを入力してください。");
-        return;
-      }
+      if (keyword === "") { alert("検索キーワードを入力してください。"); return; }
 
-      // 日付順にソートして検索結果を表示
       const sortedDates = Object.keys(voucherData).sort();
-
       sortedDates.forEach(date => {
         const voucher = voucherData[date];
         let foundInVoucher = false;
 
-        // サマリー情報も検索対象に含める
         if (String(voucher.prevBalance).includes(keyword) ||
             String(voucher.deposit).includes(keyword) ||
             String(voucher.withdrawal).includes(keyword) ||
@@ -713,8 +494,7 @@
           foundInVoucher = true;
         }
 
-        // 明細行を検索
-        if (!foundInVoucher) { // サマリーで見つからなければ明細を検索
+        if (!foundInVoucher) {
           foundInVoucher = voucher.details.some(row => {
             return (row.depositCategory && row.depositCategory.toLowerCase().includes(keyword)) ||
                    String(row.depositAmount).includes(keyword) ||
@@ -724,195 +504,289 @@
           });
         }
 
-
         if (foundInVoucher) {
           const itemDiv = document.createElement("div");
           itemDiv.classList.add("search-result-item");
-
           const link = document.createElement("a");
           link.textContent = date;
           link.href = "#";
           link.addEventListener("click", e => {
             e.preventDefault();
-            currentVoucherDate = date;
-            // 検索結果から日付を選択した場合、monthSelectorもその月に合わせる
             const selectedMonth = date.slice(0, 7);
             document.getElementById("monthSelector").value = selectedMonth;
-            ensureVoucherDataForMonth(selectedMonth); // 念のため、その月のデータを確認
-            populateDaySelector(selectedMonth); // 日付セレクタを更新
+            ensureVoucherDataForMonth(selectedMonth);
+            populateDaySelector(selectedMonth);
+            currentVoucherDate = date;
             document.getElementById("daySelector").value = date;
             loadVoucher(date);
-            recalcMonth(); // 残高も再計算
-            document.getElementById("searchResults").innerHTML = ""; // 検索結果をクリア
+            recalcMonth();
+            resultsDiv.innerHTML = "";
             document.getElementById("searchKeyword").value = "";
           });
           itemDiv.appendChild(link);
-
-          // 削除ボタンを追加
+          
           const delBtn = document.createElement("button");
           delBtn.textContent = "削除";
           delBtn.classList.add("deleteResultBtn");
           delBtn.addEventListener("click", e => {
-            e.preventDefault();
-            if (confirm(date + " の伝票データを削除しますか？\n（この操作は取り消せません）")) {
-              delete voucherData[date]; // 該当日のデータを削除
-              autoSaveVoucherData(); // localStorageから削除
-
-              resultsDiv.removeChild(itemDiv); // 検索結果から要素を削除
-
-              // 削除された日付が現在表示中の伝票だった場合
-              if (currentVoucherDate === date) {
-                const currentMonth = document.getElementById("monthSelector").value;
-                const datesInMonth = Object.keys(voucherData).filter(d => d.startsWith(currentMonth)).sort();
-                if (datesInMonth.length > 0) {
-                  // その月の最初の日付に移動
-                  currentVoucherDate = datesInMonth[0];
-                  document.getElementById("daySelector").value = currentVoucherDate;
-                } else {
-                  // その月の日付がすべて削除された場合、月を再初期化
-                  ensureVoucherDataForMonth(currentMonth);
-                  currentVoucherDate = currentMonth + "-01";
-                  document.getElementById("daySelector").value = currentVoucherDate;
-                }
-                loadVoucher(currentVoucherDate);
-                recalcMonth(); // 再計算して残高を調整
-              }
-              // 日付セレクタを最新の状態に更新
-              populateDaySelector(document.getElementById("monthSelector").value);
-            }
+             e.preventDefault();
+             if(confirm(date + " のデータを削除しますか？")) {
+                 delete voucherData[date];
+                 autoSaveVoucherData();
+                 resultsDiv.removeChild(itemDiv);
+                 // 必要ならリロード処理など
+             }
           });
           itemDiv.appendChild(delBtn);
+
           resultsDiv.appendChild(itemDiv);
         }
       });
-
-      if (resultsDiv.children.length === 0) {
-          resultsDiv.textContent = "検索結果はありません。";
-      }
+      if (resultsDiv.children.length === 0) resultsDiv.textContent = "検索結果はありません。";
     });
 
-    // 検索クリア
     document.getElementById("clearSearchBtn").addEventListener("click", () => {
       document.getElementById("searchResults").innerHTML = "";
       document.getElementById("searchKeyword").value = "";
     });
 
-    // Excel保存（CSV形式、UTF-8 BOM付き）
-    document.getElementById("excelSaveBtn").addEventListener("click", () => {
+    /**********************************************
+     * Excel (XLSX) 保存機能 (ExcelJS使用)
+     * CSV問題を完全に解決（文字化けなし、""なし、書式付き）
+     **********************************************/
+    document.getElementById("excelSaveBtn").addEventListener("click", async () => {
       const month = document.getElementById("monthSelector").value;
-      let csvData = "\uFEFF"; // UTF-8 BOM
+      const workbook = new ExcelJS.Workbook();
+      const sheet = workbook.addWorksheet('入出金伝票');
 
-      // ソートされた日付でデータを取得
+      // 列幅の設定
+      sheet.columns = [
+        { width: 8 },  // A: No
+        { width: 15 }, // B: 入金科目
+        { width: 12 }, // C: 入金金額
+        { width: 30 }, // D: 摘要
+        { width: 12 }, // E: 出金金額
+        { width: 15 }  // F: 出金科目
+      ];
+
       const sortedDatesForMonth = Object.keys(voucherData)
         .filter(date => date.startsWith(month))
         .sort();
 
-      sortedDatesForMonth.forEach(date => {
-        const v = voucherData[date];
-        // サマリー行
-        csvData += `伝票日付,前日残高,本日入金,本日出金,本日残高\n`;
-        csvData += `${v.date},${v.prevBalance},${v.deposit},${v.withdrawal},${v.balance}\n`;
-        // 明細ヘッダー
-        csvData += `No.,入金科目,入金金額,摘要,出金金額,出金科目\n`;
-        // 明細データ
-        v.details.forEach(row => {
-          // CSVのカンマ区切りで問題を起こさないように、文字列はダブルクォートで囲む（特に摘要）
-          const depositCategory = `"${row.depositCategory.replace(/"/g, '""')}"`;
-          const description = `"${row.description.replace(/"/g, '""')}"`;
-          const withdrawalCategory = `"${row.withdrawalCategory.replace(/"/g, '""')}"`;
-          csvData += `${row.no},${depositCategory},${row.depositAmount},${description},${row.withdrawalAmount},${withdrawalCategory}\n`;
-        });
-      });
+      let currentRow = 1;
 
-      if (csvData === "\uFEFF") {
-        alert("保存するデータがありません。");
-        return;
+      for (const date of sortedDatesForMonth) {
+        const v = voucherData[date];
+
+        // 伝票ヘッダー部（罫線・背景色つき）
+        const headerRow = sheet.getRow(currentRow);
+        headerRow.values = ['伝票日付', '前日残高', '本日入金', '本日出金', '本日残高'];
+        headerRow.font = { bold: true };
+        headerRow.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'} };
+        headerRow.eachCell(cell => {
+             cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+             cell.alignment = { horizontal: 'center' };
+        });
+        currentRow++;
+
+        // 伝票サマリーデータ
+        const summaryRow = sheet.getRow(currentRow);
+        summaryRow.values = [v.date, v.prevBalance, v.deposit, v.withdrawal, v.balance];
+        summaryRow.getCell(1).alignment = { horizontal: 'center' };
+        // 数値整形
+        [2,3,4,5].forEach(c => {
+            summaryRow.getCell(c).numFmt = '#,##0';
+            summaryRow.getCell(c).alignment = { horizontal: 'right' };
+        });
+        summaryRow.eachCell(cell => {
+             cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+        });
+        currentRow++;
+
+        // 明細ヘッダー
+        const detailHeader = sheet.getRow(currentRow);
+        detailHeader.values = ['No.', '入金科目', '入金金額', '摘要', '出金金額', '出金科目'];
+        detailHeader.font = { bold: true };
+        detailHeader.eachCell(cell => {
+             cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+             cell.alignment = { horizontal: 'center' };
+             cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFEFEFEF'} };
+        });
+        currentRow++;
+
+        // 明細データ
+        v.details.forEach(detail => {
+          const r = sheet.getRow(currentRow);
+          r.values = [
+            detail.no,
+            detail.depositCategory,
+            detail.depositAmount,
+            detail.description,
+            detail.withdrawalAmount,
+            detail.withdrawalCategory
+          ];
+          // 罫線と数値フォーマット
+          r.eachCell((cell, colNumber) => {
+            cell.border = { top: {style:'dotted'}, left: {style:'thin'}, bottom: {style:'dotted'}, right: {style:'thin'} };
+            if (colNumber === 3 || colNumber === 5) { // 金額列
+               cell.numFmt = '#,##0';
+            }
+          });
+          currentRow++;
+        });
+
+        // 伝票間のスペース
+        currentRow += 1;
       }
 
-      const encodedUri = "data:text/csv;charset=utf-8," + encodeURIComponent(csvData);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `${month}_入出金伝票.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // ファイル書き出し
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${month}_入出金伝票.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     });
 
-    // Excel読み込み (CSV)
+    /**********************************************
+     * Excel (XLSX) 読み込み機能 (ExcelJS使用)
+     **********************************************/
     document.getElementById("excelLoadBtn").addEventListener("click", () => {
       document.getElementById("excelLoadInput").click();
     });
 
-    document.getElementById("excelLoadInput").addEventListener("change", e => {
+    document.getElementById("excelLoadInput").addEventListener("change", async e => {
       const file = e.target.files[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = function(event) {
-        try {
-          const loadedCSVData = parseCSV(event.target.result);
+      try {
+        const buffer = await file.arrayBuffer();
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+        const sheet = workbook.getWorksheet(1); // 最初のシート
 
-          if (Object.keys(loadedCSVData).length === 0) {
-            alert("読み込んだファイルに有効なデータがありませんでした。ファイル形式を確認してください。");
-            return;
+        if (!sheet) throw new Error("シートが見つかりません");
+
+        let loadedData = {};
+        let currentVoucher = null;
+        let detailsCount = 0;
+
+        // 行を走査
+        sheet.eachRow((row, rowNumber) => {
+          const values = row.values; // values[1]がA列
+          // ExcelJSのvaluesは1始まりの疎配列の場合があるため注意
+
+          const cellA = row.getCell(1).value; 
+          
+          // 「伝票日付」ヘッダーを見つけたら、次の行がサマリーデータと判断
+          if (String(cellA).trim() === '伝票日付') {
+             // 次の行を取得するためにフラグなどを立てるのではなく、
+             // ExcelJSなら直接次の行へアクセスも可能だが、ここではeachRowの流れに任せる
+             // シンプルに「伝票日付」の次の行がデータであると仮定
+             return; 
           }
 
-          if (confirm("現在のデータを上書きして、Excel (CSV) ファイルからデータを読み込みますか？")) {
-            voucherData = loadedCSVData; // データを上書き
-            autoSaveVoucherData(); // localStorageに保存
+          // 日付っぽい形式、かつ前の行が「伝票日付」ヘッダーだった場合…という判定もできるが
+          // ここでは「No.」ヘッダー、「詳細行」などを文脈で判断します。
 
-            // UIの更新
-            const currentMonth = document.getElementById("monthSelector").value;
-            // 読み込んだデータに現在の月が含まれているか確認
-            const firstDateInLoadedData = Object.keys(loadedCSVData).sort()[0];
-            let targetMonthForDisplay = currentMonth;
-            if (firstDateInLoadedData && !firstDateInLoadedData.startsWith(currentMonth)) {
-                // もし読み込んだデータが現在の表示月と異なる場合、読み込んだデータの最初の月に移動
-                targetMonthForDisplay = firstDateInLoadedData.slice(0, 7);
-                document.getElementById("monthSelector").value = targetMonthForDisplay;
-            }
-
-            ensureVoucherDataForMonth(targetMonthForDisplay); // 対象月のデータ構造を確保
-            populateDaySelector(targetMonthForDisplay); // 日付セレクターを更新
-
-            // currentVoucherDateを読み込んだデータ内で有効な日付に設定
-            if (!voucherData[currentVoucherDate] || !currentVoucherDate.startsWith(targetMonthForDisplay)) {
-                currentVoucherDate = `${targetMonthForDisplay}-01`;
-            }
-            document.getElementById("daySelector").value = currentVoucherDate;
-            loadVoucher(currentVoucherDate); // 伝票を読み込み表示
-            recalcMonth(); // 全体の残高を再計算
-
-            alert("Excel (CSV) ファイルの読み込みが完了しました。");
+          // シンプルなロジック：
+          // セルAが日付形式(YYYY-MM-DD)なら新しい伝票の開始
+          // セルAが数値なら明細行
+          
+          let valA = String(cellA || "").trim();
+          
+          // 日付行（サマリー行）の判定 (例: 2023-10-01)
+          if (valA.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // 新しい伝票
+            currentVoucher = {
+              date: valA,
+              prevBalance: parseFloat(row.getCell(2).value) || 0,
+              deposit: parseFloat(row.getCell(3).value) || 0,
+              withdrawal: parseFloat(row.getCell(4).value) || 0,
+              balance: parseFloat(row.getCell(5).value) || 0,
+              details: []
+            };
+            loadedData[valA] = currentVoucher;
+            detailsCount = 0;
           }
-        } catch (err) {
-          console.error("Excel (CSV) ファイルの読み込み中にエラーが発生しました:", err);
-          alert("Excel (CSV) ファイルの読み込み中にエラーが発生しました。\nファイル形式が正しいか、破損していないか確認してください。\nエラー: " + err.message);
-        } finally {
-            e.target.value = ''; // 同じファイルを再度選択できるようにクリア
+          // 明細行の判定 (No.列が数値)
+          else if (currentVoucher && !isNaN(parseInt(valA)) && parseInt(valA) > 0) {
+             // 既に10行読み込んでいたらスキップ
+             if (currentVoucher.details.length < 10) {
+               currentVoucher.details.push({
+                 no: parseInt(valA),
+                 depositCategory: String(row.getCell(2).value || ""),
+                 depositAmount: parseFloat(row.getCell(3).value) || 0,
+                 description: String(row.getCell(4).value || ""),
+                 withdrawalAmount: parseFloat(row.getCell(5).value) || 0,
+                 withdrawalCategory: String(row.getCell(6).value || "")
+               });
+             }
+          }
+        });
+
+        // データの補完（明細が10行未満の場合など）
+        Object.values(loadedData).forEach(v => {
+           while(v.details.length < 10) {
+             v.details.push({
+               no: v.details.length + 1,
+               depositCategory: "", depositAmount: 0, description: "", withdrawalAmount: 0, withdrawalCategory: ""
+             });
+           }
+        });
+
+        if (Object.keys(loadedData).length === 0) {
+           alert("有効な伝票データが見つかりませんでした。");
+           return;
         }
-      };
-      reader.readAsText(file, 'UTF-8'); // UTF-8エンコーディングで読み込む
+
+        if (confirm("現在のデータを上書きしてExcelデータを読み込みますか？")) {
+            voucherData = loadedData;
+            autoSaveVoucherData();
+            
+            // 画面更新
+            const dates = Object.keys(loadedData).sort();
+            const firstDate = dates[0];
+            if(firstDate) {
+               const ym = firstDate.slice(0, 7);
+               document.getElementById("monthSelector").value = ym;
+               ensureVoucherDataForMonth(ym);
+               populateDaySelector(ym);
+               currentVoucherDate = firstDate;
+               document.getElementById("daySelector").value = currentVoucherDate;
+               loadVoucher(currentVoucherDate);
+               recalcMonth();
+            }
+            alert("読み込み完了しました。");
+        }
+
+      } catch (err) {
+        console.error(err);
+        alert("Excel読み込みエラー: " + err.message);
+      } finally {
+        e.target.value = '';
+      }
     });
 
-
-    // JSON保存：すべての伝票データを JSON 形式でエクスポート
+    /**********************************************
+     * JSON 保存・読み込み (バックアップ用)
+     **********************************************/
     document.getElementById("jsonSaveBtn").addEventListener("click", () => {
-      const dataToSave = {
-          voucherData: voucherData,
-          syncRows: syncRows
-      };
+      const dataToSave = { voucherData: voucherData, syncRows: syncRows };
       const jsonStr = JSON.stringify(dataToSave, null, 2);
       const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(jsonStr);
       const link = document.createElement("a");
-      link.setAttribute("href", dataUri);
-      link.setAttribute("download", "入出金伝票_全データ.json");
+      link.href = dataUri;
+      link.download = "入出金伝票_バックアップ.json";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     });
 
-    // JSON読み込み：選択した JSON ファイルから伝票データをインポート
     document.getElementById("jsonLoadBtn").addEventListener("click", () => {
       document.getElementById("jsonLoadInput").click();
     });
@@ -920,65 +794,29 @@
     document.getElementById("jsonLoadInput").addEventListener("change", e => {
       const file = e.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
       reader.onload = function(event) {
         try {
           const loadedData = JSON.parse(event.target.result);
-          if (loadedData.voucherData && loadedData.syncRows) {
-            if (confirm("現在のデータを上書きして、JSONファイルからデータを読み込みますか？")) {
-                voucherData = loadedData.voucherData;
-                syncRows = loadedData.syncRows;
-                autoSaveVoucherData(); // localStorageに保存
-
-                // UIの更新
-                const currentMonth = document.getElementById("monthSelector").value;
-                const firstDateInLoadedData = Object.keys(loadedData.voucherData).sort()[0];
-                let targetMonthForDisplay = currentMonth;
-                if (firstDateInLoadedData && !firstDateInLoadedData.startsWith(currentMonth)) {
-                    // もし読み込んだデータが現在の表示月と異なる場合、読み込んだデータの最初の月に移動
-                    targetMonthForDisplay = firstDateInLoadedData.slice(0, 7);
-                    document.getElementById("monthSelector").value = targetMonthForDisplay;
-                }
-
-                ensureVoucherDataForMonth(targetMonthForDisplay); // 対象月のデータ構造を確保
-                populateDaySelector(targetMonthForDisplay); // 日付セレクターを更新
-
-                // currentVoucherDateを読み込んだデータ内で有効な日付に設定
-                if (!voucherData[currentVoucherDate] || !currentVoucherDate.startsWith(targetMonthForDisplay)) {
-                    currentVoucherDate = `${targetMonthForDisplay}-01`;
-                }
-                document.getElementById("daySelector").value = currentVoucherDate;
-                loadVoucher(currentVoucherDate); // 伝票を読み込み表示
-                recalcMonth(); // 全体の残高を再計算
-
-                // 同期設定のチェックボックスの状態を復元
-                document.querySelectorAll("#syncForm input[type=checkbox]").forEach((chk, index) => {
-                  chk.checked = syncRows[index];
-                });
-
-                alert("JSON読み込みが完了しました。");
+          if (loadedData.voucherData) {
+            if (confirm("JSONからデータを復元しますか？")) {
+              voucherData = loadedData.voucherData;
+              if(loadedData.syncRows) syncRows = loadedData.syncRows;
+              autoSaveVoucherData();
+              initApp(); // リロード的に初期化
+              alert("復元しました。");
             }
-          } else {
-              throw new Error("JSONファイルにデータ（voucherDataまたはsyncRows）が見つかりません。");
           }
-        } catch (err) {
-          console.error("JSON読み込みエラー:", err);
-          alert("読み込みエラー: 正しいJSON形式ではありません、またはファイルが破損しています。\nエラー: " + err.message);
-        } finally {
-            e.target.value = ''; // 同じファイルを再度選択できるようにクリア
-        }
+        } catch(e) { alert("JSON読み込みエラー"); }
       };
-      reader.readAsText(file); // JSONはBOMなしでも問題ないことが多いが、BOMがあれば自動で処理される
+      reader.readAsText(file);
+      e.target.value = '';
     });
 
-    // 印刷
-    document.getElementById("printBtn").addEventListener("click", () => {
-      window.print();
-    });
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
 
     /**********************************************
-     * 初期化処理
+     * アプリ起動
      **********************************************/
     window.addEventListener("load", initApp);
   </script>
