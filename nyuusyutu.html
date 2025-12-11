@@ -263,6 +263,7 @@
       localStorage.setItem("syncRows", JSON.stringify(syncRows));
     }
 
+    // 【修正箇所】月末残高の翌月1日への繰越を実装
     function recalcMonth() {
       const dates = Object.keys(voucherData).sort();
       
@@ -271,12 +272,17 @@
         const voucher = voucherData[currentDate];
         if (!voucher) continue;
 
-        const currentMonth = currentDate.slice(0, 7);
-        if (i === 0 || dates[i-1].slice(0, 7) !== currentMonth) {
-            // 月初（前日残高は手入力あるいは引き継がない）
-        } else {
-             voucher.prevBalance = voucherData[dates[i-1]].balance;
-        }
+        // データの最初の日のprevBalance以外は、すべて前日のbalanceを反映する
+        // これにより、日々の繰越と月末から翌月への繰越をまとめて処理する
+        if (i > 0) {
+            const prevVoucher = voucherData[dates[i-1]];
+            if (prevVoucher) {
+                // 前日の最終残高を当日の前日残高として設定
+                voucher.prevBalance = prevVoucher.balance;
+            }
+        } 
+        // データの最初の日は、prevBalanceは手動で設定された値（または初期値0）を保持
+
         recalcVoucher(currentDate);
       }
       loadVoucher(currentVoucherDate);
@@ -295,7 +301,8 @@
 
       voucher.deposit = totalDep;
       voucher.withdrawal = totalWithdraw;
-      voucher.balance = voucher.prevBalance + totalDep - totalWithdraw;
+      // prevBalanceには、recalcMonthで設定された値（前日の残高）または手動入力値（1日目のみ）が使用される
+      voucher.balance = voucher.prevBalance + totalDep - totalWithdraw; 
     }
 
     function syncDescription(rowIndex) {
@@ -324,9 +331,9 @@
       const prevBalanceContainer = document.getElementById("prevBalanceContainer");
       prevBalanceContainer.innerHTML = "前日残高: ";
       
+      // 月初（-01）の日は手動で前日残高を修正できるように入力フィールドを表示
       if (date.endsWith("-01")) {
         const input = document.createElement("input");
-        // 【修正1: 金額入力フィールドの表示形式修正】
         input.type = "text"; 
         input.style.width = '100px'; 
         
@@ -343,11 +350,13 @@
             const numValue = parseFloat(e.target.value.replace(/,/g, '')) || 0;
             voucher.prevBalance = numValue;
             e.target.value = numValue.toLocaleString('ja-JP');
+            // 手動で値を変更した際は再計算を走らせ、月全体の残高を更新する
             recalcMonth();
         });
         
         prevBalanceContainer.appendChild(input);
       } else {
+        // 月初以外の日は自動計算された値（前日残高）をspanで表示し、手動修正は不可とする
         const span = document.createElement("span");
         span.textContent = voucher.prevBalance.toLocaleString();
         prevBalanceContainer.appendChild(span);
@@ -430,7 +439,7 @@
       const td = document.createElement("td");
       const input = document.createElement("input");
       
-      // 【修正2: 金額フィールドの表示形式修正（バグ修正対応）】
+      // 金額フィールドの表示形式修正（バグ修正対応）
       const actualInputType = (type === "number") ? "text" : type; 
       input.type = actualInputType;
       
@@ -533,7 +542,6 @@
     document.getElementById("prevDayBtn").addEventListener("click", () => moveDay(-1));
     document.getElementById("nextDayBtn").addEventListener("click", () => moveDay(1));
 
-    // 【修正3: 日付範囲外エラーの修正】
     function moveDay(delta) {
       const date = new Date(currentVoucherDate + "T00:00:00");
       date.setDate(date.getDate() + delta);
@@ -546,7 +554,6 @@
 
       // 1. 月が変わる場合は、まず新しい月のデータを初期化する
       if (currentMonth !== nextMonth) {
-          // 年が極端に過去や未来の場合（異常値）は移動を停止
           if (year < 1950 || year > 2099) {
              return; 
           }
@@ -561,10 +568,8 @@
         currentVoucherDate = nextDate;
         document.getElementById("daySelector").value = nextDate;
         loadVoucher(nextDate);
-        recalcMonth();
+        recalcMonth(); // 移動後に再計算を走らせ、残高を更新
       } 
-      // 3. データが存在しない場合でも、「日付範囲外です。」のエラーは表示しない（サイレントに移動を停止）
-      // これにより、月をまたぐ際の初期化不足によるエラーを防ぎます。
     }
 
     // 設定ボタンのイベントリスナー
