@@ -1,229 +1,729 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>入出金伝票システム（クイック入力・ビュー切り替え版）</title>
+  <title>入出金伝票システム Pro版（完全版）</title>
   <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #controlPanel, #searchPanel, #actionPanel, #importPanel {
-      margin-bottom: 10px; padding: 10px; border: 1px solid #ccc; border-radius: 5px;
-    }
-    #controlPanel input, #controlPanel select, #controlPanel button,
-    #actionPanel button, #importPanel button { margin-right: 10px; font-size: 14px; margin-bottom: 5px; }
+    * { box-sizing: border-box; }
     
-    /* ビュー切り替えボタンのスタイル */
-    #viewModeToggle { margin-left: 20px; }
+    body { 
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+      margin: 0; 
+      padding: 20px; 
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    
+    /* ヘッダー */
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .app-header h1 {
+      margin: 0;
+      font-size: 1.8em;
+      font-weight: 600;
+    }
+    
+    /* パネル基本スタイル */
+    .panel {
+      background: white;
+      margin-bottom: 15px; 
+      padding: 20px; 
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+      border: 1px solid #e9ecef;
+    }
+    
+    .panel h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #495057;
+      font-weight: 600;
+      font-size: 1.1em;
+      border-bottom: 2px solid #e9ecef;
+      padding-bottom: 8px;
+    }
+    
+    /* コントロールパネル */
+    #controlPanel {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    #controlPanel label {
+      font-weight: 500;
+      color: #495057;
+    }
+    
+    #controlPanel input, #controlPanel select {
+      padding: 8px 12px;
+      border: 2px solid #dee2e6;
+      border-radius: 5px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    #controlPanel input:focus, #controlPanel select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* ボタンスタイル */
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #545b62;
+      transform: translateY(-1px);
+    }
+    
+    .btn-warning {
+      background: #ffc107;
+      color: #212529;
+    }
+    
+    .btn-warning:hover {
+      background: #e0a800;
+      transform: translateY(-1px);
+    }
+    
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-danger:hover {
+      background: #c82333;
+      transform: translateY(-1px);
+    }
+    
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #218838;
+      transform: translateY(-1px);
+    }
+    
+    .btn-info {
+      background: #17a2b8;
+      color: white;
+    }
+    
+    .btn-info:hover {
+      background: #138496;
+      transform: translateY(-1px);
+    }
+    
+    /* ビュー切り替えボタン */
+    #viewModeToggle {
+      display: flex;
+      border-radius: 5px;
+      overflow: hidden;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
     #viewModeToggle button {
-        padding: 5px 10px;
-        border: 1px solid #333;
-        background-color: #f0f0f0;
-        cursor: pointer;
-    }
-    #viewModeToggle button.active {
-        background-color: #333;
-        color: white;
-        font-weight: bold;
-    }
-
-    /* 月次ビューのコンテナ */
-    #monthlyVoucherContainer { 
-        border: 1px solid #ddd; 
-        padding: 10px; 
-        border-radius: 5px;
-        background-color: #fcfcfc;
+      padding: 10px 20px;
+      border: none;
+      background: #e9ecef;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
     }
     
-    /* 日次ビューのコンテナ */
-    #dailyVoucherContainer { 
-        border: 1px solid #ddd; 
-        padding: 10px; 
-        border-radius: 5px;
-        background-color: #fcfcfc;
+    #viewModeToggle button.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
     }
-
+    
+    #viewModeToggle button:hover:not(.active) {
+      background: #dee2e6;
+    }
+    
+    /* 月次ビューと日次ビューのコンテナ */
+    .voucher-container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    
     /* 日ごとの伝票カード */
     .daily-voucher-card {
-        margin-bottom: 25px;
-        border: 1px solid #eee;
-        padding: 10px;
-        border-radius: 4px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        background-color: white;
+      margin-bottom: 25px;
+      border: 1px solid #e9ecef;
+      padding: 20px;
+      border-radius: 8px;
+      background: #ffffff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      transition: box-shadow 0.2s;
     }
-
+    
+    .daily-voucher-card:hover {
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
     /* 日ごとのサマリーパネル */
     .daily-summary-panel {
-        display: flex;
-        justify-content: space-between;
-        padding: 5px 0;
-        margin-bottom: 10px;
-        font-size: 1.1em;
-        font-weight: bold;
-        border-bottom: 2px solid #333;
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+      gap: 15px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border-radius: 6px;
+      font-weight: 600;
+      border: 2px solid #dee2e6;
     }
-    .daily-summary-panel div {
-        flex-basis: 25%;
-        text-align: right;
-        padding-left: 10px;
+    
+    .daily-summary-panel > div {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
     }
-    .daily-summary-panel div:first-child { text-align: left; flex-basis: 35%; }
+    
+    .daily-summary-panel > div:first-child {
+      align-items: flex-start;
+      text-align: left;
+    }
+    
+    .daily-summary-panel .label {
+      font-size: 0.85em;
+      color: #6c757d;
+      margin-bottom: 5px;
+    }
+    
+    .daily-summary-panel .value {
+      font-size: 1.1em;
+      color: #495057;
+    }
+    
+    /* 前日残高入力欄 */
+    .prev-balance-input {
+      width: 120px;
+      font-weight: 600;
+      text-align: right;
+      border: 2px solid #dee2e6;
+      border-radius: 4px;
+      padding: 5px 8px;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    
+    .prev-balance-input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
     
     /* 明細テーブル */
-    .voucher-details-table { border-collapse: collapse; width: 100%; margin-top: 5px; }
-    .voucher-details-table th, .voucher-details-table td { border: 1px solid #aaa; padding: 5px; text-align: center; font-size: 0.9em; }
-    
-    input[type="text"] { width: 90%; box-sizing: border-box; }
-
-    /* アクティブな行のハイライト */
-    tr.active-row td {
-      background-color: #f7fff7 !important;
+    .voucher-details-table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+      background: white;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
-
+    
+    .voucher-details-table th {
+      background: linear-gradient(135deg, #495057 0%, #6c757d 100%);
+      color: white;
+      padding: 12px 8px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.9em;
+    }
+    
+    .voucher-details-table td {
+      border: 1px solid #dee2e6;
+      padding: 8px;
+      text-align: center;
+    }
+    
+    .voucher-details-table tbody tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+    
+    .voucher-details-table tbody tr:hover {
+      background-color: #e8f4f8;
+    }
+    
+    .voucher-details-table input[type="text"] {
+      width: 100%;
+      border: 2px solid transparent;
+      padding: 6px 8px;
+      background: transparent;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .voucher-details-table input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* アクティブな行のハイライト */
+    .voucher-details-table tr.active-row {
+      background-color: #fff3cd !important;
+      box-shadow: inset 0 0 0 2px #ffc107;
+    }
+    
+    .voucher-details-table tr.active-row td {
+      border-color: #ffc107;
+    }
+    
     /* 検索結果のハイライト */
     .highlight-cell {
-      background-color: #fffdc9 !important;
+      background-color: #fff3cd !important;
+      animation: highlight-pulse 2s ease-in-out;
     }
-
-    /* 処理中フィードバック用オーバーレイ */
+    
+    @keyframes highlight-pulse {
+      0%, 100% { background-color: #fff3cd; }
+      50% { background-color: #ffecb5; }
+    }
+    
+    /* 無効化された入力フィールド */
+    .disabled-input {
+      background-color: #f8f9fa !important;
+      color: #6c757d;
+      cursor: not-allowed;
+    }
+    
+    /* 処理中オーバーレイ */
     #loadingOverlay {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0, 0, 0, 0.5);
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
       z-index: 1000;
       display: none;
       justify-content: center;
       align-items: center;
-      color: white;
-      font-size: 1.5em;
+      backdrop-filter: blur(2px);
     }
-
-    @media print {
-      #controlPanel, #searchPanel, #actionPanel, #settingsPanel, #loadingOverlay, #importPanel { display: none; }
+    
+    .loading-content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
     }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
     /* 設定パネル */
     #settingsPanel {
-      border: 1px solid #aaa; padding: 10px; margin-top: 10px; background-color: #f9f9f9; width: 300px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      max-width: 500px;
     }
+    
+    #settingsPanel .checkbox-group {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    #settingsPanel label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      border: 2px solid #dee2e6;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    #settingsPanel label:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+    
+    #settingsPanel input[type="checkbox"]:checked + span {
+      color: #667eea;
+      font-weight: 600;
+    }
+    
+    #quickDescInput {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 120px;
+    }
+    
+    #quickDescInput:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* インポートパネル */
+    #importPanel {
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      border: 2px solid #2196f3;
+    }
+    
+    /* 検索パネル */
+    #searchPanel {
+      background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+      border: 2px solid #9c27b0;
+    }
+    
+    #searchKeyword {
+      flex: 1;
+      min-width: 250px;
+      padding: 10px 15px;
+      border: 2px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    
+    .search-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
     /* 検索結果 */
     .search-result-item {
+      margin-bottom: 8px;
+      padding: 10px;
+      background: white;
+      border-radius: 4px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .search-result-item a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+    
+    .search-result-item a:hover {
+      background: #667eea;
+      color: white;
+    }
+    
+    /* アクションパネル */
+    #actionPanel .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    
+    /* レスポンシブデザイン */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      
+      .daily-summary-panel {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+      
+      .voucher-details-table {
+        font-size: 0.85em;
+      }
+      
+      .voucher-details-table th,
+      .voucher-details-table td {
+        padding: 6px 4px;
+      }
+      
+      #controlPanel {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      #settingsPanel .checkbox-group {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    /* 印刷スタイル */
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      
+      .panel, .voucher-container {
+        box-shadow: none;
+        border: 1px solid #000;
+      }
+      
+      #controlPanel, #searchPanel, #actionPanel, #settingsPanel, 
+      #loadingOverlay, #importPanel, .app-header {
+        display: none !important;
+      }
+      
+      .daily-voucher-card {
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+      }
+      
+      .voucher-details-table {
+        font-size: 10pt;
+      }
+    }
+    
+    /* ツールチップ */
+    [data-tooltip] {
+      position: relative;
+      cursor: help;
+    }
+    
+    [data-tooltip]:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 1000;
       margin-bottom: 5px;
-      display: flex; align-items: center;
-    }
-    .search-result-item a { margin-right: 10px; }
-    .disabled-input { background-color: #f0f0f0; }
-    
-    /* インポートパネル強調 */
-    #importPanel { background-color: #eef9ff; border-color: #bee5eb; }
-    h3 { margin-top: 0; }
-    
-    /* 月初残高入力欄の調整 */
-    .prev-balance-input {
-        width: 100px; 
-        font-weight: normal; 
-        text-align: right; 
-        border: 1px solid #ccc;
-        padding: 2px;
-        margin-right: 5px;
     }
     
+    [data-tooltip]:hover::before {
+      content: '';
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: #333;
+      z-index: 1000;
+    }
+    
+    /* 成功メッセージ */
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 12px 20px;
+      border-radius: 6px;
+      border: 1px solid #c3e6cb;
+      margin: 10px 0;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* エラーメッセージ */
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 12px 20px;
+      border-radius: 6px;
+      border: 1px solid #f5c6cb;
+      margin: 10px 0;
+      animation: slideDown 0.3s ease-out;
+    }
   </style>
 </head>
 <body>
 
-  <div id="controlPanel">
-    <label for="monthSelector">対象月：</label>
-    <input type="month" id="monthSelector">
-    
-    <span id="dailyControls" style="display:none;">
-        <label for="daySelector">日付：</label>
-        <select id="daySelector"></select>
-        <button id="prevDayBtn">前日</button>
-        <button id="nextDayBtn">翌日</button>
-    </span>
-
-    <span id="viewModeToggle">
-        <button id="monthViewBtn" class="active">月次ビュー</button>
-        <button id="dayViewBtn">日次ビュー</button>
-    </span>
-    <button id="settingsBtn">設定</button>
+  <div class="app-header">
+    <h1>📊 入出金伝票システム Pro版</h1>
+    <p style="margin: 5px 0 0 0; opacity: 0.9;">高機能な入出金管理システム - Excel連携・検索・データ同期対応</p>
   </div>
 
-  <div id="settingsPanel" style="display:none;">
-    <h3>固定摘要同期設定</h3>
-    <p><small>選択された行の摘要は、毎月1日の摘要と同期されます。</small></p>
-    <form id="syncForm">
+  <div id="controlPanel" class="panel">
+    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
       <div>
-        <label><input type="checkbox" name="syncRow" value="0"> 行1</label>
-        <label><input type="checkbox" name="syncRow" value="1"> 行2</label>
-        <label><input type="checkbox" name="syncRow" value="2"> 行3</label>
-        <label><input type="checkbox" name="syncRow" value="3"> 行4</label>
-        <label><input type="checkbox" name="syncRow" value="4"> 行5</label>
+        <label for="monthSelector">📅 対象月：</label>
+        <input type="month" id="monthSelector" class="form-control">
       </div>
-      <div>
-        <label><input type="checkbox" name="syncRow" value="5"> 行6</label>
-        <label><input type="checkbox" name="syncRow" value="6"> 行7</label>
-        <label><input type="checkbox" name="syncRow" value="7"> 行8</label>
-        <label><input type="checkbox" name="syncRow" value="8"> 行9</label>
-        <label><input type="checkbox" name="syncRow" value="9"> 行10</label>
+      
+      <div id="dailyControls" style="display:none;">
+        <label for="daySelector">📆 日付：</label>
+        <select id="daySelector" class="form-control"></select>
+        <button id="prevDayBtn" class="btn btn-secondary" data-tooltip="前の日に移動">◀ 前日</button>
+        <button id="nextDayBtn" class="btn btn-secondary" data-tooltip="次の日に移動">翌日 ▶</button>
+      </div>
+
+      <div id="viewModeToggle">
+        <button id="monthViewBtn" class="active" data-tooltip="月全体を表示">📊 月次ビュー</button>
+        <button id="dayViewBtn" data-tooltip="1日単位で表示">📋 日次ビュー</button>
+      </div>
+      
+      <button id="settingsBtn" class="btn btn-info" data-tooltip="システム設定">⚙️ 設定</button>
+    </div>
+  </div>
+
+  <div id="settingsPanel" class="panel" style="display:none;">
+    <h3>⚙️ システム設定</h3>
+    
+    <h4>🔗 固定摘要同期設定</h4>
+    <p style="color: #6c757d; font-size: 0.9em;">選択された行の摘要は、毎月1日の摘要と自動同期されます。</p>
+    <form id="syncForm">
+      <div class="checkbox-group">
+        <label><input type="checkbox" name="syncRow" value="0"><span>行1</span></label>
+        <label><input type="checkbox" name="syncRow" value="1"><span>行2</span></label>
+        <label><input type="checkbox" name="syncRow" value="2"><span>行3</span></label>
+        <label><input type="checkbox" name="syncRow" value="3"><span>行4</span></label>
+        <label><input type="checkbox" name="syncRow" value="4"><span>行5</span></label>
+        <label><input type="checkbox" name="syncRow" value="5"><span>行6</span></label>
+        <label><input type="checkbox" name="syncRow" value="6"><span>行7</span></label>
+        <label><input type="checkbox" name="syncRow" value="7"><span>行8</span></label>
+        <label><input type="checkbox" name="syncRow" value="8"><span>行9</span></label>
+        <label><input type="checkbox" name="syncRow" value="9"><span>行10</span></label>
       </div>
     </form>
-    <br>
     
-    <h3>摘要クイック入力設定</h3>
-    <p><small>一行に一つの摘要を入力してください。</small></p>
-    <textarea id="quickDescInput" rows="5" style="width: 100%;"></textarea>
-    <button type="button" id="saveQuickDescBtn">摘要を保存</button>
-    <br><br>
-
-    <button type="button" id="deleteAllDataBtn">全データ削除</button>
-    <button type="button" id="closeSettingsBtn">閉じる</button>
+    <h4>🏷️ 摘要クイック入力設定</h4>
+    <p style="color: #6c757d; font-size: 0.9em;">一行に一つの摘要を入力してください。入力時に候補として表示されます。</p>
+    <textarea id="quickDescInput" placeholder="例：&#10;食費&#10;交通費&#10;事務用品&#10;通信費"></textarea>
+    <div style="margin-top: 10px;">
+      <button type="button" id="saveQuickDescBtn" class="btn btn-success">💾 摘要を保存</button>
+    </div>
+    
+    <hr style="margin: 20px 0;">
+    
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <button type="button" id="deleteAllDataBtn" class="btn btn-danger">🗑️ 全データ削除</button>
+      <button type="button" id="closeSettingsBtn" class="btn btn-secondary">✖️ 閉じる</button>
+    </div>
   </div>
   
-  <div id="importPanel">
-    <h3>売上データ連携</h3>
-    <p><small>売上詳細CSVファイルを読み込み、入金(売上)と出金(売掛計)を反映します。</small></p>
+  <div id="importPanel" class="panel">
+    <h3>📈 売上データ連携</h3>
+    <p>売上詳細CSVファイルを読み込み、入金(売上)と出金(売掛計)を自動反映します。</p>
     <input type="file" id="salesCsvInput" accept=".csv" style="display:none;">
-    <button id="salesCsvLoadBtn" style="font-weight:bold; color:#0056b3;">売上管理表CSV読込</button>
+    <button id="salesCsvLoadBtn" class="btn btn-info">📁 売上管理表CSV読込</button>
   </div>
 
-  <div id="voucherCard">
-    <h2 id="voucherHeader">伝票ビュー</h2>
-    <div style="text-align: right; margin-bottom: 5px;">
-        <button id="clearViewBtn" style="background-color: #fff3cd; border: 1px solid #ffeeba; cursor:pointer;">表示中の伝票をクリア</button>
+  <div id="voucherCard" class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 id="voucherHeader">📄 伝票ビュー</h2>
+      <button id="clearViewBtn" class="btn btn-warning" data-tooltip="表示中のデータをクリア">🧹 クリア</button>
     </div>
     
-    <div id="monthlyVoucherContainer"></div>
-
-    <div id="dailyVoucherContainer" style="display:none;">
-        <div class="daily-voucher-card" id="singleDailyCard">
-            </div>
+    <div id="monthlyVoucherContainer" class="voucher-container"></div>
+    <div id="dailyVoucherContainer" class="voucher-container" style="display:none;">
+      <div class="daily-voucher-card" id="singleDailyCard"></div>
     </div>
   </div>
 
-  <div id="searchPanel">
-    <label for="searchKeyword">検索キーワード：</label>
-    <input type="text" id="searchKeyword" placeholder="キーワード入力">
-    <button id="searchBtn">検索</button>
-    <button id="clearSearchBtn">検索クリア</button>
-    <div id="searchResults" style="margin-top: 10px;"></div>
+  <div id="searchPanel" class="panel">
+    <h3>🔍 データ検索</h3>
+    <div class="search-controls">
+      <input type="text" id="searchKeyword" placeholder="キーワード入力（摘要、科目、金額など）">
+      <button id="searchBtn" class="btn btn-primary">🔍 検索</button>
+      <button id="clearSearchBtn" class="btn btn-secondary">❌ クリア</button>
+    </div>
+    <div id="searchResults" style="margin-top: 15px;"></div>
   </div>
 
-  <div id="actionPanel">
-    <h3>データ操作</h3>
-    <button id="excelSaveBtn">Excel保存 (.xlsx)</button>
-    <input type="file" id="excelLoadInput" accept=".xlsx" style="display:none;">
-    <button id="excelLoadBtn">Excel読み込み (.xlsx)</button>
-    
-    <button id="jsonSaveBtn">JSON保存</button>
-    <input type="file" id="jsonLoadInput" accept=".json" style="display:none;">
-    <button id="jsonLoadBtn">JSON読み込み</button>
-    
-    <button id="printBtn">印刷</button>
+  <div id="actionPanel" class="panel">
+    <h3>💾 データ操作</h3>
+    <div class="button-group">
+      <button id="excelSaveBtn" class="btn btn-success" data-tooltip="Excel形式で保存">📊 Excel保存</button>
+      <input type="file" id="excelLoadInput" accept=".xlsx" style="display:none;">
+      <button id="excelLoadBtn" class="btn btn-primary" data-tooltip="Excel形式で読み込み">📂 Excel読み込み</button>
+      
+      <button id="jsonSaveBtn" class="btn btn-info" data-tooltip="JSON形式でバックアップ">💾 JSON保存</button>
+      <input type="file" id="jsonLoadInput" accept=".json" style="display:none;">
+      <button id="jsonLoadBtn" class="btn btn-secondary" data-tooltip="JSONバックアップから復元">📁 JSON読み込み</button>
+      
+      <button id="printBtn" class="btn btn-warning" data-tooltip="印刷用画面">🖨️ 印刷</button>
+    </div>
   </div>
   
-  <div id="loadingOverlay" style="display: none;">
-    <p id="loadingText">処理中...</p>
+  <div id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <p id="loadingText">処理中...</p>
+    </div>
   </div>
 
   <script>
@@ -232,89 +732,147 @@
      **********************************************/
     let voucherData = {};
     let syncRows = Array(10).fill(false);
-    let quickDescriptions = []; // クイック入力用の摘要リスト
+    let quickDescriptions = [];
     let currentMonth = ""; 
     let currentVoucherDate = ""; 
-    let viewMode = 'month'; // 'month' or 'day'
+    let viewMode = 'month';
 
     /**********************************************
-     * 処理中フィードバック
+     * ユーティリティ関数
      **********************************************/
+    
+    // 成功メッセージ表示
+    function showSuccessMessage(message) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'success-message';
+      msgDiv.textContent = message;
+      document.body.appendChild(msgDiv);
+      setTimeout(() => {
+        msgDiv.remove();
+      }, 3000);
+    }
+    
+    // エラーメッセージ表示
+    function showErrorMessage(message) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'error-message';
+      msgDiv.textContent = message;
+      document.body.appendChild(msgDiv);
+      setTimeout(() => {
+        msgDiv.remove();
+      }, 5000);
+    }
+
+    // 処理中フィードバック
     function showLoading(text = "処理中...") {
       document.getElementById("loadingText").textContent = text;
       document.getElementById("loadingOverlay").style.display = "flex";
     }
+    
     function hideLoading() {
       document.getElementById("loadingOverlay").style.display = "none";
+    }
+
+    // 数値フォーマット（カンマ区切り）
+    function formatNumber(num) {
+      if (num === 0 || num === '' || num == null) return '';
+      return parseFloat(num).toLocaleString('ja-JP');
+    }
+    
+    // 数値パース（カンマ除去）
+    function parseNumber(str) {
+      if (!str || str === '') return 0;
+      return parseFloat(String(str).replace(/,/g, '')) || 0;
     }
 
     /**********************************************
      * 初期化・データ読み込み処理
      **********************************************/
     function initApp() {
-      const storedVoucherData = localStorage.getItem("voucherData");
-      if (storedVoucherData) {
-        try { voucherData = JSON.parse(storedVoucherData); } catch(e) { voucherData = {}; console.error(e); }
+      try {
+        // ローカルストレージからデータ読み込み
+        const storedVoucherData = localStorage.getItem("voucherData");
+        if (storedVoucherData) {
+          voucherData = JSON.parse(storedVoucherData);
+        }
+        
+        const storedSyncRows = localStorage.getItem("syncRows");
+        if (storedSyncRows) {
+          syncRows = JSON.parse(storedSyncRows);
+        }
+        
+        const storedQuickDesc = localStorage.getItem("quickDescriptions");
+        if (storedQuickDesc) {
+          quickDescriptions = JSON.parse(storedQuickDesc);
+        }
+
+        // 設定画面の同期行チェックボックス設定
+        document.querySelectorAll("#syncForm input[type=checkbox]").forEach((chk, index) => {
+          chk.checked = syncRows[index];
+        });
+
+        // 月選択の初期設定
+        const monthSelector = document.getElementById("monthSelector");
+        const now = new Date();
+        currentMonth = now.toISOString().slice(0, 7);
+        monthSelector.value = currentMonth;
+
+        // 当月データの準備
+        ensureVoucherDataForMonth(currentMonth);
+        
+        // 日選択の初期設定
+        populateDaySelector(currentMonth);
+        currentVoucherDate = currentMonth + "-01";
+        document.getElementById("daySelector").value = currentVoucherDate;
+
+        // 計算と画面更新
+        recalcMonth();
+        updateView();
+        renderDatalist();
+        
+        showSuccessMessage("システムを初期化しました");
+      } catch (error) {
+        console.error("初期化エラー:", error);
+        showErrorMessage("システムの初期化でエラーが発生しました");
       }
-      const storedSyncRows = localStorage.getItem("syncRows");
-      if (storedSyncRows) {
-        try { syncRows = JSON.parse(storedSyncRows); } catch(e) { syncRows = Array(10).fill(false); console.error(e); }
-      }
-      const storedQuickDesc = localStorage.getItem("quickDescriptions");
-      if (storedQuickDesc) {
-        try { quickDescriptions = JSON.parse(storedQuickDesc); } catch(e) { quickDescriptions = []; console.error(e); }
-      }
-
-      document.querySelectorAll("#syncForm input[type=checkbox]").forEach((chk, index) => {
-        chk.checked = syncRows[index];
-      });
-
-      const monthSelector = document.getElementById("monthSelector");
-      const now = new Date();
-      currentMonth = now.toISOString().slice(0, 7);
-      monthSelector.value = currentMonth;
-
-      ensureVoucherDataForMonth(currentMonth);
-      
-      populateDaySelector(currentMonth);
-      currentVoucherDate = currentMonth + "-01";
-      document.getElementById("daySelector").value = currentVoucherDate;
-
-      recalcMonth();
-      updateView();
-      renderDatalist(); // datalistの初回描画
     }
 
     function ensureVoucherDataForMonth(month) {
-      const [year, monthNum] = month.split("-");
-      const daysInMonth = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
+      try {
+        const [year, monthNum] = month.split("-");
+        const daysInMonth = new Date(parseInt(year), parseInt(monthNum), 0).getDate();
 
-      for (let d = 1; d <= daysInMonth; d++) {
-        const dayStr = String(d).padStart(2, "0");
-        const dateStr = `${month}-${dayStr}`;
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dayStr = String(d).padStart(2, "0");
+          const dateStr = `${month}-${dayStr}`;
 
-        if (!voucherData[dateStr]) {
-          voucherData[dateStr] = {
-            date: dateStr,
-            prevBalance: 0,
-            deposit: 0,
-            withdrawal: 0,
-            balance: 0,
-            details: []
-          };
-          for (let i = 0; i < 10; i++) {
-            voucherData[dateStr].details.push({
-              no: i + 1,
-              depositCategory: "",
-              depositAmount: 0,
-              description: "",
-              withdrawalAmount: 0,
-              withdrawalCategory: ""
-            });
+          if (!voucherData[dateStr]) {
+            voucherData[dateStr] = {
+              date: dateStr,
+              prevBalance: 0,
+              deposit: 0,
+              withdrawal: 0,
+              balance: 0,
+              details: []
+            };
+            
+            for (let i = 0; i < 10; i++) {
+              voucherData[dateStr].details.push({
+                no: i + 1,
+                depositCategory: "",
+                depositAmount: 0,
+                description: "",
+                withdrawalAmount: 0,
+                withdrawalCategory: ""
+              });
+            }
           }
         }
+        autoSaveVoucherData();
+      } catch (error) {
+        console.error("月データ生成エラー:", error);
+        showErrorMessage("月データの生成でエラーが発生しました");
       }
-      autoSaveVoucherData();
     }
     
     function populateDaySelector(month) {
@@ -331,6 +889,7 @@
         option.textContent = date;
         selector.appendChild(option);
       }
+      
       if (!selector.querySelector(`option[value="${currentVoucherDate}"]`)) {
         currentVoucherDate = month + "-01";
       }
@@ -338,41 +897,53 @@
     }
 
     function autoSaveVoucherData() {
-      localStorage.setItem("voucherData", JSON.stringify(voucherData));
-      localStorage.setItem("syncRows", JSON.stringify(syncRows));
-      localStorage.setItem("quickDescriptions", JSON.stringify(quickDescriptions));
+      try {
+        localStorage.setItem("voucherData", JSON.stringify(voucherData));
+        localStorage.setItem("syncRows", JSON.stringify(syncRows));
+        localStorage.setItem("quickDescriptions", JSON.stringify(quickDescriptions));
+      } catch (error) {
+        console.error("保存エラー:", error);
+        showErrorMessage("データの保存でエラーが発生しました");
+      }
     }
 
     function recalcMonth() {
-      const dates = Object.keys(voucherData).sort();
-      
-      for (let i = 0; i < dates.length; i++) {
-        const currentDate = dates[i];
-        const voucher = voucherData[currentDate];
-        if (!voucher) continue;
+      try {
+        const dates = Object.keys(voucherData).sort();
+        
+        for (let i = 0; i < dates.length; i++) {
+          const currentDate = dates[i];
+          const voucher = voucherData[currentDate];
+          if (!voucher) continue;
 
-        if (i > 0) {
+          // 前日残高の設定
+          if (i > 0) {
             const prevVoucher = voucherData[dates[i-1]];
             if (prevVoucher) {
-                voucher.prevBalance = prevVoucher.balance;
+              voucher.prevBalance = prevVoucher.balance;
             }
-        } 
-        recalcVoucher(currentDate);
+          }
+          
+          recalcVoucher(currentDate);
+        }
+        
+        updateView(); 
+        autoSaveVoucherData();
+      } catch (error) {
+        console.error("計算エラー:", error);
+        showErrorMessage("計算処理でエラーが発生しました");
       }
-      
-      updateView(); 
-      autoSaveVoucherData();
     }
 
     function recalcVoucher(date) {
       const voucher = voucherData[date];
       if (!voucher) return;
+      
       let totalDep = 0, totalWithdraw = 0;
 
       voucher.details.forEach(row => {
-        // 金額は文字列で保存されている場合があるため、処理前にカンマを削除し数値化
-        totalDep += parseFloat(String(row.depositAmount).replace(/,/g, '')) || 0;
-        totalWithdraw += parseFloat(String(row.withdrawalAmount).replace(/,/g, '')) || 0;
+        totalDep += parseNumber(row.depositAmount);
+        totalWithdraw += parseNumber(row.withdrawalAmount);
       });
 
       voucher.deposit = totalDep;
@@ -381,31 +952,38 @@
     }
 
     function syncDescription(rowIndex) {
-      const masterDate = `${currentMonth}-01`;
-      if (!voucherData[masterDate]) return;
-      const masterDescription = voucherData[masterDate].details[rowIndex].description;
+      try {
+        const masterDate = `${currentMonth}-01`;
+        if (!voucherData[masterDate]) return;
+        
+        const masterDescription = voucherData[masterDate].details[rowIndex].description;
 
-      Object.keys(voucherData).forEach(date => {
-        if (date.startsWith(currentMonth)) {
-          voucherData[date].details[rowIndex].description = masterDescription;
-        }
-      });
-      updateView();
-      autoSaveVoucherData();
+        Object.keys(voucherData).forEach(date => {
+          if (date.startsWith(currentMonth) && syncRows[rowIndex]) {
+            voucherData[date].details[rowIndex].description = masterDescription;
+          }
+        });
+        
+        updateView();
+        autoSaveVoucherData();
+      } catch (error) {
+        console.error("同期エラー:", error);
+        showErrorMessage("摘要同期でエラーが発生しました");
+      }
     }
     
-    // クイック入力用の datalist を生成/更新する
     function renderDatalist() {
-        let datalist = document.getElementById('quickDescList');
-        if (!datalist) {
-            datalist = document.createElement('datalist');
-            datalist.id = 'quickDescList';
-            document.body.appendChild(datalist);
-        }
-        datalist.innerHTML = quickDescriptions
-                                .filter(desc => desc.trim() !== '') // 空白を除外
-                                .map(desc => `<option value="${desc}">`)
-                                .join('');
+      let datalist = document.getElementById('quickDescList');
+      if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = 'quickDescList';
+        document.body.appendChild(datalist);
+      }
+      
+      datalist.innerHTML = quickDescriptions
+        .filter(desc => desc.trim() !== '')
+        .map(desc => `<option value="${desc}">`)
+        .join('');
     }
 
     /**********************************************
@@ -413,7 +991,7 @@
      **********************************************/
      
     function updateView(searchKeyword = null) {
-        // datalistの更新
+      try {
         renderDatalist();
 
         // コントロールパネルの表示切り替え
@@ -422,24 +1000,26 @@
         document.getElementById('dailyControls').style.display = 'none';
         document.getElementById('monthViewBtn').classList.remove('active');
         document.getElementById('dayViewBtn').classList.remove('active');
-        document.getElementById('clearViewBtn').style.display = 'block';
 
         if (viewMode === 'month') {
-            document.getElementById('voucherHeader').textContent = `月次伝票ビュー: ${currentMonth}`;
-            document.getElementById('monthlyVoucherContainer').style.display = 'block';
-            document.getElementById('monthViewBtn').classList.add('active');
-            document.getElementById('clearViewBtn').textContent = '表示中の月をクリア';
-            renderMonthView(currentMonth, searchKeyword);
-        } else { // viewMode === 'day'
-            document.getElementById('voucherHeader').textContent = `伝票: ${currentVoucherDate}`;
-            document.getElementById('dailyVoucherContainer').style.display = 'block';
-            document.getElementById('dailyControls').style.display = 'inline';
-            document.getElementById('dayViewBtn').classList.add('active');
-            document.getElementById('clearViewBtn').textContent = '表示中の伝票をクリア';
-            renderViewDetails(currentVoucherDate, 'singleDailyCard', searchKeyword);
+          document.getElementById('voucherHeader').textContent = `📊 月次伝票ビュー: ${currentMonth}`;
+          document.getElementById('monthlyVoucherContainer').style.display = 'block';
+          document.getElementById('monthViewBtn').classList.add('active');
+          document.getElementById('clearViewBtn').textContent = '🧹 表示中の月をクリア';
+          renderMonthView(currentMonth, searchKeyword);
+        } else {
+          document.getElementById('voucherHeader').textContent = `📋 伝票: ${currentVoucherDate}`;
+          document.getElementById('dailyVoucherContainer').style.display = 'block';
+          document.getElementById('dailyControls').style.display = 'inline';
+          document.getElementById('dayViewBtn').classList.add('active');
+          document.getElementById('clearViewBtn').textContent = '🧹 表示中の伝票をクリア';
+          renderViewDetails(currentVoucherDate, 'singleDailyCard', searchKeyword);
         }
+      } catch (error) {
+        console.error("ビュー更新エラー:", error);
+        showErrorMessage("画面の更新でエラーが発生しました");
+      }
     }
-
 
     function renderMonthView(month, searchKeyword = null) {
       const container = document.getElementById("monthlyVoucherContainer");
@@ -471,266 +1051,307 @@
       const keyword = searchKeyword ? searchKeyword.toLowerCase() : null;
       
       let container = null;
-      if(containerId) {
-          container = document.getElementById(containerId);
-          if(!container) return;
+      if (containerId) {
+        container = document.getElementById(containerId);
+        if (!container) return;
       }
       
-      // 前日残高の表示値決定 (0なら空欄)
-      const prevBalanceDisplay = voucher.prevBalance === 0 ? '' : voucher.prevBalance.toLocaleString('ja-JP');
+      const prevBalanceDisplay = formatNumber(voucher.prevBalance);
 
       let summaryHtml = `
-          <div class="daily-summary-panel">
-            <div>${date}</div>
-            <div id="prevBalanceContainer_${date}">前日残高: 
+        <div class="daily-summary-panel">
+          <div>
+            <div class="label">📅 日付</div>
+            <div class="value">${date}</div>
+          </div>
+          <div id="prevBalanceContainer_${date}">
+            <div class="label">💰 前日残高</div>
+            <div class="value">
               ${(isFirstDayOfMonth || !isMonthlyView) ? 
                 `<input type="text" class="prev-balance-input" data-date="${date}" value="${prevBalanceDisplay}" 
+                    placeholder="0"
                     onfocus="this.value = String(this.value).replace(/,/g, ''); this.select();"
                     onblur="updatePrevBalance(this, '${date}');">` :
-                `<span id="prevBalanceField_${date}">${voucher.prevBalance.toLocaleString('ja-JP')}</span>`
+                `<span id="prevBalanceField_${date}">${formatNumber(voucher.prevBalance)}</span>`
               }
             </div>
-            <div>本日入金: <span id="depositTotal_${date}">${voucher.deposit.toLocaleString('ja-JP')}</span></div>
-            <div>本日出金: <span id="withdrawalTotal_${date}">${voucher.withdrawal.toLocaleString('ja-JP')}</span></div>
-            <div>本日残高: <span id="balance_${date}">${voucher.balance.toLocaleString('ja-JP')}</span></div>
           </div>
-        `;
+          <div>
+            <div class="label">📈 本日入金</div>
+            <div class="value" id="depositTotal_${date}">${formatNumber(voucher.deposit)}</div>
+          </div>
+          <div>
+            <div class="label">📉 本日出金</div>
+            <div class="value" id="withdrawalTotal_${date}">${formatNumber(voucher.withdrawal)}</div>
+          </div>
+          <div>
+            <div class="label">💳 本日残高</div>
+            <div class="value" id="balance_${date}" style="color: ${voucher.balance >= 0 ? '#28a745' : '#dc3545'}; font-weight: bold;">
+              ${formatNumber(voucher.balance)}
+            </div>
+          </div>
+        </div>
+      `;
         
-        let tableHtml = `
-          <table class="voucher-details-table" data-date="${date}">
-            <thead>
-              <tr>
-                <th>No.</th>
-                <th>入金科目</th>
-                <th>入金金額</th>
-                <th>摘要</th>
-                <th>出金金額</th>
-                <th>出金科目</th>
-              </tr>
-            </thead>
-            <tbody>
-        `;
-
-        voucher.details.forEach((row, index) => {
-          const isSync = syncRows[index];
-          let descValue = row.description;
-          
-          if (isSync) {
-            const masterVoucher = voucherData[`${date.slice(0, 7)}-01`];
-            if (masterVoucher) {
-              descValue = masterVoucher.details[index].description;
-              row.description = descValue; 
-            }
-          }
-          
-          const isDescReadOnly = isSync && !date.endsWith("-01");
-
-          tableHtml += `
-            <tr data-row="${index}">
-              <td${keyword && String(row.no).includes(keyword) ? ' class="highlight-cell"' : ''}>${row.no}</td>
-              ${createInputCellHtml(date, "text", row.depositCategory, index, "1", keyword)}
-              ${createInputCellHtml(date, "number", row.depositAmount, index, "2", keyword)}
-              ${createInputCellHtml(date, "text", descValue, index, "3", keyword, isDescReadOnly, true)}
-              ${createInputCellHtml(date, "number", row.withdrawalAmount, index, "4", keyword)}
-              ${createInputCellHtml(date, "text", row.withdrawalCategory, index, "5", keyword)}
+      let tableHtml = `
+        <table class="voucher-details-table" data-date="${date}">
+          <thead>
+            <tr>
+              <th style="width: 60px;">No.</th>
+              <th style="width: 120px;">📈 入金科目</th>
+              <th style="width: 100px;">💰 入金金額</th>
+              <th style="width: 200px;">📝 摘要</th>
+              <th style="width: 100px;">💰 出金金額</th>
+              <th style="width: 120px;">📉 出金科目</th>
             </tr>
-          `;
-        });
+          </thead>
+          <tbody>
+      `;
+
+      voucher.details.forEach((row, index) => {
+        const isSync = syncRows[index];
+        let descValue = row.description;
+        
+        if (isSync) {
+          const masterVoucher = voucherData[`${date.slice(0, 7)}-01`];
+          if (masterVoucher) {
+            descValue = masterVoucher.details[index].description;
+            row.description = descValue; 
+          }
+        }
+        
+        const isDescReadOnly = isSync && !date.endsWith("-01");
+        const syncIcon = isSync ? "🔗 " : "";
 
         tableHtml += `
-            </tbody>
-          </table>
+          <tr data-row="${index}">
+            <td${keyword && String(row.no).includes(keyword) ? ' class="highlight-cell"' : ''}>${row.no}</td>
+            ${createInputCellHtml(date, "text", row.depositCategory, index, "1", keyword)}
+            ${createInputCellHtml(date, "number", row.depositAmount, index, "2", keyword)}
+            ${createInputCellHtml(date, "text", syncIcon + descValue, index, "3", keyword, isDescReadOnly, true)}
+            ${createInputCellHtml(date, "number", row.withdrawalAmount, index, "4", keyword)}
+            ${createInputCellHtml(date, "text", row.withdrawalCategory, index, "5", keyword)}
+          </tr>
         `;
-        
-        const finalHtml = summaryHtml + tableHtml;
-        
-        if (container) {
-            container.innerHTML = finalHtml;
-            attachInputListeners(date.slice(0, 7));
-        } else {
-            return finalHtml;
-        }
+      });
+
+      tableHtml += `</tbody></table>`;
+      
+      const finalHtml = summaryHtml + tableHtml;
+      
+      if (container) {
+        container.innerHTML = finalHtml;
+        attachInputListeners(date.slice(0, 7));
+      } else {
+        return finalHtml;
+      }
     }
     
-    // 単一セル用のHTMLを生成するヘルパー関数
     function createInputCellHtml(date, type, value, rowIndex, colIndex, keyword, readOnly = false, isDescription = false) {
-        let displayValue;
-        let numValue = (type === "number") ? parseFloat(String(value).replace(/,/g, '')) || 0 : value;
+      let displayValue;
+      
+      if (type === "number") {
+        const numValue = parseNumber(value);
+        displayValue = formatNumber(numValue);
+      } else {
+        displayValue = String(value);
+      }
 
-        // 1. フィールドが数値で、値が0の場合は空欄を表示
-        if (type === "number") {
-            displayValue = numValue === 0 ? "" : numValue.toLocaleString('ja-JP');
-        } else {
-            displayValue = String(value);
-        }
+      const readOnlyAttr = readOnly ? 'readonly' : '';
+      const disabledClass = readOnly ? 'disabled-input' : '';
+      const cellClass = (keyword && String(value).toLowerCase().includes(keyword.toLowerCase())) ? ' class="highlight-cell"' : '';
+      const datalistAttr = isDescription ? 'list="quickDescList"' : '';
+      const placeholder = type === "number" ? "0" : "";
 
-        const inputType = "text"; 
-        const readOnlyAttr = readOnly ? 'readonly' : '';
-        const disabledClass = readOnly ? 'disabled-input' : '';
-        
-        const cellClass = (keyword && String(value).toLowerCase().includes(keyword.toLowerCase())) ? ' class="highlight-cell"' : '';
-        
-        const datalistAttr = isDescription ? 'list="quickDescList"' : '';
-
-        return `
-          <td${cellClass}>
-            <input type="${inputType}" value="${displayValue}" 
-                   data-date="${date}" data-row="${rowIndex}" data-col="${colIndex}" data-type="${type}"
-                   ${readOnlyAttr} class="${disabledClass}" ${datalistAttr}>
-          </td>
-        `;
+      return `
+        <td${cellClass}>
+          <input type="text" value="${displayValue}" 
+                 data-date="${date}" data-row="${rowIndex}" data-col="${colIndex}" data-type="${type}"
+                 ${readOnlyAttr} class="${disabledClass}" ${datalistAttr} placeholder="${placeholder}">
+        </td>
+      `;
     }
     
     // 前日残高の更新処理
     window.updatePrevBalance = function(inputElement, date) {
-        const numValue = parseFloat(inputElement.value.replace(/,/g, '')) || 0;
+      try {
+        const numValue = parseNumber(inputElement.value);
         const voucher = voucherData[date];
         
         if ((date.endsWith("-01") || viewMode === 'day') && voucher.prevBalance !== numValue) {
-            voucher.prevBalance = numValue;
-            recalcMonth(); 
+          voucher.prevBalance = numValue;
+          recalcMonth(); 
         }
         
-        // 0の場合は空欄、それ以外はカンマ付きに戻す
-        inputElement.value = numValue === 0 ? '' : numValue.toLocaleString('ja-JP');
+        inputElement.value = formatNumber(numValue);
+      } catch (error) {
+        console.error("前日残高更新エラー:", error);
+        showErrorMessage("前日残高の更新でエラーが発生しました");
+      }
     };
 
-
-    // すべての入力フィールドにイベントリスナーを設定する
     function attachInputListeners(month) {
-        const selector = viewMode === 'month' ? `#monthlyVoucherContainer input` : `#dailyVoucherContainer input`;
-        document.querySelectorAll(selector).forEach(input => {
-            const date = input.dataset.date;
-            const rowIndex = parseInt(input.dataset.row);
-            const colIndex = parseInt(input.dataset.col);
-            const type = input.dataset.type;
+      const selector = viewMode === 'month' ? `#monthlyVoucherContainer input` : `#dailyVoucherContainer input`;
+      
+      document.querySelectorAll(selector).forEach(input => {
+        const date = input.dataset.date;
+        const rowIndex = parseInt(input.dataset.row);
+        const colIndex = parseInt(input.dataset.col);
+        const type = input.dataset.type;
 
-            input.addEventListener("focus", (e) => {
-                document.querySelectorAll(".active-row").forEach(tr => tr.classList.remove("active-row"));
-                e.target.closest("tr").classList.add("active-row");
-                if(type === "number") {
-                    const rawValue = String(e.target.value).replace(/,/g, '');
-                    e.target.value = rawValue;
-                    if(e.target.select) e.target.select();
-                }
-            });
-
-            // データ更新ロジック (blurとchange)
-            if (type === "number") {
-                input.addEventListener("blur", e => {
-                    const numValue = parseFloat(e.target.value.replace(/,/g, '')) || 0;
-                    
-                    const voucher = voucherData[date];
-                    const detail = voucher.details[rowIndex];
-                    let changed = false;
-
-                    if (colIndex === 2 && detail.depositAmount !== numValue) {
-                        detail.depositAmount = numValue;
-                        changed = true;
-                    } else if (colIndex === 4 && detail.withdrawalAmount !== numValue) {
-                        detail.withdrawalAmount = numValue;
-                        changed = true;
-                    }
-
-                    // 0の場合は空欄、それ以外はカンマ付きに戻す
-                    e.target.value = numValue === 0 ? '' : numValue.toLocaleString('ja-JP');
-
-                    if (changed) {
-                        recalcMonth();
-                    }
-                });
-            } else if (type === "text") {
-                input.addEventListener("change", e => {
-                    if (e.target.readOnly) return;
-                    
-                    const textValue = e.target.value;
-                    const voucher = voucherData[date];
-                    const detail = voucher.details[rowIndex];
-                    let changed = false;
-
-                    if (colIndex === 1 && detail.depositCategory !== textValue) {
-                        detail.depositCategory = textValue;
-                        changed = true;
-                    } else if (colIndex === 3 && detail.description !== textValue) {
-                        detail.description = textValue;
-                        changed = true;
-                        if (date.endsWith("-01") && syncRows[rowIndex]) {
-                            syncDescription(rowIndex);
-                        }
-                    } else if (colIndex === 5 && detail.withdrawalCategory !== textValue) {
-                        detail.withdrawalCategory = textValue;
-                        changed = true;
-                    }
-                    
-                    if (changed) {
-                        autoSaveVoucherData();
-                    }
-                });
-            }
-
-            // Enter/Arrowキーでの移動 (省略、前バージョンと同じロジックが使用されます)
-            input.addEventListener("keydown", e => {
-                const allDates = Object.keys(voucherData).sort();
-                const currentDateIndex = allDates.indexOf(date);
-                
-                let nextRow = rowIndex;
-                let nextCol = colIndex;
-                let nextDate = date;
-                let move = false;
-
-                switch (e.key) {
-                  case "Enter":
-                  case "ArrowDown":
-                    e.preventDefault();
-                    nextRow = rowIndex + 1;
-                    if (nextRow > 9) { 
-                        const nextDateCandidate = allDates[currentDateIndex + 1];
-                        if (nextDateCandidate) {
-                            nextDate = nextDateCandidate;
-                            nextRow = 0;
-                        } else { nextRow = 9; }
-                    }
-                    move = true;
-                    break;
-                  case "ArrowUp":
-                    e.preventDefault();
-                    nextRow = rowIndex - 1;
-                    if (nextRow < 0) {
-                        const prevDate = allDates[currentDateIndex - 1];
-                        if (prevDate) {
-                            nextDate = prevDate;
-                            nextRow = 9;
-                        } else { nextRow = 0; }
-                    }
-                    move = true;
-                    break;
-                  case "ArrowLeft":
-                    e.preventDefault();
-                    nextCol = colIndex - 1;
-                    if (nextCol < 1) nextCol = 1;
-                    move = true;
-                    break;
-                  case "ArrowRight":
-                    e.preventDefault();
-                    nextCol = colIndex + 1;
-                    if (nextCol > 5) nextCol = 5;
-                    move = true;
-                    break;
-                  default:
-                    return;
-                }
-
-                if (move) {
-                    const nextInput = document.querySelector(`input[data-date='${nextDate}'][data-row='${nextRow}'][data-col='${nextCol}']`);
-                    if (nextInput) {
-                        nextInput.focus();
-                        if(nextInput.select) nextInput.select();
-                    }
-                }
-            });
+        // フォーカス時の処理
+        input.addEventListener("focus", (e) => {
+          document.querySelectorAll(".active-row").forEach(tr => tr.classList.remove("active-row"));
+          e.target.closest("tr").classList.add("active-row");
+          
+          if (type === "number") {
+            const rawValue = String(e.target.value).replace(/,/g, '');
+            e.target.value = rawValue;
+            if (e.target.select) e.target.select();
+          }
         });
-    }
 
+        // 数値入力の処理
+        if (type === "number") {
+          input.addEventListener("blur", e => {
+            try {
+              const numValue = parseNumber(e.target.value);
+              
+              const voucher = voucherData[date];
+              const detail = voucher.details[rowIndex];
+              let changed = false;
+
+              if (colIndex === 2 && detail.depositAmount !== numValue) {
+                detail.depositAmount = numValue;
+                changed = true;
+              } else if (colIndex === 4 && detail.withdrawalAmount !== numValue) {
+                detail.withdrawalAmount = numValue;
+                changed = true;
+              }
+
+              e.target.value = formatNumber(numValue);
+
+              if (changed) {
+                recalcMonth();
+              }
+            } catch (error) {
+              console.error("数値更新エラー:", error);
+              showErrorMessage("数値の更新でエラーが発生しました");
+            }
+          });
+        }
+        
+        // テキスト入力の処理
+        if (type === "text") {
+          input.addEventListener("change", e => {
+            if (e.target.readOnly) return;
+            
+            try {
+              let textValue = e.target.value;
+              
+              // 同期アイコンを除去
+              if (textValue.startsWith("🔗 ")) {
+                textValue = textValue.substring(3);
+              }
+              
+              const voucher = voucherData[date];
+              const detail = voucher.details[rowIndex];
+              let changed = false;
+
+              if (colIndex === 1 && detail.depositCategory !== textValue) {
+                detail.depositCategory = textValue;
+                changed = true;
+              } else if (colIndex === 3 && detail.description !== textValue) {
+                detail.description = textValue;
+                changed = true;
+                if (date.endsWith("-01") && syncRows[rowIndex]) {
+                  syncDescription(rowIndex);
+                }
+              } else if (colIndex === 5 && detail.withdrawalCategory !== textValue) {
+                detail.withdrawalCategory = textValue;
+                changed = true;
+              }
+              
+              if (changed) {
+                autoSaveVoucherData();
+              }
+            } catch (error) {
+              console.error("テキスト更新エラー:", error);
+              showErrorMessage("テキストの更新でエラーが発生しました");
+            }
+          });
+        }
+
+        // キーボードナビゲーション
+        input.addEventListener("keydown", e => {
+          const allDates = Object.keys(voucherData).sort();
+          const currentDateIndex = allDates.indexOf(date);
+          
+          let nextRow = rowIndex;
+          let nextCol = colIndex;
+          let nextDate = date;
+          let move = false;
+
+          switch (e.key) {
+            case "Enter":
+            case "ArrowDown":
+              e.preventDefault();
+              nextRow = rowIndex + 1;
+              if (nextRow > 9) { 
+                const nextDateCandidate = allDates[currentDateIndex + 1];
+                if (nextDateCandidate) {
+                  nextDate = nextDateCandidate;
+                  nextRow = 0;
+                } else { 
+                  nextRow = 9; 
+                }
+              }
+              move = true;
+              break;
+              
+            case "ArrowUp":
+              e.preventDefault();
+              nextRow = rowIndex - 1;
+              if (nextRow < 0) {
+                const prevDate = allDates[currentDateIndex - 1];
+                if (prevDate) {
+                  nextDate = prevDate;
+                  nextRow = 9;
+                } else { 
+                  nextRow = 0; 
+                }
+              }
+              move = true;
+              break;
+              
+            case "ArrowLeft":
+              e.preventDefault();
+              nextCol = colIndex - 1;
+              if (nextCol < 1) nextCol = 1;
+              move = true;
+              break;
+              
+            case "ArrowRight":
+              e.preventDefault();
+              nextCol = colIndex + 1;
+              if (nextCol > 5) nextCol = 5;
+              move = true;
+              break;
+              
+            default:
+              return;
+          }
+
+          if (move) {
+            const nextInput = document.querySelector(`input[data-date='${nextDate}'][data-row='${nextRow}'][data-col='${nextCol}']`);
+            if (nextInput) {
+              nextInput.focus();
+              if (nextInput.select) nextInput.select();
+            }
+          }
+        });
+      });
+    }
 
     /**********************************************
      * イベント処理・ボタン機能
@@ -738,29 +1359,35 @@
     
     // ビューモード切り替え
     document.getElementById("monthViewBtn").addEventListener("click", () => {
-        viewMode = 'month';
-        updateView();
+      viewMode = 'month';
+      updateView();
     });
+    
     document.getElementById("dayViewBtn").addEventListener("click", () => {
-        viewMode = 'day';
-        updateView();
+      viewMode = 'day';
+      updateView();
     });
 
+    // 月選択の変更
     document.getElementById("monthSelector").addEventListener("change", e => {
-      autoSaveVoucherData();
-      const month = e.target.value;
-      currentMonth = month;
-      ensureVoucherDataForMonth(month);
-      populateDaySelector(month);
-      currentVoucherDate = month + "-01";
-      document.getElementById("daySelector").value = currentVoucherDate;
-      recalcMonth();
+      try {
+        const month = e.target.value;
+        currentMonth = month;
+        ensureVoucherDataForMonth(month);
+        populateDaySelector(month);
+        currentVoucherDate = month + "-01";
+        document.getElementById("daySelector").value = currentVoucherDate;
+        recalcMonth();
+      } catch (error) {
+        console.error("月選択エラー:", error);
+        showErrorMessage("月の切り替えでエラーが発生しました");
+      }
     });
 
     // 日次セレクターの変更
     document.getElementById("daySelector").addEventListener("change", e => {
-        currentVoucherDate = e.target.value;
-        updateView();
+      currentVoucherDate = e.target.value;
+      updateView();
     });
     
     // 日次移動ボタン
@@ -768,240 +1395,291 @@
     document.getElementById("nextDayBtn").addEventListener("click", () => moveDay(1));
 
     function moveDay(delta) {
-      const date = new Date(currentVoucherDate + "T00:00:00");
-      date.setDate(date.getDate() + delta);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const nextDate = `${year}-${month}-${day}`;
-      const nextMonth = `${year}-${month}`;
+      try {
+        const date = new Date(currentVoucherDate + "T00:00:00");
+        date.setDate(date.getDate() + delta);
+        
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const nextDate = `${year}-${month}-${day}`;
+        const nextMonth = `${year}-${month}`;
 
-      if (year < 1950 || year > 2099) return; 
+        if (year < 1950 || year > 2099) return; 
 
-      if (currentMonth !== nextMonth) {
+        if (currentMonth !== nextMonth) {
           document.getElementById("monthSelector").value = nextMonth;
           currentMonth = nextMonth;
           ensureVoucherDataForMonth(nextMonth);
           populateDaySelector(nextMonth);
           recalcMonth();
-      }
+        }
 
-      if (voucherData[nextDate]) {
-        currentVoucherDate = nextDate;
-        document.getElementById("daySelector").value = nextDate;
-        updateView();
-      } 
+        if (voucherData[nextDate]) {
+          currentVoucherDate = nextDate;
+          document.getElementById("daySelector").value = nextDate;
+          updateView();
+        } 
+      } catch (error) {
+        console.error("日移動エラー:", error);
+        showErrorMessage("日付移動でエラーが発生しました");
+      }
     }
 
-    // 設定ボタンのイベントリスナー
+    // 設定関連のイベントリスナー
     document.getElementById("settingsBtn").addEventListener("click", () => {
-        // 設定パネル表示時にクイック摘要をロード
-        document.getElementById("quickDescInput").value = quickDescriptions.join('\n');
-        document.getElementById("settingsPanel").style.display = "block";
+      document.getElementById("quickDescInput").value = quickDescriptions.join('\n');
+      document.getElementById("settingsPanel").style.display = "block";
     });
     
-    // クイック摘要保存ボタン
     document.getElementById("saveQuickDescBtn").addEventListener("click", () => {
+      try {
         const input = document.getElementById("quickDescInput").value;
         quickDescriptions = input.split('\n').map(desc => desc.trim()).filter(desc => desc !== '');
         autoSaveVoucherData();
-        renderDatalist(); // datalistを更新
-        alert("摘要を保存しました。");
+        renderDatalist();
+        showSuccessMessage("摘要を保存しました");
+      } catch (error) {
+        console.error("摘要保存エラー:", error);
+        showErrorMessage("摘要の保存でエラーが発生しました");
+      }
     });
     
     document.getElementById("closeSettingsBtn").addEventListener("click", () => {
-        document.getElementById("settingsPanel").style.display = "none";
-        recalcMonth(); 
+      // 同期設定を保存
+      document.querySelectorAll("#syncForm input[type=checkbox]").forEach((chk, index) => {
+        syncRows[index] = chk.checked;
+      });
+      
+      document.getElementById("settingsPanel").style.display = "none";
+      recalcMonth(); 
     });
+    
     document.getElementById("deleteAllDataBtn").addEventListener("click", () => {
-        if(confirm("全てのデータを削除してもよろしいですか？この操作は取り消せません。")) {
-            voucherData = {};
-            localStorage.removeItem("voucherData");
-            initApp();
-            document.getElementById("settingsPanel").style.display = "none";
-            alert("データを削除しました。");
+      if (confirm("⚠️ 全てのデータを削除してもよろしいですか？\nこの操作は取り消せません。")) {
+        try {
+          voucherData = {};
+          quickDescriptions = [];
+          syncRows = Array(10).fill(false);
+          localStorage.clear();
+          initApp();
+          document.getElementById("settingsPanel").style.display = "none";
+          showSuccessMessage("全データを削除しました");
+        } catch (error) {
+          console.error("データ削除エラー:", error);
+          showErrorMessage("データ削除でエラーが発生しました");
         }
+      }
     });
 
-    // 表示中の伝票/月をクリアする機能
+    // 表示中の伝票/月をクリア
     document.getElementById("clearViewBtn").addEventListener("click", () => {
+      try {
         if (viewMode === 'month') {
-             if(!confirm(`現在表示中の【${currentMonth}】の全明細を全てクリアしますか？\n（${currentMonth}-01の前日残高は維持されます）`)) return;
-            
-            const sortedDatesForMonth = Object.keys(voucherData)
-                .filter(date => date.startsWith(currentMonth))
-                .sort();
-            
-            sortedDatesForMonth.forEach(date => {
-                const v = voucherData[date];
-                if(v) {
-                    v.details.forEach(d => {
-                        d.depositCategory = "";
-                        d.depositAmount = 0;
-                        d.description = "";
-                        d.withdrawalAmount = 0;
-                        d.withdrawalCategory = "";
-                    });
-                }
-            });
-        } else { // viewMode === 'day'
-            if(!confirm(`現在表示中の【${currentVoucherDate}】の明細を全てクリアしますか？\n（前日残高は維持されます）`)) return;
-            
-            const v = voucherData[currentVoucherDate];
-            if(!v) return;
-
-            v.details.forEach(d => {
+          if (!confirm(`⚠️ 現在表示中の【${currentMonth}】の全明細をクリアしますか？\n（${currentMonth}-01の前日残高は維持されます）`)) return;
+          
+          const sortedDatesForMonth = Object.keys(voucherData)
+            .filter(date => date.startsWith(currentMonth))
+            .sort();
+          
+          sortedDatesForMonth.forEach(date => {
+            const v = voucherData[date];
+            if (v) {
+              v.details.forEach(d => {
                 d.depositCategory = "";
                 d.depositAmount = 0;
                 d.description = "";
                 d.withdrawalAmount = 0;
                 d.withdrawalCategory = "";
+              });
+            }
+          });
+          
+          showSuccessMessage(`${currentMonth}の明細をクリアしました`);
+        } else {
+          if (!confirm(`⚠️ 現在表示中の【${currentVoucherDate}】の明細をクリアしますか？\n（前日残高は維持されます）`)) return;
+          
+          const v = voucherData[currentVoucherDate];
+          if (v) {
+            v.details.forEach(d => {
+              d.depositCategory = "";
+              d.depositAmount = 0;
+              d.description = "";
+              d.withdrawalAmount = 0;
+              d.withdrawalCategory = "";
             });
+          }
+          
+          showSuccessMessage(`${currentVoucherDate}の明細をクリアしました`);
         }
         
         recalcMonth();
+      } catch (error) {
+        console.error("クリアエラー:", error);
+        showErrorMessage("データクリアでエラーが発生しました");
+      }
     });
-
 
     /**********************************************
      * 売上CSV読込機能
      **********************************************/
     document.getElementById("salesCsvLoadBtn").addEventListener("click", () => {
-        document.getElementById("salesCsvInput").click();
+      document.getElementById("salesCsvInput").click();
     });
 
     document.getElementById("salesCsvInput").addEventListener("change", e => {
-        const file = e.target.files[0];
-        if(!file) return;
+      const file = e.target.files[0];
+      if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            try {
-                const text = event.target.result;
-                const lines = text.split(/\r\n|\n/);
-                if(lines.length < 2) throw new Error("データが空か不正です。");
+      showLoading("売上CSVを読み込み中...");
+      
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const text = event.target.result;
+          const lines = text.split(/\r\n|\n/);
+          
+          if (lines.length < 2) {
+            throw new Error("CSVファイルにデータがありません");
+          }
 
-                const headers = lines[0].split(",");
-                const colMap = {
-                    date: 0, salesTaxInc: -1, square: -1, paypay: -1, gift: -1, funfo: -1
-                };
+          const headers = lines[0].split(",");
+          const colMap = {
+            date: 0, salesTaxInc: -1, square: -1, paypay: -1, gift: -1, funfo: -1
+          };
 
-                headers.forEach((h, i) => {
-                    const cleanH = h.trim();
-                    if(cleanH === "売上高（税込）") colMap.salesTaxInc = i;
-                    else if(cleanH === "Square") colMap.square = i;
-                    else if(cleanH === "PayPay") colMap.paypay = i;
-                    else if(cleanH === "袋井商品券") colMap.gift = i;
-                    else if(cleanH === "Funfo") colMap.funfo = i;
-                });
+          // ヘッダーマッピング
+          headers.forEach((h, i) => {
+            const cleanH = h.trim();
+            if (cleanH === "売上高（税込）") colMap.salesTaxInc = i;
+            else if (cleanH === "Square") colMap.square = i;
+            else if (cleanH === "PayPay") colMap.paypay = i;
+            else if (cleanH === "袋井商品券") colMap.gift = i;
+            else if (cleanH === "Funfo") colMap.funfo = i;
+          });
 
-                if(colMap.salesTaxInc === -1) throw new Error("「売上高（税込）」列が見つかりません。");
+          if (colMap.salesTaxInc === -1) {
+            throw new Error("「売上高（税込）」列が見つかりません");
+          }
 
-                let processedCount = 0;
+          let processedCount = 0;
 
-                for(let i=1; i<lines.length; i++) {
-                    const rowRaw = lines[i];
-                    if(!rowRaw.trim()) continue;
-                    
-                    const row = rowRaw.split(",");
-                    let dateStr = row[colMap.date];
-                    if(!dateStr) continue;
-                    dateStr = dateStr.replace(/\//g, "-"); 
-                    
-                    if(voucherData[dateStr]) {
-                        const v = voucherData[dateStr];
-                        
-                        const getVal = (idx) => {
-                            if(idx === -1 || !row[idx]) return 0;
-                            return parseFloat(row[idx]) || 0;
-                        };
+          for (let i = 1; i < lines.length; i++) {
+            const rowRaw = lines[i];
+            if (!rowRaw.trim()) continue;
+            
+            const row = rowRaw.split(",");
+            let dateStr = row[colMap.date];
+            if (!dateStr) continue;
+            
+            dateStr = dateStr.replace(/\//g, "-"); 
+            
+            if (voucherData[dateStr]) {
+              const v = voucherData[dateStr];
+              
+              const getVal = (idx) => {
+                if (idx === -1 || !row[idx]) return 0;
+                return parseFloat(row[idx]) || 0;
+              };
 
-                        const salesVal = getVal(colMap.salesTaxInc);
-                        const creditTotal = getVal(colMap.square) + getVal(colMap.paypay) + getVal(colMap.gift) + getVal(colMap.funfo);
+              const salesVal = getVal(colMap.salesTaxInc);
+              const creditTotal = getVal(colMap.square) + getVal(colMap.paypay) + getVal(colMap.gift) + getVal(colMap.funfo);
 
-                        const detail = v.details[0]; 
-                        
-                        detail.depositCategory = "売上";
-                        detail.depositAmount = salesVal;
-                        
-                        if(creditTotal > 0) {
-                            detail.withdrawalCategory = "売掛金";
-                            detail.withdrawalAmount = creditTotal;
-                        } else {
-                            detail.withdrawalCategory = "";
-                            detail.withdrawalAmount = 0;
-                        }
-                        
-                        processedCount++;
-                    }
-                }
-
-                autoSaveVoucherData();
-                recalcMonth();
-                alert(`${processedCount}件のデータを反映しました。`);
-
-            } catch(err) {
-                console.error(err);
-                alert("CSV読み込みエラー: " + err.message);
-            } finally {
-                e.target.value = "";
+              const detail = v.details[0]; 
+              
+              detail.depositCategory = "売上";
+              detail.depositAmount = salesVal;
+              
+              if (creditTotal > 0) {
+                detail.withdrawalCategory = "売掛金";
+                detail.withdrawalAmount = creditTotal;
+              } else {
+                detail.withdrawalCategory = "";
+                detail.withdrawalAmount = 0;
+              }
+              
+              processedCount++;
             }
-        };
-        reader.readAsText(file); 
-    });
+          }
 
+          autoSaveVoucherData();
+          recalcMonth();
+          showSuccessMessage(`${processedCount}件の売上データを反映しました`);
+
+        } catch (err) {
+          console.error("CSV読み込みエラー:", err);
+          showErrorMessage("CSV読み込みエラー: " + err.message);
+        } finally {
+          e.target.value = "";
+          hideLoading();
+        }
+      };
+      
+      reader.readAsText(file, 'UTF-8'); 
+    });
 
     /**********************************************
      * 検索機能
      **********************************************/
     document.getElementById("searchBtn").addEventListener("click", () => {
-      document.querySelectorAll(".highlight-cell").forEach(cell => cell.classList.remove("highlight-cell"));
-      const keyword = document.getElementById("searchKeyword").value.trim().toLowerCase();
-      const resultsDiv = document.getElementById("searchResults");
-      resultsDiv.innerHTML = "";
-
-      if (keyword === "") { alert("検索キーワードを入力してください。"); return; }
-
-      const sortedDates = Object.keys(voucherData).sort();
-      let foundResults = [];
-      
-      sortedDates.forEach(date => {
-        const voucher = voucherData[date];
-        if (!voucher) return;
+      try {
+        document.querySelectorAll(".highlight-cell").forEach(cell => cell.classList.remove("highlight-cell"));
         
-        let foundInVoucher = false;
+        const keyword = document.getElementById("searchKeyword").value.trim().toLowerCase();
+        const resultsDiv = document.getElementById("searchResults");
+        resultsDiv.innerHTML = "";
 
-        const summaryValues = [
+        if (keyword === "") { 
+          showErrorMessage("検索キーワードを入力してください");
+          return; 
+        }
+
+        const sortedDates = Object.keys(voucherData).sort();
+        let foundResults = [];
+        
+        sortedDates.forEach(date => {
+          const voucher = voucherData[date];
+          if (!voucher) return;
+          
+          let foundInVoucher = false;
+
+          // サマリー情報での検索
+          const summaryValues = [
             String(voucher.prevBalance), String(voucher.deposit), 
             String(voucher.withdrawal), String(voucher.balance), voucher.date
-        ];
-        if (summaryValues.some(v => v.includes(keyword))) {
+          ];
+          
+          if (summaryValues.some(v => v.includes(keyword))) {
             foundInVoucher = true;
-        }
+          }
 
-        if (!foundInVoucher) {
-          foundInVoucher = voucher.details.some(row => {
-            return (row.depositCategory && row.depositCategory.toLowerCase().includes(keyword)) ||
-                   String(row.depositAmount).includes(keyword) ||
-                   (row.description && row.description.toLowerCase().includes(keyword)) ||
-                   String(row.withdrawalAmount).includes(keyword) ||
-                   (row.withdrawalCategory && row.withdrawalCategory.toLowerCase().includes(keyword));
-          });
-        }
+          // 明細での検索
+          if (!foundInVoucher) {
+            foundInVoucher = voucher.details.some(row => {
+              return (row.depositCategory && row.depositCategory.toLowerCase().includes(keyword)) ||
+                     String(row.depositAmount).includes(keyword) ||
+                     (row.description && row.description.toLowerCase().includes(keyword)) ||
+                     String(row.withdrawalAmount).includes(keyword) ||
+                     (row.withdrawalCategory && row.withdrawalCategory.toLowerCase().includes(keyword));
+            });
+          }
 
-        if (foundInVoucher) {
-          foundResults.push(date);
-        }
-      });
-      
-      foundResults.forEach(date => {
+          if (foundInVoucher) {
+            foundResults.push(date);
+          }
+        });
+        
+        // 検索結果の表示
+        foundResults.forEach(date => {
           const itemDiv = document.createElement("div");
           itemDiv.classList.add("search-result-item");
+          
           const link = document.createElement("a");
-          link.textContent = date;
+          link.textContent = `📋 ${date}`;
           link.href = "#";
           link.addEventListener("click", e => {
             e.preventDefault();
+            
             const selectedMonth = date.slice(0, 7);
             document.getElementById("monthSelector").value = selectedMonth;
             currentMonth = selectedMonth;
@@ -1014,21 +1692,29 @@
             recalcMonth();
             
             const target = document.querySelector(`.daily-voucher-card[data-date='${date}']`);
-            if(target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
           });
+          
           itemDiv.appendChild(link);
           resultsDiv.appendChild(itemDiv);
-      });
-      
-      if (resultsDiv.children.length === 0) resultsDiv.textContent = "検索結果はありません。";
-      else {
+        });
+        
+        if (resultsDiv.children.length === 0) {
+          resultsDiv.innerHTML = '<p style="text-align: center; color: #6c757d;">🔍 検索結果はありません</p>';
+        } else {
+          // ハイライト表示
           if (viewMode === 'month') {
-              renderMonthView(currentMonth, keyword);
+            renderMonthView(currentMonth, keyword);
           } else {
-              renderViewDetails(currentVoucherDate, 'singleDailyCard', keyword);
+            renderViewDetails(currentVoucherDate, 'singleDailyCard', keyword);
           }
+          showSuccessMessage(`${foundResults.length}件の検索結果が見つかりました`);
+        }
+      } catch (error) {
+        console.error("検索エラー:", error);
+        showErrorMessage("検索処理でエラーが発生しました");
       }
     });
 
@@ -1039,141 +1725,205 @@
       updateView(); 
     });
 
-    /**********************************************
-     * Excel / JSON 保存・読込
-     **********************************************/
-    // (Excel / JSON の保存・読込ロジックは変更なし)
+    // Enterキーで検索実行
+    document.getElementById("searchKeyword").addEventListener("keypress", e => {
+      if (e.key === 'Enter') {
+        document.getElementById("searchBtn").click();
+      }
+    });
 
+    /**********************************************
+     * Excel保存・読込（修正版）
+     **********************************************/
+    
     document.getElementById("excelSaveBtn").addEventListener("click", async () => {
       showLoading("Excelファイルを作成中...");
+      
       try {
         const month = document.getElementById("monthSelector").value;
         const workbook = new ExcelJS.Workbook();
+        
+        const formatExcelValue = (value) => value === 0 ? '' : value;
 
         const sortedDatesForMonth = Object.keys(voucherData)
           .filter(date => date.startsWith(month))
           .sort();
           
+        // 月次サマリーシート
         const summarySheet = workbook.addWorksheet('月次サマリー');
         let summaryRow = 1;
         summarySheet.getRow(summaryRow++).values = ['日付', '前日残高', '本日入金', '本日出金', '本日残高'];
         
-        let maxSummaryWidths = [10, 10, 10, 10, 10]; 
+        let maxSummaryWidths = [10, 12, 12, 12, 12]; 
         
         sortedDatesForMonth.forEach(date => {
-            const v = voucherData[date];
-            const row = summarySheet.getRow(summaryRow);
-            const values = [v.date, v.prevBalance, v.deposit, v.withdrawal, v.balance];
-            row.values = values;
-            
-            values.forEach((val, i) => {
-                const len = String(val).length;
-                if (len > maxSummaryWidths[i]) {
-                    maxSummaryWidths[i] = len;
-                }
-            });
-            
-            [2,3,4,5].forEach(c => {
-               row.getCell(c).numFmt = '#,##0';
-               row.getCell(c).alignment = { horizontal: 'right' };
-            });
-            summaryRow++;
+          const v = voucherData[date];
+          const row = summarySheet.getRow(summaryRow);
+          
+          const values = [
+            v.date, 
+            formatExcelValue(v.prevBalance), 
+            formatExcelValue(v.deposit), 
+            formatExcelValue(v.withdrawal), 
+            formatExcelValue(v.balance)
+          ];
+          row.values = values;
+          
+          // 幅計算
+          values.forEach((val, i) => {
+            const len = String(val).length;
+            if (len > maxSummaryWidths[i]) {
+              maxSummaryWidths[i] = len;
+            }
+          });
+          
+          // 数値フォーマット
+          [2, 3, 4, 5].forEach(c => {
+            if (row.getCell(c).value !== '') {
+              row.getCell(c).numFmt = '#,##0';
+            }
+            row.getCell(c).alignment = { horizontal: 'right' };
+          });
+          
+          summaryRow++;
         });
 
         summarySheet.columns = maxSummaryWidths.map(w => ({ width: w + 2 }));
 
-
+        // 入出金伝票シート
         const voucherSheet = workbook.addWorksheet('入出金伝票');
         
         let maxDetailWidths = [5, 15, 15, 30, 15, 15]; 
-        
         let currentRow = 1;
 
         for (const date of sortedDatesForMonth) {
           const v = voucherData[date];
           
+          // ヘッダー行
           const headerRow = voucherSheet.getRow(currentRow);
           headerRow.values = ['伝票日付', '前日残高', '本日入金', '本日出金', '本日残高'];
           headerRow.font = { bold: true };
-          headerRow.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFF2F2F2'} };
+          headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
           headerRow.eachCell(cell => {
-               cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-               cell.alignment = { horizontal: 'center' };
+            cell.border = { 
+              top: { style: 'thin' }, left: { style: 'thin' }, 
+              bottom: { style: 'thin' }, right: { style: 'thin' } 
+            };
+            cell.alignment = { horizontal: 'center' };
           });
           currentRow++;
 
+          // サマリー行
           const summaryRow = voucherSheet.getRow(currentRow);
-          summaryRow.values = [v.date, v.prevBalance, v.deposit, v.withdrawal, v.balance];
+          summaryRow.values = [
+            v.date, 
+            formatExcelValue(v.prevBalance), 
+            formatExcelValue(v.deposit), 
+            formatExcelValue(v.withdrawal), 
+            formatExcelValue(v.balance)
+          ];
+          
           summaryRow.getCell(1).alignment = { horizontal: 'center' };
           
           [1, 2, 3, 4, 5].forEach(c => {
-              const val = summaryRow.getCell(c).value;
-              const len = String(val).length;
-              if (c === 1 && len > maxDetailWidths[0]) maxDetailWidths[0] = len + 1;
-              if (c > 1 && len > maxDetailWidths[c - 1]) maxDetailWidths[c - 1] = len + 1;
+            const val = summaryRow.getCell(c).value;
+            const len = String(val).length;
+            if (c === 1 && len > maxDetailWidths[0]) maxDetailWidths[0] = len + 1;
+            if (c > 1 && len > maxDetailWidths[c - 1]) maxDetailWidths[c - 1] = len + 1;
           });
           
-          [2,3,4,5].forEach(c => {
+          [2, 3, 4, 5].forEach(c => {
+            if (summaryRow.getCell(c).value !== '') {
               summaryRow.getCell(c).numFmt = '#,##0';
-              summaryRow.getCell(c).alignment = { horizontal: 'right' };
+            }
+            summaryRow.getCell(c).alignment = { horizontal: 'right' };
           });
+          
           summaryRow.eachCell(cell => {
-               cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
+            cell.border = { 
+              top: { style: 'thin' }, left: { style: 'thin' }, 
+              bottom: { style: 'thin' }, right: { style: 'thin' } 
+            };
           });
           currentRow++;
 
+          // 明細ヘッダー
           const detailHeader = voucherSheet.getRow(currentRow);
           detailHeader.values = ['No.', '入金科目', '入金金額', '摘要', '出金金額', '出金科目'];
           detailHeader.font = { bold: true };
           detailHeader.eachCell(cell => {
-               cell.border = { top: {style:'thin'}, left: {style:'thin'}, bottom: {style:'thin'}, right: {style:'thin'} };
-               cell.alignment = { horizontal: 'center' };
-               cell.fill = { type: 'pattern', pattern:'solid', fgColor:{argb:'FFEFEFEF'} };
+            cell.border = { 
+              top: { style: 'thin' }, left: { style: 'thin' }, 
+              bottom: { style: 'thin' }, right: { style: 'thin' } 
+            };
+            cell.alignment = { horizontal: 'center' };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
           });
           currentRow++;
 
+          // 明細行
           v.details.forEach(detail => {
             const r = voucherSheet.getRow(currentRow);
-            const values = [detail.no, detail.depositCategory, detail.depositAmount, detail.description, detail.withdrawalAmount, detail.withdrawalCategory];
+            const values = [
+              detail.no, 
+              detail.depositCategory, 
+              formatExcelValue(detail.depositAmount), 
+              detail.description, 
+              formatExcelValue(detail.withdrawalAmount), 
+              detail.withdrawalCategory
+            ];
             r.values = values;
             
+            // 幅計算
             values.forEach((val, i) => {
-                const len = String(val).length;
-                if (len > maxDetailWidths[i]) { 
-                    maxDetailWidths[i] = len + 1; 
-                }
+              const len = String(val).length;
+              if (len > maxDetailWidths[i]) { 
+                maxDetailWidths[i] = len + 1; 
+              }
             });
 
             r.eachCell((cell, colNumber) => {
-              cell.border = { top: {style:'dotted'}, left: {style:'thin'}, bottom: {style:'dotted'}, right: {style:'thin'} };
+              cell.border = { 
+                top: { style: 'dotted' }, left: { style: 'thin' }, 
+                bottom: { style: 'dotted' }, right: { style: 'thin' } 
+              };
+              
               if (colNumber === 3 || colNumber === 5) {
-                 cell.numFmt = '#,##0';
-                 cell.alignment = { horizontal: 'right' };
+                if (cell.value !== '') {
+                  cell.numFmt = '#,##0';
+                }
+                cell.alignment = { horizontal: 'right' };
               }
             });
             currentRow++;
           });
-          currentRow += 1;
+          currentRow += 1; // 伝票間のスペース
         }
 
         voucherSheet.columns = maxDetailWidths.map(w => ({ width: w + 1 }));
 
-
+        // ファイルダウンロード
         const buffer = await workbook.xlsx.writeBuffer();
-        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const blob = new Blob([buffer], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${month}_入出金伝票_月次サマリー付.xlsx`;
+        a.download = `${month}_入出金伝票_Pro版.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        alert("Excelファイルの保存が完了しました。");
+        
+        showSuccessMessage("Excelファイルを保存しました");
       } catch (error) {
-          console.error("Excel保存エラー:", error);
-          alert("Excelファイルの保存中にエラーが発生しました。");
-      } finally { hideLoading(); }
+        console.error("Excel保存エラー:", error);
+        showErrorMessage("Excelファイルの保存でエラーが発生しました");
+      } finally { 
+        hideLoading(); 
+      }
     });
 
     document.getElementById("excelLoadBtn").addEventListener("click", () => {
@@ -1183,120 +1933,225 @@
     document.getElementById("excelLoadInput").addEventListener("change", async e => {
       const file = e.target.files[0];
       if (!file) return;
+      
       showLoading("Excelデータを読み込み中...");
+      
       try {
         const buffer = await file.arrayBuffer();
         const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(buffer);
-        const sheet = workbook.getWorksheet(1) || workbook.getWorksheet('入出金伝票');
-        if (!sheet) throw new Error("伝票データシートが見つかりません。");
+        
+        // シートの検索（複数のシート名に対応）
+        let sheet = workbook.getWorksheet('入出金伝票') || 
+                   workbook.getWorksheet(1) || 
+                   workbook.getWorksheet('Sheet1');
+                   
+        if (!sheet) {
+          throw new Error("読み込み可能なシートが見つかりません");
+        }
 
         let loadedData = {};
         let currentVoucher = null;
+        
+        // 改良されたExcel日付変換関数
+        const excelDateToISOString = (excelValue) => {
+          try {
+            // 既に正しい形式の文字列の場合
+            if (typeof excelValue === 'string' && excelValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              return excelValue;
+            }
+            
+            // Dateオブジェクトの場合
+            if (excelValue instanceof Date) {
+              const year = excelValue.getFullYear();
+              const month = String(excelValue.getMonth() + 1).padStart(2, '0');
+              const day = String(excelValue.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
+            
+            // 数値（Excelシリアル値）の場合
+            if (typeof excelValue === 'number' && excelValue > 25569) { // 1970年以降
+              const date = new Date((excelValue - 25569) * 86400 * 1000);
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+              const day = String(date.getUTCDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            }
+            
+            // 文字列の日付形式を変換
+            const str = String(excelValue).trim();
+            if (str.match(/^\d{4}\/\d{1,2}\/\d{1,2}$/)) {
+              const parts = str.split('/');
+              return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+            }
+            
+            return str;
+          } catch (error) {
+            console.warn("日付変換エラー:", error, excelValue);
+            return String(excelValue || "").trim();
+          }
+        };
 
         sheet.eachRow((row, rowNumber) => {
-          const cellA = row.getCell(1).value; 
-          let valA = String(cellA || "").trim();
-          
-          if (valA.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            currentVoucher = {
-              date: valA,
-              prevBalance: parseFloat(row.getCell(2).value) || 0,
-              deposit: parseFloat(row.getCell(3).value) || 0,
-              withdrawal: parseFloat(row.getCell(4).value) || 0,
-              balance: parseFloat(row.getCell(5).value) || 0,
-              details: []
-            };
-            loadedData[valA] = currentVoucher;
-          }
-          else if (currentVoucher && !isNaN(parseInt(valA)) && parseInt(valA) > 0) {
-             if (currentVoucher.details.length < 10) {
-               currentVoucher.details.push({
-                 no: parseInt(valA),
-                 depositCategory: String(row.getCell(2).value || ""),
-                 depositAmount: parseFloat(row.getCell(3).value) || 0,
-                 description: String(row.getCell(4).value || ""),
-                 withdrawalAmount: parseFloat(row.getCell(5).value) || 0,
-                 withdrawalCategory: String(row.getCell(6).value || "")
-               });
-             }
+          try {
+            const cellA = row.getCell(1).value; 
+            const dateStr = excelDateToISOString(cellA);
+            
+            // 日付行の判定（伝票の開始）
+            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              currentVoucher = {
+                date: dateStr,
+                prevBalance: parseNumber(row.getCell(2).value) || 0,
+                deposit: parseNumber(row.getCell(3).value) || 0,
+                withdrawal: parseNumber(row.getCell(4).value) || 0,
+                balance: parseNumber(row.getCell(5).value) || 0,
+                details: []
+              };
+              loadedData[dateStr] = currentVoucher;
+            }
+            // 明細行の判定（No.が正の数値）
+            else if (currentVoucher && !isNaN(parseInt(cellA)) && parseInt(cellA) > 0) {
+              if (currentVoucher.details.length < 10) {
+                currentVoucher.details.push({
+                  no: parseInt(cellA),
+                  depositCategory: String(row.getCell(2).value || ""),
+                  depositAmount: parseNumber(row.getCell(3).value) || 0,
+                  description: String(row.getCell(4).value || ""),
+                  withdrawalAmount: parseNumber(row.getCell(5).value) || 0,
+                  withdrawalCategory: String(row.getCell(6).value || "")
+                });
+              }
+            }
+          } catch (error) {
+            console.warn(`行 ${rowNumber} の処理でエラー:`, error);
           }
         });
 
+        // 明細を10行に調整
         Object.values(loadedData).forEach(v => {
-           while(v.details.length < 10) {
-             v.details.push({ no: v.details.length + 1, depositCategory: "", depositAmount: 0, description: "", withdrawalAmount: 0, withdrawalCategory: "" });
-           }
+          while (v.details.length < 10) {
+            v.details.push({ 
+              no: v.details.length + 1, 
+              depositCategory: "", 
+              depositAmount: 0, 
+              description: "", 
+              withdrawalAmount: 0, 
+              withdrawalCategory: "" 
+            });
+          }
         });
 
         if (Object.keys(loadedData).length === 0) {
-           alert("有効な伝票データが見つかりませんでした。");
-           return;
+          throw new Error("有効な伝票データが見つかりませんでした");
         }
 
-        if (confirm("現在のデータを上書きしてExcelデータを読み込みますか？")) {
-            voucherData = loadedData;
-            autoSaveVoucherData();
-            
-            recalcMonth();
-            
-            const dates = Object.keys(loadedData).sort();
-            const firstDate = dates[0];
-            if(firstDate) {
-               currentMonth = firstDate.slice(0, 7);
-               document.getElementById("monthSelector").value = currentMonth;
-               currentVoucherDate = firstDate;
-               document.getElementById("daySelector").value = currentVoucherDate;
-               ensureVoucherDataForMonth(currentMonth);
-               updateView();
-            }
-            alert("読み込み完了しました。");
+        if (confirm(`📊 ${Object.keys(loadedData).length}件の伝票データが見つかりました。\n現在のデータを上書きして読み込みますか？`)) {
+          voucherData = loadedData;
+          autoSaveVoucherData();
+          
+          recalcMonth();
+          
+          // 最初の日付に移動
+          const dates = Object.keys(loadedData).sort();
+          const firstDate = dates[0];
+          if (firstDate) {
+            currentMonth = firstDate.slice(0, 7);
+            document.getElementById("monthSelector").value = currentMonth;
+            currentVoucherDate = firstDate;
+            document.getElementById("daySelector").value = currentVoucherDate;
+            ensureVoucherDataForMonth(currentMonth);
+            updateView();
+          }
+          
+          showSuccessMessage(`${Object.keys(loadedData).length}件のデータを読み込みました`);
         }
       } catch (err) {
-        console.error(err);
-        alert("Excel読み込みエラー: " + err.message);
+        console.error("Excel読み込みエラー:", err);
+        showErrorMessage("Excel読み込みエラー: " + err.message);
       } finally {
         e.target.value = '';
         hideLoading();
       }
     });
     
+    /**********************************************
+     * JSON保存・読込
+     **********************************************/
+    
     document.getElementById("jsonSaveBtn").addEventListener("click", () => {
-      const dataToSave = { voucherData: voucherData, syncRows: syncRows, quickDescriptions: quickDescriptions };
-      const jsonStr = JSON.stringify(dataToSave, null, 2);
-      const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(jsonStr);
-      const link = document.createElement("a");
-      link.href = dataUri;
-      link.download = "入出金伝票_バックアップ.json";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      try {
+        const dataToSave = { 
+          voucherData: voucherData, 
+          syncRows: syncRows, 
+          quickDescriptions: quickDescriptions,
+          exportDate: new Date().toISOString(),
+          version: "Pro版"
+        };
+        
+        const jsonStr = JSON.stringify(dataToSave, null, 2);
+        const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(jsonStr);
+        
+        const link = document.createElement("a");
+        link.href = dataUri;
+        link.download = `入出金伝票_Pro版_${currentMonth}_バックアップ.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showSuccessMessage("JSONバックアップを保存しました");
+      } catch (error) {
+        console.error("JSON保存エラー:", error);
+        showErrorMessage("JSONファイルの保存でエラーが発生しました");
+      }
     });
-    document.getElementById("jsonLoadBtn").addEventListener("click", () => document.getElementById("jsonLoadInput").click());
+    
+    document.getElementById("jsonLoadBtn").addEventListener("click", () => {
+      document.getElementById("jsonLoadInput").click();
+    });
+    
     document.getElementById("jsonLoadInput").addEventListener("change", e => {
       const file = e.target.files[0];
       if (!file) return;
+      
+      showLoading("JSONデータを読み込み中...");
+      
       const reader = new FileReader();
       reader.onload = function(event) {
         try {
           const loadedData = JSON.parse(event.target.result);
+          
           if (loadedData.voucherData) {
-            if (confirm("JSONからデータを復元しますか？")) {
+            if (confirm(`📁 JSONバックアップからデータを復元しますか？\n${loadedData.exportDate ? '作成日時: ' + new Date(loadedData.exportDate).toLocaleString() : ''}`)) {
               voucherData = loadedData.voucherData;
-              if(loadedData.syncRows) syncRows = loadedData.syncRows;
-              if(loadedData.quickDescriptions) quickDescriptions = loadedData.quickDescriptions;
+              
+              if (loadedData.syncRows) syncRows = loadedData.syncRows;
+              if (loadedData.quickDescriptions) quickDescriptions = loadedData.quickDescriptions;
+              
               autoSaveVoucherData();
               initApp();
-              alert("復元しました。");
+              showSuccessMessage("JSONバックアップから復元しました");
             }
+          } else {
+            throw new Error("無効なJSONファイル形式です");
           }
-        } catch(e) { alert("JSON読み込みエラー"); }
+        } catch (e) { 
+          console.error("JSON読み込みエラー:", e);
+          showErrorMessage("JSONファイルの読み込みでエラーが発生しました"); 
+        } finally {
+          hideLoading();
+        }
       };
+      
       reader.readAsText(file);
       e.target.value = '';
     });
-    document.getElementById("printBtn").addEventListener("click", () => window.print());
     
+    // 印刷
+    document.getElementById("printBtn").addEventListener("click", () => {
+      window.print();
+    });
+    
+    // 初期化
     window.addEventListener("load", initApp);
   </script>
 </body>
