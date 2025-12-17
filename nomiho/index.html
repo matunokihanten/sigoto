@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>メニュー編集ツール 横向き出力対応</title>
+  <meta name="description" content="横向き出力対応、行間を狭く、メニュー文字を大きくしたメニュー編集ツール。" />
+  <style>
+    :root{
+      --max:1400px;
+      --radius:12px;
+      --gap:10px;
+      --base-font:20px; /* 全体のベースフォントを大きめに */
+      --card-heading-scale:1.5; /* カテゴリ見出しの拡大 */
+      --menu-item-scale:1.15; /* メニュー項目の拡大 */
+      --menu-row-gap:6px; /* 行間を狭く */
+      --menu-row-padding-vertical:6px; /* 行内の上下パディングを小さく */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
+    body{
+      background:#f5f5f5;
+      color:#111;
+      padding:18px;
+      font-size:var(--base-font);
+      line-height:1.35;
+    }
+    .wrap{max-width:var(--max);margin:0 auto;display:grid;grid-template-columns:1fr;gap:18px}
+    header{display:flex;flex-direction:column;gap:8px}
+    h1{margin:0;font-size:calc(var(--base-font) * 1.05);font-weight:800}
+    .sub{color:#666;font-size:calc(var(--base-font) * 0.95)}
+
+    /* layout */
+    .main-grid{display:grid;grid-template-columns:1fr;gap:18px}
+    @media(min-width:980px){ .main-grid{ grid-template-columns:520px 1fr; } }
+
+    .panel{border:1px solid #ddd;border-radius:var(--radius);padding:18px;background:#fff}
+    .panel h2{margin:0 0 10px 0;font-size:calc(var(--base-font) * 1.0)}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+    input[type="text"], textarea, select{
+      flex:1;min-width:140px;padding:10px;border:1px solid #ccc;border-radius:10px;
+      font-size:calc(var(--base-font) * 0.95);
+    }
+    textarea{min-height:110px}
+    button{
+      padding:10px 14px;border-radius:10px;border:1px solid #bbb;background:#111;color:#fff;cursor:pointer;
+      font-size:calc(var(--base-font) * 0.95);
+    }
+    button.secondary{background:#fff;color:#111;border:1px solid #bbb}
+    button.danger{background:#b91c1c}
+    .small{padding:8px 10px;font-size:calc(var(--base-font) * 0.9)}
+    .section{border:1px dashed #eee;padding:12px;border-radius:10px;margin-top:12px}
+
+    /* editor list */
+    .category{border:1px solid #eee;padding:12px;border-radius:10px;margin-bottom:12px;background:#fafafa}
+    .cat-header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .cat-title{font-weight:800;font-size:calc(var(--base-font) * 1.0)}
+    .item-row{display:flex;gap:10px;align-items:center;margin-top:10px}
+    .item-row input{flex:1;font-size:calc(var(--base-font) * 0.95)}
+
+    /* preview */
+    .preview{border:1px solid #ddd;border-radius:14px;padding:18px;min-height:220px;background:#fff}
+    .preview-header{display:flex;justify-content:space-between;align-items:center}
+    .brand{font-weight:900;font-size:calc(var(--base-font) * 1.25)}
+    .badge{font-size:calc(var(--base-font) * 0.95);color:#666}
+    /* 横向きに見せるためカード列を増やす */
+    .cards{display:grid;gap:12px;margin-top:14px}
+    @media(min-width:900px){ .cards{ grid-template-columns:repeat(3,1fr); } }
+    @media(min-width:1300px){ .cards{ grid-template-columns:repeat(4,1fr); } }
+
+    /* カテゴリを大きくし黒い四角で囲むスタイル */
+    .card{
+      border:2px solid #000; /* 黒い四角の線 */
+      border-radius:12px;
+      padding:14px;
+      background:transparent;
+    }
+    .card h3{
+      margin:0 0 8px 0;
+      font-size:calc(var(--base-font) * var(--card-heading-scale));
+      font-weight:900;
+    }
+    .menu-ul{list-style:none;padding:0;margin:0;display:grid;gap:var(--menu-row-gap)}
+    .menu-li{
+      display:flex;justify-content:space-between;padding:var(--menu-row-padding-vertical) 10px;border-radius:8px;
+      border:1px solid rgba(0,0,0,0.06);background:transparent;
+      font-size:calc(var(--base-font) * var(--menu-item-scale));
+      line-height:1.1; /* 行間をさらに詰める */
+    }
+    .menu-li .note{color:#666;font-size:calc(var(--base-font) * 0.95)}
+
+    /* mode: light/dark (only black & white for menu content) */
+    body.light{ background:#ffffff; color:#000000; }
+    body.light .panel, body.light .preview{ background:#ffffff; color:#000000; border-color:#ddd; }
+    body.light .menu-li{ border-color:#eee; color:#000; }
+    body.light .brand, body.light .badge{ color:#000; }
+
+    body.dark{ background:#000000; color:#ffffff; }
+    body.dark .panel, body.dark .preview{ background:#000000; color:#fff; border-color:#222; }
+    body.dark .menu-li{ border-color:#111; color:#fff; }
+    body.dark .brand, body.dark .badge{ color:#fff; }
+
+    /* ensure menu text colors are strictly black/white */
+    .preview .menu-li, .preview .brand, .preview .badge { color: inherit; }
+    .preview .menu-li .note { color: inherit; opacity:0.85; }
+
+    footer{margin-top:14px;color:#666;font-size:calc(var(--base-font) * 0.95);display:flex;justify-content:space-between;align-items:center}
+    .controls{display:flex;gap:10px;flex-wrap:wrap}
+    input[type="file"]{display:inline-block;font-size:calc(var(--base-font) * 0.95)}
+  </style>
+</head>
+<body class="light">
+  <div class="wrap">
+    <header>
+      <h1>メニュー編集ツール</h1>
+      <div class="sub">出来上がりは横向き出力。行間を狭く、メニュー文字を大きく表示します。</div>
+    </header>
+
+    <div class="main-grid">
+      <!-- Editor -->
+      <section class="panel" aria-label="編集パネル">
+        <h2>編集パネル</h2>
+
+        <div class="row">
+          <input id="storeName" type="text" placeholder="店名（例：松乃木飯店）" />
+          <input id="courseLabel" type="text" placeholder="コースラベル（例：120 min course）" />
+        </div>
+        <div class="row">
+          <input id="noticeText" type="text" placeholder="注意書き（例：飲み放題終了20分前からはノンアルのみの提供）" />
+        </div>
+
+        <div class="row">
+          <label for="modeSelect" style="align-self:center;font-size:calc(var(--base-font) * 0.95)">メニューモード：</label>
+          <select id="modeSelect" style="min-width:160px;font-size:calc(var(--base-font) * 0.95)">
+            <option value="light">ライトモード（白背景・黒文字）</option>
+            <option value="dark">ダークモード（黒背景・白文字）</option>
+          </select>
+          <button id="applyMode" class="small">適用</button>
+        </div>
+
+        <div class="section" id="categoriesContainer"></div>
+
+        <div class="row" style="margin-top:8px">
+          <button id="addCategory">＋ カテゴリ追加</button>
+          <button id="resetData" class="secondary">初期データに戻す</button>
+        </div>
+
+        <div class="section">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label class="muted" style="font-size:calc(var(--base-font) * 0.95)">JSONファイル読み込み：</label>
+            <input type="file" id="loadJsonFile" accept=".json,application/json">
+            <button id="loadJsonBtn" class="secondary">読み込む</button>
+            <button id="downloadJson" class="secondary">JSON保存</button>
+            <button id="downloadHtml" class="secondary">HTML保存</button>
+          </div>
+          <div style="margin-top:10px">
+            <textarea id="rawJson" placeholder="JSONを直接編集して反映できます（上級者向け）" style="width:100%;min-height:110px;font-size:calc(var(--base-font) * 0.95)"></textarea>
+            <div style="display:flex;gap:10px;margin-top:10px">
+              <button id="applyJson">JSONを反映</button>
+              <button id="copyJson" class="secondary">JSONをコピー</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CSV (Excel) セクション -->
+        <div class="section">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <label class="muted" style="font-size:calc(var(--base-font) * 0.95)">Excel（CSV）読み込み：</label>
+            <input type="file" id="loadCsvFile" accept=".csv,text/csv">
+            <button id="loadCsvBtn" class="secondary">CSV読み込む</button>
+            <button id="downloadCsv" class="secondary">CSV保存（Excel用）</button>
+            <div style="font-size:calc(var(--base-font) * 0.9);color:#666;margin-left:8px">CSV列: category,item,note</div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Preview -->
+      <section class="panel preview" aria-label="プレビュー">
+        <div class="preview-header">
+          <div>
+            <div class="brand" id="brandLabel">店舗名</div>
+            <div class="badge" id="noticeLabel">注意書き</div>
+          </div>
+          <div style="text-align:right">
+            <div class="badge" id="courseBadge">120 min course</div>
+          </div>
+        </div>
+
+        <div class="cards" id="previewCards"></div>
+      </section>
+    </div>
+
+    <footer>
+      <div>袋井市・静岡</div>
+      <div class="controls">
+        <button id="helpBtn" class="secondary">便利機能の提案</button>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // 初期データ
+    const defaultData = {
+      storeName: "松乃木飯店",
+      courseLabel: "120 min course",
+      noticeText: "飲み放題終了20分前からは、ノンアルコールのみの提供となります。",
+      mode: "light",
+      categories: [
+        { title: "ビール", items: [{name:"中"},{name:"ピッチャー"},{name:"アサヒスーパードライ"},{name:"樽ビール", note:"樽搾り＜生＞"}] },
+        { title: "酎ハイ", items: [{name:"ライチ"},{name:"グレープフルーツ"},{name:"ウーロンハイ"}] },
+        { title: "焼酎", items: [{name:"甲類", note:"焼酎／水割り／ロック"},{name:"麦焼酎"},{name:"芋焼酎"}] },
+        { title: "ソフトドリンク", items: [{name:"ウーロン茶"},{name:"コーラ"},{name:"オレンジジュース"}] },
+        { title: "ホットコーヒー", items: [{name:"エスプレッソ"},{name:"カプチーノ"}] },
+        { title: "ノンアルコール", items: [{name:"マッイ ゼロイチ", note:"ノンアルコール"}] }
+      ]
+    };
+
+    let data = JSON.parse(JSON.stringify(defaultData));
+
+    // DOM
+    const categoriesContainer = document.getElementById('categoriesContainer');
+    const previewCards = document.getElementById('previewCards');
+    const brandLabel = document.getElementById('brandLabel');
+    const courseBadge = document.getElementById('courseBadge');
+    const noticeLabel = document.getElementById('noticeLabel');
+
+    const storeNameEl = document.getElementById('storeName');
+    const courseLabelEl = document.getElementById('courseLabel');
+    const noticeTextEl = document.getElementById('noticeText');
+    const modeSelect = document.getElementById('modeSelect');
+    const applyModeBtn = document.getElementById('applyMode');
+
+    const addCategoryBtn = document.getElementById('addCategory');
+    const resetDataBtn = document.getElementById('resetData');
+
+    const rawJsonEl = document.getElementById('rawJson');
+    const applyJsonBtn = document.getElementById('applyJson');
+    const copyJsonBtn = document.getElementById('copyJson');
+
+    const loadJsonFile = document.getElementById('loadJsonFile');
+    const loadJsonBtn = document.getElementById('loadJsonBtn');
+    const downloadJsonBtn = document.getElementById('downloadJson');
+    const downloadHtmlBtn = document.getElementById('downloadHtml');
+
+    const loadCsvFile = document.getElementById('loadCsvFile');
+    const loadCsvBtn = document.getElementById('loadCsvBtn');
+    const downloadCsvBtn = document.getElementById('downloadCsv');
+
+    const helpBtn = document.getElementById('helpBtn');
+
+    // render editor categories
+    function renderEditor(){
+      storeNameEl.value = data.storeName || '';
+      courseLabelEl.value = data.courseLabel || '';
+      noticeTextEl.value = data.noticeText || '';
+      modeSelect.value = data.mode || 'light';
+      rawJsonEl.value = JSON.stringify(data, null, 2);
+
+      categoriesContainer.innerHTML = '';
+      data.categories.forEach((cat, cIdx) => {
+        const catEl = document.createElement('div');
+        catEl.className = 'category';
+
+        const header = document.createElement('div');
+        header.className = 'cat-header';
+        const title = document.createElement('div');
+        title.className = 'cat-title';
+        title.textContent = cat.title || '無題カテゴリ';
+        const controls = document.createElement('div');
+
+        const upBtn = document.createElement('button'); upBtn.textContent = '↑'; upBtn.className='small';
+        const downBtn = document.createElement('button'); downBtn.textContent = '↓'; downBtn.className='small';
+        const delBtn = document.createElement('button'); delBtn.textContent = 'カテゴリ削除'; delBtn.className='danger small';
+
+        controls.appendChild(upBtn); controls.appendChild(downBtn); controls.appendChild(delBtn);
+        header.appendChild(title); header.appendChild(controls);
+        catEl.appendChild(header);
+
+        const nameRow = document.createElement('div'); nameRow.className='row';
+        const nameInput = document.createElement('input'); nameInput.type='text'; nameInput.value = cat.title || ''; nameInput.placeholder='カテゴリ名';
+        nameRow.appendChild(nameInput);
+        catEl.appendChild(nameRow);
+
+        const itemsWrap = document.createElement('div');
+        cat.items.forEach((it, iIdx) => {
+          const itemRow = document.createElement('div'); itemRow.className='item-row';
+          const itemName = document.createElement('input'); itemName.type='text'; itemName.value = it.name || ''; itemName.placeholder='アイテム名';
+          const itemNote = document.createElement('input'); itemNote.type='text'; itemNote.value = it.note || ''; itemNote.placeholder='補足（任意）';
+          const itemUp = document.createElement('button'); itemUp.textContent='↑'; itemUp.className='small';
+          const itemDown = document.createElement('button'); itemDown.textContent='↓'; itemDown.className='small';
+          const itemDel = document.createElement('button'); itemDel.textContent='削除'; itemDel.className='danger small';
+
+          itemRow.appendChild(itemName); itemRow.appendChild(itemNote); itemRow.appendChild(itemUp); itemRow.appendChild(itemDown); itemRow.appendChild(itemDel);
+          itemsWrap.appendChild(itemRow);
+
+          // events
+          itemName.addEventListener('input', (e)=>{ data.categories[cIdx].items[iIdx].name = e.target.value; renderPreview(); rawJsonEl.value = JSON.stringify(data, null, 2); });
+          itemNote.addEventListener('input', (e)=>{ data.categories[cIdx].items[iIdx].note = e.target.value; renderPreview(); rawJsonEl.value = JSON.stringify(data, null, 2); });
+          itemDel.addEventListener('click', ()=>{ if(confirm(`「${it.name}」を削除しますか？`)){ data.categories[cIdx].items.splice(iIdx,1); renderEditor(); renderPreview(); }});
+          itemUp.addEventListener('click', ()=>{ if(iIdx>0){ const arr=data.categories[cIdx].items; [arr[iIdx-1],arr[iIdx]]=[arr[iIdx],arr[iIdx-1]]; renderEditor(); renderPreview(); }});
+          itemDown.addEventListener('click', ()=>{ const arr=data.categories[cIdx].items; if(iIdx < arr.length-1){ [arr[iIdx+1],arr[iIdx]]=[arr[iIdx],arr[iIdx+1]]; renderEditor(); renderPreview(); }});
+        });
+
+        const addItemBtn = document.createElement('button'); addItemBtn.textContent='＋ アイテム追加';
+        addItemBtn.addEventListener('click', ()=>{ data.categories[cIdx].items.push({name:'新しいアイテム', note:''}); renderEditor(); renderPreview(); });
+
+        catEl.appendChild(itemsWrap);
+        catEl.appendChild(addItemBtn);
+
+        // category events
+        nameInput.addEventListener('input', (e)=>{ data.categories[cIdx].title = e.target.value; title.textContent = e.target.value || '無題カテゴリ'; renderPreview(); rawJsonEl.value = JSON.stringify(data, null, 2); });
+        delBtn.addEventListener('click', ()=>{ if(confirm(`カテゴリ「${cat.title}」を削除しますか？`)){ data.categories.splice(cIdx,1); renderEditor(); renderPreview(); }});
+        upBtn.addEventListener('click', ()=>{ if(cIdx>0){ [data.categories[cIdx-1],data.categories[cIdx]]=[data.categories[cIdx],data.categories[cIdx-1]]; renderEditor(); renderPreview(); }});
+        downBtn.addEventListener('click', ()=>{ if(cIdx < data.categories.length-1){ [data.categories[cIdx+1],data.categories[cIdx]]=[data.categories[cIdx],data.categories[cIdx+1]]; renderEditor(); renderPreview(); }});
+
+        categoriesContainer.appendChild(catEl);
+      });
+    }
+
+    // render preview
+    function renderPreview(){
+      brandLabel.textContent = data.storeName || '';
+      courseBadge.textContent = data.courseLabel || '';
+      noticeLabel.textContent = data.noticeText || '';
+      previewCards.innerHTML = '';
+      data.categories.forEach(cat=>{
+        const card = document.createElement('div'); card.className='card';
+        const h = document.createElement('h3'); h.textContent = cat.title || '';
+        card.appendChild(h);
+        const ul = document.createElement('ul'); ul.className='menu-ul';
+        (cat.items||[]).forEach(it=>{
+          const li = document.createElement('li'); li.className='menu-li';
+          const left = document.createElement('span'); left.textContent = it.name || '';
+          const right = document.createElement('span'); right.className='note'; right.textContent = it.note || '';
+          li.appendChild(left);
+          if(it.note && it.note.trim()) li.appendChild(right);
+          ul.appendChild(li);
+        });
+        card.appendChild(ul);
+        previewCards.appendChild(card);
+      });
+      applyModeToBody(data.mode || 'light');
+    }
+
+    // apply mode
+    function applyModeToBody(mode){
+      document.body.classList.remove('light','dark');
+      if(mode === 'dark') document.body.classList.add('dark');
+      else document.body.classList.add('light');
+    }
+
+    // events
+    storeNameEl.addEventListener('input', ()=>{ data.storeName = storeNameEl.value; renderPreview(); rawJsonEl.value = JSON.stringify(data, null, 2); });
+    courseLabelEl.addEventListener('input', ()=>{ data.courseLabel = courseLabelEl.value; renderPreview(); rawJsonEl.value = JSON.stringify(data, null, 2); });
+    noticeTextEl.addEventListener('input', ()=>{ data.noticeText = noticeTextEl.value; renderPreview(); rawJsonEl.value = JSON.stringify(data, null, 2); });
+
+    applyModeBtn.addEventListener('click', ()=>{
+      data.mode = modeSelect.value || 'light';
+      applyModeToBody(data.mode);
+      rawJsonEl.value = JSON.stringify(data, null, 2);
+    });
+
+    addCategoryBtn.addEventListener('click', ()=>{
+      const name = prompt('カテゴリ名を入力してください', '新しいカテゴリ');
+      if(name !== null) { data.categories.push({ title: name || '新しいカテゴリ', items: [] }); renderEditor(); renderPreview(); }
+    });
+
+    resetDataBtn.addEventListener('click', ()=>{
+      if(confirm('初期データに戻しますか？現在の編集は失われます。')){ data = JSON.parse(JSON.stringify(defaultData)); renderEditor(); renderPreview(); }
+    });
+
+    applyJsonBtn.addEventListener('click', ()=>{
+      try{
+        const obj = JSON.parse(rawJsonEl.value);
+        if(!obj || !Array.isArray(obj.categories)) throw new Error('categories が見つかりません');
+        data = obj;
+        renderEditor(); renderPreview();
+        alert('JSONを反映しました。');
+      }catch(e){ alert('JSONの読み込みに失敗しました：' + e.message); }
+    });
+
+    copyJsonBtn.addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(JSON.stringify(data, null, 2)); alert('JSONをコピーしました'); }catch(e){ alert('コピーに失敗しました'); }
+    });
+
+    // load JSON file
+    loadJsonBtn.addEventListener('click', ()=>{
+      const file = loadJsonFile.files[0];
+      if(!file){ alert('読み込むJSONファイルを選択してください'); return; }
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        try{
+          const obj = JSON.parse(e.target.result);
+          if(!obj || !Array.isArray(obj.categories)) throw new Error('categories が見つかりません');
+          data = obj;
+          renderEditor(); renderPreview();
+          alert('JSONファイルを読み込みました');
+        }catch(err){ alert('JSONの読み込みに失敗しました：' + err.message); }
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+
+    // download JSON
+    downloadJsonBtn.addEventListener('click', ()=>{
+      const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (data.storeName ? data.storeName.replace(/\s+/g,'_') : 'menu') + '_menu.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // download HTML (single-file menu, landscape oriented for printing)
+    downloadHtmlBtn.addEventListener('click', ()=>{
+      const html = generateMenuHtml(data);
+      const blob = new Blob([html], {type:'text/html'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (data.storeName ? data.storeName.replace(/\s+/g,'_') : 'menu') + '_menu.html';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // --- CSV (Excel) ダウンロード ---
+    downloadCsvBtn.addEventListener('click', ()=>{
+      const rows = [];
+      rows.push(['category','item','note']);
+      (data.categories||[]).forEach(cat=>{
+        (cat.items||[]).forEach(it=>{
+          rows.push([cat.title || '', it.name || '', it.note || '']);
+        });
+      });
+      const csv = rows.map(r => r.map(cell => {
+        if(cell == null) cell = '';
+        const s = String(cell);
+        if(/["\n,]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+        return s;
+      }).join(',')).join('\r\n');
+
+      const bom = '\uFEFF';
+      const blob = new Blob([bom + csv], {type:'text/csv;charset=utf-8;'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (data.storeName ? data.storeName.replace(/\s+/g,'_') : 'menu') + '_menu.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    // --- CSV 読み込み ---
+    loadCsvBtn.addEventListener('click', ()=>{
+      const file = loadCsvFile.files[0];
+      if(!file){ alert('読み込むCSVファイルを選択してください'); return; }
+      const reader = new FileReader();
+      reader.onload = (e)=>{
+        try{
+          const text = e.target.result.replace(/^\uFEFF/, '');
+          const rows = parseCSV(text);
+          if(rows.length === 0) throw new Error('CSVが空です');
+          const header = rows[0].map(h=>h.trim().toLowerCase());
+          const hasCategory = header.includes('category');
+          const hasItem = header.includes('item');
+          if(!hasCategory || !hasItem) throw new Error('CSVに category,item 列が必要です');
+          const idxCategory = header.indexOf('category');
+          const idxItem = header.indexOf('item');
+          const idxNote = header.indexOf('note');
+          const groups = {};
+          for(let i=1;i<rows.length;i++){
+            const r = rows[i];
+            const cat = (r[idxCategory] || '').trim() || '無題カテゴリ';
+            const item = (r[idxItem] || '').trim();
+            const note = idxNote >=0 ? (r[idxNote] || '').trim() : '';
+            if(!item) continue;
+            if(!groups[cat]) groups[cat] = [];
+            groups[cat].push({ name: item, note: note });
+          }
+          const newCategories = Object.keys(groups).map(k=>({ title: k, items: groups[k] }));
+          data.categories = newCategories;
+          renderEditor(); renderPreview();
+          alert('CSVを読み込みました');
+        }catch(err){ alert('CSVの読み込みに失敗しました：' + err.message); }
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+
+    // CSV parser
+    function parseCSV(text){
+      const rows = [];
+      let cur = '';
+      let row = [];
+      let inQuotes = false;
+      for(let i=0;i<text.length;i++){
+        const ch = text[i];
+        const next = text[i+1];
+        if(inQuotes){
+          if(ch === '"' && next === '"'){ cur += '"'; i++; continue; }
+          if(ch === '"'){ inQuotes = false; continue; }
+          cur += ch;
+        } else {
+          if(ch === '"'){ inQuotes = true; continue; }
+          if(ch === ','){ row.push(cur); cur = ''; continue; }
+          if(ch === '\r'){ continue; }
+          if(ch === '\n'){ row.push(cur); cur = ''; rows.push(row); row = []; continue; }
+          cur += ch;
+        }
+      }
+      if(cur !== '' || inQuotes || row.length>0){
+        row.push(cur);
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    // generate standalone HTML with landscape print settings and compact rows
+    function generateMenuHtml(d){
+      const esc = s => String(s||'').replace(/[&<>"]/g, m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[m]));
+      const cards = (d.categories||[]).map(cat=>{
+        const items = (cat.items||[]).map(it=>{
+          const note = it.note && it.note.trim() ? `<span class="note">${esc(it.note)}</span>` : '';
+          return `<li class="menu-li"><span class="name">${esc(it.name)}</span>${note}</li>`;
+        }).join('');
+        return `<section class="card"><h3>${esc(cat.title)}</h3><ul class="menu-ul">${items}</ul></section>`;
+      }).join('');
+      const modeClass = (d.mode === 'dark') ? 'dark' : 'light';
+      return `<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(d.storeName)} メニュー</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; } /* 印刷時に横向き */
+  :root{
+    --base-font:20px;
+    --card-heading-scale:1.6;
+    --menu-item-scale:1.2;
+    --menu-row-gap:6px;
+    --menu-row-padding-vertical:6px;
+  }
+  html,body{margin:0;padding:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;font-size:var(--base-font);line-height:1.25}
+  body.light{background:#ffffff;color:#000000}
+  body.dark{background:#000000;color:#ffffff}
+  .wrap{max-width:1200px;margin:0 auto;padding:18px;display:block}
+  .brand{font-weight:800;font-size:calc(var(--base-font) * 1.4)}
+  .badge{color:inherit;opacity:.85;font-size:calc(var(--base-font) * 0.95)}
+  .cards{display:grid;gap:10px;margin-top:12px;grid-template-columns:repeat(3,1fr)}
+  @media(min-width:1200px){ .cards{ grid-template-columns:repeat(4,1fr); } }
+  .card{border:2px solid #000;border-radius:10px;padding:12px;background:transparent}
+  .card h3{margin:0 0 6px 0;font-size:calc(var(--base-font) * var(--card-heading-scale));font-weight:800}
+  .menu-ul{list-style:none;padding:0;margin:0;display:grid;gap:var(--menu-row-gap)}
+  .menu-li{display:flex;justify-content:space-between;padding:var(--menu-row-padding-vertical) 8px;border-radius:6px;font-size:calc(var(--base-font) * var(--menu-item-scale));line-height:1.05}
+  .note{opacity:.85}
+  footer{margin-top:18px;color:inherit;opacity:.8;font-size:calc(var(--base-font) * 0.95)}
+  /* 印刷時の余白調整で見切れを防ぐ */
+  @media print {
+    body{margin:0}
+    .wrap{padding:6mm}
+    .cards{gap:8px}
+  }
+</style>
+</head>
+<body class="${modeClass}">
+  <div class="wrap">
+    <div class="brand">${esc(d.storeName)}</div>
+    <div class="badge">${esc(d.courseLabel)} — ${esc(d.noticeText)}</div>
+    <div class="cards">
+      ${cards}
+    </div>
+    <footer>袋井市・静岡</footer>
+  </div>
+</body>
+</html>`;
+    }
+
+    // help button
+    helpBtn.addEventListener('click', ()=>{
+      const tips = [
+        "印刷プレビューで横向き（ランドスケープ）を選択して確認してください。",
+        "さらに文字を大きくしたい場合は --base-font を調整します。",
+        "印刷時の余白やフォントサイズを微調整して最適化できます。"
+      ];
+      alert("ヒント:\n\n" + tips.join("\n"));
+    });
+
+    // init
+    renderEditor();
+    renderPreview();
+  </script>
+</body>
+</html>
