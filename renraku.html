@@ -3,655 +3,274 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>vCard 編集ツール（読み込み安定化＋重複マージ）</title>
+<title>究極のvCard整理ツール - 重複削除対応</title>
 <style>
-  :root{--bg:#f7f9fc;--card:#fff;--primary:#1f6feb;--muted:#6b7280;--danger:#ef4444;--ok:#10b981}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;margin:16px;background:var(--bg);color:#0f172a}
-  h1{font-size:1.15rem;margin:0 0 8px}
-  .card{background:var(--card);border-radius:10px;padding:12px;box-shadow:0 1px 6px rgba(2,6,23,0.06);margin-bottom:12px}
-  input[type=file]{display:block;margin:8px 0}
-  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:0.95rem}
-  th,td{padding:8px;border-bottom:1px solid #eef2f7;text-align:left;vertical-align:middle}
-  th{background:#fbfdff;font-weight:600}
-  .controls{display:flex;gap:8px;flex-wrap:wrap}
-  button{padding:8px 12px;border-radius:8px;border:1px solid rgba(15,23,42,0.06);background:var(--primary);color:#fff;cursor:pointer}
-  button.secondary{background:#eef2ff;color:var(--primary);border-color:#dbeafe}
-  button.ghost{background:transparent;color:var(--primary);border:1px dashed #c7d2fe}
-  button.danger{background:var(--danger);border-color:rgba(239,68,68,0.9)}
-  .muted{color:var(--muted);font-size:0.92rem}
-  .small{padding:6px 8px;font-size:0.9rem;border-radius:6px}
-  .tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#f1f5f9;color:#0f172a;font-size:0.85rem;margin-right:6px}
-  .searchRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  input[type=text],select{padding:8px;border-radius:8px;border:1px solid #e6eef8;min-width:160px}
-  .mutedSmall{color:#94a3b8;font-size:0.85rem}
-  .highlight{background:linear-gradient(90deg,rgba(255,249,230,1),rgba(255,255,255,0));}
-  .downloadLink{display:inline-block;padding:8px 12px;background:var(--ok);color:#fff;border-radius:8px;text-decoration:none}
-  @media (min-width:900px){body{max-width:1000px;margin:20px auto}}
+  body{font-family:system-ui,-apple-system,sans-serif;margin:16px;background:#f0f4f8;color:#1e293b;line-height:1.5}
+  h1{font-size:1.4rem;color:#0f172a;margin-bottom:16px;text-align:center}
+  .card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);margin-bottom:16px}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  
+  /* ボタンのスタイル */
+  button{padding:10px 16px;border-radius:8px;border:none;font-weight:600;cursor:pointer;transition:0.2s;font-size:0.9rem}
+  .btn-primary{background:#2563eb;color:#fff}
+  .btn-primary:hover{background:#1d4ed8}
+  .btn-secondary{background:#e2e8f0;color:#475569}
+  .btn-secondary:hover{background:#cbd5e1}
+  .btn-danger{background:#ef4444;color:#fff}
+  .btn-danger:hover{background:#dc2626}
+  .btn-success{background:#10b981;color:#fff}
+
+  /* 検索ボックス */
+  .search-box{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;margin-bottom:16px;font-size:1rem}
+
+  /* テーブル */
+  .table-wrapper{overflow:auto;max-height:500px;border:1px solid #e2e8f0;border-radius:8px}
+  table{width:100%;border-collapse:collapse;background:#fff}
+  th,td{padding:12px;border-bottom:1px solid #eee;text-align:left}
+  th{background:#f8fafc;position:sticky;top:0;z-index:1}
+  tr:hover{background:#f1f5f9}
+  
+  /* バッジ */
+  .badge{padding:2px 8px;border-radius:999px;font-size:0.75rem;font-weight:bold;margin-left:4px}
+  .badge-duplicate{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+
+  .muted{color:#64748b;font-size:0.85rem}
+  input[type=file]{display:block;margin:10px 0;width:100%}
+  .hidden{display:none}
 </style>
 </head>
 <body>
-  <h1>vCard 編集ツール（読み込み安定化＋重複マージ）</h1>
+
+  <h1>vCard 電話番号整理ツール</h1>
 
   <div class="card">
-    <p class="muted">手順：Androidで連絡先をエクスポート（.vcf）→ このツールで編集 → 修正済み.vcfをダウンロード → Androidにインポート</p>
-    <label><strong>1. vCardファイルを選択（.vcf）</strong></label>
+    <label><strong>1. vCardファイル（.vcf）を読み込む</strong></label>
     <input id="vcfFile" type="file" accept=".vcf,text/vcard" />
-    <div id="fileInfo" class="mutedSmall"></div>
+    <div id="fileInfo" class="muted"></div>
   </div>
 
-  <div id="appArea" style="display:none">
+  <div id="mainArea" class="hidden">
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-        <div>
-          <strong id="contactCount">0</strong> 件の連絡先を読み込みました
-          <div class="muted" id="phoneCount">電話番号: 0</div>
-        </div>
-        <div class="controls">
-          <button id="normalizeBtn" class="small secondary">電話番号を正規化（表示・比較用）</button>
-          <button id="markDuplicates" class="small ghost">重複を検出</button>
-          <button id="selectDup" class="small">重複を一括選択</button>
-          <button id="autoMerge" class="small">重複を自動マージ（統合）</button>
-          <button id="deleteSelected" class="small danger">選択した電話番号を削除</button>
-          <button id="downloadVcf" class="small" style="display:none">修正済み vCard をダウンロード</button>
-        </div>
+      <div class="controls">
+        <button id="selectDuplicates" class="btn-secondary">🔄 重複番号を自動選択</button>
+        <button id="selectAll" class="btn-secondary">全て選択</button>
+        <button id="deselectAll" class="btn-secondary">解除</button>
+        <div style="flex-grow:1"></div>
+        <button id="deleteSelected" class="btn-danger">🗑️ 選択した番号を削除</button>
       </div>
 
-      <div class="searchRow" style="margin-top:12px">
-        <input id="filterName" type="text" placeholder="名前でフィルタ（FN）" />
-        <input id="filterEmail" type="text" placeholder="メールでフィルタ（EMAIL）" />
-        <input id="filterPhone" type="text" placeholder="電話番号でフィルタ（部分一致）" />
-        <select id="dupFilter">
-          <option value="all">すべて表示</option>
-          <option value="dup">重複のみ表示</option>
-          <option value="unique">重複なしのみ表示</option>
-        </select>
-        <button id="clearFilters" class="small secondary">フィルタ解除</button>
-      </div>
+      <input type="text" id="searchBox" class="search-box" placeholder="名前や電話番号で検索...">
 
-      <div style="margin-top:12px;overflow:auto;max-height:56vh">
-        <table id="contactsTable">
+      <div class="table-wrapper">
+        <table>
           <thead>
             <tr>
-              <th style="width:48px">選択</th>
-              <th style="width:220px">名前 / メール</th>
-              <th>電話番号（正規化表示）</th>
+              <th style="width:50px">選択</th>
+              <th>名前</th>
+              <th>電話番号</th>
+              <th>タイプ</th>
             </tr>
           </thead>
           <tbody id="contactsBody"></tbody>
         </table>
       </div>
 
-      <div style="margin-top:8px">
-        <label><input type="checkbox" id="removeEmptyContacts" checked /> 電話番号が0件になった連絡先は vCard から完全に削除する</label>
+      <div style="margin-top:16px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="removeEmptyContacts" checked />
+          <span>電話番号が0件になった連絡先を完全に削除する</span>
+        </label>
       </div>
     </div>
 
-    <div class="card">
-      <strong>出力プレビュー</strong>
-      <div id="outputInfo" class="mutedSmall" style="margin-top:6px">まだ編集されていません。</div>
-      <div id="downloadArea" style="margin-top:8px"></div>
+    <div class="card" style="text-align:center">
+      <div id="statusMsg" style="margin-bottom:12px;font-weight:bold"></div>
+      <button id="downloadBtn" class="btn-success" style="padding:12px 24px;font-size:1.1rem;display:none">
+        💾 修正済み vCard を保存する
+      </button>
     </div>
   </div>
 
 <script>
-/* 改良点まとめ
- - 読み込み安定化: BOM除去、改行正規化、folding対応、quoted-printable簡易デコード
- - 重複自動マージ: 正規化で検出した重複グループを統合（TEL/EMAIL/ADR/NOTE等を結合）
- - 先頭0→+81変換は行わない（仕様どおり）
-*/
+let contacts = []; 
+let originalFileName = "contacts_edited.vcf";
 
-const fileInput = document.getElementById('vcfFile');
-const fileInfo = document.getElementById('fileInfo');
-const appArea = document.getElementById('appArea');
-const contactsBody = document.getElementById('contactsBody');
-const contactCountEl = document.getElementById('contactCount');
-const phoneCountEl = document.getElementById('phoneCount');
-const normalizeBtn = document.getElementById('normalizeBtn');
-const markDuplicatesBtn = document.getElementById('markDuplicates');
-const selectDupBtn = document.getElementById('selectDup');
-const autoMergeBtn = document.getElementById('autoMerge');
-const deleteSelectedBtn = document.getElementById('deleteSelected');
-const downloadVcfBtn = document.getElementById('downloadVcf');
-const outputInfo = document.getElementById('outputInfo');
-const downloadArea = document.getElementById('downloadArea');
-const removeEmptyContactsCheckbox = document.getElementById('removeEmptyContacts');
+// 1. ファイル読み込み
+document.getElementById('vcfFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  originalFileName = "edited_" + file.name;
+  const text = await file.text();
+  parseVCard(text);
+  renderTable();
+  document.getElementById('mainArea').classList.remove('hidden');
+});
 
-const filterName = document.getElementById('filterName');
-const filterEmail = document.getElementById('filterEmail');
-const filterPhone = document.getElementById('filterPhone');
-const dupFilter = document.getElementById('dupFilter');
-const clearFilters = document.getElementById('clearFilters');
-
-let originalVcfText = '';
-let contacts = []; // {rawLines:[], props:{FN, EMAIL:[], TEL:[], ADR:[], NOTE:[], otherLines:[]}, vcardIndex}
-let normalized = false;
-
-/* ユーティリティ: BOM除去 */
-function stripBOM(text){
-  if(text && text.charCodeAt(0) === 0xFEFF) return text.slice(1);
-  return text;
-}
-
-/* 改行正規化とfolding解除 */
-function unfoldLines(text){
-  // normalize newlines
-  let t = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-  // remove leading/trailing whitespace
-  t = t.replace(/^\s+|\s+$/g,'');
-  // split and unfold: lines starting with space or tab are continuations
-  const lines = t.split('\n');
-  const out = [];
-  for(let i=0;i<lines.length;i++){
-    const ln = lines[i];
-    if(/^[ \t]/.test(ln) && out.length){
-      out[out.length-1] += ln.replace(/^[ \t]+/,'');
-    } else {
-      out.push(ln);
-    }
-  }
-  return out.join('\n');
-}
-
-/* quoted-printable の簡易デコード（行末=でのソフト改行対応、=XX の16進デコード） */
-function decodeQuotedPrintable(s, charset){
-  if(!s) return s;
-  // join soft line breaks (RFC2045): lines ending with '=' continue
-  s = s.replace(/=\r\n/g,'').replace(/=\n/g,'');
-  // decode =XX
-  s = s.replace(/=([0-9A-Fa-f]{2})/g, function(_, hex){
-    return String.fromCharCode(parseInt(hex,16));
-  });
-  // charset handling is complex; assume UTF-8 or ISO-8859-1; try to return as-is
-  return s;
-}
-
-/* RFC2047 encoded-word decode (簡易) */
-function decodeRFC2047(s){
-  // =?charset?Q?....?= or =?charset?B?....?=
-  return s.replace(/=\?([^?]+)\?([QBqb])\?([^?]+)\?=/g, function(_, charset, enc, data){
-    if(enc.toUpperCase() === 'Q'){
-      // Q-encoding: underscore -> space, =XX hex
-      let t = data.replace(/_/g,' ');
-      t = t.replace(/=([0-9A-Fa-f]{2})/g, function(_,h){ return String.fromCharCode(parseInt(h,16)); });
-      return t;
-    } else {
-      // B-encoding base64
-      try {
-        const bin = atob(data.replace(/\s/g,''));
-        return bin;
-      } catch(e){
-        return data;
-      }
-    }
-  });
-}
-
-/* 全角→半角などの簡易正規化（表示・比較用） */
-function normalizePhoneForDisplay(num){
-  if(!num) return '';
-  const zenkaku = {'０':'0','１':'1','２':'2','３':'3','４':'4','５':'5','６':'6','７':'7','８':'8','９':'9','＋':'+','－':'-','（':'(','）':')','　':' '};
-  num = String(num).split('').map(ch => zenkaku[ch] || ch).join('');
-  num = num.replace(/[\s\-‐‑–—()（）.]/g,'');
-  num = num.trim();
-  num = num.replace(/^tel:/i,'');
-  num = num.replace(/;ext=.*$/i,'').replace(/;.*$/,'');
-  num = num.replace(/(ext|x|extension)[\.:]?\d+$/i,'');
-  return num;
-}
-
-/* vCard をパース（folding, quoted-printable, RFC2047 を考慮） */
-function parseVCard(text){
+// 2. vCard解析
+function parseVCard(text) {
   contacts = [];
-  let t = stripBOM(text || '');
-  t = unfoldLines(t);
-  // split into blocks by BEGIN:VCARD (case-insensitive)
-  const blocks = t.split(/(?=BEGIN:VCARD)/i).map(s=>s.trim()).filter(Boolean);
-  for(let b=0;b<blocks.length;b++){
-    const blk = blocks[b];
-    if(!/BEGIN:VCARD/i.test(blk)) continue;
-    const lines = blk.split('\n');
-    const props = {FN:'', EMAIL:[], TEL:[], ADR:[], NOTE:[], otherLines:[]};
-    for(let i=0;i<lines.length;i++){
-      let ln = lines[i];
-      if(!ln) continue;
-      const up = ln.toUpperCase();
-      // handle lines without colon gracefully
-      const colonPos = ln.indexOf(':');
-      const meta = colonPos >= 0 ? ln.substring(0, colonPos) : ln;
-      const value = colonPos >= 0 ? ln.substring(colonPos+1) : '';
-      // detect quoted-printable encoding in meta
-      const isQP = /ENCODING=QUOTED-PRINTABLE/i.test(meta) || /QUOTED-PRINTABLE/i.test(meta);
-      // decode RFC2047 if present
-      let decodedValue = value;
-      if(isQP){
-        decodedValue = decodeQuotedPrintable(value);
-      } else {
-        decodedValue = decodeRFC2047(value);
-      }
-      // FN
-      if(/^FN[:;]/i.test(ln)){
-        props.FN = decodedValue;
-        continue;
-      }
-      // EMAIL
-      if(/^EMAIL/i.test(ln)){
-        props.EMAIL.push({lineIndex:i, raw:ln, email:decodedValue});
-        continue;
-      }
-      // TEL
-      if(/^TEL/i.test(ln)){
-        // extract type if present
-        let type = '';
-        const m = meta.match(/TYPE=([^;:]+)/i);
-        if(m) type = m[1];
-        props.TEL.push({lineIndex:i, raw:ln, type:type, number:decodedValue, norm:null});
-        continue;
-      }
-      // ADR
-      if(/^ADR/i.test(ln)){
-        props.ADR.push({lineIndex:i, raw:ln, adr:decodedValue});
-        continue;
-      }
-      // NOTE
-      if(/^NOTE/i.test(ln)){
-        props.NOTE.push({lineIndex:i, raw:ln, note:decodedValue});
-        continue;
-      }
-      // VERSION, BEGIN, END keep as otherLines
-      props.otherLines.push({lineIndex:i, raw:ln});
-    }
-    contacts.push({rawLines:lines, props:props, vcardIndex:b});
-  }
-}
+  // 折り返し行の結合
+  const unfolded = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/\n[ \t]/g, '');
+  const blocks = unfolded.split(/(?=BEGIN:VCARD)/i).filter(b => b.includes('BEGIN:VCARD'));
 
-/* 重複検出用に正規化を適用 */
-function applyNormalizationToContacts(){
-  contacts.forEach(contact=>{
-    contact.props.TEL.forEach(t=>{
-      t.norm = normalizePhoneForDisplay(t.number);
+  blocks.forEach((block, bIdx) => {
+    const lines = block.split('\n').filter(l => l.trim() !== '');
+    let fn = "(名前なし)";
+    let tels = [];
+
+    lines.forEach((line, lIdx) => {
+      const upper = line.toUpperCase();
+      if (upper.startsWith('FN')) {
+        fn = line.split(':')[1] || fn;
+      }
+      if (upper.startsWith('TEL')) {
+        const parts = line.split(':');
+        const meta = parts[0];
+        const num = parts.slice(1).join(':').trim();
+        let type = "OTHER";
+        const typeMatch = meta.match(/TYPE=([^;:]+)/i);
+        if (typeMatch) type = typeMatch[1];
+        
+        tels.push({
+          id: `${bIdx}-${lIdx}`,
+          raw: line,
+          number: num,
+          cleanNumber: num.replace(/\D/g, ''), // 比較用に数字のみ抽出
+          type: type
+        });
+      }
     });
+    contacts.push({ bIdx, fn, tels, rawLines: lines });
   });
-  normalized = true;
 }
 
-/* 重複マップを作成 */
-function detectDuplicates(){
-  const map = new Map();
-  contacts.forEach((c,ci)=>{
-    c.props.TEL.forEach((t,ti)=>{
-      const key = (t.norm !== null && t.norm !== undefined) ? t.norm : normalizePhoneForDisplay(t.number);
-      if(!map.has(key)) map.set(key, []);
-      map.get(key).push({ci,ti,number:t.number});
-    });
-  });
-  return map;
-}
+// 3. テーブル表示
+function renderTable() {
+  const body = document.getElementById('contactsBody');
+  const searchTxt = document.getElementById('searchBox').value.toLowerCase();
+  body.innerHTML = '';
 
-/* テーブル描画（フィルタ対応） */
-function renderTable(){
-  contactsBody.innerHTML = '';
-  let phoneTotal = 0;
-  if(!normalized) applyNormalizationToContacts();
-  const dupMap = detectDuplicates();
-  const dupKeys = new Set();
-  for(const [k,v] of dupMap.entries()){
-    if(k && v.length > 1) dupKeys.add(k);
-  }
+  // 重複チェック用のカウント作成
+  const numCounts = {};
+  contacts.forEach(c => c.tels.forEach(t => {
+    numCounts[t.cleanNumber] = (numCounts[t.cleanNumber] || 0) + 1;
+  }));
 
-  const nameFilter = (filterName.value||'').trim().toLowerCase();
-  const emailFilter = (filterEmail.value||'').trim().toLowerCase();
-  const phoneFilter = (filterPhone.value||'').trim();
-  const dupMode = dupFilter.value;
+  contacts.forEach((c, cIdx) => {
+    c.tels.forEach((t, tIdx) => {
+      if (searchTxt && !c.fn.toLowerCase().includes(searchTxt) && !t.number.includes(searchTxt)) return;
 
-  contacts.forEach((c,ci)=>{
-    const name = c.props.FN || '(名前なし)';
-    const emails = c.props.EMAIL.map(e=>e.email).join('; ');
-    if(c.props.TEL.length === 0){
-      if(nameFilter && name.toLowerCase().indexOf(nameFilter) === -1 && emails.toLowerCase().indexOf(nameFilter) === -1) return;
-      if(emailFilter && emails.toLowerCase().indexOf(emailFilter) === -1) return;
-      if(phoneFilter) return;
-      if(dupMode === 'dup') return;
+      const isDup = numCounts[t.cleanNumber] > 1;
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td></td><td>${escapeHtml(name)}<div class="mutedSmall">${escapeHtml(emails)}</div></td><td class="mutedSmall">電話番号なし</td>`;
-      contactsBody.appendChild(tr);
-      return;
-    }
-    c.props.TEL.forEach((t,ti)=>{
-      phoneTotal++;
-      const norm = t.norm !== null ? t.norm : normalizePhoneForDisplay(t.number);
-      if(nameFilter && name.toLowerCase().indexOf(nameFilter) === -1 && emails.toLowerCase().indexOf(nameFilter) === -1) return;
-      if(emailFilter && emails.toLowerCase().indexOf(emailFilter) === -1) return;
-      if(phoneFilter && (String(t.number).indexOf(phoneFilter) === -1 && String(norm).indexOf(phoneFilter) === -1)) return;
-      if(dupMode === 'dup' && !dupKeys.has(norm)) return;
-      if(dupMode === 'unique' && dupKeys.has(norm)) return;
-
-      const tr = document.createElement('tr');
-      const checkboxId = `chk_${ci}_${ti}`;
-      const dupMark = dupKeys.has(norm) ? '<span class="tag" title="重複あり">重複</span>' : '';
-      tr.innerHTML = `<td><input type="checkbox" class="telchk" data-ci="${ci}" data-ti="${ti}" id="${checkboxId}"></td>
-                      <td>${escapeHtml(name)}<div class="mutedSmall">${escapeHtml(emails)}</div></td>
-                      <td>${escapeHtml(t.number)} ${dupMark}<div class="mutedSmall">正規化: ${escapeHtml(norm||'')}</div></td>`;
-      if(dupKeys.has(norm)) tr.classList.add('highlight');
-      contactsBody.appendChild(tr);
+      tr.innerHTML = `
+        <td><input type="checkbox" class="tel-chk" data-cidx="${cIdx}" data-tidx="${tIdx}" data-dup="${isDup}"></td>
+        <td>${escapeHtml(c.fn)}</td>
+        <td>
+          ${escapeHtml(t.number)}
+          ${isDup ? '<span class="badge badge-duplicate">重複</span>' : ''}
+        </td>
+        <td class="muted">${escapeHtml(t.type)}</td>
+      `;
+      body.appendChild(tr);
     });
   });
-  contactCountEl.textContent = contacts.length;
-  phoneCountEl.textContent = '電話番号: ' + phoneTotal;
-  appArea.style.display = contacts.length ? 'block' : 'none';
-  outputInfo.textContent = '読み込み完了。必要に応じて「電話番号を正規化」を実行してください。';
-  downloadVcfBtn.style.display = 'none';
-  downloadArea.innerHTML = '';
+
+  updateStatus();
 }
 
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
-
-/* ファイル読み込み */
-fileInput.addEventListener('change', async (e)=>{
-  const f = e.target.files[0];
-  if(!f) return;
-  fileInfo.textContent = `選択: ${f.name} (${Math.round(f.size/1024)} KB)`;
-  try {
-    originalVcfText = await f.text();
-    parseVCard(originalVcfText);
-    normalized = false;
-    renderTable();
-  } catch(err){
-    alert('vcf の読み込み中にエラーが発生しました。ファイルが大きすぎるか、形式が特殊な可能性があります。');
-    console.error(err);
-  }
-});
-
-/* 正規化ボタン */
-normalizeBtn.addEventListener('click', ()=>{
-  applyNormalizationToContacts();
-  renderTable();
-  outputInfo.textContent = '電話番号を正規化しました（表示・比較用）。先頭0→+81変換は行っていません。';
-});
-
-/* 重複検出ボタン */
-markDuplicatesBtn.addEventListener('click', ()=>{
-  if(!normalized) applyNormalizationToContacts();
-  const map = detectDuplicates();
-  let dupCount = 0;
-  for(const [k,v] of map.entries()){
-    if(k && v.length > 1) dupCount += v.length;
-  }
-  renderTable();
-  alert(`重複検出を行いました。重複として検出された電話番号の総件数: ${dupCount} 件（表示は正規化後の比較で判定）`);
-});
-
-/* 重複を一括選択 */
-selectDupBtn.addEventListener('click', ()=>{
-  if(!normalized) applyNormalizationToContacts();
-  const map = detectDuplicates();
-  const dupKeys = new Set();
-  for(const [k,v] of map.entries()) if(k && v.length > 1) dupKeys.add(k);
-  document.querySelectorAll('.telchk').forEach(ch=>{
-    const ci = parseInt(ch.dataset.ci,10);
-    const ti = parseInt(ch.dataset.ti,10);
-    const t = contacts[ci].props.TEL[ti];
-    const key = t.norm !== null ? t.norm : normalizePhoneForDisplay(t.number);
-    ch.checked = dupKeys.has(key);
+// 4. 重複の自動選択 (賢い選択: 1つは残して他をチェック)
+document.getElementById('selectDuplicates').addEventListener('click', () => {
+  const seen = new Set();
+  const checkboxes = document.querySelectorAll('.tel-chk');
+  checkboxes.forEach(cb => {
+    const cIdx = cb.dataset.cidx;
+    const tIdx = cb.dataset.tidx;
+    const cleanNum = contacts[cIdx].tels[tIdx].cleanNumber;
+    
+    if (seen.has(cleanNum)) {
+      cb.checked = true; // すでに登場した番号ならチェック
+    } else {
+      seen.add(cleanNum); // 初めての番号ならキープ
+      cb.checked = false;
+    }
   });
 });
 
-/* 選択した電話番号を削除（既存機能） */
-deleteSelectedBtn.addEventListener('click', ()=>{
-  const checked = Array.from(document.querySelectorAll('.telchk')).filter(ch=>ch.checked);
-  if(checked.length === 0){
-    alert('削除する電話番号を1つ以上選んでください。');
-    return;
-  }
-  if(!confirm(`${checked.length} 件の電話番号を vCard から削除します。よろしいですか？`)) return;
+// 5. 削除実行
+document.getElementById('deleteSelected').addEventListener('click', () => {
+  const checked = document.querySelectorAll('.tel-chk:checked');
+  if (checked.length === 0) return alert('削除したい番号にチェックを入れてください。');
 
-  checked.forEach(ch=>{
-    const ci = parseInt(ch.dataset.ci,10);
-    const ti = parseInt(ch.dataset.ti,10);
-    const contact = contacts[ci];
-    if(!contact) return;
-    const telEntry = contact.props.TEL[ti];
-    if(!telEntry) return;
-    telEntry._delete = true;
+  if (!confirm(`${checked.length}件の番号を削除します。よろしいですか？`)) return;
+
+  // 削除フラグを立てる
+  checked.forEach(cb => {
+    const cIdx = cb.dataset.cidx;
+    const tIdx = cb.dataset.tidx;
+    contacts[cIdx].tels[tIdx]._delete = true;
   });
 
-  // rawLines を再構築
-  contacts.forEach(contact=>{
-    const newLines = [];
-    contact.rawLines.forEach((ln, idx)=>{
-      const telMatch = contact.props.TEL.find(t => t.lineIndex === idx && t._delete);
-      if(telMatch){
-        // skip
-      } else {
-        newLines.push(ln);
-      }
-    });
-    contact.rawLines = newLines;
-    // reparse TEL entries
-    const newTELs = [];
-    contact.rawLines.forEach((ln,i)=>{
-      if(/^TEL/i.test(ln)){
-        const colonPos = ln.indexOf(':');
-        const meta = ln.substring(0, colonPos);
-        const num = ln.substring(colonPos+1).trim();
-        let type = '';
-        const m = meta.match(/TYPE=([^;:]+)/i);
-        if(m) type = m[1];
-        newTELs.push({lineIndex:i, raw:ln, type:type, number:num, norm:null});
-      }
-    });
-    contact.props.TEL = newTELs;
+  // 実際にデータを更新
+  contacts.forEach(c => {
+    c.tels = c.tels.filter(t => !t._delete);
   });
 
-  if(removeEmptyContactsCheckbox.checked){
-    contacts = contacts.filter(c => c.props.TEL.length > 0 || hasNonTelData(c.rawLines));
+  // 空の連絡先削除オプション
+  if (document.getElementById('removeEmptyContacts').checked) {
+    contacts = contacts.filter(c => c.tels.length > 0);
   }
 
-  normalized = false;
   renderTable();
   prepareDownload();
 });
 
-/* 非TELデータがあるか */
-function hasNonTelData(lines){
-  return lines.some(ln => !/^TEL/i.test(ln) && !/^BEGIN:VCARD/i.test(ln) && !/^END:VCARD/i.test(ln) && ln.trim() !== '');
-}
-
-/* 自動マージ（重複統合） */
-autoMergeBtn.addEventListener('click', ()=>{
-  if(!normalized) applyNormalizationToContacts();
-  const map = detectDuplicates();
-  // collect groups with more than 1 occurrence
-  const groups = [];
-  for(const [k,v] of map.entries()){
-    if(k && v.length > 1) groups.push({key:k, items:v});
-  }
-  if(groups.length === 0){
-    alert('重複は見つかりませんでした。');
-    return;
-  }
-  if(!confirm(`重複 ${groups.length} グループを自動マージ（統合）します。よろしいですか？`)) return;
-
-  // For each group, merge into the first contact (lowest ci)
-  groups.forEach(g=>{
-    // sort items by ci ascending
-    g.items.sort((a,b)=>a.ci - b.ci);
-    const targetCi = g.items[0].ci;
-    const targetContact = contacts[targetCi];
-    if(!targetContact) return;
-    // gather unique TELs, EMAILs, ADRs, NOTE, otherLines
-    const telSet = new Map(); // norm -> {raw,type,number}
-    const emailSet = new Set();
-    const adrSet = new Set();
-    const noteSet = new Set();
-    const otherSet = new Set();
-
-    // include existing target data
-    targetContact.props.TEL.forEach(t=>{
-      const key = (t.norm !== null ? t.norm : normalizePhoneForDisplay(t.number)) + '||' + (t.type||'');
-      telSet.set(key, {type:t.type, number:t.number});
+// 6. ダウンロード準備
+function prepareDownload() {
+  let output = "";
+  contacts.forEach(c => {
+    output += "BEGIN:VCARD\r\n";
+    // TEL以外の元の行を維持しつつ、更新されたTELを書き出す
+    c.rawLines.forEach(line => {
+      const upper = line.toUpperCase();
+      if (!upper.startsWith('TEL') && !upper.startsWith('BEGIN') && !upper.startsWith('END')) {
+        output += line.trim() + "\r\n";
+      }
     });
-    targetContact.props.EMAIL.forEach(e=> emailSet.add(e.email));
-    targetContact.props.ADR.forEach(a=> adrSet.add(a.adr));
-    targetContact.props.NOTE.forEach(n=> noteSet.add(n.note));
-    targetContact.props.otherLines.forEach(o=> otherSet.add(o.raw));
-
-    // iterate other contacts in group (skip target)
-    for(let j=1;j<g.items.length;j++){
-      const it = g.items[j];
-      const c = contacts[it.ci];
-      if(!c) continue;
-      // add TELs
-      c.props.TEL.forEach(t=>{
-        const key = normalizePhoneForDisplay(t.number) + '||' + (t.type||'');
-        if(!telSet.has(key)) telSet.set(key, {type:t.type, number:t.number});
-      });
-      // add EMAILs
-      c.props.EMAIL.forEach(e=> emailSet.add(e.email));
-      // add ADRs
-      c.props.ADR.forEach(a=> adrSet.add(a.adr));
-      // add NOTE
-      c.props.NOTE.forEach(n=> noteSet.add(n.note));
-      // add other lines
-      c.props.otherLines.forEach(o=> otherSet.add(o.raw));
-    }
-
-    // Build new rawLines for targetContact:
-    // Keep BEGIN:VCARD and VERSION lines from original target if present, else create minimal
-    const newLines = [];
-    // find BEGIN and VERSION in original rawLines
-    const orig = targetContact.rawLines;
-    // BEGIN
-    const beginLine = orig.find(l => /^BEGIN:VCARD/i.test(l)) || 'BEGIN:VCARD';
-    newLines.push(beginLine);
-    // VERSION (prefer existing)
-    const versionLine = orig.find(l => /^VERSION:/i.test(l)) || 'VERSION:3.0';
-    newLines.push(versionLine);
-    // FN: choose best name among group (longest non-empty)
-    let bestName = targetContact.props.FN || '';
-    // check other contacts in group for better FN
-    g.items.forEach(itm=>{
-      const c = contacts[itm.ci];
-      if(c && c.props.FN && c.props.FN.length > bestName.length) bestName = c.props.FN;
+    c.tels.forEach(t => {
+      output += t.raw.trim() + "\r\n";
     });
-    newLines.push('FN:' + (bestName || ''));
-
-    // ORG/TITLE if present in any contact, include unique ones
-    const orgs = new Set();
-    const titles = new Set();
-    g.items.forEach(itm=>{
-      const c = contacts[itm.ci];
-      if(!c) return;
-      c.rawLines.forEach(ln=>{
-        if(/^ORG[:;]/i.test(ln)) orgs.add(ln);
-        if(/^TITLE[:;]/i.test(ln)) titles.add(ln);
-      });
-    });
-    orgs.forEach(o=> newLines.push(o));
-    titles.forEach(t=> newLines.push(t));
-
-    // add TELs
-    telSet.forEach((v,k)=>{
-      // try to preserve TYPE if available
-      const typePart = v.type ? ';TYPE=' + v.type : '';
-      newLines.push('TEL' + typePart + ':' + v.number);
-    });
-
-    // add EMAILs
-    emailSet.forEach(e=>{
-      newLines.push('EMAIL:' + e);
-    });
-
-    // add ADRs
-    adrSet.forEach(a=>{
-      newLines.push('ADR:' + a);
-    });
-
-    // add NOTE
-    noteSet.forEach(n=>{
-      newLines.push('NOTE:' + n);
-    });
-
-    // add other lines (avoid duplicates)
-    otherSet.forEach(o=>{
-      // skip BEGIN/END/VERSION/FN already handled
-      if(/^BEGIN:VCARD/i.test(o) || /^END:VCARD/i.test(o) || /^VERSION:/i.test(o) || /^FN[:;]/i.test(o)) return;
-      newLines.push(o);
-    });
-
-    // END
-    newLines.push('END:VCARD');
-
-    // replace targetContact.rawLines with newLines
-    targetContact.rawLines = newLines;
-    // reparse targetContact props
-    const newProps = {FN:bestName, EMAIL:[], TEL:[], ADR:[], NOTE:[], otherLines:[]};
-    newLines.forEach((ln,i)=>{
-      if(/^FN[:;]/i.test(ln)) newProps.FN = ln.substring(ln.indexOf(':')+1);
-      else if(/^EMAIL/i.test(ln)) newProps.EMAIL.push({lineIndex:i, raw:ln, email:ln.substring(ln.indexOf(':')+1)});
-      else if(/^TEL/i.test(ln)){
-        const colon = ln.indexOf(':');
-        const meta = ln.substring(0, colon);
-        const num = ln.substring(colon+1).trim();
-        let type = '';
-        const m = meta.match(/TYPE=([^;:]+)/i);
-        if(m) type = m[1];
-        newProps.TEL.push({lineIndex:i, raw:ln, type:type, number:num, norm:null});
-      } else if(/^ADR/i.test(ln)) newProps.ADR.push({lineIndex:i, raw:ln, adr:ln.substring(ln.indexOf(':')+1)});
-      else if(/^NOTE/i.test(ln)) newProps.NOTE.push({lineIndex:i, raw:ln, note:ln.substring(ln.indexOf(':')+1)});
-      else newProps.otherLines.push({lineIndex:i, raw:ln});
-    });
-    targetContact.props = newProps;
-
-    // mark merged contacts (except target) for deletion by setting a flag
-    for(let j=1;j<g.items.length;j++){
-      const it = g.items[j];
-      const c = contacts[it.ci];
-      if(c) c._merged = true;
-    }
+    output += "END:VCARD\r\n";
   });
 
-  // remove merged contacts
-  contacts = contacts.filter(c => !c._merged);
-
-  // reindex and reset normalization
-  normalized = false;
-  renderTable();
-  prepareDownload();
-  alert('自動マージが完了しました。編集済み vCard をダウンロードしてください。');
-});
-
-/* ダウンロード用に vCard を組み立てる */
-function prepareDownload(){
-  const blocks = contacts.map(contact => contact.rawLines.join('\r\n'));
-  const newText = blocks.join('\r\n') + '\r\n';
-  outputInfo.textContent = `編集済み vCard を作成しました（${contacts.length} 件の連絡先）。ダウンロードしてください。`;
-  downloadVcfBtn.style.display = 'inline-block';
-  downloadArea.innerHTML = '';
-  const blob = new Blob([newText], {type:'text/vcard;charset=utf-8'});
+  const blob = new Blob([output], {type: 'text/vcard'});
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'contacts_edited.vcf';
-  a.className = 'downloadLink';
-  a.textContent = '修正済み vCard をダウンロード';
-  downloadArea.appendChild(a);
-  downloadVcfBtn.onclick = ()=>{ a.click(); };
+  const dlBtn = document.getElementById('downloadBtn');
+  dlBtn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = originalFileName;
+    a.click();
+  };
+  dlBtn.style.display = 'inline-block';
 }
 
-/* フィルタ関連 */
-[filterName, filterEmail, filterPhone, dupFilter].forEach(el=>{
-  el.addEventListener('input', ()=>{ renderTable(); });
+// 補助機能
+document.getElementById('selectAll').addEventListener('click', () => {
+  document.querySelectorAll('.tel-chk').forEach(c => c.checked = true);
 });
-clearFilters.addEventListener('click', ()=>{
-  filterName.value = ''; filterEmail.value = ''; filterPhone.value = ''; dupFilter.value = 'all';
-  renderTable();
+document.getElementById('deselectAll').addEventListener('click', () => {
+  document.querySelectorAll('.tel-chk').forEach(c => c.checked = false);
 });
+document.getElementById('searchBox').addEventListener('input', renderTable);
 
-/* 初期化 */
-(function init(){
-  // no-op
-})();
+function updateStatus() {
+  const total = contacts.reduce((acc, c) => acc + c.tels.length, 0);
+  document.getElementById('statusMsg').textContent = `現在の連絡先数: ${contacts.length} 件 / 電話番号合計: ${total} 件`;
+}
 
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
 </script>
 </body>
 </html>
