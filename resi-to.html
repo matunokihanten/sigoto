@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>レシート入力アプリ - 高速入力・JSON連携版</title>
+<title>レシート入力アプリ - 連続複製・高速入力版</title>
 <style>
   :root{
     --bg:#f6f8fb; --card:#fff; --accent:#0b69ff; --muted:#6b7280; --grid:#cbd5e1;
@@ -17,8 +17,9 @@
   .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 6px rgba(16,24,40,0.06); position:relative;}
   .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #eee}
   
-  button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px; transition:opacity 0.2s; display:flex; align-items:center; gap:4px;}
+  button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px; transition:all 0.1s; display:flex; align-items:center; gap:4px;}
   button:hover{opacity:0.9}
+  button:active{transform:translateY(1px);}
   button.ghost{background:#fff;color:var(--accent);border:1px solid #dbeafe}
   button.danger{background:#fff;color:var(--danger);border:1px solid #fca5a5}
   button.action{background:var(--success);}
@@ -40,13 +41,11 @@
   
   #saveStatus{
     position:absolute; top:14px; right:14px; font-size:12px; color:var(--success); 
-    opacity:0; transition:opacity 0.5s; pointer-events:none; font-weight:bold;
+    opacity:0; transition:opacity 0.3s; pointer-events:none; font-weight:bold;
   }
   
   .cb-cell{text-align:center; background:#fafafa;}
   input[type="checkbox"]{cursor:pointer; width:16px; height:16px; margin:0;}
-
-  /* 隠しファイル入力 */
   #fileInput { display: none; }
 
   @media(max-width:900px){ 
@@ -57,14 +56,14 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>レシート入力アプリ <span class="badge">JSON・IME最適化済</span></h1>
+    <h1>レシート入力アプリ <span class="badge">対応版</span></h1>
     
     <div class="card">
       <div id="saveStatus">✓ 保存完了</div>
 
       <div class="toolbar">
         <button id="addRow">＋ 行追加</button>
-        <button id="dupRow" class="ghost">📋 複製</button>
+        <button id="dupRow" class="ghost" title="選択した行を末尾に連続コピー">📋 連続複製</button>
         <button id="delRow" class="danger">🗑 削除</button>
         
         <div class="bulk-area">
@@ -75,8 +74,8 @@
         <button id="sortDate" class="ghost">📅 並べ替え</button>
 
         <div class="right">
-          <button id="saveJson" class="warning" title="全データをファイルに保存">JSON保存</button>
-          <button id="loadJson" class="warning" title="ファイルを読み込む">JSON読込</button>
+          <button id="saveJson" class="warning">JSON保存</button>
+          <button id="loadJson" class="warning">JSON読込</button>
           <input type="file" id="fileInput" accept=".json">
 
           <div class="sum-box" id="totalBox">¥0</div>
@@ -101,13 +100,13 @@
         </table>
       </div>
       <div style="margin-top:8px; font-size:11px; color:var(--muted);">
-        ※店名入力は自動的に全角(かな)、日付は半角を推奨する設定になっています（ブラウザ環境に依存します）。
+        💡 複製ボタンを連打して連続でコピーできます。複製された行は一番下に追加されます。
       </div>
     </div>
   </div>
 
 <script>
-const STORAGE_KEY = 'receipt_app_v5_final';
+const STORAGE_KEY = 'receipt_app_v6_final';
 const defaultCats = ['交通費','交際費','消耗品費','旅費交通費','通信費','新聞図書費','会議費','その他'];
 
 let records = load();
@@ -144,16 +143,22 @@ function save(){
 function showSaveIndicator(){
   saveStatus.style.opacity = '1';
   clearTimeout(window.saveTimer);
-  window.saveTimer = setTimeout(() => saveStatus.style.opacity = '0', 1000);
+  window.saveTimer = setTimeout(() => saveStatus.style.opacity = '0', 800);
 }
 
 function render(){
+  // チェック状態を保持するためのマップ
+  const checkedIndexes = new Set();
+  tbody.querySelectorAll('.rowSelect').forEach((cb, idx) => {
+    if(cb.checked) checkedIndexes.add(idx);
+  });
+
   tbody.innerHTML = '';
   records.forEach((r, idx) => {
     const tr = document.createElement('tr');
     tr.dataset.index = idx;
     tr.innerHTML = `
-      <td class="cb-cell"><input type="checkbox" class="rowSelect"></td>
+      <td class="cb-cell"><input type="checkbox" class="rowSelect" ${checkedIndexes.has(idx) ? 'checked' : ''}></td>
       <td><input class="cell" data-field="date" value="${escapeHtml(r.date||'')}" placeholder="MM-DD" inputmode="url" autocomplete="off"></td>
       <td><input class="cell" data-field="amount" value="${r.amount!=null && r.amount !== ''? r.amount : ''}" inputmode="numeric" style="text-align:right"></td>
       <td><input class="cell" data-field="store" value="${escapeHtml(r.store||'')}" inputmode="kana"></td>
@@ -162,7 +167,6 @@ function render(){
     `;
     tbody.appendChild(tr);
   });
-  document.getElementById('selectAll').checked = false;
   attachEvents();
   updateTotal();
 }
@@ -221,7 +225,7 @@ function onDateAutoFill(e){
   save();
 }
 
-/* 操作機能 */
+/* --- 操作機能 --- */
 
 document.getElementById('addRow').addEventListener('click', ()=>{
   records.push({date:'', amount:'', store:'', category:'', memo:''});
@@ -229,14 +233,22 @@ document.getElementById('addRow').addEventListener('click', ()=>{
   setTimeout(()=> tbody.querySelector('tr:last-child input[data-field="date"]')?.focus(), 50);
 });
 
-// 複製：確認窓なし
+// 【改善】連続複製：確認窓を排除し、描画後もチェック状態を維持
 document.getElementById('dupRow').addEventListener('click', ()=>{
   const checks = tbody.querySelectorAll('.rowSelect');
   const newRows = [];
-  checks.forEach((cb, i) => { if(cb.checked) newRows.push({...records[i]}); });
+  checks.forEach((cb, i) => { 
+    if(cb.checked) {
+      // データのディープコピー（参照を切る）
+      newRows.push(JSON.parse(JSON.stringify(records[i])));
+    } 
+  });
+  
   if(newRows.length === 0) return alert('複製したい行を選択してください');
+  
   records = records.concat(newRows);
-  save(); render();
+  save(); 
+  render(); // 再描画時にチェック状態が維持されるように調整済み
 });
 
 document.getElementById('delRow').addEventListener('click', ()=>{
@@ -270,7 +282,7 @@ document.getElementById('sortDate').addEventListener('click', ()=>{
   save(); render();
 });
 
-/* JSON 保存・読込 */
+/* --- ファイル連携 --- */
 
 document.getElementById('saveJson').addEventListener('click', ()=>{
   const data = JSON.stringify(records, null, 2);
@@ -292,23 +304,22 @@ fileInput.addEventListener('change', (e) => {
   reader.onload = (event) => {
     try {
       const imported = JSON.parse(event.target.result);
-      if(!Array.isArray(imported)) throw new Error('形式が正しくありません');
-      if(confirm('既存のデータに「追加」しますか？\n（キャンセルを選ぶと現在のデータは破棄され「上書き」されます）')){
+      if(!Array.isArray(imported)) throw new Error('Invalid format');
+      if(confirm('既存のデータに追加しますか？（キャンセルで上書き）')){
         records = records.concat(imported);
       } else {
         records = imported;
       }
       save(); render();
-      alert('読み込みが完了しました');
     } catch(err) {
-      alert('エラー: 正しいJSONファイルではありません');
+      alert('エラー: 正しいファイルではありません');
     }
     fileInput.value = '';
   };
   reader.readAsText(file);
 });
 
-/* その他ユーティリティ */
+/* --- ユーティリティ --- */
 
 document.getElementById('exportXls').addEventListener('click', ()=>{
   let html = '<html><head><meta charset="utf-8"></head><body><table border="1"><tr><th>日付</th><th>金額</th><th>店名</th><th>カテゴリ</th><th>摘要</th></tr>';
@@ -322,7 +333,7 @@ document.getElementById('exportXls').addEventListener('click', ()=>{
 });
 
 document.getElementById('clearAll').addEventListener('click', ()=>{
-  if(confirm('全てのデータを完全に消去しますか？')) { records=[]; save(); render(); }
+  if(confirm('全てのデータを消去しますか？')) { records=[]; save(); render(); }
 });
 
 function updateTotal(){
