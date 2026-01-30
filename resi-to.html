@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>レシート入力アプリ - 高速入力・JSON連携版</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#fff; --accent:#0b69ff; --muted:#6b7280; --grid:#cbd5e1;
+    --success:#10b981; --danger:#ef4444; --orange:#f59e0b;
+  }
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;background:var(--bg);color:#111}
+  .wrap{max-width:1250px;margin:20px auto;padding:18px}
+  h1{font-size:18px;margin:0 0 12px; display:flex; align-items:center; gap:10px;}
+  .badge{background:#e0f2fe; color:var(--accent); font-size:11px; padding:2px 6px; border-radius:4px; border:1px solid #bae6fd;}
+  
+  .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 6px rgba(16,24,40,0.06); position:relative;}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #eee}
+  
+  button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px; transition:opacity 0.2s; display:flex; align-items:center; gap:4px;}
+  button:hover{opacity:0.9}
+  button.ghost{background:#fff;color:var(--accent);border:1px solid #dbeafe}
+  button.danger{background:#fff;color:var(--danger);border:1px solid #fca5a5}
+  button.action{background:var(--success);}
+  button.warning{background:#fff; color:var(--orange); border:1px solid #fcd34d;}
+  
+  .bulk-area{display:flex;gap:6px;align-items:center;background:#f8fafc;padding:4px 8px;border-radius:6px;border:1px dashed var(--grid);}
+  .bulk-area select{padding:4px; border:1px solid var(--grid); border-radius:4px;}
+  
+  .table-wrap{overflow:auto;border:1px solid var(--grid);border-radius:6px;background:#fff; max-height:65vh;}
+  table.sheet{border-collapse:collapse;width:100%;min-width:950px}
+  table.sheet th, table.sheet td{border:1px solid var(--grid);padding:0;vertical-align:middle; height:36px;}
+  table.sheet th{background:#eef2ff;font-weight:700;text-align:left;font-size:12px; padding:0 8px; position:sticky; top:0; z-index:10;}
+  
+  input.cell, select.cell{width:100%;height:100%;border:0;padding:0 8px;font-size:13px;box-sizing:border-box;background:transparent; font-family:inherit;}
+  input.cell:focus, select.cell:focus{outline:2px solid var(--accent);outline-offset:-2px; background:rgba(11,105,255,0.05);}
+  
+  .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+  .sum-box{background:#f1f5f9;padding:6px 12px;border-radius:6px;font-weight:700; border:1px solid #e2e8f0; font-feature-settings: "tnum";}
+  
+  #saveStatus{
+    position:absolute; top:14px; right:14px; font-size:12px; color:var(--success); 
+    opacity:0; transition:opacity 0.5s; pointer-events:none; font-weight:bold;
+  }
+  
+  .cb-cell{text-align:center; background:#fafafa;}
+  input[type="checkbox"]{cursor:pointer; width:16px; height:16px; margin:0;}
+
+  /* 隠しファイル入力 */
+  #fileInput { display: none; }
+
+  @media(max-width:900px){ 
+    .toolbar{align-items:flex-start;}
+    .right{margin-left:0; width:100%; justify-content:flex-end;}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>レシート入力アプリ <span class="badge">JSON・IME最適化済</span></h1>
+    
+    <div class="card">
+      <div id="saveStatus">✓ 保存完了</div>
+
+      <div class="toolbar">
+        <button id="addRow">＋ 行追加</button>
+        <button id="dupRow" class="ghost">📋 複製</button>
+        <button id="delRow" class="danger">🗑 削除</button>
+        
+        <div class="bulk-area">
+          <select id="bulkCatSelect"><option value="">一括カテゴリ...</option></select>
+          <button id="applyBulkCat" class="ghost" style="padding:4px 8px;">適用</button>
+        </div>
+
+        <button id="sortDate" class="ghost">📅 並べ替え</button>
+
+        <div class="right">
+          <button id="saveJson" class="warning" title="全データをファイルに保存">JSON保存</button>
+          <button id="loadJson" class="warning" title="ファイルを読み込む">JSON読込</button>
+          <input type="file" id="fileInput" accept=".json">
+
+          <div class="sum-box" id="totalBox">¥0</div>
+          <button id="exportXls" class="action">Excel保存</button>
+          <button id="clearAll" class="ghost" style="font-size:11px; color:var(--muted);">全消去</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="sheet" id="sheet">
+          <thead>
+            <tr>
+              <th style="width:40px; text-align:center"><input type="checkbox" id="selectAll"></th>
+              <th style="width:110px">日付(半角)</th>
+              <th style="width:110px">金額</th>
+              <th>店名(全角)</th>
+              <th style="width:150px">カテゴリ</th>
+              <th>摘要</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px; font-size:11px; color:var(--muted);">
+        ※店名入力は自動的に全角(かな)、日付は半角を推奨する設定になっています（ブラウザ環境に依存します）。
+      </div>
+    </div>
+  </div>
+
+<script>
+const STORAGE_KEY = 'receipt_app_v5_final';
+const defaultCats = ['交通費','交際費','消耗品費','旅費交通費','通信費','新聞図書費','会議費','その他'];
+
+let records = load();
+let sortAsc = true;
+
+const tbody = document.getElementById('tbody');
+const totalBox = document.getElementById('totalBox');
+const saveStatus = document.getElementById('saveStatus');
+const bulkSelect = document.getElementById('bulkCatSelect');
+const fileInput = document.getElementById('fileInput');
+
+// カテゴリ初期化
+defaultCats.forEach(c => {
+  const opt = document.createElement('option');
+  opt.value = c; opt.textContent = c;
+  bulkSelect.appendChild(opt);
+});
+
+render();
+
+function load(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  showSaveIndicator();
+  updateTotal();
+}
+
+function showSaveIndicator(){
+  saveStatus.style.opacity = '1';
+  clearTimeout(window.saveTimer);
+  window.saveTimer = setTimeout(() => saveStatus.style.opacity = '0', 1000);
+}
+
+function render(){
+  tbody.innerHTML = '';
+  records.forEach((r, idx) => {
+    const tr = document.createElement('tr');
+    tr.dataset.index = idx;
+    tr.innerHTML = `
+      <td class="cb-cell"><input type="checkbox" class="rowSelect"></td>
+      <td><input class="cell" data-field="date" value="${escapeHtml(r.date||'')}" placeholder="MM-DD" inputmode="url" autocomplete="off"></td>
+      <td><input class="cell" data-field="amount" value="${r.amount!=null && r.amount !== ''? r.amount : ''}" inputmode="numeric" style="text-align:right"></td>
+      <td><input class="cell" data-field="store" value="${escapeHtml(r.store||'')}" inputmode="kana"></td>
+      <td>${createCatSelect(r.category)}</td>
+      <td><input class="cell" data-field="memo" value="${escapeHtml(r.memo||'')}"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('selectAll').checked = false;
+  attachEvents();
+  updateTotal();
+}
+
+function createCatSelect(selected){
+  const options = ['<option value="">(未選択)</option>']
+    .concat(defaultCats.map(c => `<option ${c===selected ? 'selected' : ''}>${c}</option>`));
+  return `<select class="cell" data-field="category">${options.join('')}</select>`;
+}
+
+function attachEvents(){
+  tbody.querySelectorAll('.cell').forEach(el => {
+    el.addEventListener('input', onCellInput);
+    el.addEventListener('keydown', onCellKeyDown);
+    if(el.dataset.field === 'date') el.addEventListener('change', onDateAutoFill);
+  });
+}
+
+function onCellInput(e){
+  const idx = e.target.closest('tr').dataset.index;
+  const field = e.target.dataset.field;
+  let val = e.target.value;
+  if(field === 'amount'){
+    val = val.replace(/[^\d\.\-]/g,'');
+    e.target.value = val;
+    records[idx][field] = val === '' ? '' : Number(val);
+  } else {
+    records[idx][field] = val;
+  }
+  save();
+}
+
+function onCellKeyDown(e){
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    const all = Array.from(tbody.querySelectorAll('input.cell, select.cell'));
+    const i = all.indexOf(e.target);
+    const next = e.shiftKey ? all[i-1] : all[i+1];
+    if(next) next.focus();
+  }
+}
+
+function onDateAutoFill(e){
+  let val = e.target.value.trim();
+  if(!val) return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(val)){
+    const now = new Date();
+    val = val.replace(/\//g, '-').replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    const parts = val.split('-');
+    if(parts.length === 2){
+      val = `${now.getFullYear()}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
+    }
+  }
+  e.target.value = val;
+  records[e.target.closest('tr').dataset.index].date = val;
+  save();
+}
+
+/* 操作機能 */
+
+document.getElementById('addRow').addEventListener('click', ()=>{
+  records.push({date:'', amount:'', store:'', category:'', memo:''});
+  save(); render();
+  setTimeout(()=> tbody.querySelector('tr:last-child input[data-field="date"]')?.focus(), 50);
+});
+
+// 複製：確認窓なし
+document.getElementById('dupRow').addEventListener('click', ()=>{
+  const checks = tbody.querySelectorAll('.rowSelect');
+  const newRows = [];
+  checks.forEach((cb, i) => { if(cb.checked) newRows.push({...records[i]}); });
+  if(newRows.length === 0) return alert('複製したい行を選択してください');
+  records = records.concat(newRows);
+  save(); render();
+});
+
+document.getElementById('delRow').addEventListener('click', ()=>{
+  const checks = Array.from(tbody.querySelectorAll('.rowSelect'));
+  const targetIdx = checks.map((cb,i) => cb.checked ? i : -1).filter(i => i !== -1);
+  if(!targetIdx.length) return alert('削除する行を選択してください');
+  if(!confirm(`${targetIdx.length} 件を削除しますか？`)) return;
+  targetIdx.reverse().forEach(i => records.splice(i,1));
+  save(); render();
+});
+
+document.getElementById('applyBulkCat').addEventListener('click', ()=>{
+  const cat = bulkSelect.value;
+  if(!cat) return alert('カテゴリを選択してください');
+  const checks = tbody.querySelectorAll('.rowSelect');
+  checks.forEach((cb, i) => { if(cb.checked) records[i].category = cat; });
+  save(); render();
+});
+
+document.getElementById('selectAll').addEventListener('change', (e)=>{
+  tbody.querySelectorAll('.rowSelect').forEach(cb => cb.checked = e.target.checked);
+});
+
+document.getElementById('sortDate').addEventListener('click', ()=>{
+  sortAsc = !sortAsc;
+  records.sort((a,b) => {
+    const da = a.date ? new Date(a.date) : new Date('9999-12-31');
+    const db = b.date ? new Date(b.date) : new Date('9999-12-31');
+    return sortAsc ? da - db : db - da;
+  });
+  save(); render();
+});
+
+/* JSON 保存・読込 */
+
+document.getElementById('saveJson').addEventListener('click', ()=>{
+  const data = JSON.stringify(records, null, 2);
+  const blob = new Blob([data], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `receipt_data_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('loadJson').addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    try {
+      const imported = JSON.parse(event.target.result);
+      if(!Array.isArray(imported)) throw new Error('形式が正しくありません');
+      if(confirm('既存のデータに「追加」しますか？\n（キャンセルを選ぶと現在のデータは破棄され「上書き」されます）')){
+        records = records.concat(imported);
+      } else {
+        records = imported;
+      }
+      save(); render();
+      alert('読み込みが完了しました');
+    } catch(err) {
+      alert('エラー: 正しいJSONファイルではありません');
+    }
+    fileInput.value = '';
+  };
+  reader.readAsText(file);
+});
+
+/* その他ユーティリティ */
+
+document.getElementById('exportXls').addEventListener('click', ()=>{
+  let html = '<html><head><meta charset="utf-8"></head><body><table border="1"><tr><th>日付</th><th>金額</th><th>店名</th><th>カテゴリ</th><th>摘要</th></tr>';
+  records.forEach(r => {
+    html += `<tr><td>${r.date}</td><td>${r.amount}</td><td>${escapeHtml(r.store)}</td><td>${r.category}</td><td>${escapeHtml(r.memo)}</td></tr>`;
+  });
+  html += '</table></body></html>';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], {type: 'application/vnd.ms-excel'}));
+  a.download = 'receipts.xls'; a.click();
+});
+
+document.getElementById('clearAll').addEventListener('click', ()=>{
+  if(confirm('全てのデータを完全に消去しますか？')) { records=[]; save(); render(); }
+});
+
+function updateTotal(){
+  const total = records.reduce((s,x)=> s + (Number(x.amount)||0), 0);
+  totalBox.textContent = '¥' + String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+function escapeHtml(s){ 
+  return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])) : ''; 
+}
+</script>
+</body>
+</html>
