@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>画像圧縮ツール（10MB以下）</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;margin:20px;background:#f7f7fb;color:#111}
+  h1{font-size:1.2rem;margin-bottom:0.2rem}
+  .card{background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:12px}
+  label{display:block;margin:8px 0 4px;font-weight:600}
+  input[type=file]{display:block}
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  button{padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer}
+  button.primary{background:#0066ff;color:#fff;border-color:#0066ff}
+  .list{margin-top:12px}
+  .item{padding:8px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px}
+  .thumb{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #ddd}
+  .meta{flex:1}
+  .small{font-size:0.85rem;color:#666}
+  select,input[type=number]{padding:6px;border-radius:6px;border:1px solid #ccc}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .note{font-size:0.85rem;color:#444;margin-top:8px}
+  .success{color:green}
+  .error{color:#c00}
+</style>
+</head>
+<body>
+  <h1>画像圧縮ツール（10MB以下）</h1>
+
+  <div class="card">
+    <label>1. 画像を選択（複数可）</label>
+    <input id="fileInput" type="file" accept="image/*" multiple />
+
+    <label>2. 長辺リサイズ（px）</label>
+    <input id="maxSide" type="number" value="2000" min="200" step="100" />
+
+    <label>3. 初期JPEG品質（1〜100）</label>
+    <input id="initQuality" type="number" value="90" min="10" max="100" />
+
+    <label>4. 自動命名プレフィックス（例: 20260130_松乃木飯店）</label>
+    <input id="prefix" type="text" value="" placeholder="任意のプレフィックス" />
+
+    <label>5. 保存先フォルダ（カテゴリ）</label>
+    <select id="category">
+      <option value="general">general</option>
+      <option value="kitchen">kitchen</option>
+      <option value="hall">hall</option>
+      <option value="menu">menu</option>
+      <option value="sns">sns</option>
+    </select>
+
+    <div class="controls">
+      <button id="processBtn" class="primary">圧縮・変換を実行</button>
+      <button id="downloadZipBtn">ZIPでダウンロード</button>
+      <button id="shareBtn">共有（LINE/メール等）</button>
+      <button id="clearBtn">クリア</button>
+    </div>
+
+    <div class="note">
+      <strong>説明:</strong> PNGは自動でJPGに変換されます。指定した長辺にリサイズし、指定サイズ（10MB）以下になるまで品質とリサイズを調整します。Web Share APIが使える環境ではアプリへ直接共有できます。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>処理済みファイル一覧</h2>
+    <div id="list" class="list"></div>
+    <div id="status" class="note"></div>
+  </div>
+
+  <!-- JSZip CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
+<script>
+/*
+  実装のポイント（機能1〜7）
+  1. 自動圧縮: 10MB以下になるまで品質とリサイズを繰り返す
+  2. リサイズ: 長辺を指定pxにリサイズ
+  3. PNG→JPG変換: PNGはJPGに変換して圧縮
+  4. 複数画像一括処理: input multiple を処理
+  5. 自動リネーム: prefix + timestamp + index
+  6. 保存先フォルダ: カテゴリ選択でZIP内フォルダに振り分け
+  7. LINE/メール/Google Drive へ自動送信: Web Share API を使ってファイルを共有（対応環境のみ）
+*/
+
+const MAX_BYTES = 10 * 1024 * 1024; // 10MB
+const fileInput = document.getElementById('fileInput');
+const processBtn = document.getElementById('processBtn');
+const listEl = document.getElementById('list');
+const statusEl = document.getElementById('status');
+const downloadZipBtn = document.getElementById('downloadZipBtn');
+const shareBtn = document.getElementById('shareBtn');
+const clearBtn = document.getElementById('clearBtn');
+
+let processedFiles = []; // {file: File, name: string, category: string, blobUrl: string}
+
+function formatBytes(bytes){
+  if(bytes < 1024) return bytes + ' B';
+  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(2) + ' MB';
+}
+
+function dataURLToBlob(dataurl){
+  const arr = dataurl.split(',');
+  const mime = arr[0].match(/:(.*?);/)[1];
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  while(n--) u8arr[n] = bstr.charCodeAt(n);
+  return new Blob([u8arr], {type:mime});
+}
+
+async function imageFileToImageElement(file){
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = rej;
+    const url = URL.createObjectURL(file);
+    img.src = url;
+  });
+}
+
+function canvasToJpegBlob(canvas, quality){
+  return new Promise(resolve => {
+    canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+  });
+}
+
+async function compressImageFile(file, options){
+  // options: {maxSide, initQuality, prefix, index, category}
+  const {maxSide, initQuality, prefix, index, category} = options;
+  // Load image
+  const img = await imageFileToImageElement(file);
+  // Determine initial size
+  let width = img.naturalWidth;
+  let height = img.naturalHeight;
+  // Resize to maxSide if needed
+  function calcSizeForSide(maxSide){
+    if(Math.max(width, height) <= maxSide) return {w: width, h: height};
+    if(width >= height){
+      const w = maxSide;
+      const h = Math.round(height * (maxSide / width));
+      return {w, h};
+    } else {
+      const h = maxSide;
+      const w = Math.round(width * (maxSide / height));
+      return {w, h};
+    }
+  }
+
+  // Start with given maxSide and quality, then loop reducing quality and size until under MAX_BYTES
+  let currentMaxSide = maxSide;
+  let quality = initQuality / 100;
+  let blob = null;
+  let attempt = 0;
+
+  while(true){
+    attempt++;
+    const size = calcSizeForSide(currentMaxSide);
+    const canvas = document.createElement('canvas');
+    canvas.width = size.w;
+    canvas.height = size.h;
+    const ctx = canvas.getContext('2d');
+    // white background to avoid black when converting PNG with transparency
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    blob = await canvasToJpegBlob(canvas, quality);
+    // If still too big, reduce quality first, then reduce size
+    if(blob.size <= MAX_BYTES) break;
+
+    // Reduce quality step
+    if(quality > 0.25){
+      quality = Math.max(0.25, quality - 0.15); // step down
+    } else {
+      // reduce size by 20%
+      currentMaxSide = Math.round(currentMaxSide * 0.8);
+      if(currentMaxSide < 200) {
+        // cannot reduce further; accept current blob (may be >10MB)
+        break;
+      }
+    }
+
+    // safety: avoid infinite loop
+    if(attempt > 12) break;
+  }
+
+  // Build filename: prefix_timestamp_index.jpg
+  const ts = new Date().toISOString().replace(/[:.]/g,'').slice(0,15);
+  const safePrefix = (prefix || '').replace(/[^\w\-]/g,'') || '';
+  const baseName = (safePrefix ? safePrefix + '_' : '') + ts + '_' + String(index).padStart(2,'0') + '.jpg';
+  const finalFile = new File([blob], baseName, {type: blob.type});
+  return {file: finalFile, category, blobUrl: URL.createObjectURL(blob), size: blob.size, name: baseName};
+}
+
+function clearList(){
+  processedFiles.forEach(p => { if(p.blobUrl) URL.revokeObjectURL(p.blobUrl); });
+  processedFiles = [];
+  listEl.innerHTML = '';
+  statusEl.textContent = '';
+}
+
+function renderList(){
+  listEl.innerHTML = '';
+  processedFiles.forEach((p, i) => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.src = p.blobUrl;
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.innerHTML = `<div><strong>${p.name}</strong> <span class="small">(${formatBytes(p.size)})</span></div>
+                      <div class="small">カテゴリ: ${p.category}</div>`;
+    const dl = document.createElement('a');
+    dl.href = p.blobUrl;
+    dl.download = p.name;
+    dl.textContent = 'ダウンロード';
+    dl.style.marginRight = '8px';
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '削除';
+    removeBtn.onclick = () => {
+      URL.revokeObjectURL(p.blobUrl);
+      processedFiles.splice(i,1);
+      renderList();
+    };
+    div.appendChild(img);
+    div.appendChild(meta);
+    const right = document.createElement('div');
+    right.style.display='flex';
+    right.style.flexDirection='column';
+    right.appendChild(dl);
+    right.appendChild(removeBtn);
+    div.appendChild(right);
+    listEl.appendChild(div);
+  });
+}
+
+processBtn.addEventListener('click', async () => {
+  const files = Array.from(fileInput.files || []);
+  if(files.length === 0){
+    statusEl.innerHTML = '<span class="error">画像を選択してください。</span>';
+    return;
+  }
+  statusEl.textContent = '処理中...';
+  const maxSide = parseInt(document.getElementById('maxSide').value,10) || 2000;
+  const initQuality = parseInt(document.getElementById('initQuality').value,10) || 90;
+  const prefix = document.getElementById('prefix').value.trim();
+  const category = document.getElementById('category').value || 'general';
+
+  // Process sequentially to avoid heavy memory use
+  let idx = processedFiles.length + 1;
+  for(const f of files){
+    try{
+      // If file is already <10MB and is jpeg, we may still normalize name and folder
+      // But we still convert to jpeg to ensure consistent format and remove EXIF if needed
+      const result = await compressImageFile(f, {maxSide, initQuality, prefix, index: idx, category});
+      processedFiles.push(result);
+      idx++;
+      renderList();
+      statusEl.innerHTML = `<span class="success">処理済み: ${processedFiles.length} 件</span>`;
+    } catch(err){
+      console.error(err);
+      statusEl.innerHTML = `<span class="error">処理中にエラーが発生しました: ${err.message}</span>`;
+    }
+    // small delay to keep UI responsive
+    await new Promise(r => setTimeout(r, 120));
+  }
+});
+
+downloadZipBtn.addEventListener('click', async () => {
+  if(processedFiles.length === 0){
+    statusEl.innerHTML = '<span class="error">処理済みファイルがありません。</span>';
+    return;
+  }
+  statusEl.textContent = 'ZIP作成中...';
+  const zip = new JSZip();
+  // group by category
+  const groups = {};
+  processedFiles.forEach(p => {
+    if(!groups[p.category]) groups[p.category] = [];
+    groups[p.category].push(p);
+  });
+  for(const cat of Object.keys(groups)){
+    const folder = zip.folder(cat);
+    for(const p of groups[cat]){
+      const blob = await fetch(p.blobUrl).then(r => r.blob());
+      folder.file(p.name, blob);
+    }
+  }
+  const content = await zip.generateAsync({type:'blob'});
+  const url = URL.createObjectURL(content);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'images_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'') + '.zip';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  statusEl.textContent = 'ZIPをダウンロードしました。';
+});
+
+shareBtn.addEventListener('click', async () => {
+  if(processedFiles.length === 0){
+    statusEl.innerHTML = '<span class="error">処理済みファイルがありません。</span>';
+    return;
+  }
+  // Try Web Share API with files
+  try{
+    const blobs = await Promise.all(processedFiles.map(p => fetch(p.blobUrl).then(r => r.blob())));
+    const shareFiles = blobs.map((b, i) => new File([b], processedFiles[i].name, {type: b.type}));
+    if(navigator.canShare && navigator.canShare({files: shareFiles})){
+      await navigator.share({
+        files: shareFiles,
+        title: '圧縮画像',
+        text: '圧縮済み画像を共有します。'
+      });
+      statusEl.textContent = '共有が完了しました（対応アプリで開かれました）。';
+      return;
+    } else if(navigator.share){
+      // fallback: share without files (some browsers allow)
+      await navigator.share({
+        title: '圧縮画像',
+        text: '画像を共有します。ダウンロードして添付してください。'
+      });
+      statusEl.textContent = '共有ダイアログを開きました。ファイル添付は環境に依存します。';
+      return;
+    } else {
+      throw new Error('このブラウザは共有に対応していません。');
+    }
+  } catch(err){
+    console.warn(err);
+    // fallback: create ZIP and offer download + provide LINE/mail share link with text
+    statusEl.innerHTML = '<span class="error">直接共有できません。ZIPを作成してダウンロードします。</span>';
+    // create zip and download
+    const zip = new JSZip();
+    const groups = {};
+    processedFiles.forEach(p => {
+      if(!groups[p.category]) groups[p.category] = [];
+      groups[p.category].push(p);
+    });
+    for(const cat of Object.keys(groups)){
+      const folder = zip.folder(cat);
+      for(const p of groups[cat]){
+        const blob = await fetch(p.blobUrl).then(r => r.blob());
+        folder.file(p.name, blob);
+      }
+    }
+    const content = await zip.generateAsync({type:'blob'});
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'images_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'') + '.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    // Provide quick LINE / mail text links (cannot attach files)
+    const lineText = encodeURIComponent('画像を送ります。ダウンロードしてご確認ください。');
+    const mailto = `mailto:?subject=${encodeURIComponent('圧縮画像を送付')}&body=${encodeURIComponent('画像を添付しました。ダウンロードしてご確認ください。')}`;
+    const info = document.createElement('div');
+    info.innerHTML = `<div class="note">共有に失敗した場合、以下を利用してください: 
+      <a href="https://line.me/R/msg/text/?${lineText}" target="_blank">LINEでメッセージを作成</a> ・ 
+      <a href="${mailto}">メール作成</a></div>`;
+    statusEl.appendChild(info);
+  }
+});
+
+clearBtn.addEventListener('click', () => {
+  clearList();
+  fileInput.value = '';
+  statusEl.textContent = 'クリアしました。';
+});
+
+// revoke blob URLs on unload
+window.addEventListener('beforeunload', () => {
+  processedFiles.forEach(p => { if(p.blobUrl) URL.revokeObjectURL(p.blobUrl); });
+});
+</script>
+</body>
+</html>
