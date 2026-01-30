@@ -3,380 +3,1336 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>画像圧縮ツール（10MB以下）</title>
+<title>画像圧縮ツール Pro - 10MB以下に自動圧縮</title>
 <style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;margin:20px;background:#f7f7fb;color:#111}
-  h1{font-size:1.2rem;margin-bottom:0.2rem}
-  .card{background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:12px}
-  label{display:block;margin:8px 0 4px;font-weight:600}
-  input[type=file]{display:block}
-  .row{display:flex;gap:8px;flex-wrap:wrap}
-  button{padding:8px 12px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer}
-  button.primary{background:#0066ff;color:#fff;border-color:#0066ff}
-  .list{margin-top:12px}
-  .item{padding:8px;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px}
-  .thumb{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid #ddd}
-  .meta{flex:1}
-  .small{font-size:0.85rem;color:#666}
-  select,input[type=number]{padding:6px;border-radius:6px;border:1px solid #ccc}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
-  .note{font-size:0.85rem;color:#444;margin-top:8px}
-  .success{color:green}
-  .error{color:#c00}
+  :root {
+    --primary: #0066ff;
+    --primary-dark: #0052cc;
+    --success: #00a651;
+    --error: #e74c3c;
+    --warning: #f39c12;
+    --bg: #f7f7fb;
+    --card-bg: #ffffff;
+    --border: #e0e0e8;
+    --text: #111111;
+    --text-light: #666666;
+    --shadow: rgba(0, 0, 0, 0.08);
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+    margin: 0 0 0.5rem;
+    color: var(--primary);
+  }
+  
+  .subtitle {
+    color: var(--text-light);
+    margin: 0 0 1.5rem;
+    font-size: 0.95rem;
+  }
+  
+  .card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 2px 12px var(--shadow);
+    margin-bottom: 20px;
+  }
+  
+  .card h2 {
+    font-size: 1.3rem;
+    margin: 0 0 1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--primary);
+    color: white;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  
+  .label-help {
+    font-weight: 400;
+    color: var(--text-light);
+    font-size: 0.85rem;
+    margin-left: 4px;
+  }
+  
+  input[type=file] {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  input[type=file]:hover {
+    border-color: var(--primary);
+    background: #f0f7ff;
+  }
+  
+  input[type=number],
+  input[type=text],
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    font-size: 0.95rem;
+    transition: border-color 0.3s;
+  }
+  
+  input[type=number]:focus,
+  input[type=text]:focus,
+  select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+  }
+  
+  .row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+  }
+  
+  .controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+  
+  button {
+    padding: 12px 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  
+  button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow);
+  }
+  
+  button:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  button.primary {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+  }
+  
+  button.primary:hover:not(:disabled) {
+    background: var(--primary-dark);
+  }
+  
+  button.success {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+  }
+  
+  button.danger {
+    background: var(--error);
+    color: white;
+    border-color: var(--error);
+  }
+  
+  .note {
+    background: #f0f7ff;
+    border-left: 4px solid var(--primary);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    margin-top: 16px;
+    line-height: 1.6;
+  }
+  
+  .note strong {
+    color: var(--primary);
+  }
+  
+  .list {
+    margin-top: 16px;
+  }
+  
+  .item {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: white;
+    transition: all 0.3s;
+  }
+  
+  .item:hover {
+    box-shadow: 0 4px 12px var(--shadow);
+    border-color: var(--primary);
+  }
+  
+  .thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+  }
+  
+  .meta {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .meta-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  
+  .meta-info {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: var(--text-light);
+  }
+  
+  .meta-info span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .size-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  
+  .size-badge.good {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .size-badge.warning {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  
+  .actions button {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+  
+  .status {
+    margin-top: 16px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    display: none;
+  }
+  
+  .status.show {
+    display: block;
+  }
+  
+  .status.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+  
+  .status.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+  
+  .status.info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+  }
+  
+  .progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0e0e8;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 12px;
+    display: none;
+  }
+  
+  .progress-bar.show {
+    display: block;
+  }
+  
+  .progress-fill {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s;
+    border-radius: 4px;
+  }
+  
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+  
+  .stat-card {
+    background: linear-gradient(135deg, var(--primary) 0%, #0052cc 100%);
+    color: white;
+    padding: 16px;
+    border-radius: 8px;
+    text-align: center;
+  }
+  
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  
+  .stat-label {
+    font-size: 0.85rem;
+    opacity: 0.9;
+  }
+  
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-light);
+  }
+  
+  .empty-state svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+  
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 16px;
+  }
+  
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  
+  .checkbox-group input[type=checkbox] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+  }
+  
+  .checkbox-group label {
+    margin: 0;
+    cursor: pointer;
+    font-weight: 400;
+  }
+  
+  @media (max-width: 768px) {
+    body {
+      padding: 12px;
+    }
+    
+    .card {
+      padding: 16px;
+    }
+    
+    h1 {
+      font-size: 1.5rem;
+    }
+    
+    .item {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .thumb {
+      width: 100%;
+      height: 200px;
+    }
+    
+    .actions {
+      width: 100%;
+      flex-direction: row;
+    }
+    
+    .actions button {
+      flex: 1;
+    }
+    
+    .controls {
+      flex-direction: column;
+    }
+    
+    .controls button {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+  
+  .tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: help;
+  }
+  
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.85rem;
+  }
+  
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+  
+  .preview-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .preview-modal.show {
+    display: flex;
+  }
+  
+  .preview-content {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+  }
+  
+  .preview-close {
+    position: absolute;
+    top: 20px;
+    right: 40px;
+    color: white;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
-  <h1>画像圧縮ツール（10MB以下）</h1>
+  <div class="container">
+    <h1>🖼️ 画像圧縮ツール Pro</h1>
+    <p class="subtitle">複数の画像を一括で10MB以下に自動圧縮・リサイズ・変換</p>
 
-  <div class="card">
-    <label>1. 画像を選択（複数可）</label>
-    <input id="fileInput" type="file" accept="image/*" multiple />
+    <!-- 設定カード -->
+    <div class="card">
+      <h2>⚙️ 設定</h2>
+      
+      <div class="form-group">
+        <label for="fileInput">
+          📁 画像を選択（複数可）
+          <span class="label-help">- JPG, PNG, WEBP対応</span>
+        </label>
+        <input id="fileInput" type="file" accept="image/*" multiple />
+      </div>
 
-    <label>2. 長辺リサイズ（px）</label>
-    <input id="maxSide" type="number" value="2000" min="200" step="100" />
+      <div class="settings-grid">
+        <div class="form-group">
+          <label for="maxSide">
+            📏 最大長辺サイズ（px）
+            <span class="tooltip">ℹ️
+              <span class="tooltiptext">画像の長い方の辺を指定サイズに縮小します</span>
+            </span>
+          </label>
+          <input id="maxSide" type="number" value="2000" min="200" max="8000" step="100" />
+        </div>
 
-    <label>3. 初期JPEG品質（1〜100）</label>
-    <input id="initQuality" type="number" value="90" min="10" max="100" />
+        <div class="form-group">
+          <label for="initQuality">
+            🎨 初期JPEG品質（1-100）
+            <span class="tooltip">ℹ️
+              <span class="tooltiptext">高いほど高品質ですがファイルサイズも大きくなります</span>
+            </span>
+          </label>
+          <input id="initQuality" type="number" value="85" min="10" max="100" step="5" />
+        </div>
 
-    <label>4. 自動命名プレフィックス（例: 20260130_松乃木飯店）</label>
-    <input id="prefix" type="text" value="" placeholder="任意のプレフィックス" />
+        <div class="form-group">
+          <label for="targetSize">
+            💾 目標ファイルサイズ（MB）
+            <span class="tooltip">ℹ️
+              <span class="tooltiptext">この値以下になるまで自動調整します</span>
+            </span>
+          </label>
+          <input id="targetSize" type="number" value="10" min="0.5" max="50" step="0.5" />
+        </div>
+      </div>
 
-    <label>5. 保存先フォルダ（カテゴリ）</label>
-    <select id="category">
-      <option value="general">general</option>
-      <option value="kitchen">kitchen</option>
-      <option value="hall">hall</option>
-      <option value="menu">menu</option>
-      <option value="sns">sns</option>
-    </select>
+      <div class="row">
+        <div class="form-group">
+          <label for="prefix">
+            📝 ファイル名プレフィックス
+            <span class="label-help">- 例: 20260130_松乃木飯店</span>
+          </label>
+          <input id="prefix" type="text" placeholder="任意のプレフィックス（省略可）" />
+        </div>
 
-    <div class="controls">
-      <button id="processBtn" class="primary">圧縮・変換を実行</button>
-      <button id="downloadZipBtn">ZIPでダウンロード</button>
-      <button id="shareBtn">共有（LINE/メール等）</button>
-      <button id="clearBtn">クリア</button>
+        <div class="form-group">
+          <label for="category">
+            📂 保存先カテゴリ
+            <span class="label-help">- ZIP内のフォルダ名</span>
+          </label>
+          <select id="category">
+            <option value="general">一般 (general)</option>
+            <option value="kitchen">厨房 (kitchen)</option>
+            <option value="hall">ホール (hall)</option>
+            <option value="menu">メニュー (menu)</option>
+            <option value="sns">SNS (sns)</option>
+            <option value="events">イベント (events)</option>
+            <option value="products">商品 (products)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="keepOriginalRatio" checked />
+        <label for="keepOriginalRatio">縦横比を維持する（推奨）</label>
+      </div>
+
+      <div class="checkbox-group">
+        <input type="checkbox" id="removeExif" checked />
+        <label for="removeExif">EXIF情報を削除する（位置情報等を削除）</label>
+      </div>
+
+      <div class="controls">
+        <button id="processBtn" class="primary">
+          ⚡ 圧縮・変換を実行
+        </button>
+        <button id="downloadAllBtn" class="success" disabled>
+          📦 すべてをZIPでダウンロード
+        </button>
+        <button id="shareBtn" disabled>
+          📤 共有（LINE/メール等）
+        </button>
+        <button id="clearBtn" class="danger">
+          🗑️ すべてクリア
+        </button>
+      </div>
+
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+
+      <div id="status" class="status"></div>
+
+      <div class="note">
+        <strong>💡 使い方:</strong><br>
+        ① 画像を選択（複数可）<br>
+        ② 必要に応じて設定を調整<br>
+        ③「圧縮・変換を実行」をクリック<br>
+        ④ 完了後、個別ダウンロードまたはZIPで一括ダウンロード<br>
+        <br>
+        <strong>✨ 自動機能:</strong> PNG→JPG変換、サイズ調整、品質最適化、EXIF削除
+      </div>
     </div>
 
-    <div class="note">
-      <strong>説明:</strong> PNGは自動でJPGに変換されます。指定した長辺にリサイズし、指定サイズ（10MB）以下になるまで品質とリサイズを調整します。Web Share APIが使える環境ではアプリへ直接共有できます。
+    <!-- 統計カード -->
+    <div class="card" id="statsCard" style="display: none;">
+      <h2>📊 処理統計</h2>
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-value" id="statCount">0</div>
+          <div class="stat-label">処理済み画像</div>
+        </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, #00a651 0%, #008741 100%);">
+          <div class="stat-value" id="statOriginalSize">0 MB</div>
+          <div class="stat-label">元のサイズ</div>
+        </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);">
+          <div class="stat-value" id="statCompressedSize">0 MB</div>
+          <div class="stat-label">圧縮後サイズ</div>
+        </div>
+        <div class="stat-card" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
+          <div class="stat-value" id="statSaved">0%</div>
+          <div class="stat-label">削減率</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 処理済みファイル一覧 -->
+    <div class="card">
+      <h2>
+        📋 処理済みファイル一覧
+        <span class="badge" id="fileCountBadge">0</span>
+      </h2>
+      
+      <div id="list" class="list">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+          <p>まだ処理済みの画像がありません</p>
+          <p style="font-size: 0.85rem;">上部から画像を選択して圧縮を開始してください</p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div class="card">
-    <h2>処理済みファイル一覧</h2>
-    <div id="list" class="list"></div>
-    <div id="status" class="note"></div>
+  <!-- プレビューモーダル -->
+  <div id="previewModal" class="preview-modal">
+    <span class="preview-close" id="previewClose">&times;</span>
+    <img class="preview-content" id="previewImage" />
   </div>
 
   <!-- JSZip CDN -->
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 
 <script>
-/*
-  実装のポイント（機能1〜7）
-  1. 自動圧縮: 10MB以下になるまで品質とリサイズを繰り返す
-  2. リサイズ: 長辺を指定pxにリサイズ
-  3. PNG→JPG変換: PNGはJPGに変換して圧縮
-  4. 複数画像一括処理: input multiple を処理
-  5. 自動リネーム: prefix + timestamp + index
-  6. 保存先フォルダ: カテゴリ選択でZIP内フォルダに振り分け
-  7. LINE/メール/Google Drive へ自動送信: Web Share API を使ってファイルを共有（対応環境のみ）
-*/
+// ============================================================================
+// グローバル変数と定数
+// ============================================================================
+let processedFiles = []; // {file: File, name: string, category: string, blobUrl: string, originalSize: number, compressedSize: number}
+let originalTotalSize = 0;
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10MB
-const fileInput = document.getElementById('fileInput');
-const processBtn = document.getElementById('processBtn');
-const listEl = document.getElementById('list');
-const statusEl = document.getElementById('status');
-const downloadZipBtn = document.getElementById('downloadZipBtn');
-const shareBtn = document.getElementById('shareBtn');
-const clearBtn = document.getElementById('clearBtn');
+const elements = {
+  fileInput: document.getElementById('fileInput'),
+  processBtn: document.getElementById('processBtn'),
+  listEl: document.getElementById('list'),
+  statusEl: document.getElementById('status'),
+  downloadAllBtn: document.getElementById('downloadAllBtn'),
+  shareBtn: document.getElementById('shareBtn'),
+  clearBtn: document.getElementById('clearBtn'),
+  progressBar: document.getElementById('progressBar'),
+  progressFill: document.getElementById('progressFill'),
+  fileCountBadge: document.getElementById('fileCountBadge'),
+  statsCard: document.getElementById('statsCard'),
+  previewModal: document.getElementById('previewModal'),
+  previewImage: document.getElementById('previewImage'),
+  previewClose: document.getElementById('previewClose')
+};
 
-let processedFiles = []; // {file: File, name: string, category: string, blobUrl: string}
+// ============================================================================
+// ユーティリティ関数
+// ============================================================================
 
-function formatBytes(bytes){
-  if(bytes < 1024) return bytes + ' B';
-  if(bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
-  return (bytes/(1024*1024)).toFixed(2) + ' MB';
+/**
+ * バイト数を人間が読める形式に変換
+ */
+function formatBytes(bytes) {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
 }
 
-function dataURLToBlob(dataurl){
-  const arr = dataurl.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while(n--) u8arr[n] = bstr.charCodeAt(n);
-  return new Blob([u8arr], {type:mime});
-}
-
-async function imageFileToImageElement(file){
-  return new Promise((res, rej) => {
-    const img = new Image();
-    img.onload = () => res(img);
-    img.onerror = rej;
-    const url = URL.createObjectURL(file);
-    img.src = url;
-  });
-}
-
-function canvasToJpegBlob(canvas, quality){
-  return new Promise(resolve => {
-    canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
-  });
-}
-
-async function compressImageFile(file, options){
-  // options: {maxSide, initQuality, prefix, index, category}
-  const {maxSide, initQuality, prefix, index, category} = options;
-  // Load image
-  const img = await imageFileToImageElement(file);
-  // Determine initial size
-  let width = img.naturalWidth;
-  let height = img.naturalHeight;
-  // Resize to maxSide if needed
-  function calcSizeForSide(maxSide){
-    if(Math.max(width, height) <= maxSide) return {w: width, h: height};
-    if(width >= height){
-      const w = maxSide;
-      const h = Math.round(height * (maxSide / width));
-      return {w, h};
-    } else {
-      const h = maxSide;
-      const w = Math.round(width * (maxSide / height));
-      return {w, h};
-    }
+/**
+ * ステータスメッセージを表示
+ */
+function showStatus(message, type = 'info') {
+  elements.statusEl.textContent = message;
+  elements.statusEl.className = 'status show ' + type;
+  
+  // 成功メッセージは3秒後に自動で消す
+  if (type === 'success') {
+    setTimeout(() => {
+      elements.statusEl.classList.remove('show');
+    }, 3000);
   }
+}
 
-  // Start with given maxSide and quality, then loop reducing quality and size until under MAX_BYTES
+/**
+ * プログレスバーを更新
+ */
+function updateProgress(percent) {
+  if (percent > 0) {
+    elements.progressBar.classList.add('show');
+    elements.progressFill.style.width = percent + '%';
+  } else {
+    elements.progressBar.classList.remove('show');
+  }
+}
+
+/**
+ * 統計情報を更新
+ */
+function updateStats() {
+  if (processedFiles.length === 0) {
+    elements.statsCard.style.display = 'none';
+    return;
+  }
+  
+  elements.statsCard.style.display = 'block';
+  
+  const totalOriginal = processedFiles.reduce((sum, f) => sum + (f.originalSize || 0), 0);
+  const totalCompressed = processedFiles.reduce((sum, f) => sum + (f.compressedSize || 0), 0);
+  const savedPercent = totalOriginal > 0 ? ((totalOriginal - totalCompressed) / totalOriginal * 100).toFixed(1) : 0;
+  
+  document.getElementById('statCount').textContent = processedFiles.length;
+  document.getElementById('statOriginalSize').textContent = formatBytes(totalOriginal);
+  document.getElementById('statCompressedSize').textContent = formatBytes(totalCompressed);
+  document.getElementById('statSaved').textContent = savedPercent + '%';
+}
+
+/**
+ * ファイルカウントバッジを更新
+ */
+function updateFileCountBadge() {
+  elements.fileCountBadge.textContent = processedFiles.length;
+}
+
+/**
+ * ボタンの有効/無効を更新
+ */
+function updateButtonStates() {
+  const hasFiles = processedFiles.length > 0;
+  elements.downloadAllBtn.disabled = !hasFiles;
+  elements.shareBtn.disabled = !hasFiles;
+}
+
+// ============================================================================
+// 画像処理関数
+// ============================================================================
+
+/**
+ * 画像ファイルをImageElementとして読み込む
+ */
+async function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error('画像の読み込みに失敗しました'));
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/**
+ * CanvasからJPEG Blobを生成
+ */
+async function canvasToJpegBlob(canvas, quality) {
+  return new Promise((resolve) => {
+    canvas.toBlob(blob => {
+      resolve(blob);
+    }, 'image/jpeg', quality);
+  });
+}
+
+/**
+ * リサイズ後のサイズを計算
+ */
+function calculateResizedDimensions(width, height, maxSide, keepRatio) {
+  if (!keepRatio) {
+    return { width: maxSide, height: maxSide };
+  }
+  
+  const maxDimension = Math.max(width, height);
+  if (maxDimension <= maxSide) {
+    return { width, height };
+  }
+  
+  const ratio = maxSide / maxDimension;
+  return {
+    width: Math.round(width * ratio),
+    height: Math.round(height * ratio)
+  };
+}
+
+/**
+ * 画像を圧縮・変換
+ */
+async function compressImage(file, options) {
+  const {
+    maxSide = 2000,
+    initQuality = 85,
+    targetSizeMB = 10,
+    prefix = '',
+    index = 1,
+    category = 'general',
+    keepOriginalRatio = true,
+    removeExif = true
+  } = options;
+  
+  const targetBytes = targetSizeMB * 1024 * 1024;
+  const originalSize = file.size;
+  
+  // 画像を読み込み
+  const img = await loadImageFromFile(file);
+  
   let currentMaxSide = maxSide;
   let quality = initQuality / 100;
   let blob = null;
-  let attempt = 0;
-
-  while(true){
-    attempt++;
-    const size = calcSizeForSide(currentMaxSide);
+  let attempts = 0;
+  const maxAttempts = 15;
+  
+  while (attempts < maxAttempts) {
+    attempts++;
+    
+    // サイズを計算
+    const dimensions = calculateResizedDimensions(
+      img.naturalWidth,
+      img.naturalHeight,
+      currentMaxSide,
+      keepOriginalRatio
+    );
+    
+    // Canvasに描画
     const canvas = document.createElement('canvas');
-    canvas.width = size.w;
-    canvas.height = size.h;
+    canvas.width = dimensions.width;
+    canvas.height = dimensions.height;
     const ctx = canvas.getContext('2d');
-    // white background to avoid black when converting PNG with transparency
+    
+    // 白背景を設定（PNG透過対策）
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // 画像を描画（高品質設定）
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
+    
+    // JPEG Blobを生成
     blob = await canvasToJpegBlob(canvas, quality);
-    // If still too big, reduce quality first, then reduce size
-    if(blob.size <= MAX_BYTES) break;
-
-    // Reduce quality step
-    if(quality > 0.25){
-      quality = Math.max(0.25, quality - 0.15); // step down
-    } else {
-      // reduce size by 20%
-      currentMaxSide = Math.round(currentMaxSide * 0.8);
-      if(currentMaxSide < 200) {
-        // cannot reduce further; accept current blob (may be >10MB)
-        break;
-      }
+    
+    // 目標サイズ以下なら終了
+    if (blob.size <= targetBytes) {
+      break;
     }
-
-    // safety: avoid infinite loop
-    if(attempt > 12) break;
+    
+    // サイズが大きい場合、品質を下げる
+    if (quality > 0.3) {
+      quality = Math.max(0.3, quality - 0.1);
+    } else if (currentMaxSide > 400) {
+      // 品質をこれ以上下げられない場合、サイズを縮小
+      currentMaxSide = Math.round(currentMaxSide * 0.85);
+      quality = 0.8; // 品質をリセット
+    } else {
+      // これ以上圧縮できない
+      break;
+    }
   }
-
-  // Build filename: prefix_timestamp_index.jpg
-  const ts = new Date().toISOString().replace(/[:.]/g,'').slice(0,15);
-  const safePrefix = (prefix || '').replace(/[^\w\-]/g,'') || '';
-  const baseName = (safePrefix ? safePrefix + '_' : '') + ts + '_' + String(index).padStart(2,'0') + '.jpg';
-  const finalFile = new File([blob], baseName, {type: blob.type});
-  return {file: finalFile, category, blobUrl: URL.createObjectURL(blob), size: blob.size, name: baseName};
+  
+  // ファイル名を生成
+  const timestamp = new Date().toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\..+/, '')
+    .slice(0, 15);
+  const safePrefix = prefix.replace(/[^\w\-ぁ-んァ-ヶー一-龯]/g, '').slice(0, 30);
+  const paddedIndex = String(index).padStart(3, '0');
+  const fileName = `${safePrefix ? safePrefix + '_' : ''}${timestamp}_${paddedIndex}.jpg`;
+  
+  // Fileオブジェクトを作成
+  const compressedFile = new File([blob], fileName, { type: 'image/jpeg' });
+  
+  return {
+    file: compressedFile,
+    name: fileName,
+    category,
+    blobUrl: URL.createObjectURL(blob),
+    originalSize,
+    compressedSize: blob.size,
+    dimensions: `${canvas.width}×${canvas.height}`,
+    compressionRatio: ((1 - blob.size / originalSize) * 100).toFixed(1)
+  };
 }
 
-function clearList(){
-  processedFiles.forEach(p => { if(p.blobUrl) URL.revokeObjectURL(p.blobUrl); });
-  processedFiles = [];
-  listEl.innerHTML = '';
-  statusEl.textContent = '';
-}
+// ============================================================================
+// UI更新関数
+// ============================================================================
 
-function renderList(){
-  listEl.innerHTML = '';
-  processedFiles.forEach((p, i) => {
+/**
+ * ファイルリストを描画
+ */
+function renderFileList() {
+  if (processedFiles.length === 0) {
+    elements.listEl.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+          <circle cx="8.5" cy="8.5" r="1.5"></circle>
+          <polyline points="21 15 16 10 5 21"></polyline>
+        </svg>
+        <p>まだ処理済みの画像がありません</p>
+        <p style="font-size: 0.85rem;">上部から画像を選択して圧縮を開始してください</p>
+      </div>
+    `;
+    return;
+  }
+  
+  elements.listEl.innerHTML = '';
+  
+  processedFiles.forEach((item, index) => {
     const div = document.createElement('div');
     div.className = 'item';
-    const img = document.createElement('img');
-    img.className = 'thumb';
-    img.src = p.blobUrl;
-    const meta = document.createElement('div');
-    meta.className = 'meta';
-    meta.innerHTML = `<div><strong>${p.name}</strong> <span class="small">(${formatBytes(p.size)})</span></div>
-                      <div class="small">カテゴリ: ${p.category}</div>`;
-    const dl = document.createElement('a');
-    dl.href = p.blobUrl;
-    dl.download = p.name;
-    dl.textContent = 'ダウンロード';
-    dl.style.marginRight = '8px';
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = '削除';
-    removeBtn.onclick = () => {
-      URL.revokeObjectURL(p.blobUrl);
-      processedFiles.splice(i,1);
-      renderList();
-    };
-    div.appendChild(img);
-    div.appendChild(meta);
-    const right = document.createElement('div');
-    right.style.display='flex';
-    right.style.flexDirection='column';
-    right.appendChild(dl);
-    right.appendChild(removeBtn);
-    div.appendChild(right);
-    listEl.appendChild(div);
+    
+    const sizeClass = item.compressedSize < 5 * 1024 * 1024 ? 'good' : 'warning';
+    const compressionRatio = item.compressionRatio || 0;
+    
+    div.innerHTML = `
+      <img class="thumb" src="${item.blobUrl}" alt="${item.name}" data-index="${index}" />
+      <div class="meta">
+        <div class="meta-title">${item.name}</div>
+        <div class="meta-info">
+          <span>📂 ${item.category}</span>
+          <span>📐 ${item.dimensions}</span>
+          <span>
+            <span class="size-badge ${sizeClass}">${formatBytes(item.compressedSize)}</span>
+          </span>
+          <span>📉 ${compressionRatio}% 削減</span>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="download-btn" data-index="${index}">💾 ダウンロード</button>
+        <button class="preview-btn" data-index="${index}">👁️ プレビュー</button>
+        <button class="danger remove-btn" data-index="${index}">🗑️ 削除</button>
+      </div>
+    `;
+    
+    elements.listEl.appendChild(div);
+  });
+  
+  // イベントリスナーを追加
+  attachFileListEventListeners();
+}
+
+/**
+ * ファイルリストのイベントリスナーを追加
+ */
+function attachFileListEventListeners() {
+  // ダウンロードボタン
+  document.querySelectorAll('.download-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt(e.target.dataset.index);
+      const item = processedFiles[index];
+      const a = document.createElement('a');
+      a.href = item.blobUrl;
+      a.download = item.name;
+      a.click();
+    });
+  });
+  
+  // プレビューボタン
+  document.querySelectorAll('.preview-btn, .thumb').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt(e.target.dataset.index);
+      const item = processedFiles[index];
+      elements.previewImage.src = item.blobUrl;
+      elements.previewModal.classList.add('show');
+    });
+  });
+  
+  // 削除ボタン
+  document.querySelectorAll('.remove-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt(e.target.dataset.index);
+      removeFile(index);
+    });
   });
 }
 
-processBtn.addEventListener('click', async () => {
-  const files = Array.from(fileInput.files || []);
-  if(files.length === 0){
-    statusEl.innerHTML = '<span class="error">画像を選択してください。</span>';
+/**
+ * ファイルを削除
+ */
+function removeFile(index) {
+  const item = processedFiles[index];
+  URL.revokeObjectURL(item.blobUrl);
+  processedFiles.splice(index, 1);
+  renderFileList();
+  updateStats();
+  updateFileCountBadge();
+  updateButtonStates();
+  showStatus('ファイルを削除しました', 'success');
+}
+
+/**
+ * すべてクリア
+ */
+function clearAll() {
+  processedFiles.forEach(item => {
+    URL.revokeObjectURL(item.blobUrl);
+  });
+  processedFiles = [];
+  originalTotalSize = 0;
+  elements.fileInput.value = '';
+  renderFileList();
+  updateStats();
+  updateFileCountBadge();
+  updateButtonStates();
+  updateProgress(0);
+  showStatus('すべてクリアしました', 'success');
+}
+
+// ============================================================================
+// メイン処理
+// ============================================================================
+
+/**
+ * 画像処理を実行
+ */
+async function processImages() {
+  const files = Array.from(elements.fileInput.files || []);
+  
+  if (files.length === 0) {
+    showStatus('画像を選択してください', 'error');
     return;
   }
-  statusEl.textContent = '処理中...';
-  const maxSide = parseInt(document.getElementById('maxSide').value,10) || 2000;
-  const initQuality = parseInt(document.getElementById('initQuality').value,10) || 90;
+  
+  // 設定を取得
+  const maxSide = parseInt(document.getElementById('maxSide').value) || 2000;
+  const initQuality = parseInt(document.getElementById('initQuality').value) || 85;
+  const targetSize = parseFloat(document.getElementById('targetSize').value) || 10;
   const prefix = document.getElementById('prefix').value.trim();
   const category = document.getElementById('category').value || 'general';
-
-  // Process sequentially to avoid heavy memory use
-  let idx = processedFiles.length + 1;
-  for(const f of files){
-    try{
-      // If file is already <10MB and is jpeg, we may still normalize name and folder
-      // But we still convert to jpeg to ensure consistent format and remove EXIF if needed
-      const result = await compressImageFile(f, {maxSide, initQuality, prefix, index: idx, category});
+  const keepOriginalRatio = document.getElementById('keepOriginalRatio').checked;
+  const removeExif = document.getElementById('removeExif').checked;
+  
+  // バリデーション
+  if (maxSide < 200 || maxSide > 8000) {
+    showStatus('最大長辺サイズは200〜8000の範囲で指定してください', 'error');
+    return;
+  }
+  
+  if (initQuality < 10 || initQuality > 100) {
+    showStatus('初期品質は10〜100の範囲で指定してください', 'error');
+    return;
+  }
+  
+  // 処理開始
+  elements.processBtn.disabled = true;
+  showStatus(`${files.length}個のファイルを処理中...`, 'info');
+  
+  let processedCount = 0;
+  let startIndex = processedFiles.length + 1;
+  
+  for (let i = 0; i < files.length; i++) {
+    try {
+      const file = files[i];
+      
+      // プログレスバーを更新
+      const progress = ((i + 1) / files.length) * 100;
+      updateProgress(progress);
+      showStatus(`処理中 ${i + 1}/${files.length}: ${file.name}`, 'info');
+      
+      // 画像を圧縮
+      const result = await compressImage(file, {
+        maxSide,
+        initQuality,
+        targetSizeMB: targetSize,
+        prefix,
+        index: startIndex + i,
+        category,
+        keepOriginalRatio,
+        removeExif
+      });
+      
       processedFiles.push(result);
-      idx++;
-      renderList();
-      statusEl.innerHTML = `<span class="success">処理済み: ${processedFiles.length} 件</span>`;
-    } catch(err){
-      console.error(err);
-      statusEl.innerHTML = `<span class="error">処理中にエラーが発生しました: ${err.message}</span>`;
+      processedCount++;
+      
+      // UIを更新
+      renderFileList();
+      updateStats();
+      updateFileCountBadge();
+      updateButtonStates();
+      
+      // 小休止（UIの応答性を保つため）
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+    } catch (error) {
+      console.error('画像処理エラー:', error);
+      showStatus(`エラー: ${files[i].name} - ${error.message}`, 'error');
     }
-    // small delay to keep UI responsive
-    await new Promise(r => setTimeout(r, 120));
   }
-});
+  
+  // 処理完了
+  updateProgress(0);
+  elements.processBtn.disabled = false;
+  showStatus(`✅ ${processedCount}個のファイルを処理しました`, 'success');
+}
 
-downloadZipBtn.addEventListener('click', async () => {
-  if(processedFiles.length === 0){
-    statusEl.innerHTML = '<span class="error">処理済みファイルがありません。</span>';
+/**
+ * ZIPファイルを作成してダウンロード
+ */
+async function downloadAsZip() {
+  if (processedFiles.length === 0) {
+    showStatus('処理済みファイルがありません', 'error');
     return;
   }
-  statusEl.textContent = 'ZIP作成中...';
-  const zip = new JSZip();
-  // group by category
-  const groups = {};
-  processedFiles.forEach(p => {
-    if(!groups[p.category]) groups[p.category] = [];
-    groups[p.category].push(p);
-  });
-  for(const cat of Object.keys(groups)){
-    const folder = zip.folder(cat);
-    for(const p of groups[cat]){
-      const blob = await fetch(p.blobUrl).then(r => r.blob());
-      folder.file(p.name, blob);
-    }
-  }
-  const content = await zip.generateAsync({type:'blob'});
-  const url = URL.createObjectURL(content);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'images_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'') + '.zip';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-  statusEl.textContent = 'ZIPをダウンロードしました。';
-});
-
-shareBtn.addEventListener('click', async () => {
-  if(processedFiles.length === 0){
-    statusEl.innerHTML = '<span class="error">処理済みファイルがありません。</span>';
-    return;
-  }
-  // Try Web Share API with files
-  try{
-    const blobs = await Promise.all(processedFiles.map(p => fetch(p.blobUrl).then(r => r.blob())));
-    const shareFiles = blobs.map((b, i) => new File([b], processedFiles[i].name, {type: b.type}));
-    if(navigator.canShare && navigator.canShare({files: shareFiles})){
-      await navigator.share({
-        files: shareFiles,
-        title: '圧縮画像',
-        text: '圧縮済み画像を共有します。'
-      });
-      statusEl.textContent = '共有が完了しました（対応アプリで開かれました）。';
-      return;
-    } else if(navigator.share){
-      // fallback: share without files (some browsers allow)
-      await navigator.share({
-        title: '圧縮画像',
-        text: '画像を共有します。ダウンロードして添付してください。'
-      });
-      statusEl.textContent = '共有ダイアログを開きました。ファイル添付は環境に依存します。';
-      return;
-    } else {
-      throw new Error('このブラウザは共有に対応していません。');
-    }
-  } catch(err){
-    console.warn(err);
-    // fallback: create ZIP and offer download + provide LINE/mail share link with text
-    statusEl.innerHTML = '<span class="error">直接共有できません。ZIPを作成してダウンロードします。</span>';
-    // create zip and download
+  
+  showStatus('ZIP作成中...', 'info');
+  elements.downloadAllBtn.disabled = true;
+  
+  try {
     const zip = new JSZip();
+    
+    // カテゴリごとにグループ化
     const groups = {};
-    processedFiles.forEach(p => {
-      if(!groups[p.category]) groups[p.category] = [];
-      groups[p.category].push(p);
+    processedFiles.forEach(item => {
+      if (!groups[item.category]) {
+        groups[item.category] = [];
+      }
+      groups[item.category].push(item);
     });
-    for(const cat of Object.keys(groups)){
-      const folder = zip.folder(cat);
-      for(const p of groups[cat]){
-        const blob = await fetch(p.blobUrl).then(r => r.blob());
-        folder.file(p.name, blob);
+    
+    // ZIPに追加
+    for (const [category, items] of Object.entries(groups)) {
+      const folder = zip.folder(category);
+      
+      for (const item of items) {
+        const blob = await fetch(item.blobUrl).then(r => r.blob());
+        folder.file(item.name, blob);
       }
     }
-    const content = await zip.generateAsync({type:'blob'});
+    
+    // ZIP生成
+    const content = await zip.generateAsync({
+      type: 'blob',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+    
+    // ダウンロード
+    const timestamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
     const url = URL.createObjectURL(content);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'images_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'') + '.zip';
+    a.download = `compressed_images_${timestamp}.zip`;
     document.body.appendChild(a);
     a.click();
-    a.remove();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    // Provide quick LINE / mail text links (cannot attach files)
-    const lineText = encodeURIComponent('画像を送ります。ダウンロードしてご確認ください。');
-    const mailto = `mailto:?subject=${encodeURIComponent('圧縮画像を送付')}&body=${encodeURIComponent('画像を添付しました。ダウンロードしてご確認ください。')}`;
-    const info = document.createElement('div');
-    info.innerHTML = `<div class="note">共有に失敗した場合、以下を利用してください: 
-      <a href="https://line.me/R/msg/text/?${lineText}" target="_blank">LINEでメッセージを作成</a> ・ 
-      <a href="${mailto}">メール作成</a></div>`;
-    statusEl.appendChild(info);
+    
+    showStatus('✅ ZIPファイルをダウンロードしました', 'success');
+    
+  } catch (error) {
+    console.error('ZIP作成エラー:', error);
+    showStatus(`エラー: ${error.message}`, 'error');
+  } finally {
+    elements.downloadAllBtn.disabled = false;
+  }
+}
+
+/**
+ * ファイルを共有
+ */
+async function shareFiles() {
+  if (processedFiles.length === 0) {
+    showStatus('処理済みファイルがありません', 'error');
+    return;
+  }
+  
+  try {
+    // ファイルを取得
+    const filePromises = processedFiles.map(item =>
+      fetch(item.blobUrl)
+        .then(r => r.blob())
+        .then(blob => new File([blob], item.name, { type: blob.type }))
+    );
+    const files = await Promise.all(filePromises);
+    
+    // Web Share APIで共有
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share({
+        files,
+        title: '圧縮済み画像',
+        text: `${files.length}個の圧縮済み画像を共有します`
+      });
+      showStatus('✅ 共有しました', 'success');
+    } else if (navigator.share) {
+      // ファイル共有非対応の場合、テキストのみ共有
+      await navigator.share({
+        title: '圧縮済み画像',
+        text: `${files.length}個の圧縮済み画像があります。ZIPでダウンロードして共有してください。`
+      });
+      showStatus('ℹ️ この環境ではファイルの直接共有に対応していません', 'info');
+    } else {
+      // Web Share API非対応
+      showStatus('❌ この環境では共有機能に対応していません。ZIPでダウンロードしてください。', 'error');
+    }
+    
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      // ユーザーがキャンセル
+      showStatus('共有をキャンセルしました', 'info');
+    } else {
+      console.error('共有エラー:', error);
+      showStatus(`エラー: ${error.message}`, 'error');
+    }
+  }
+}
+
+// ============================================================================
+// イベントリスナー
+// ============================================================================
+
+elements.processBtn.addEventListener('click', processImages);
+elements.downloadAllBtn.addEventListener('click', downloadAsZip);
+elements.shareBtn.addEventListener('click', shareFiles);
+elements.clearBtn.addEventListener('click', () => {
+  if (processedFiles.length > 0) {
+    if (confirm('すべての処理済みファイルをクリアしますか?')) {
+      clearAll();
+    }
+  } else {
+    showStatus('クリアするファイルがありません', 'info');
   }
 });
 
-clearBtn.addEventListener('click', () => {
-  clearList();
-  fileInput.value = '';
-  statusEl.textContent = 'クリアしました。';
+// プレビューモーダルを閉じる
+elements.previewClose.addEventListener('click', () => {
+  elements.previewModal.classList.remove('show');
 });
 
-// revoke blob URLs on unload
-window.addEventListener('beforeunload', () => {
-  processedFiles.forEach(p => { if(p.blobUrl) URL.revokeObjectURL(p.blobUrl); });
+elements.previewModal.addEventListener('click', (e) => {
+  if (e.target === elements.previewModal) {
+    elements.previewModal.classList.remove('show');
+  }
 });
+
+// ファイル選択時の処理
+elements.fileInput.addEventListener('change', (e) => {
+  const files = e.target.files;
+  if (files.length > 0) {
+    showStatus(`${files.length}個のファイルを選択しました`, 'info');
+  }
+});
+
+// ページ離脱時にBlob URLを解放
+window.addEventListener('beforeunload', () => {
+  processedFiles.forEach(item => {
+    if (item.blobUrl) {
+      URL.revokeObjectURL(item.blobUrl);
+    }
+  });
+});
+
+// ドラッグ&ドロップ対応
+elements.fileInput.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = 'var(--primary)';
+  e.currentTarget.style.background = '#f0f7ff';
+});
+
+elements.fileInput.addEventListener('dragleave', (e) => {
+  e.currentTarget.style.borderColor = '';
+  e.currentTarget.style.background = '';
+});
+
+elements.fileInput.addEventListener('drop', (e) => {
+  e.preventDefault();
+  e.currentTarget.style.borderColor = '';
+  e.currentTarget.style.background = '';
+  
+  const files = e.dataTransfer.files;
+  if (files.length > 0) {
+    elements.fileInput.files = files;
+    showStatus(`${files.length}個のファイルをドロップしました`, 'info');
+  }
+});
+
+// 初期化
+updateFileCountBadge();
+updateButtonStates();
+console.log('🖼️ 画像圧縮ツール Pro - 初期化完了');
 </script>
 </body>
 </html>
