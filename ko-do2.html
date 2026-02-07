@@ -2,963 +2,307 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>シンプルHTMLエディター</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/matchesonscrollbar.min.css" />
-  
+  <title>WebBuilder Pro - ホームページ制作エディタ (復元機能搭載)</title>
   <style>
-    body {
-      margin: 0;
-      font-family: sans-serif;
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --bg-app: #0f172a;
+      --bg-toolbar: #ffffff;
+      --border: #e2e8f0;
+      --text: #334155;
+    }
+
+    * { box-sizing: border-box; }
+    body { 
+      margin: 0; padding: 0; 
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+      background-color: var(--bg-app); 
+      height: 100vh;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
-    }
-
-    /* タブバー */
-    .tab-bar {
-      display: flex;
-      background-color: #d0d0d0;
-      border-bottom: 2px solid #999;
-      overflow-x: auto;
-      overflow-y: hidden;
-      flex-shrink: 0;
-    }
-    .tab-bar::-webkit-scrollbar {
-      height: 6px;
-    }
-    .tab-bar::-webkit-scrollbar-thumb {
-      background-color: #888;
-      border-radius: 3px;
-    }
-    .tab {
-      padding: 10px 15px;
-      background-color: #e0e0e0;
-      border: 1px solid #999;
-      border-bottom: none;
-      cursor: pointer;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      min-width: 120px;
-      max-width: 200px;
-      position: relative;
-      transition: background-color 0.2s;
-    }
-    .tab:hover {
-      background-color: #d5d5d5;
-    }
-    .tab.active {
-      background-color: #f0f0f0;
-      border-bottom: 2px solid #f0f0f0;
-      margin-bottom: -2px;
-      font-weight: bold;
-    }
-    .tab-title {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .tab-close {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 16px;
-      color: #666;
-      padding: 0;
-      width: 20px;
-      height: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 3px;
-    }
-    .tab-close:hover {
-      background-color: #c0c0c0;
-      color: #000;
-    }
-    .new-tab-btn {
-      padding: 10px 15px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      cursor: pointer;
-      font-size: 18px;
-      font-weight: bold;
-      min-width: 40px;
-      transition: background-color 0.2s;
-    }
-    .new-tab-btn:hover {
-      background-color: #0056b3;
-    }
-
-    /* 操作パネルのスタイル */
-    .controls {
-      padding: 10px;
-      background-color: #f0f0f0;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      position: relative;
-      z-index: 10;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .controls button {
-      padding: 8px 12px;
-      cursor: pointer;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background-color: #e0e0e0;
-      transition: background-color 0.2s, box-shadow 0.2s;
-    }
-    .controls button:hover {
-      background-color: #d0d0d0;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    }
-    .controls button.prominent {
-      padding: 12px 20px;
-      font-size: 1.1em;
-      font-weight: bold;
-      background-color: #007bff;
-      color: white;
-      border-color: #007bff;
-    }
-    .controls button.prominent:hover {
-      background-color: #0056b3;
-      border-color: #0056b3;
-    }
-    .controls button#clearAllBtn.prominent {
-      background-color: #dc3545;
-      border-color: #dc3545;
-    }
-    .controls button#clearAllBtn.prominent:hover {
-      background-color: #c82333;
-      border-color: #c82333;
-    }
-
-    /* 検索・置換パネル */
-    .search-panel {
-      padding: 10px;
-      background-color: #e8f4f8;
-      border-bottom: 1px solid #b0d4e0;
-      display: none;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-    }
-    .search-panel.active {
-      display: flex;
-    }
-    .search-panel input {
-      padding: 6px 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-      min-width: 150px;
-    }
-    .search-panel button {
-      padding: 6px 12px;
-      cursor: pointer;
-      border: 1px solid #007bff;
-      border-radius: 4px;
-      background-color: #007bff;
-      color: white;
-      transition: background-color 0.2s;
-    }
-    .search-panel button:hover {
-      background-color: #0056b3;
-    }
-    .search-panel button.close-btn {
-      background-color: #6c757d;
-      border-color: #6c757d;
-    }
-    .search-panel button.close-btn:hover {
-      background-color: #5a6268;
-    }
-    .search-panel .search-info {
-      font-size: 13px;
-      color: #555;
-      margin: 0 5px;
-    }
-
-    /* エディター領域 */
-    .editor {
-      flex: 1;
       overflow: hidden;
     }
-    .CodeMirror {
-      height: 100%;
-      border: 1px solid #ddd;
-      border-top: none;
-    }
 
-    /* 検索ハイライト */
-    .cm-searching {
-      background-color: yellow;
-      color: black;
-    }
-    .cm-searching-current {
-      background-color: #ff9632;
-      color: black;
-      font-weight: bold;
-    }
-
-    /* メッセージエリア */
-    #messageArea {
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      padding: 8px 15px;
-      font-size: 0.85em;
-      white-space: nowrap;
-      background-color: rgba(0, 0, 0, 0.7);
-      color: white;
-      border-radius: 5px;
-      opacity: 0;
-      transition: opacity 0.4s ease-out, transform 0.4s ease-out, background-color 0.4s ease;
+    header {
+      background: var(--bg-toolbar);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       z-index: 100;
-      pointer-events: none;
-    }
-    #messageArea.show {
-        opacity: 1;
-        transform: translateY(-50%) translateX(0);
-    }
-    #messageArea:not(.show) {
-        transform: translateY(-50%) translateX(20px);
-    }
-    #messageArea.success {
-        background-color: #28a745;
-    }
-    #messageArea.error {
-        background-color: #dc3545;
-    }
-    #messageArea.info {
-        background-color: #17a2b8;
     }
 
-    /* スマートフォンでの表示調整 */
-    @media (max-width: 768px) {
-        .controls {
-            padding-top: calc(150px + 10px + env(safe-area-inset-top, 0px));
-            padding-bottom: 10px;
-        }
-        #messageArea {
-            top: calc(70px + env(safe-area-inset-top, 0px));
-            transform: translateY(0);
-        }
-        #messageArea.show {
-            transform: translateY(0) translateX(0);
-        }
-        #messageArea:not(.show) {
-            transform: translateY(0) translateX(20px);
-        }
-        .search-panel input {
-          min-width: 120px;
-        }
-        .tab {
-          min-width: 100px;
-          max-width: 150px;
-        }
+    .app-logo { font-weight: bold; color: var(--primary); font-size: 1.1rem; }
+
+    .main-toolbar, .format-bar {
+      display: flex; gap: 8px; align-items: center;
+    }
+
+    .btn {
+      padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border);
+      background: white; cursor: pointer; font-size: 13px; transition: 0.2s;
+      color: var(--text); display: flex; align-items: center; gap: 5px;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--primary); background: #f8fafc; }
+    .btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn-primary { background: var(--primary); color: white; border: none; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    .format-bar {
+      background: #f8fafc; border-bottom: 1px solid var(--border);
+      padding: 5px 20px;
+    }
+
+    #workspace {
+      flex: 1; overflow: auto; display: flex; justify-content: center;
+      padding: 30px;
+    }
+
+    #editor-container {
+      background: white; box-shadow: 0 30px 60px rgba(0,0,0,0.4);
+      transition: width 0.4s;
+      display: flex; flex-direction: column; width: 100%; max-width: 1200px;
+    }
+
+    .browser-mock {
+      height: 35px; background: #f1f5f9; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 15px; gap: 6px;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
+
+    #editor, #source-editor {
+      width: 100%; flex: 1; border: none; padding: 40px;
+      outline: none; min-height: 70vh; overflow-y: auto;
+    }
+    #source-editor {
+      display: none; background: #1e1e1e; color: #9cdcfe;
+      font-family: 'Consolas', monospace; line-height: 1.6; resize: none;
+    }
+
+    .view-mobile #editor-container { width: 375px; }
+
+    /* モーダル */
+    .modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+      display: none; justify-content: center; align-items: center; z-index: 1000;
+    }
+    .modal.show { display: flex; }
+    .modal-content {
+      background: white; padding: 25px; border-radius: 12px; width: 450px;
+    }
+    .input-group { margin-bottom: 15px; }
+    .input-group label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: bold; }
+    input[type="text"], textarea, select {
+      width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;
+    }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #059669; color: white; padding: 10px 25px; border-radius: 50px;
+      display: none; z-index: 2000;
     }
   </style>
 </head>
-<body>
-  <!-- タブバー -->
-  <div class="tab-bar" id="tabBar">
-    <button class="new-tab-btn" id="newTabBtn">✚</button>
+<body class="view-desktop">
+
+  <header>
+    <div class="app-logo">WebBuilder Pro</div>
+    <div class="main-toolbar">
+      <button class="btn" id="undo-btn" onclick="undo()" title="元に戻す (Ctrl+Z)">↶ 戻す</button>
+      <button class="btn" id="redo-btn" onclick="redo()" title="やり直し (Ctrl+Y)">↷ 進む</button>
+      <div style="width: 1px; height: 20px; background: #ddd; margin: 0 5px;"></div>
+      
+      <input type="file" id="file-in" accept=".html" style="display:none" onchange="importHTML(this)">
+      <button class="btn" onclick="document.getElementById('file-in').click()">📁 開く</button>
+      <button class="btn active" id="btn-pc" onclick="changeView('desktop')">💻 PC</button>
+      <button class="btn" id="btn-sp" onclick="changeView('mobile')">📱 スマホ</button>
+      <button class="btn" id="btn-toggle-code" onclick="toggleEditorMode()">HTMLソース</button>
+      <button class="btn" onclick="openModal('seo-modal')">⚙️ 設定</button>
+      <button class="btn btn-primary" onclick="exportFinalHTML()">📤 書き出し</button>
+    </div>
+  </header>
+
+  <div class="format-bar" id="fmt-bar">
+    <select onchange="doFormat('formatBlock', this.value)" style="width:120px;">
+      <option value="p">標準テキスト</option>
+      <option value="h1">大見出し H1</option>
+      <option value="h2">中見出し H2</option>
+      <option value="h3">小見出し H3</option>
+    </select>
+    <button class="btn" onclick="doFormat('bold')">B</button>
+    <button class="btn" onclick="doFormat('italic')">I</button>
+    <button class="btn" onclick="openModal('link-modal')">🔗 リンク</button>
+    <button class="btn" onclick="openModal('img-modal')">🖼️ 画像</button>
+    <input type="color" onchange="doFormat('foreColor', this.value)">
   </div>
 
-  <div class="controls" id="controlsPanel">
-    <div id="messageArea"></div>
-    <button id="selectAllBtn">全選択</button>
-    <button id="copyBtn">コピー</button>
-    <button id="pasteBtn" class="prominent">貼付け</button>
-    <button id="clearAllBtn" class="prominent">全削除</button>
-    <button id="openFileBtn">開く</button>
-    <input type="file" id="fileInput" accept=".html" style="display:none">
-    <button id="saveBtn">保存 (HTML)</button>
-    <button id="saveTxtBtn">保存 (TXT)</button>
-    <button id="undoBtn">元に戻す</button>
-    <button id="redoBtn">やり直し</button>
-    <button id="searchBtn" class="prominent">検索</button>
-    <button id="organizeTabsBtn">タブ整理</button>
-    <button id="saveAllBtn" class="prominent">全保存 (JSON)</button>
-    <button id="loadAllBtn" class="prominent">全読込 (JSON)</button>
-    <input type="file" id="jsonInput" accept=".json" style="display:none">
-    <button id="runBtn" class="prominent">実行</button>
+  <div id="workspace">
+    <div id="editor-container">
+      <div class="browser-mock"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <div id="editor" contenteditable="true">
+        <h1>ホームページ制作エディタ</h1>
+        <p>誤って削除した場合は、左上の「戻す」ボタン、または Ctrl+Z で復元できます。</p>
+      </div>
+      <textarea id="source-editor" spellcheck="false"></textarea>
+    </div>
   </div>
 
-  <div class="search-panel" id="searchPanel">
-    <input type="text" id="searchInput" placeholder="検索...">
-    <button id="prevBtn">◀ 前へ</button>
-    <button id="nextBtn">次へ ▶</button>
-    <span class="search-info" id="searchInfo"></span>
-    <input type="text" id="replaceInput" placeholder="置換後...">
-    <button id="replaceBtn">置換</button>
-    <button id="replaceAllBtn">全て置換</button>
-    <button id="closeSearchBtn" class="close-btn">✕ 閉じる</button>
-  </div>
+  <div class="modal" id="link-modal"><div class="modal-content"><h3>リンク挿入</h3><input type="text" id="link-url" placeholder="https://"><br><br><button class="btn btn-primary" onclick="applyLink()">適用</button><button class="btn" onclick="closeModal('link-modal')">閉じる</button></div></div>
+  <div class="modal" id="img-modal"><div class="modal-content"><h3>画像挿入</h3><input type="text" id="img-src" placeholder="画像URL"><br><br><button class="btn btn-primary" onclick="applyImage()">挿入</button><button class="btn" onclick="closeModal('img-modal')">閉じる</button></div></div>
+  <div class="modal" id="seo-modal"><div class="modal-content"><h3>ページ設定</h3><div class="input-group"><label>タイトル</label><input type="text" id="seo-title"></div><div class="input-group"><label>説明</label><textarea id="seo-desc"></textarea></div><button class="btn btn-primary" onclick="closeModal('seo-modal')">保存</button></div></div>
 
-  <div class="editor">
-    <textarea id="htmlCode" placeholder="ここにHTMLコードを入力してください"></textarea>
-  </div>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/htmlmixed/htmlmixed.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/xml/xml.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/javascript/javascript.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/css/css.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/addon/search/searchcursor.min.js"></script>
+  <div class="toast" id="toast-msg"></div>
 
   <script>
-    // タブ管理
-    let tabs = [];
-    let currentTabId = null;
-    let nextTabId = 1;
+    const editor = document.getElementById('editor');
+    const sourceEditor = document.getElementById('source-editor');
+    
+    // --- 履歴管理システム ---
+    let historyStack = [];
+    let historyIndex = -1;
+    const maxHistory = 50;
 
-    // CodeMirror インスタンス
-    var cm = CodeMirror.fromTextArea(document.getElementById('htmlCode'), {
-      mode: "htmlmixed",
-      lineNumbers: true,
-      theme: "default"
+    function saveHistory() {
+      const currentContent = isCodeMode ? sourceEditor.value : editor.innerHTML;
+      
+      // 直前と同じなら保存しない
+      if (historyIndex >= 0 && historyStack[historyIndex] === currentContent) return;
+
+      // 現在位置より先の履歴を削除（新しい分岐を作るため）
+      historyStack = historyStack.slice(0, historyIndex + 1);
+      historyStack.push(currentContent);
+
+      if (historyStack.length > maxHistory) {
+        historyStack.shift();
+      } else {
+        historyIndex++;
+      }
+      updateHistoryButtons();
+    }
+
+    function undo() {
+      if (historyIndex > 0) {
+        historyIndex--;
+        const content = historyStack[historyIndex];
+        if (isCodeMode) sourceEditor.value = content;
+        else editor.innerHTML = content;
+        updateHistoryButtons();
+      }
+    }
+
+    function redo() {
+      if (historyIndex < historyStack.length - 1) {
+        historyIndex++;
+        const content = historyStack[historyIndex];
+        if (isCodeMode) sourceEditor.value = content;
+        else editor.innerHTML = content;
+        updateHistoryButtons();
+      }
+    }
+
+    function updateHistoryButtons() {
+      document.getElementById('undo-btn').disabled = (historyIndex <= 0);
+      document.getElementById('redo-btn').disabled = (historyIndex >= historyStack.length - 1);
+    }
+
+    // 入力監視 (Visualモード)
+    editor.addEventListener('input', () => {
+      clearTimeout(this.timer);
+      this.timer = setTimeout(saveHistory, 500); // 入力停止から500ms後に履歴保存
     });
 
-    // 各ボタン要素の取得
-    const selectAllBtn = document.getElementById('selectAllBtn');
-    const copyBtn = document.getElementById('copyBtn');
-    const pasteBtn = document.getElementById('pasteBtn');
-    const clearAllBtn = document.getElementById('clearAllBtn');
-    const openFileBtn = document.getElementById('openFileBtn');
-    const fileInput = document.getElementById('fileInput');
-    const saveBtn = document.getElementById('saveBtn');
-    const saveTxtBtn = document.getElementById('saveTxtBtn');
-    const undoBtn = document.getElementById('undoBtn');
-    const redoBtn = document.getElementById('redoBtn');
-    const searchBtn = document.getElementById('searchBtn');
-    const runBtn = document.getElementById('runBtn');
-    const messageArea = document.getElementById('messageArea');
-    const controlsPanel = document.getElementById('controlsPanel');
-    const newTabBtn = document.getElementById('newTabBtn');
-    const tabBar = document.getElementById('tabBar');
-    const organizeTabsBtn = document.getElementById('organizeTabsBtn');
-    const saveAllBtn = document.getElementById('saveAllBtn');
-    const loadAllBtn = document.getElementById('loadAllBtn');
-    const jsonInput = document.getElementById('jsonInput');
-
-    // 検索関連の要素
-    const searchPanel = document.getElementById('searchPanel');
-    const searchInput = document.getElementById('searchInput');
-    const replaceInput = document.getElementById('replaceInput');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const replaceBtn = document.getElementById('replaceBtn');
-    const replaceAllBtn = document.getElementById('replaceAllBtn');
-    const closeSearchBtn = document.getElementById('closeSearchBtn');
-    const searchInfo = document.getElementById('searchInfo');
-
-    // 検索状態の管理
-    let searchState = {
-      query: '',
-      matches: [],
-      currentIndex: -1,
-      markers: []
-    };
-
-    /**
-     * メッセージ表示関数
-     */
-    function showMessage(msg, type = 'info') {
-      messageArea.textContent = msg;
-      messageArea.className = 'show ' + type;
-      setTimeout(() => {
-        messageArea.className = '';
-        messageArea.textContent = '';
-      }, 2500);
-    }
-
-    /**
-     * HTMLからタイトルを抽出
-     */
-    function extractTitle(html) {
-      const match = html.match(/<title>(.*?)<\/title>/i);
-      return match ? match[1].trim() : '無題';
-    }
-
-    /**
-     * 新しいタブを作成
-     */
-    function createTab(content = '', title = null) {
-      const tabId = nextTabId++;
-      const tabTitle = title || extractTitle(content) || '無題';
-      
-      const tab = {
-        id: tabId,
-        content: content,
-        title: tabTitle
-      };
-      
-      tabs.push(tab);
-      renderTabs();
-      switchToTab(tabId);
-      saveTabsToStorage();
-      return tabId;
-    }
-
-    /**
-     * タブをレンダリング
-     */
-    function renderTabs() {
-      // 既存のタブ要素を削除（新規タブボタン以外）
-      const existingTabs = tabBar.querySelectorAll('.tab');
-      existingTabs.forEach(tab => tab.remove());
-
-      // タブを作成
-      tabs.forEach(tab => {
-        const tabElement = document.createElement('div');
-        tabElement.className = 'tab' + (tab.id === currentTabId ? ' active' : '');
-        tabElement.dataset.tabId = tab.id;
-        
-        const titleSpan = document.createElement('span');
-        titleSpan.className = 'tab-title';
-        titleSpan.textContent = tab.title;
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'tab-close';
-        closeBtn.textContent = '✕';
-        closeBtn.onclick = (e) => {
-          e.stopPropagation();
-          closeTab(tab.id);
-        };
-        
-        tabElement.appendChild(titleSpan);
-        tabElement.appendChild(closeBtn);
-        
-        tabElement.onclick = () => switchToTab(tab.id);
-        
-        tabBar.insertBefore(tabElement, newTabBtn);
-      });
-    }
-
-    /**
-     * タブを切り替え
-     */
-    function switchToTab(tabId) {
-      // 現在のタブの内容を保存
-      if (currentTabId !== null) {
-        const currentTab = tabs.find(t => t.id === currentTabId);
-        if (currentTab) {
-          currentTab.content = cm.getValue();
-          currentTab.title = extractTitle(currentTab.content);
-        }
+    // キーボードショートカット
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') { e.preventDefault(); undo(); }
+        if (e.key === 'y') { e.preventDefault(); redo(); }
       }
+    });
 
-      // 新しいタブを読み込み
-      currentTabId = tabId;
-      const tab = tabs.find(t => t.id === tabId);
-      if (tab) {
-        cm.setValue(tab.content);
-        renderTabs();
-        saveTabsToStorage();
-      }
+    // --- エディタ基本機能 ---
+    let isCodeMode = false;
+    function doFormat(cmd, val) {
+      if(isCodeMode) return;
+      document.execCommand(cmd, false, val);
+      saveHistory(); // 操作直後に保存
+      editor.focus();
     }
 
-    /**
-     * タブを閉じる
-     */
-    function closeTab(tabId) {
-      if (tabs.length === 1) {
-        showMessage("最後のタブは閉じられません", "error");
-        return;
-      }
-
-      const index = tabs.findIndex(t => t.id === tabId);
-      if (index === -1) return;
-
-      tabs.splice(index, 1);
-
-      // 閉じたタブがアクティブだった場合
-      if (currentTabId === tabId) {
-        const newActiveTab = tabs[Math.max(0, index - 1)];
-        switchToTab(newActiveTab.id);
+    function toggleEditorMode() {
+      isCodeMode = !isCodeMode;
+      const btn = document.getElementById('btn-toggle-code');
+      if (isCodeMode) {
+        sourceEditor.value = editor.innerHTML;
+        editor.style.display = 'none';
+        sourceEditor.style.display = 'block';
+        btn.classList.add('active');
       } else {
-        renderTabs();
-        saveTabsToStorage();
+        editor.innerHTML = sourceEditor.value;
+        sourceEditor.style.display = 'none';
+        editor.style.display = 'block';
+        btn.classList.remove('active');
       }
+      saveHistory();
     }
 
-    /**
-     * タブを整理（空のタブを削除）
-     */
-    function organizeTabs() {
-      const beforeCount = tabs.length;
-      tabs = tabs.filter(tab => tab.content.trim() !== '');
-      
-      if (tabs.length === 0) {
-        // すべて空だった場合、1つ作成
-        createTab();
-        showMessage("すべて空だったため、新しいタブを作成しました", "info");
-        return;
-      }
-
-      const deletedCount = beforeCount - tabs.length;
-      
-      // 現在のタブが削除された場合
-      if (!tabs.find(t => t.id === currentTabId)) {
-        currentTabId = tabs[0].id;
-      }
-
-      renderTabs();
-      switchToTab(currentTabId);
-      
-      if (deletedCount > 0) {
-        showMessage(`${deletedCount}個の空のタブを削除しました`, "success");
-      } else {
-        showMessage("削除する空のタブはありませんでした", "info");
-      }
+    function changeView(type) {
+      document.body.className = 'view-' + type;
+      document.getElementById('btn-pc').classList.toggle('active', type === 'desktop');
+      document.getElementById('btn-sp').classList.toggle('active', type === 'mobile');
     }
 
-    /**
-     * すべてのタブをJSON形式で保存
-     */
-    function saveAllAsJSON() {
-      // 現在のタブの内容を保存
-      if (currentTabId !== null) {
-        const currentTab = tabs.find(t => t.id === currentTabId);
-        if (currentTab) {
-          currentTab.content = cm.getValue();
-          currentTab.title = extractTitle(currentTab.content);
-        }
-      }
-
-      const data = {
-        tabs: tabs.map(tab => ({
-          title: tab.title,
-          content: tab.content
-        })),
-        currentTabIndex: tabs.findIndex(t => t.id === currentTabId)
-      };
-
-      const json = JSON.stringify(data, null, 2);
-      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "editor-tabs.json";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showMessage(`${tabs.length}個のタブをJSONで保存しました`, "success");
-    }
-
-    /**
-     * JSONファイルからすべてのタブを読み込み
-     */
-    function loadAllFromJSON(file) {
+    function importHTML(input) {
+      const file = input.files[0];
+      if (!file) return;
       const reader = new FileReader();
-      reader.onload = function(evt) {
-        try {
-          const data = JSON.parse(evt.target.result);
-          
-          if (!data.tabs || !Array.isArray(data.tabs)) {
-            showMessage("無効なJSONフォーマットです", "error");
-            return;
-          }
-
-          // 既存のタブをクリア
-          tabs = [];
-          nextTabId = 1;
-
-          // タブを読み込み
-          data.tabs.forEach((tabData, index) => {
-            const tabId = nextTabId++;
-            tabs.push({
-              id: tabId,
-              content: tabData.content || '',
-              title: tabData.title || '無題'
-            });
-          });
-
-          if (tabs.length === 0) {
-            createTab();
-          } else {
-            const activeIndex = data.currentTabIndex >= 0 && data.currentTabIndex < tabs.length 
-              ? data.currentTabIndex 
-              : 0;
-            currentTabId = tabs[activeIndex].id;
-            renderTabs();
-            switchToTab(currentTabId);
-          }
-
-          showMessage(`${tabs.length}個のタブを読み込みました`, "success");
-        } catch (err) {
-          showMessage("JSONの読み込みに失敗しました: " + err.message, "error");
-        }
+      reader.onload = (e) => {
+        const doc = new DOMParser().parseFromString(e.target.result, 'text/html');
+        document.getElementById('seo-title').value = doc.title || '';
+        editor.innerHTML = doc.body.innerHTML;
+        saveHistory(); // 読み込み直後に初期履歴として保存
+        showToast('読み込み完了');
       };
       reader.readAsText(file);
     }
 
-    /**
-     * タブをlocalStorageに保存
-     */
-    function saveTabsToStorage() {
-      try {
-        const data = {
-          tabs: tabs.map(tab => ({
-            id: tab.id,
-            content: tab.content,
-            title: tab.title
-          })),
-          currentTabId: currentTabId,
-          nextTabId: nextTabId
-        };
-        localStorage.setItem("editorTabs", JSON.stringify(data));
-      } catch (err) {
-        console.error("タブの保存に失敗:", err);
-      }
-    }
-
-    /**
-     * タブをlocalStorageから復元
-     */
-    function loadTabsFromStorage() {
-      try {
-        const stored = localStorage.getItem("editorTabs");
-        if (stored) {
-          const data = JSON.parse(stored);
-          tabs = data.tabs || [];
-          currentTabId = data.currentTabId;
-          nextTabId = data.nextTabId || 1;
-          
-          if (tabs.length > 0) {
-            renderTabs();
-            switchToTab(currentTabId);
-            return;
-          }
-        }
-      } catch (err) {
-        console.error("タブの復元に失敗:", err);
-      }
-      
-      // 復元失敗時は新規タブを作成
-      createTab();
-    }
-
-    // CodeMirrorの変更を監視
-    cm.on("change", function() {
-      if (currentTabId !== null) {
-        const currentTab = tabs.find(t => t.id === currentTabId);
-        if (currentTab) {
-          currentTab.content = cm.getValue();
-          const newTitle = extractTitle(currentTab.content);
-          if (newTitle !== currentTab.title) {
-            currentTab.title = newTitle;
-            renderTabs();
-          }
-          saveTabsToStorage();
-        }
-      }
-    });
-
-    // 新規タブボタン
-    newTabBtn.addEventListener('click', function() {
-      createTab();
-      showMessage("新しいタブを作成しました", "success");
-    });
-
-    // タブ整理ボタン
-    organizeTabsBtn.addEventListener('click', organizeTabs);
-
-    // 全保存ボタン
-    saveAllBtn.addEventListener('click', saveAllAsJSON);
-
-    // 全読込ボタン
-    loadAllBtn.addEventListener('click', function() {
-      jsonInput.click();
-    });
-
-    jsonInput.addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (file) {
-        loadAllFromJSON(file);
-      }
-      jsonInput.value = '';
-    });
-
-    // 全選択ボタン
-    selectAllBtn.addEventListener('click', function() {
-      cm.focus();
-      cm.execCommand("selectAll");
-      showMessage("全選択しました", "info");
-    });
-
-    // コピーボタン
-    copyBtn.addEventListener('click', function() {
-      if (!cm.somethingSelected()) {
-        cm.focus();
-        cm.execCommand("selectAll");
-      }
-      var text = cm.getSelection();
-      navigator.clipboard.writeText(text)
-        .then(() => showMessage("コピーしました", "success"))
-        .catch(err => showMessage("コピーに失敗しました: " + err, "error"));
-    });
-
-    // 貼付けボタン
-    pasteBtn.addEventListener('click', function() {
-      navigator.clipboard.readText()
-        .then(text => {
-          cm.replaceSelection(text);
-          showMessage("貼り付けました", "success");
-          controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        })
-        .catch(err => showMessage("貼り付けに失敗しました: " + err, "error"));
-    });
-
-    // 全削除ボタン
-    clearAllBtn.addEventListener('click', function() {
-      if (confirm("本当に全削除しますか？")) {
-        cm.setValue("");
-        showMessage("全て削除しました", "info");
-        controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-
-    // ファイルを開くボタン
-    openFileBtn.addEventListener('click', function() {
-      fileInput.click();
-    });
-
-    // ファイルが選択されたら読み込み
-    fileInput.addEventListener('change', function(e) {
-      var file = e.target.files[0];
-      if (file) {
-        var reader = new FileReader();
-        reader.onload = function(evt) {
-          cm.setValue(evt.target.result);
-          showMessage(`ファイル「${file.name}」を開きました`, "success");
-        }
-        reader.readAsText(file);
-      }
-      fileInput.value = '';
-    });
-
-    // HTMLファイル保存ボタン
-    saveBtn.addEventListener('click', function() {
-      var blob = new Blob([cm.getValue()], { type: "text/html" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "index.html";
-      a.style.display = "none";
-      document.body.appendChild(a);
+    function exportFinalHTML() {
+      const content = isCodeMode ? sourceEditor.value : editor.innerHTML;
+      const title = document.getElementById('seo-title').value || 'My Page';
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title></head><body>${content}</body></html>`;
+      const blob = new Blob([html], {type: 'text/html'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'index.html';
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showMessage("HTMLとして保存しました", "success");
-    });
-
-    // TXTファイル保存ボタン
-    saveTxtBtn.addEventListener('click', function() {
-      var blob = new Blob([cm.getValue()], { type: "text/plain;charset=utf-8" });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement("a");
-      a.href = url;
-      a.download = "index.txt";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showMessage("TXTとして保存しました", "success");
-    });
-
-    // 元に戻すボタン
-    undoBtn.addEventListener('click', function() {
-      if (cm.historySize().undo > 0) {
-        cm.undo();
-        showMessage("元に戻しました", "info");
-      } else {
-        showMessage("これ以上元に戻せません", "error");
-      }
-    });
-
-    // やり直しボタン
-    redoBtn.addEventListener('click', function() {
-      if (cm.historySize().redo > 0) {
-        cm.redo();
-        showMessage("やり直しました", "info");
-      } else {
-        showMessage("これ以上やり直せません", "error");
-      }
-    });
-
-    // 検索ボタン
-    searchBtn.addEventListener('click', function() {
-      searchPanel.classList.toggle('active');
-      if (searchPanel.classList.contains('active')) {
-        searchInput.focus();
-      } else {
-        clearSearchHighlights();
-      }
-    });
-
-    // 検索パネルを閉じる
-    closeSearchBtn.addEventListener('click', function() {
-      searchPanel.classList.remove('active');
-      clearSearchHighlights();
-    });
-
-    // 検索ハイライトをクリア
-    function clearSearchHighlights() {
-      searchState.markers.forEach(marker => marker.clear());
-      searchState.markers = [];
-      searchState.matches = [];
-      searchState.currentIndex = -1;
-      searchInfo.textContent = '';
     }
 
-    // 検索を実行
-    function performSearch() {
-      clearSearchHighlights();
-      const query = searchInput.value;
-      if (!query) {
-        searchInfo.textContent = '';
-        return;
-      }
+    function openModal(id) { document.getElementById(id).classList.add('show'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 
-      searchState.query = query;
-      const cursor = cm.getSearchCursor(query);
-      let match;
-      
-      while (match = cursor.findNext()) {
-        const from = cursor.from();
-        const to = cursor.to();
-        searchState.matches.push({ from, to });
-        
-        const marker = cm.markText(from, to, {
-          className: 'cm-searching'
-        });
-        searchState.markers.push(marker);
-      }
-
-      if (searchState.matches.length > 0) {
-        searchState.currentIndex = 0;
-        highlightCurrentMatch();
-        searchInfo.textContent = `${searchState.matches.length}件見つかりました`;
-      } else {
-        searchInfo.textContent = '見つかりませんでした';
-      }
+    function applyLink() {
+      const url = document.getElementById('link-url').value;
+      if(url) doFormat('createLink', url);
+      closeModal('link-modal');
     }
 
-    // 現在のマッチをハイライト
-    function highlightCurrentMatch() {
-      if (searchState.currentIndex >= 0 && searchState.currentIndex < searchState.matches.length) {
-        // 前の現在マッチのマーカーをクリア
-        searchState.markers.forEach(marker => {
-          if (marker.className === 'cm-searching-current') {
-            marker.clear();
-          }
-        });
-
-        const match = searchState.matches[searchState.currentIndex];
-        const marker = cm.markText(match.from, match.to, {
-          className: 'cm-searching-current'
-        });
-        searchState.markers.push(marker);
-
-        // 現在のマッチまでスクロール
-        cm.scrollIntoView(match.from, 100);
-        cm.setCursor(match.from);
-        
-        searchInfo.textContent = `${searchState.currentIndex + 1} / ${searchState.matches.length}`;
-      }
+    function applyImage() {
+      const src = document.getElementById('img-src').value;
+      if(src) doFormat('insertHTML', `<img src="${src}">`);
+      closeModal('img-modal');
     }
 
-    // 検索入力時
-    searchInput.addEventListener('input', performSearch);
+    function showToast(msg) {
+      const t = document.getElementById('toast-msg');
+      t.textContent = msg; t.style.display = 'block';
+      setTimeout(() => t.style.display = 'none', 2000);
+    }
 
-    // 次へボタン
-    nextBtn.addEventListener('click', function() {
-      if (searchState.matches.length === 0) return;
-      searchState.currentIndex = (searchState.currentIndex + 1) % searchState.matches.length;
-      highlightCurrentMatch();
-    });
-
-    // 前へボタン
-    prevBtn.addEventListener('click', function() {
-      if (searchState.matches.length === 0) return;
-      searchState.currentIndex = (searchState.currentIndex - 1 + searchState.matches.length) % searchState.matches.length;
-      highlightCurrentMatch();
-    });
-
-    // 置換ボタン
-    replaceBtn.addEventListener('click', function() {
-      if (searchState.currentIndex >= 0 && searchState.currentIndex < searchState.matches.length) {
-        const match = searchState.matches[searchState.currentIndex];
-        const replaceText = replaceInput.value;
-        cm.replaceRange(replaceText, match.from, match.to);
-        showMessage("置換しました", "success");
-        performSearch(); // 再検索
-      }
-    });
-
-    // 全て置換ボタン
-    replaceAllBtn.addEventListener('click', function() {
-      const query = searchInput.value;
-      const replaceText = replaceInput.value;
-      if (!query) return;
-
-      const count = searchState.matches.length;
-      if (count === 0) {
-        showMessage("置換対象が見つかりません", "error");
-        return;
-      }
-
-      // 後ろから置換していく（位置がずれないように）
-      for (let i = searchState.matches.length - 1; i >= 0; i--) {
-        const match = searchState.matches[i];
-        cm.replaceRange(replaceText, match.from, match.to);
-      }
-
-      showMessage(`${count}件置換しました`, "success");
-      performSearch(); // 再検索
-    });
-
-    // 実行ボタン
-    runBtn.addEventListener('click', function() {
-      var blob = new Blob([cm.getValue()], { type: "text/html" });
-      var url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      showMessage("コードを実行しました", "info");
-      controlsPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-
-    // キーボードショートカット
-    document.addEventListener('keydown', function(e) {
-      // Ctrl+F または Cmd+F で検索パネルを開く
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault();
-        searchPanel.classList.add('active');
-        searchInput.focus();
-      }
-      // Escapeで検索パネルを閉じる
-      if (e.key === 'Escape' && searchPanel.classList.contains('active')) {
-        searchPanel.classList.remove('active');
-        clearSearchHighlights();
-      }
-    });
-
-    // 初期化：タブを復元または新規作成
-    loadTabsFromStorage();
+    // 初期化
+    window.onload = () => {
+      saveHistory(); // 初回状態を保存
+    };
   </script>
 </body>
 </html>
