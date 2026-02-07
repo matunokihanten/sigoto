@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>WebBuilder Pro - ホームページ制作エディタ (復元機能搭載)</title>
+  <title>WebBuilder Pro - ホームページ制作エディタ (上書き保存対応)</title>
   <style>
     :root {
       --primary: #2563eb;
@@ -13,7 +12,6 @@
       --border: #e2e8f0;
       --text: #334155;
     }
-
     * { box-sizing: border-box; }
     body { 
       margin: 0; padding: 0; 
@@ -24,7 +22,6 @@
       flex-direction: column;
       overflow: hidden;
     }
-
     header {
       background: var(--bg-toolbar);
       border-bottom: 1px solid var(--border);
@@ -34,13 +31,10 @@
       align-items: center;
       z-index: 100;
     }
-
     .app-logo { font-weight: bold; color: var(--primary); font-size: 1.1rem; }
-
     .main-toolbar, .format-bar {
       display: flex; gap: 8px; align-items: center;
     }
-
     .btn {
       padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border);
       background: white; cursor: pointer; font-size: 13px; transition: 0.2s;
@@ -50,29 +44,24 @@
     .btn.active { background: var(--primary); color: white; border-color: var(--primary); }
     .btn-primary { background: var(--primary); color: white; border: none; }
     .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
     .format-bar {
       background: #f8fafc; border-bottom: 1px solid var(--border);
       padding: 5px 20px;
     }
-
     #workspace {
       flex: 1; overflow: auto; display: flex; justify-content: center;
       padding: 30px;
     }
-
     #editor-container {
       background: white; box-shadow: 0 30px 60px rgba(0,0,0,0.4);
       transition: width 0.4s;
       display: flex; flex-direction: column; width: 100%; max-width: 1200px;
     }
-
     .browser-mock {
       height: 35px; background: #f1f5f9; border-bottom: 1px solid var(--border);
       display: flex; align-items: center; padding: 0 15px; gap: 6px;
     }
     .dot { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
-
     #editor, #source-editor {
       width: 100%; flex: 1; border: none; padding: 40px;
       outline: none; min-height: 70vh; overflow-y: auto;
@@ -81,10 +70,7 @@
       display: none; background: #1e1e1e; color: #9cdcfe;
       font-family: 'Consolas', monospace; line-height: 1.6; resize: none;
     }
-
     .view-mobile #editor-container { width: 375px; }
-
-    /* モーダル */
     .modal {
       position: fixed; inset: 0; background: rgba(0,0,0,0.6);
       display: none; justify-content: center; align-items: center; z-index: 1000;
@@ -98,7 +84,6 @@
     input[type="text"], textarea, select {
       width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;
     }
-
     .toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       background: #059669; color: white; padding: 10px 25px; border-radius: 50px;
@@ -115,13 +100,15 @@
       <button class="btn" id="redo-btn" onclick="redo()" title="やり直し (Ctrl+Y)">↷ 進む</button>
       <div style="width: 1px; height: 20px; background: #ddd; margin: 0 5px;"></div>
       
-      <input type="file" id="file-in" accept=".html" style="display:none" onchange="importHTML(this)">
-      <button class="btn" onclick="document.getElementById('file-in').click()">📁 開く</button>
+      <button class="btn" onclick="importHTML()">📁 開く</button>
+      <button class="btn btn-primary" onclick="saveOverwrite()" title="上書き保存 (Ctrl+S)">💾 保存</button>
+      <button class="btn" onclick="exportFinalHTML()">📤 別名で保存</button>
+
+      <div style="width: 1px; height: 20px; background: #ddd; margin: 0 5px;"></div>
       <button class="btn active" id="btn-pc" onclick="changeView('desktop')">💻 PC</button>
       <button class="btn" id="btn-sp" onclick="changeView('mobile')">📱 スマホ</button>
       <button class="btn" id="btn-toggle-code" onclick="toggleEditorMode()">HTMLソース</button>
       <button class="btn" onclick="openModal('seo-modal')">⚙️ 設定</button>
-      <button class="btn btn-primary" onclick="exportFinalHTML()">📤 書き出し</button>
     </div>
   </header>
 
@@ -160,6 +147,9 @@
     const editor = document.getElementById('editor');
     const sourceEditor = document.getElementById('source-editor');
     
+    // --- ファイル管理変数 ---
+    let fileHandle = null;
+
     // --- 履歴管理システム ---
     let historyStack = [];
     let historyIndex = -1;
@@ -167,14 +157,9 @@
 
     function saveHistory() {
       const currentContent = isCodeMode ? sourceEditor.value : editor.innerHTML;
-      
-      // 直前と同じなら保存しない
       if (historyIndex >= 0 && historyStack[historyIndex] === currentContent) return;
-
-      // 現在位置より先の履歴を削除（新しい分岐を作るため）
       historyStack = historyStack.slice(0, historyIndex + 1);
       historyStack.push(currentContent);
-
       if (historyStack.length > maxHistory) {
         historyStack.shift();
       } else {
@@ -208,10 +193,9 @@
       document.getElementById('redo-btn').disabled = (historyIndex >= historyStack.length - 1);
     }
 
-    // 入力監視 (Visualモード)
     editor.addEventListener('input', () => {
       clearTimeout(this.timer);
-      this.timer = setTimeout(saveHistory, 500); // 入力停止から500ms後に履歴保存
+      this.timer = setTimeout(saveHistory, 500);
     });
 
     // キーボードショートカット
@@ -219,6 +203,7 @@
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z') { e.preventDefault(); undo(); }
         if (e.key === 'y') { e.preventDefault(); redo(); }
+        if (e.key === 's') { e.preventDefault(); saveOverwrite(); }
       }
     });
 
@@ -227,7 +212,7 @@
     function doFormat(cmd, val) {
       if(isCodeMode) return;
       document.execCommand(cmd, false, val);
-      saveHistory(); // 操作直後に保存
+      saveHistory();
       editor.focus();
     }
 
@@ -254,29 +239,76 @@
       document.getElementById('btn-sp').classList.toggle('active', type === 'mobile');
     }
 
-    function importHTML(input) {
-      const file = input.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const doc = new DOMParser().parseFromString(e.target.result, 'text/html');
+    // --- ファイル入出力機能 ---
+
+    // 新規読み込み（ファイルハンドル保持対応）
+    async function importHTML() {
+      try {
+        if (!window.showOpenFilePicker) {
+          alert('お使いのブラウザはファイル直接操作に対応していません。');
+          return;
+        }
+        [fileHandle] = await window.showOpenFilePicker({
+          types: [{ description: 'HTMLファイル', accept: {'text/html': ['.html']} }],
+          multiple: false
+        });
+        const file = await fileHandle.getFile();
+        const text = await file.text();
+        const doc = new DOMParser().parseFromString(text, 'text/html');
         document.getElementById('seo-title').value = doc.title || '';
         editor.innerHTML = doc.body.innerHTML;
-        saveHistory(); // 読み込み直後に初期履歴として保存
+        saveHistory();
         showToast('読み込み完了');
-      };
-      reader.readAsText(file);
+      } catch (err) {
+        console.warn('キャンセルされました');
+      }
     }
 
-    function exportFinalHTML() {
+    // 上書き保存
+    async function saveOverwrite() {
+      if (!fileHandle) {
+        return exportFinalHTML(); // ハンドルがなければ別名保存へ
+      }
+      try {
+        const content = isCodeMode ? sourceEditor.value : editor.innerHTML;
+        const title = document.getElementById('seo-title').value || 'My Page';
+        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title></head><body>${content}</body></html>`;
+        
+        const writable = await fileHandle.createWritable();
+        await writable.write(html);
+        await writable.close();
+        showToast('上書き保存完了');
+      } catch (err) {
+        console.error(err);
+        showToast('保存エラーが発生しました');
+      }
+    }
+
+    // 別名で保存（エクスポート）
+    async function exportFinalHTML() {
       const content = isCodeMode ? sourceEditor.value : editor.innerHTML;
       const title = document.getElementById('seo-title').value || 'My Page';
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title></head><body>${content}</body></html>`;
-      const blob = new Blob([html], {type: 'text/html'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'index.html';
-      a.click();
+
+      if (window.showSaveFilePicker) {
+        try {
+          fileHandle = await window.showSaveFilePicker({
+            suggestedName: 'index.html',
+            types: [{ description: 'HTMLファイル', accept: {'text/html': ['.html']} }]
+          });
+          const writable = await fileHandle.createWritable();
+          await writable.write(html);
+          await writable.close();
+          showToast('保存完了');
+        } catch (err) { console.warn('保存キャンセル'); }
+      } else {
+        // 非対応ブラウザ用フォールバック
+        const blob = new Blob([html], {type: 'text/html'});
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'index.html';
+        a.click();
+      }
     }
 
     function openModal(id) { document.getElementById(id).classList.add('show'); }
@@ -300,9 +332,8 @@
       setTimeout(() => t.style.display = 'none', 2000);
     }
 
-    // 初期化
     window.onload = () => {
-      saveHistory(); // 初回状態を保存
+      saveHistory();
     };
   </script>
 </body>
