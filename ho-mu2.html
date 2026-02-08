@@ -2,339 +2,216 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>WebBuilder Pro - ホームページ制作エディタ (上書き保存対応)</title>
+  <title>WebBuilder Pro - 完全サンドボックス版</title>
   <style>
     :root {
-      --primary: #2563eb;
-      --primary-dark: #1e40af;
-      --bg-app: #0f172a;
-      --bg-toolbar: #ffffff;
-      --border: #e2e8f0;
-      --text: #334155;
+      --primary: #2563eb; --bg-app: #0f172a; --bg-toolbar: #ffffff;
+      --border: #e2e8f0; --text: #334155;
     }
     * { box-sizing: border-box; }
     body { 
-      margin: 0; padding: 0; 
-      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
-      background-color: var(--bg-app); 
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
+      margin: 0; padding: 0; font-family: sans-serif;
+      background-color: var(--bg-app); height: 100vh;
+      display: flex; flex-direction: column; overflow: hidden;
     }
-    header {
-      background: var(--bg-toolbar);
-      border-bottom: 1px solid var(--border);
-      padding: 10px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 100;
+    header, .format-bar {
+      background: var(--bg-toolbar); border-bottom: 1px solid var(--border);
+      padding: 10px 20px; display: flex; gap: 10px; align-items: center; z-index: 100;
     }
-    .app-logo { font-weight: bold; color: var(--primary); font-size: 1.1rem; }
-    .main-toolbar, .format-bar {
-      display: flex; gap: 8px; align-items: center;
-    }
+    .format-bar { background: #f8fafc; padding: 5px 20px; }
     .btn {
       padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border);
-      background: white; cursor: pointer; font-size: 13px; transition: 0.2s;
-      color: var(--text); display: flex; align-items: center; gap: 5px;
+      background: white; cursor: pointer; font-size: 13px; color: var(--text);
+      display: flex; align-items: center; gap: 5px;
     }
-    .btn:hover:not(:disabled) { border-color: var(--primary); background: #f8fafc; }
-    .btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .btn:hover { border-color: var(--primary); background: #f8fafc; }
+    .btn.active { background: var(--primary); color: white; }
     .btn-primary { background: var(--primary); color: white; border: none; }
-    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .format-bar {
-      background: #f8fafc; border-bottom: 1px solid var(--border);
-      padding: 5px 20px;
-    }
-    #workspace {
-      flex: 1; overflow: auto; display: flex; justify-content: center;
-      padding: 30px;
-    }
-    #editor-container {
+    
+    #workspace { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 30px; transition: 0.3s; }
+    
+    #editor-wrapper {
       background: white; box-shadow: 0 30px 60px rgba(0,0,0,0.4);
-      transition: width 0.4s;
-      display: flex; flex-direction: column; width: 100%; max-width: 1200px;
+      transition: width 0.4s; width: 100%; max-width: 1200px;
+      display: flex; flex-direction: column; position: relative;
     }
-    .browser-mock {
-      height: 35px; background: #f1f5f9; border-bottom: 1px solid var(--border);
-      display: flex; align-items: center; padding: 0 15px; gap: 6px;
+    
+    /* 編集用iframeのスタイル */
+    #edit-frame {
+      width: 100%; flex: 1; border: none; background: white;
     }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #cbd5e1; }
-    #editor, #source-editor {
-      width: 100%; flex: 1; border: none; padding: 40px;
-      outline: none; min-height: 70vh; overflow-y: auto;
-    }
+    
     #source-editor {
       display: none; background: #1e1e1e; color: #9cdcfe;
-      font-family: 'Consolas', monospace; line-height: 1.6; resize: none;
+      width: 100%; flex: 1; border: none; padding: 20px;
+      font-family: monospace; line-height: 1.6; resize: none;
     }
-    .view-mobile #editor-container { width: 375px; }
-    .modal {
-      position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-      display: none; justify-content: center; align-items: center; z-index: 1000;
-    }
-    .modal.show { display: flex; }
-    .modal-content {
-      background: white; padding: 25px; border-radius: 12px; width: 450px;
-    }
-    .input-group { margin-bottom: 15px; }
-    .input-group label { display: block; margin-bottom: 5px; font-size: 12px; font-weight: bold; }
-    input[type="text"], textarea, select {
-      width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 5px;
-    }
-    .toast {
-      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: #059669; color: white; padding: 10px 25px; border-radius: 50px;
-      display: none; z-index: 2000;
-    }
+
+    .view-mobile #editor-wrapper { width: 375px; }
+    body.preview-mode #workspace { padding: 0; }
+    body.preview-mode #editor-wrapper { max-width: 100%; width: 100%; height: 100%; }
+    body.preview-mode header, body.preview-mode .format-bar { display: none; }
+
+    #exit-preview { position: fixed; bottom: 20px; right: 20px; display: none; z-index: 2000; }
+    body.preview-mode #exit-preview { display: block; }
+    .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #059669; color: white; padding: 10px 25px; border-radius: 50px; display: none; z-index: 2000; }
   </style>
 </head>
 <body class="view-desktop">
 
   <header>
-    <div class="app-logo">WebBuilder Pro</div>
-    <div class="main-toolbar">
-      <button class="btn" id="undo-btn" onclick="undo()" title="元に戻す (Ctrl+Z)">↶ 戻す</button>
-      <button class="btn" id="redo-btn" onclick="redo()" title="やり直し (Ctrl+Y)">↷ 進む</button>
-      <div style="width: 1px; height: 20px; background: #ddd; margin: 0 5px;"></div>
-      
-      <button class="btn" onclick="importHTML()">📁 開く</button>
-      <button class="btn btn-primary" onclick="saveOverwrite()" title="上書き保存 (Ctrl+S)">💾 保存</button>
-      <button class="btn" onclick="exportFinalHTML()">📤 別名で保存</button>
-
-      <div style="width: 1px; height: 20px; background: #ddd; margin: 0 5px;"></div>
-      <button class="btn active" id="btn-pc" onclick="changeView('desktop')">💻 PC</button>
-      <button class="btn" id="btn-sp" onclick="changeView('mobile')">📱 スマホ</button>
-      <button class="btn" id="btn-toggle-code" onclick="toggleEditorMode()">HTMLソース</button>
-      <button class="btn" onclick="openModal('seo-modal')">⚙️ 設定</button>
-    </div>
+    <div style="font-weight:bold; color:var(--primary)">WebBuilder Pro</div>
+    <button class="btn" onclick="execUndo()">↶ 戻す</button>
+    <button class="btn" onclick="execRedo()">↷ 進む</button>
+    <input type="file" id="file-in" accept=".html" style="display:none" onchange="importHTML(this)">
+    <button class="btn" onclick="document.getElementById('file-in').click()">📁 開く</button>
+    <button class="btn btn-primary" onclick="saveFile(false)">💾 上書き</button>
+    <button class="btn" onclick="saveFile(true)">📤 別名保存</button>
+    <button class="btn active" id="btn-pc" onclick="setView('desktop')">💻 PC</button>
+    <button class="btn" id="btn-sp" onclick="setView('mobile')">📱 スマホ</button>
+    <button class="btn" id="btn-code" onclick="toggleMode()">ソース</button>
+    <button class="btn" onclick="setPreview(true)">👁️ プレビュー</button>
   </header>
 
-  <div class="format-bar" id="fmt-bar">
-    <select onchange="doFormat('formatBlock', this.value)" style="width:120px;">
-      <option value="p">標準テキスト</option>
-      <option value="h1">大見出し H1</option>
-      <option value="h2">中見出し H2</option>
-      <option value="h3">小見出し H3</option>
-    </select>
-    <button class="btn" onclick="doFormat('bold')">B</button>
-    <button class="btn" onclick="doFormat('italic')">I</button>
-    <button class="btn" onclick="openModal('link-modal')">🔗 リンク</button>
-    <button class="btn" onclick="openModal('img-modal')">🖼️ 画像</button>
-    <input type="color" onchange="doFormat('foreColor', this.value)">
+  <div class="format-bar">
+    <button class="btn" onclick="format('bold')"><b>B</b></button>
+    <button class="btn" onclick="format('italic')"><i>I</i></button>
+    <button class="btn" onclick="format('insertUnorderedList')">• リスト</button>
+    <button class="btn" onclick="insertLink()">🔗 リンク</button>
+    <input type="color" onchange="format('foreColor', this.value)">
   </div>
 
   <div id="workspace">
-    <div id="editor-container">
-      <div class="browser-mock"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-      <div id="editor" contenteditable="true">
-        <h1>ホームページ制作エディタ</h1>
-        <p>誤って削除した場合は、左上の「戻す」ボタン、または Ctrl+Z で復元できます。</p>
-      </div>
+    <div id="editor-wrapper">
+      <iframe id="edit-frame"></iframe>
       <textarea id="source-editor" spellcheck="false"></textarea>
     </div>
   </div>
 
-  <div class="modal" id="link-modal"><div class="modal-content"><h3>リンク挿入</h3><input type="text" id="link-url" placeholder="https://"><br><br><button class="btn btn-primary" onclick="applyLink()">適用</button><button class="btn" onclick="closeModal('link-modal')">閉じる</button></div></div>
-  <div class="modal" id="img-modal"><div class="modal-content"><h3>画像挿入</h3><input type="text" id="img-src" placeholder="画像URL"><br><br><button class="btn btn-primary" onclick="applyImage()">挿入</button><button class="btn" onclick="closeModal('img-modal')">閉じる</button></div></div>
-  <div class="modal" id="seo-modal"><div class="modal-content"><h3>ページ設定</h3><div class="input-group"><label>タイトル</label><input type="text" id="seo-title"></div><div class="input-group"><label>説明</label><textarea id="seo-desc"></textarea></div><button class="btn btn-primary" onclick="closeModal('seo-modal')">保存</button></div></div>
-
-  <div class="toast" id="toast-msg"></div>
+  <button class="btn btn-primary" id="exit-preview" onclick="setPreview(false)">✕ 終了</button>
+  <div class="toast" id="toast"></div>
 
   <script>
-    const editor = document.getElementById('editor');
-    const sourceEditor = document.getElementById('source-editor');
-    
-    // --- ファイル管理変数 ---
+    const frame = document.getElementById('edit-frame');
+    const source = document.getElementById('source-editor');
     let fileHandle = null;
-
-    // --- 履歴管理システム ---
-    let historyStack = [];
-    let historyIndex = -1;
-    const maxHistory = 50;
-
-    function saveHistory() {
-      const currentContent = isCodeMode ? sourceEditor.value : editor.innerHTML;
-      if (historyIndex >= 0 && historyStack[historyIndex] === currentContent) return;
-      historyStack = historyStack.slice(0, historyIndex + 1);
-      historyStack.push(currentContent);
-      if (historyStack.length > maxHistory) {
-        historyStack.shift();
-      } else {
-        historyIndex++;
-      }
-      updateHistoryButtons();
-    }
-
-    function undo() {
-      if (historyIndex > 0) {
-        historyIndex--;
-        const content = historyStack[historyIndex];
-        if (isCodeMode) sourceEditor.value = content;
-        else editor.innerHTML = content;
-        updateHistoryButtons();
-      }
-    }
-
-    function redo() {
-      if (historyIndex < historyStack.length - 1) {
-        historyIndex++;
-        const content = historyStack[historyIndex];
-        if (isCodeMode) sourceEditor.value = content;
-        else editor.innerHTML = content;
-        updateHistoryButtons();
-      }
-    }
-
-    function updateHistoryButtons() {
-      document.getElementById('undo-btn').disabled = (historyIndex <= 0);
-      document.getElementById('redo-btn').disabled = (historyIndex >= historyStack.length - 1);
-    }
-
-    editor.addEventListener('input', () => {
-      clearTimeout(this.timer);
-      this.timer = setTimeout(saveHistory, 500);
-    });
-
-    // キーボードショートカット
-    document.addEventListener('keydown', (e) => {
-      if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z') { e.preventDefault(); undo(); }
-        if (e.key === 'y') { e.preventDefault(); redo(); }
-        if (e.key === 's') { e.preventDefault(); saveOverwrite(); }
-      }
-    });
-
-    // --- エディタ基本機能 ---
     let isCodeMode = false;
-    function doFormat(cmd, val) {
-      if(isCodeMode) return;
-      document.execCommand(cmd, false, val);
-      saveHistory();
-      editor.focus();
+
+    // iframeの初期化
+    function initFrame(content = '<html><body><h1>新規ページ</h1><p>編集を開始してください。</p></body></html>') {
+      const doc = frame.contentDocument || frame.contentWindow.document;
+      doc.open();
+      doc.write(content);
+      doc.close();
+      doc.designMode = 'on';
+      
+      // iframe内の入力を監視して履歴保存
+      doc.addEventListener('input', () => {
+        clearTimeout(this.timer);
+        this.timer = setTimeout(saveHistory, 500);
+      });
     }
 
-    function toggleEditorMode() {
+    // フォーマット実行
+    function format(cmd, val = null) {
+      frame.contentDocument.execCommand(cmd, false, val);
+      saveHistory();
+    }
+
+    function insertLink() {
+      const url = prompt("URLを入力してください:", "https://");
+      if (url) format('createLink', url);
+    }
+
+    // モード切り替え
+    function toggleMode() {
       isCodeMode = !isCodeMode;
-      const btn = document.getElementById('btn-toggle-code');
+      const doc = frame.contentDocument;
       if (isCodeMode) {
-        sourceEditor.value = editor.innerHTML;
-        editor.style.display = 'none';
-        sourceEditor.style.display = 'block';
-        btn.classList.add('active');
+        source.value = doc.documentElement.outerHTML;
+        frame.style.display = 'none';
+        source.style.display = 'block';
       } else {
-        editor.innerHTML = sourceEditor.value;
-        sourceEditor.style.display = 'none';
-        editor.style.display = 'block';
-        btn.classList.remove('active');
+        initFrame(source.value);
+        source.style.display = 'none';
+        frame.style.display = 'block';
       }
-      saveHistory();
+      document.getElementById('btn-code').classList.toggle('active', isCodeMode);
     }
 
-    function changeView(type) {
-      document.body.className = 'view-' + type;
-      document.getElementById('btn-pc').classList.toggle('active', type === 'desktop');
-      document.getElementById('btn-sp').classList.toggle('active', type === 'mobile');
+    // ファイル読み込み
+    async function importHTML(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const text = await file.text();
+      initFrame(text);
+      showToast("読み込み完了");
     }
 
-    // --- ファイル入出力機能 ---
+    // 保存機能
+    async function saveFile(isNew = false) {
+      const content = isCodeMode ? source.value : (frame.contentDocument.documentElement.outerHTML);
+      const html = content.startsWith('<!DOCTYPE') ? content : '<!DOCTYPE html>\n' + content;
 
-    // 新規読み込み（ファイルハンドル保持対応）
-    async function importHTML() {
       try {
-        if (!window.showOpenFilePicker) {
-          alert('お使いのブラウザはファイル直接操作に対応していません。');
-          return;
+        if (isNew || !fileHandle) {
+          fileHandle = await window.showSaveFilePicker({
+            suggestedName: 'index.html',
+            types: [{ description: 'HTML', accept: {'text/html': ['.html']} }]
+          });
         }
-        [fileHandle] = await window.showOpenFilePicker({
-          types: [{ description: 'HTMLファイル', accept: {'text/html': ['.html']} }],
-          multiple: false
-        });
-        const file = await fileHandle.getFile();
-        const text = await file.text();
-        const doc = new DOMParser().parseFromString(text, 'text/html');
-        document.getElementById('seo-title').value = doc.title || '';
-        editor.innerHTML = doc.body.innerHTML;
-        saveHistory();
-        showToast('読み込み完了');
-      } catch (err) {
-        console.warn('キャンセルされました');
-      }
-    }
-
-    // 上書き保存
-    async function saveOverwrite() {
-      if (!fileHandle) {
-        return exportFinalHTML(); // ハンドルがなければ別名保存へ
-      }
-      try {
-        const content = isCodeMode ? sourceEditor.value : editor.innerHTML;
-        const title = document.getElementById('seo-title').value || 'My Page';
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title></head><body>${content}</body></html>`;
-        
         const writable = await fileHandle.createWritable();
         await writable.write(html);
         await writable.close();
-        showToast('上書き保存完了');
-      } catch (err) {
-        console.error(err);
-        showToast('保存エラーが発生しました');
-      }
+        showToast("保存完了");
+      } catch (e) { console.error(e); }
     }
 
-    // 別名で保存（エクスポート）
-    async function exportFinalHTML() {
-      const content = isCodeMode ? sourceEditor.value : editor.innerHTML;
-      const title = document.getElementById('seo-title').value || 'My Page';
-      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title></head><body>${content}</body></html>`;
+    // 履歴管理
+    let history = [];
+    let hIdx = -1;
+    function saveHistory() {
+      const cur = isCodeMode ? source.value : frame.contentDocument.documentElement.outerHTML;
+      if (history[hIdx] === cur) return;
+      history = history.slice(0, hIdx + 1);
+      history.push(cur);
+      hIdx++;
+    }
+    function execUndo() { if (hIdx > 0) { hIdx--; applyH(); } }
+    function execRedo() { if (hIdx < history.length - 1) { hIdx++; applyH(); } }
+    function applyH() {
+      if (isCodeMode) source.value = history[hIdx];
+      else initFrame(history[hIdx]);
+    }
 
-      if (window.showSaveFilePicker) {
-        try {
-          fileHandle = await window.showSaveFilePicker({
-            suggestedName: 'index.html',
-            types: [{ description: 'HTMLファイル', accept: {'text/html': ['.html']} }]
-          });
-          const writable = await fileHandle.createWritable();
-          await writable.write(html);
-          await writable.close();
-          showToast('保存完了');
-        } catch (err) { console.warn('保存キャンセル'); }
+    // UI制御
+    function setView(v) {
+      document.body.className = 'view-' + v;
+      document.getElementById('btn-pc').classList.toggle('active', v==='desktop');
+      document.getElementById('btn-sp').classList.toggle('active', v==='mobile');
+    }
+
+    function setPreview(on) {
+      if (on) {
+        if (isCodeMode) toggleMode();
+        frame.contentDocument.designMode = 'off';
+        document.body.classList.add('preview-mode');
       } else {
-        // 非対応ブラウザ用フォールバック
-        const blob = new Blob([html], {type: 'text/html'});
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'index.html';
-        a.click();
+        frame.contentDocument.designMode = 'on';
+        document.body.classList.remove('preview-mode');
       }
     }
 
-    function openModal(id) { document.getElementById(id).classList.add('show'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
-
-    function applyLink() {
-      const url = document.getElementById('link-url').value;
-      if(url) doFormat('createLink', url);
-      closeModal('link-modal');
-    }
-
-    function applyImage() {
-      const src = document.getElementById('img-src').value;
-      if(src) doFormat('insertHTML', `<img src="${src}">`);
-      closeModal('img-modal');
-    }
-
-    function showToast(msg) {
-      const t = document.getElementById('toast-msg');
-      t.textContent = msg; t.style.display = 'block';
+    function showToast(m) {
+      const t = document.getElementById('toast');
+      t.textContent = m; t.style.display = 'block';
       setTimeout(() => t.style.display = 'none', 2000);
     }
 
-    window.onload = () => {
-      saveHistory();
-    };
+    window.onload = () => { initFrame(); saveHistory(); };
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveFile(); }
+    });
   </script>
 </body>
 </html>
