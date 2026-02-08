@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>PDF → PNG 変換ツール（1ページ・高画質）</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+      background: #f5f6f8;
+      margin: 20px;
+      color: #222;
+    }
+    .panel {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      max-width: 900px;
+      margin: 0 auto 18px auto;
+    }
+    h1 {
+      font-size: 18px;
+      margin: 0 0 12px 0;
+    }
+    label { font-weight: 700; display:block; margin-top:8px; }
+    input[type="file"], input[type="number"] { margin-top:6px; }
+    .controls { margin-top:12px; }
+    button {
+      padding: 8px 14px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button#convertBtn { background:#0078d4; color:#fff; }
+    button#downloadBtn { background:#107c10; color:#fff; margin-left:8px; }
+    button:disabled { background:#cfcfcf; cursor:not-allowed; color:#666; }
+    #status { margin-top:10px; font-size:13px; color:#333; white-space:pre-line; }
+    #previewWrapper { margin-top:14px; display:none; border:1px solid #e6e6e6; padding:8px; border-radius:6px; background:#fff; }
+    #preview { max-width:100%; height:auto; display:block; margin:0 auto; }
+    .note { font-size:12px; color:#666; margin-left:4px; }
+  </style>
+
+  <!-- 安定版 pdf.js を読み込む（v2.16.105） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    // workerSrc を明示的に設定（CDNのworkerファイル）
+    if (window.pdfjsLib) {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+    }
+  </script>
+</head>
+<body>
+  <div class="panel">
+    <h1>PDF → PNG 変換ツール（1ページ・高画質・ローカル処理）</h1>
+
+    <label for="pdfFile">PDFファイルを選択</label>
+    <input id="pdfFile" type="file" accept="application/pdf" />
+
+    <label for="pageNumber">ページ番号（1始まり）</label>
+    <input id="pageNumber" type="number" value="1" min="1" style="width:100px;" />
+
+    <label for="dpi">解像度（DPI） <span class="note">※300〜600推奨（印刷用途なら600）</span></label>
+    <input id="dpi" type="number" value="300" min="72" max="1200" style="width:120px;" />
+
+    <div class="controls">
+      <button id="convertBtn">変換する（PDF → PNG）</button>
+      <button id="downloadBtn" disabled>PNGをダウンロード</button>
+    </div>
+
+    <div id="status">準備完了。PDFを選択して「変換する」を押してください。</div>
+
+    <div id="previewWrapper">
+      <img id="preview" alt="変換結果プレビュー" />
+    </div>
+  </div>
+
+  <script>
+    const pdfInput = document.getElementById("pdfFile");
+    const pageInput = document.getElementById("pageNumber");
+    const dpiInput = document.getElementById("dpi");
+    const convertBtn = document.getElementById("convertBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const statusEl = document.getElementById("status");
+    const previewWrapper = document.getElementById("previewWrapper");
+    const previewImg = document.getElementById("preview");
+
+    let lastBlobUrl = null;
+    let lastFileName = "output";
+
+    function setStatus(msg) {
+      statusEl.textContent = msg;
+    }
+
+    function arrayBufferFromFile(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = e => reject(e);
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    // メイン変換処理
+    async function convertPdfToPng() {
+      const file = pdfInput.files[0];
+      if (!file) {
+        setStatus("PDFファイルが選択されていません。");
+        return;
+      }
+
+      const pageNumber = parseInt(pageInput.value, 10);
+      const dpi = parseInt(dpiInput.value, 10);
+
+      if (isNaN(pageNumber) || pageNumber < 1) {
+        setStatus("ページ番号は1以上の整数を指定してください。");
+        return;
+      }
+      if (isNaN(dpi) || dpi < 72 || dpi > 1200) {
+        setStatus("DPIは72〜1200の範囲で指定してください。");
+        return;
+      }
+
+      convertBtn.disabled = true;
+      downloadBtn.disabled = true;
+      previewWrapper.style.display = "none";
+      setStatus("PDFを読み込み中…");
+
+      try {
+        const arrayBuffer = await arrayBufferFromFile(file);
+
+        // pdf.js のドキュメント読み込み
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+
+        if (pageNumber > pdf.numPages) {
+          setStatus(`指定されたページ番号がPDFの総ページ数(${pdf.numPages})を超えています。`);
+          convertBtn.disabled = false;
+          return;
+        }
+
+        setStatus(`ページ ${pageNumber} をレンダリング中（${dpi} DPI）…`);
+
+        const page = await pdf.getPage(pageNumber);
+
+        // pdf.js のデフォルトは 96 DPI 相当なので、スケールを DPI 比で調整
+        const scale = dpi / 96;
+        const viewport = page.getViewport({ scale });
+
+        // 最大ピクセル数を設定して巨大キャンバスを防ぐ
+        const MAX_PIXELS = 10000; // 幅・高さの上限（必要に応じて調整）
+        const width = Math.min(Math.ceil(viewport.width), MAX_PIXELS);
+        const height = Math.min(Math.ceil(viewport.height), MAX_PIXELS);
+
+        if (viewport.width > MAX_PIXELS || viewport.height > MAX_PIXELS) {
+          setStatus(`指定したDPIでの出力サイズが大きすぎるため、最大ピクセル数に合わせて縮小してレンダリングします。 (${width}×${height})`);
+        }
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        canvas.width = width;
+        canvas.height = height;
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+
+        // 白背景で塗りつぶす（透明ではなく印刷向けに白背景）
+        context.save();
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.restore();
+
+        // ページレンダリング時にviewportを再計算（幅・高さが切り詰められた場合のスケール補正）
+        const renderScaleX = width / viewport.width;
+        const renderScaleY = height / viewport.height;
+        const renderViewport = page.getViewport({ scale: scale * Math.min(renderScaleX, renderScaleY) });
+
+        const renderContext = {
+          canvasContext: context,
+          viewport: renderViewport
+        };
+
+        // レンダリング実行
+        const renderTask = page.render(renderContext);
+        await renderTask.promise;
+
+        // Blobで取得してダウンロード用に保持（DataURLよりメモリ効率が良い）
+        await new Promise((resolve) => {
+          // canvas.toBlob が利用可能ならそれを使う
+          if (canvas.toBlob) {
+            canvas.toBlob(blob => {
+              // 既存のURLがあれば解放
+              if (lastBlobUrl) {
+                URL.revokeObjectURL(lastBlobUrl);
+                lastBlobUrl = null;
+              }
+              lastBlobUrl = URL.createObjectURL(blob);
+              lastFileName = file.name.replace(/\.pdf$/i, "") + `_p${pageNumber}_${dpi}dpi`;
+              previewImg.src = lastBlobUrl;
+              previewWrapper.style.display = "block";
+              downloadBtn.disabled = false;
+              setStatus("変換完了。プレビューを確認し、「PNGをダウンロード」で保存できます。");
+              resolve();
+            }, "image/png", 1.0);
+          } else {
+            // 互換フォールバック：toDataURL を使って fetch で blob に変換
+            const dataUrl = canvas.toDataURL("image/png");
+            fetch(dataUrl).then(res => res.blob()).then(blob => {
+              if (lastBlobUrl) {
+                URL.revokeObjectURL(lastBlobUrl);
+                lastBlobUrl = null;
+              }
+              lastBlobUrl = URL.createObjectURL(blob);
+              lastFileName = file.name.replace(/\.pdf$/i, "") + `_p${pageNumber}_${dpi}dpi`;
+              previewImg.src = lastBlobUrl;
+              previewWrapper.style.display = "block";
+              downloadBtn.disabled = false;
+              setStatus("変換完了。プレビューを確認し、「PNGをダウンロード」で保存できます。");
+              resolve();
+            }).catch(e => {
+              console.error("toDataURL->blob 変換エラー:", e);
+              setStatus("変換後の処理でエラーが発生しました。コンソールを確認してください。");
+              resolve();
+            });
+          }
+        });
+
+      } catch (err) {
+        console.error("変換エラー:", err);
+        // ユーザー向けに分かりやすいメッセージを表示
+        let msg = "変換中にエラーが発生しました。";
+        if (err && err.message) {
+          msg += ` エラー: ${err.message}`;
+        }
+        msg += "（詳細はブラウザのコンソールを確認してください）";
+        setStatus(msg);
+      } finally {
+        convertBtn.disabled = false;
+      }
+    }
+
+    // ダウンロード処理（Blob URL を使う）
+    function downloadPng() {
+      if (!lastBlobUrl) return;
+      const a = document.createElement("a");
+      a.href = lastBlobUrl;
+      a.download = lastFileName + ".png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+
+    convertBtn.addEventListener("click", convertPdfToPng);
+    downloadBtn.addEventListener("click", downloadPng);
+
+    // ページ読み込み時の簡易チェック
+    window.addEventListener("load", () => {
+      if (!window.pdfjsLib) {
+        setStatus("pdf.js が読み込まれていません。ネットワーク接続を確認してください。");
+        convertBtn.disabled = true;
+      }
+    });
+  </script>
+</body>
+</html>
