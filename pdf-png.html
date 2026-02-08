@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
-  <title>PDF → PNG 変換ツール（1ページ・高画質）</title>
+  <title>PDF → PNG / JPG 変換ツール（複数ページ・トリミング・リサイズ・透過対応）</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body {
@@ -16,15 +16,12 @@
       border-radius: 10px;
       padding: 18px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      max-width: 900px;
+      max-width: 980px;
       margin: 0 auto 18px auto;
     }
-    h1 {
-      font-size: 18px;
-      margin: 0 0 12px 0;
-    }
+    h1 { font-size: 18px; margin: 0 0 12px 0; }
     label { font-weight: 700; display:block; margin-top:8px; }
-    input[type="file"], input[type="number"] { margin-top:6px; }
+    input[type="file"], input[type="number"], select, input[type="text"] { margin-top:6px; }
     .controls { margin-top:12px; }
     button {
       padding: 8px 14px;
@@ -40,12 +37,25 @@
     #previewWrapper { margin-top:14px; display:none; border:1px solid #e6e6e6; padding:8px; border-radius:6px; background:#fff; }
     #preview { max-width:100%; height:auto; display:block; margin:0 auto; }
     .note { font-size:12px; color:#666; margin-left:4px; }
+    .preset-buttons { margin-top:6px; }
+    .preset-buttons button { padding:6px 10px; margin-right:6px; font-weight:600; border-radius:6px; background:#eee; border:1px solid #ddd; cursor:pointer; }
+    .preset-buttons button.active { background:#0078d4; color:#fff; border-color:#0078d4; }
+    .row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .inline { display:inline-block; margin-right:12px; }
+    .small { font-size:13px; color:#444; }
+    .section { margin-top:12px; padding-top:12px; border-top:1px dashed #eee; }
+    .flex { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    .checkbox-label { font-weight:600; margin-left:6px; }
+    .range-input { width:140px; }
   </style>
 
-  <!-- 安定版 pdf.js を読み込む（v2.16.105） -->
+  <!-- pdf.js（安定版） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <!-- JSZip と FileSaver（複数ファイルをZIPでダウンロードするため） -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
   <script>
-    // workerSrc を明示的に設定（CDNのworkerファイル）
     if (window.pdfjsLib) {
       pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
@@ -54,20 +64,76 @@
 </head>
 <body>
   <div class="panel">
-    <h1>PDF → PNG 変換ツール（1ページ・高画質・ローカル処理）</h1>
+    <h1>PDF → PNG / JPG 変換ツール（複数ページ・トリミング・リサイズ・透過対応）</h1>
 
     <label for="pdfFile">PDFファイルを選択</label>
     <input id="pdfFile" type="file" accept="application/pdf" />
 
-    <label for="pageNumber">ページ番号（1始まり）</label>
-    <input id="pageNumber" type="number" value="1" min="1" style="width:100px;" />
+    <div class="section">
+      <div class="flex">
+        <div>
+          <label for="pageNumber">ページ番号（1始まり）</label>
+          <input id="pageNumber" type="number" value="1" min="1" style="width:100px;" />
+        </div>
 
-    <label for="dpi">解像度（DPI） <span class="note">※300〜600推奨（印刷用途なら600）</span></label>
-    <input id="dpi" type="number" value="300" min="72" max="1200" style="width:120px;" />
+        <div>
+          <label class="small"><input id="allPages" type="checkbox" /> <span class="checkbox-label">全ページを一括処理</span></label>
+        </div>
+
+        <div>
+          <label for="dpi">解像度（DPI） <span class="note">※150 / 300 / 600 推奨（印刷用途なら600）</span></label>
+          <div class="row">
+            <input id="dpi" type="number" value="300" min="72" max="1200" style="width:120px;" />
+            <div class="preset-buttons" aria-hidden="true">
+              <button type="button" data-dpi="150" id="preset150">150 DPI</button>
+              <button type="button" data-dpi="300" id="preset300" class="active">300 DPI</button>
+              <button type="button" data-dpi="600" id="preset600">600 DPI</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <label for="formatSelect">出力フォーマット</label>
+      <select id="formatSelect" style="width:160px; margin-top:6px;">
+        <option value="png" selected>PNG（透過オプションあり）</option>
+        <option value="jpg">JPG（JPEG）</option>
+      </select>
+
+      <div class="flex" style="margin-top:8px;">
+        <label><input id="transparentCheckbox" type="checkbox" /> <span class="checkbox-label">透過PNG出力（PNG選択時のみ有効）</span></label>
+        <label><input id="autoTrim" type="checkbox" checked /> <span class="checkbox-label">自動トリミング（余白除去）</span></label>
+        <label><input id="keepAspect" type="checkbox" checked /> <span class="checkbox-label">アスペクト比を固定してリサイズ</span></label>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label>リサイズ（ピクセル指定）</label>
+        <div class="flex">
+          <div>
+            <div class="small">幅（px）</div>
+            <input id="targetWidth" type="number" min="1" placeholder="自動" style="width:120px;" />
+          </div>
+          <div>
+            <div class="small">高さ（px）</div>
+            <input id="targetHeight" type="number" min="1" placeholder="自動" style="width:120px;" />
+          </div>
+          <div>
+            <div class="small">余白パディング（px）</div>
+            <input id="trimPadding" type="number" value="8" min="0" style="width:100px;" />
+          </div>
+          <div>
+            <div class="small">トリミング閾値（0-255）</div>
+            <input id="trimThreshold" type="number" value="250" min="0" max="255" style="width:100px;" />
+          </div>
+        </div>
+        <div class="note" style="margin-top:6px;">※トリミングは白に近い領域を余白とみなします。閾値を下げるとより多くのピクセルが「内容」と判定されます。</div>
+      </div>
+    </div>
 
     <div class="controls">
-      <button id="convertBtn">変換する（PDF → PNG）</button>
-      <button id="downloadBtn" disabled>PNGをダウンロード</button>
+      <button id="convertBtn">変換する（PDF → 画像）</button>
+      <button id="downloadBtn" disabled>画像をダウンロード</button>
     </div>
 
     <div id="status">準備完了。PDFを選択して「変換する」を押してください。</div>
@@ -78,22 +144,43 @@
   </div>
 
   <script>
+    // UI要素
     const pdfInput = document.getElementById("pdfFile");
     const pageInput = document.getElementById("pageNumber");
+    const allPagesCheckbox = document.getElementById("allPages");
     const dpiInput = document.getElementById("dpi");
+    const presetButtons = document.querySelectorAll(".preset-buttons button");
+    const formatSelect = document.getElementById("formatSelect");
+    const transparentCheckbox = document.getElementById("transparentCheckbox");
+    const autoTrimCheckbox = document.getElementById("autoTrim");
+    const keepAspectCheckbox = document.getElementById("keepAspect");
+    const targetWidthInput = document.getElementById("targetWidth");
+    const targetHeightInput = document.getElementById("targetHeight");
+    const trimPaddingInput = document.getElementById("trimPadding");
+    const trimThresholdInput = document.getElementById("trimThreshold");
     const convertBtn = document.getElementById("convertBtn");
     const downloadBtn = document.getElementById("downloadBtn");
     const statusEl = document.getElementById("status");
     const previewWrapper = document.getElementById("previewWrapper");
     const previewImg = document.getElementById("preview");
 
-    let lastBlobUrl = null;
-    let lastFileName = "output";
+    // 内部状態
+    let lastBlobs = []; // {name, blob, mime}
+    let lastFileBase = "output";
 
-    function setStatus(msg) {
-      statusEl.textContent = msg;
-    }
+    // プリセットボタン動作
+    presetButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        presetButtons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        dpiInput.value = btn.getAttribute("data-dpi");
+      });
+    });
 
+    // ステータス表示
+    function setStatus(msg) { statusEl.textContent = msg; }
+
+    // ファイルをArrayBufferで読む
     function arrayBufferFromFile(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -103,23 +190,203 @@
       });
     }
 
-    // メイン変換処理
-    async function convertPdfToPng() {
+    // 画像のトリミング（白背景を余白とみなす）
+    function autoTrimCanvas(canvas, threshold = 250, padding = 0) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const img = ctx.getImageData(0, 0, w, h);
+      const data = img.data;
+
+      let top = h, left = w, right = 0, bottom = 0;
+      let found = false;
+
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const i = (y * w + x) * 4;
+          const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+          // 白に近いかどうかを判定（アルファが小さい場合は内容とみなす）
+          const brightness = (r + g + b) / 3;
+          const isContent = (a > 16) && (brightness < threshold);
+          if (isContent) {
+            found = true;
+            if (x < left) left = x;
+            if (x > right) right = x;
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
+          }
+        }
+      }
+
+      if (!found) {
+        // 内容が見つからない場合は全体を返す
+        return { canvas, rect: { x:0, y:0, w, h } };
+      }
+
+      // パディングを適用
+      left = Math.max(0, left - padding);
+      top = Math.max(0, top - padding);
+      right = Math.min(w - 1, right + padding);
+      bottom = Math.min(h - 1, bottom + padding);
+
+      const newW = right - left + 1;
+      const newH = bottom - top + 1;
+
+      const outCanvas = document.createElement("canvas");
+      outCanvas.width = newW;
+      outCanvas.height = newH;
+      const outCtx = outCanvas.getContext("2d");
+      outCtx.drawImage(canvas, left, top, newW, newH, 0, 0, newW, newH);
+
+      return { canvas: outCanvas, rect: { x:left, y:top, w:newW, h:newH } };
+    }
+
+    // 白背景を透明に変換（透過PNGオプション）
+    function convertWhiteToTransparent(canvas, threshold = 250) {
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width, h = canvas.height;
+      const img = ctx.getImageData(0, 0, w, h);
+      const data = img.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const brightness = (r + g + b) / 3;
+        if (brightness >= threshold) {
+          // 白に近いピクセルを透明に
+          data[i+3] = 0;
+        }
+      }
+      ctx.putImageData(img, 0, 0);
+    }
+
+    // 指定サイズにリサイズ（アスペクト比固定オプション対応）
+    function resizeCanvas(canvas, targetW, targetH, keepAspect = true) {
+      const srcW = canvas.width, srcH = canvas.height;
+      if (!targetW && !targetH) return canvas;
+      if (keepAspect) {
+        if (targetW && !targetH) {
+          targetH = Math.round((targetW / srcW) * srcH);
+        } else if (!targetW && targetH) {
+          targetW = Math.round((targetH / srcH) * srcW);
+        } else if (targetW && targetH) {
+          const ratio = Math.min(targetW / srcW, targetH / srcH);
+          targetW = Math.round(srcW * ratio);
+          targetH = Math.round(srcH * ratio);
+        }
+      } else {
+        if (!targetW) targetW = srcW;
+        if (!targetH) targetH = srcH;
+      }
+      const out = document.createElement("canvas");
+      out.width = targetW;
+      out.height = targetH;
+      const ctx = out.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0,0,targetW,targetH);
+      ctx.drawImage(canvas, 0, 0, targetW, targetH);
+      return out;
+    }
+
+    // 単一ページをレンダリングして加工してBlobを返す
+    async function renderPageToBlob(pdf, pageNumber, options) {
+      const { dpi, autoTrim, trimThreshold, trimPadding, keepAspect, targetW, targetH, format, transparent } = options;
+      const page = await pdf.getPage(pageNumber);
+      const scale = dpi / 96;
+      const viewport = page.getViewport({ scale });
+
+      // 最大ピクセル数を設定して巨大キャンバスを防ぐ
+      const MAX_PIXELS = 10000;
+      const width = Math.min(Math.ceil(viewport.width), MAX_PIXELS);
+      const height = Math.min(Math.ceil(viewport.height), MAX_PIXELS);
+
+      if (viewport.width > MAX_PIXELS || viewport.height > MAX_PIXELS) {
+        console.warn(`Viewport exceeds MAX_PIXELS, clipped to ${width}x${height}`);
+      }
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.width = width + "px";
+      canvas.style.height = height + "px";
+
+      // 白背景で塗りつぶす（透過オプション時は一旦白でレンダリングして後で透明化）
+      ctx.save();
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
+
+      // レンダリング時にviewportを再計算（幅・高さが切り詰められた場合のスケール補正）
+      const renderScaleX = width / viewport.width;
+      const renderScaleY = height / viewport.height;
+      const renderViewport = page.getViewport({ scale: scale * Math.min(renderScaleX, renderScaleY) });
+
+      await page.render({ canvasContext: ctx, viewport: renderViewport }).promise;
+
+      let workingCanvas = canvas;
+
+      // 自動トリミング
+      if (autoTrim) {
+        const trimmed = autoTrimCanvas(workingCanvas, trimThreshold, trimPadding);
+        workingCanvas = trimmed.canvas;
+      }
+
+      // 透過処理（PNG選択時のみ）
+      if (transparent && format === "png") {
+        convertWhiteToTransparent(workingCanvas, trimThreshold);
+      }
+
+      // リサイズ（アスペクト比固定オプション対応）
+      if (targetW || targetH) {
+        workingCanvas = resizeCanvas(workingCanvas, targetW, targetH, keepAspect);
+      }
+
+      // Blob生成
+      const mime = (format === "jpg") ? "image/jpeg" : "image/png";
+      const quality = (format === "jpg") ? 0.92 : 1.0;
+
+      const blob = await new Promise((resolve) => {
+        if (workingCanvas.toBlob) {
+          workingCanvas.toBlob(b => resolve(b), mime, quality);
+        } else {
+          // フォールバック
+          const dataUrl = workingCanvas.toDataURL(mime, quality);
+          fetch(dataUrl).then(r => r.blob()).then(b => resolve(b));
+        }
+      });
+
+      return { blob, width: workingCanvas.width, height: workingCanvas.height, mime };
+    }
+
+    // メイン処理（複数ページ対応）
+    async function convertPdfToImages() {
       const file = pdfInput.files[0];
       if (!file) {
         setStatus("PDFファイルが選択されていません。");
         return;
       }
 
-      const pageNumber = parseInt(pageInput.value, 10);
       const dpi = parseInt(dpiInput.value, 10);
+      const format = formatSelect.value; // 'png' or 'jpg'
+      const transparent = transparentCheckbox.checked && format === "png";
+      const autoTrim = autoTrimCheckbox.checked;
+      const keepAspect = keepAspectCheckbox.checked;
+      const trimThreshold = parseInt(trimThresholdInput.value, 10) || 250;
+      const trimPadding = parseInt(trimPaddingInput.value, 10) || 0;
+      const targetW = parseInt(targetWidthInput.value, 10) || null;
+      const targetH = parseInt(targetHeightInput.value, 10) || null;
+      const allPages = allPagesCheckbox.checked;
+      const pageNumber = parseInt(pageInput.value, 10);
 
-      if (isNaN(pageNumber) || pageNumber < 1) {
+      if (isNaN(dpi) || dpi < 72 || dpi > 1200) {
+        setStatus("DPIは72〜1200の範囲で指定してください。");
+        return;
+      }
+      if (!allPages && (isNaN(pageNumber) || pageNumber < 1)) {
         setStatus("ページ番号は1以上の整数を指定してください。");
         return;
       }
-      if (isNaN(dpi) || dpi < 72 || dpi > 1200) {
-        setStatus("DPIは72〜1200の範囲で指定してください。");
+      if (transparent && format !== "png") {
+        setStatus("透過オプションはPNG出力時のみ有効です。フォーマットをPNGにしてください。");
         return;
       }
 
@@ -130,110 +397,61 @@
 
       try {
         const arrayBuffer = await arrayBufferFromFile(file);
-
-        // pdf.js のドキュメント読み込み
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
         const pdf = await loadingTask.promise;
 
-        if (pageNumber > pdf.numPages) {
-          setStatus(`指定されたページ番号がPDFの総ページ数(${pdf.numPages})を超えています。`);
+        let pagesToProcess = [];
+        if (allPages) {
+          for (let i = 1; i <= pdf.numPages; i++) pagesToProcess.push(i);
+        } else {
+          if (pageNumber > pdf.numPages) {
+            setStatus(`指定されたページ番号がPDFの総ページ数(${pdf.numPages})を超えています。`);
+            convertBtn.disabled = false;
+            return;
+          }
+          pagesToProcess = [pageNumber];
+        }
+
+        setStatus(`ページ ${pagesToProcess.join(", ")} をレンダリング中（${dpi} DPI、出力: ${format.toUpperCase()}）…`);
+
+        lastBlobs = [];
+        lastFileBase = file.name.replace(/\.pdf$/i, "");
+
+        // 処理ループ（逐次処理でメモリ負荷を抑える）
+        for (let idx = 0; idx < pagesToProcess.length; idx++) {
+          const p = pagesToProcess[idx];
+          setStatus(`レンダリング中: ページ ${p} (${idx+1}/${pagesToProcess.length}) ...`);
+          try {
+            const result = await renderPageToBlob(pdf, p, {
+              dpi, autoTrim, trimThreshold, trimPadding, keepAspect, targetW, targetH, format, transparent
+            });
+            const name = `${lastFileBase}_p${p}_${dpi}dpi${transparent && format==="png" ? "_trans" : ""}${format==="jpg" ? ".jpg" : ".png"}`;
+            lastBlobs.push({ name, blob: result.blob, mime: result.mime, width: result.width, height: result.height });
+            // プレビューは最後に1つだけ表示（最後に処理したページ）
+            const previewUrl = URL.createObjectURL(result.blob);
+            previewImg.src = previewUrl;
+            previewWrapper.style.display = "block";
+            // 少し待ってから次ページへ（UI更新のため）
+            await new Promise(r => setTimeout(r, 150));
+          } catch (e) {
+            console.error(`ページ ${p} の処理でエラー:`, e);
+            setStatus(`ページ ${p} の処理でエラーが発生しました。コンソールを確認してください。`);
+          }
+        }
+
+        if (lastBlobs.length === 0) {
+          setStatus("変換に失敗しました。コンソールを確認してください。");
           convertBtn.disabled = false;
           return;
         }
 
-        setStatus(`ページ ${pageNumber} をレンダリング中（${dpi} DPI）…`);
-
-        const page = await pdf.getPage(pageNumber);
-
-        // pdf.js のデフォルトは 96 DPI 相当なので、スケールを DPI 比で調整
-        const scale = dpi / 96;
-        const viewport = page.getViewport({ scale });
-
-        // 最大ピクセル数を設定して巨大キャンバスを防ぐ
-        const MAX_PIXELS = 10000; // 幅・高さの上限（必要に応じて調整）
-        const width = Math.min(Math.ceil(viewport.width), MAX_PIXELS);
-        const height = Math.min(Math.ceil(viewport.height), MAX_PIXELS);
-
-        if (viewport.width > MAX_PIXELS || viewport.height > MAX_PIXELS) {
-          setStatus(`指定したDPIでの出力サイズが大きすぎるため、最大ピクセル数に合わせて縮小してレンダリングします。 (${width}×${height})`);
-        }
-
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-
-        canvas.width = width;
-        canvas.height = height;
-        canvas.style.width = width + "px";
-        canvas.style.height = height + "px";
-
-        // 白背景で塗りつぶす（透明ではなく印刷向けに白背景）
-        context.save();
-        context.fillStyle = "#ffffff";
-        context.fillRect(0, 0, canvas.width, canvas.height);
-        context.restore();
-
-        // ページレンダリング時にviewportを再計算（幅・高さが切り詰められた場合のスケール補正）
-        const renderScaleX = width / viewport.width;
-        const renderScaleY = height / viewport.height;
-        const renderViewport = page.getViewport({ scale: scale * Math.min(renderScaleX, renderScaleY) });
-
-        const renderContext = {
-          canvasContext: context,
-          viewport: renderViewport
-        };
-
-        // レンダリング実行
-        const renderTask = page.render(renderContext);
-        await renderTask.promise;
-
-        // Blobで取得してダウンロード用に保持（DataURLよりメモリ効率が良い）
-        await new Promise((resolve) => {
-          // canvas.toBlob が利用可能ならそれを使う
-          if (canvas.toBlob) {
-            canvas.toBlob(blob => {
-              // 既存のURLがあれば解放
-              if (lastBlobUrl) {
-                URL.revokeObjectURL(lastBlobUrl);
-                lastBlobUrl = null;
-              }
-              lastBlobUrl = URL.createObjectURL(blob);
-              lastFileName = file.name.replace(/\.pdf$/i, "") + `_p${pageNumber}_${dpi}dpi`;
-              previewImg.src = lastBlobUrl;
-              previewWrapper.style.display = "block";
-              downloadBtn.disabled = false;
-              setStatus("変換完了。プレビューを確認し、「PNGをダウンロード」で保存できます。");
-              resolve();
-            }, "image/png", 1.0);
-          } else {
-            // 互換フォールバック：toDataURL を使って fetch で blob に変換
-            const dataUrl = canvas.toDataURL("image/png");
-            fetch(dataUrl).then(res => res.blob()).then(blob => {
-              if (lastBlobUrl) {
-                URL.revokeObjectURL(lastBlobUrl);
-                lastBlobUrl = null;
-              }
-              lastBlobUrl = URL.createObjectURL(blob);
-              lastFileName = file.name.replace(/\.pdf$/i, "") + `_p${pageNumber}_${dpi}dpi`;
-              previewImg.src = lastBlobUrl;
-              previewWrapper.style.display = "block";
-              downloadBtn.disabled = false;
-              setStatus("変換完了。プレビューを確認し、「PNGをダウンロード」で保存できます。");
-              resolve();
-            }).catch(e => {
-              console.error("toDataURL->blob 変換エラー:", e);
-              setStatus("変換後の処理でエラーが発生しました。コンソールを確認してください。");
-              resolve();
-            });
-          }
-        });
+        setStatus(`変換完了。${lastBlobs.length} ファイルを生成しました。ダウンロードしてください。`);
+        downloadBtn.disabled = false;
 
       } catch (err) {
         console.error("変換エラー:", err);
-        // ユーザー向けに分かりやすいメッセージを表示
         let msg = "変換中にエラーが発生しました。";
-        if (err && err.message) {
-          msg += ` エラー: ${err.message}`;
-        }
+        if (err && err.message) msg += ` エラー: ${err.message}`;
         msg += "（詳細はブラウザのコンソールを確認してください）";
         setStatus(msg);
       } finally {
@@ -241,25 +459,46 @@
       }
     }
 
-    // ダウンロード処理（Blob URL を使う）
-    function downloadPng() {
-      if (!lastBlobUrl) return;
-      const a = document.createElement("a");
-      a.href = lastBlobUrl;
-      a.download = lastFileName + ".png";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+    // ダウンロード処理：単一なら直接、複数ならZIPでまとめる
+    async function downloadResults() {
+      if (!lastBlobs || lastBlobs.length === 0) return;
+      if (lastBlobs.length === 1) {
+        const item = lastBlobs[0];
+        saveAs(item.blob, item.name);
+      } else {
+        // ZIPにまとめる
+        setStatus("ZIPを作成中…");
+        const zip = new JSZip();
+        for (const item of lastBlobs) {
+          zip.file(item.name, item.blob);
+        }
+        const content = await zip.generateAsync({ type: "blob" }, metadata => {
+          // 進捗表示（任意）
+          setStatus(`ZIP作成中… ${Math.round(metadata.percent)}%`);
+        });
+        saveAs(content, `${lastFileBase}_images.zip`);
+        setStatus("ダウンロードを開始しました。");
+      }
     }
 
-    convertBtn.addEventListener("click", convertPdfToPng);
-    downloadBtn.addEventListener("click", downloadPng);
+    convertBtn.addEventListener("click", convertPdfToImages);
+    downloadBtn.addEventListener("click", downloadResults);
 
-    // ページ読み込み時の簡易チェック
+    // 初期チェック
     window.addEventListener("load", () => {
       if (!window.pdfjsLib) {
         setStatus("pdf.js が読み込まれていません。ネットワーク接続を確認してください。");
         convertBtn.disabled = true;
+      }
+    });
+
+    // フォーマット変更時の注意表示（透過オプションとの整合）
+    formatSelect.addEventListener("change", () => {
+      if (formatSelect.value !== "png") {
+        transparentCheckbox.checked = false;
+        transparentCheckbox.disabled = true;
+      } else {
+        transparentCheckbox.disabled = false;
       }
     });
   </script>
