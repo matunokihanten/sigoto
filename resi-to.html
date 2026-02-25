@@ -1,89 +1,67 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>レシート入力アプリ - 連続複製・高速入力版</title>
-<style>
-  :root{
-    --bg:#f6f8fb; --card:#fff; --accent:#0b69ff; --muted:#6b7280; --grid:#cbd5e1;
-    --success:#10b981; --danger:#ef4444; --orange:#f59e0b;
-  }
-  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;background:var(--bg);color:#111}
-  .wrap{max-width:1250px;margin:20px auto;padding:18px}
-  h1{font-size:18px;margin:0 0 12px; display:flex; align-items:center; gap:10px;}
-  .badge{background:#e0f2fe; color:var(--accent); font-size:11px; padding:2px 6px; border-radius:4px; border:1px solid #bae6fd;}
-  
-  .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 6px rgba(16,24,40,0.06); position:relative;}
-  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #eee}
-  
-  button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px; transition:all 0.1s; display:flex; align-items:center; gap:4px;}
-  button:hover{opacity:0.9}
-  button:active{transform:translateY(1px);}
-  button.ghost{background:#fff;color:var(--accent);border:1px solid #dbeafe}
-  button.danger{background:#fff;color:var(--danger);border:1px solid #fca5a5}
-  button.action{background:var(--success);}
-  button.warning{background:#fff; color:var(--orange); border:1px solid #fcd34d;}
-  
-  .bulk-area{display:flex;gap:6px;align-items:center;background:#f8fafc;padding:4px 8px;border-radius:6px;border:1px dashed var(--grid);}
-  .bulk-area select{padding:4px; border:1px solid var(--grid); border-radius:4px;}
-  
-  .table-wrap{overflow:auto;border:1px solid var(--grid);border-radius:6px;background:#fff; max-height:65vh;}
-  table.sheet{border-collapse:collapse;width:100%;min-width:950px}
-  table.sheet th, table.sheet td{border:1px solid var(--grid);padding:0;vertical-align:middle; height:36px;}
-  table.sheet th{background:#eef2ff;font-weight:700;text-align:left;font-size:12px; padding:0 8px; position:sticky; top:0; z-index:10;}
-  
-  input.cell, select.cell{width:100%;height:100%;border:0;padding:0 8px;font-size:13px;box-sizing:border-box;background:transparent; font-family:inherit;}
-  input.cell:focus, select.cell:focus{outline:2px solid var(--accent);outline-offset:-2px; background:rgba(11,105,255,0.05);}
-  
-  .right{margin-left:auto;display:flex;gap:10px;align-items:center}
-  .sum-box{background:#f1f5f9;padding:6px 12px;border-radius:6px;font-weight:700; border:1px solid #e2e8f0; font-feature-settings: "tnum";}
-  
-  #saveStatus{
-    position:absolute; top:14px; right:14px; font-size:12px; color:var(--success); 
-    opacity:0; transition:opacity 0.3s; pointer-events:none; font-weight:bold;
-  }
-  
-  .cb-cell{text-align:center; background:#fafafa;}
-  input[type="checkbox"]{cursor:pointer; width:16px; height:16px; margin:0;}
-  #fileInput { display: none; }
-
-  @media(max-width:900px){ 
-    .toolbar{align-items:flex-start;}
-    .right{margin-left:0; width:100%; justify-content:flex-end;}
-  }
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>レシート入力アプリ - 最終安定版</title>
+  <style>
+    :root{
+      --bg:#f6f8fb; --card:#fff; --accent:#0b69ff; --muted:#6b7280; --grid:#cbd5e1;
+      --success:#10b981; --danger:#ef4444; --orange:#f59e0b;
+    }
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;background:var(--bg);color:#111}
+    .wrap{max-width:1250px;margin:20px auto;padding:18px}
+    h1{font-size:18px;margin:0 0 12px; display:flex; align-items:center; gap:10px;}
+    .badge{background:#e0f2fe; color:var(--accent); font-size:11px; padding:2px 6px; border-radius:4px; border:1px solid #bae6fd;}
+    .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 6px rgba(16,24,40,0.06); position:relative;}
+    .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #eee}
+    button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px; transition:all 0.1s; display:flex; align-items:center; gap:4px;}
+    button:hover{opacity:0.9}
+    button:active{transform:translateY(1px);}
+    button.ghost{background:#fff;color:var(--accent);border:1px solid #dbeafe}
+    button.danger{background:#fff;color:var(--danger);border:1px solid #fca5a5}
+    button.action{background:var(--success);}
+    button.warning{background:#fff; color:var(--orange); border:1px solid #fcd34d;}
+    .bulk-area{display:flex;gap:6px;align-items:center;background:#f8fafc;padding:4px 8px;border-radius:6px;border:1px dashed var(--grid);}
+    .bulk-area select{padding:4px; border:1px solid var(--grid); border-radius:4px;}
+    .table-wrap{overflow:auto;border:1px solid var(--grid);border-radius:6px;background:#fff; max-height:65vh;}
+    table.sheet{border-collapse:collapse;width:100%;min-width:950px}
+    table.sheet th, table.sheet td{border:1px solid var(--grid);padding:0;vertical-align:middle; height:36px;}
+    table.sheet th{background:#eef2ff;font-weight:700;text-align:left;font-size:12px; padding:0 8px; position:sticky; top:0; z-index:10;}
+    input.cell{width:100%;height:100%;border:0;padding:0 8px;font-size:13px;box-sizing:border-box;background:transparent; font-family:inherit;}
+    input.cell:focus{outline:2px solid var(--accent);outline-offset:-2px; background:rgba(11,105,255,0.05);}
+    .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+    .sum-box{background:#f1f5f9;padding:6px 12px;border-radius:6px;font-weight:700; border:1px solid #e2e8f0; font-feature-settings: "tnum";}
+    #saveStatus{position:absolute; top:14px; right:14px; font-size:12px; color:var(--success); opacity:0; transition:opacity 0.3s; pointer-events:none; font-weight:bold;}
+    .cb-cell{text-align:center; background:#fafafa;}
+    input[type="checkbox"]{cursor:pointer; width:16px; height:16px; margin:0;}
+    #fileInput { display: none; }
+    @media(max-width:900px){ .toolbar{align-items:flex-start;} .right{margin-left:0; width:100%; justify-content:flex-end;} }
+  </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>レシート入力アプリ <span class="badge">対応版</span></h1>
-    
+    <h1>レシート入力アプリ <span class="badge">JSON・自由入力対応</span></h1>
     <div class="card">
       <div id="saveStatus">✓ 保存完了</div>
-
       <div class="toolbar">
         <button id="addRow">＋ 行追加</button>
         <button id="dupRow" class="ghost" title="選択した行を末尾に連続コピー">📋 連続複製</button>
         <button id="delRow" class="danger">🗑 削除</button>
-        
         <div class="bulk-area">
           <select id="bulkCatSelect"><option value="">一括カテゴリ...</option></select>
           <button id="applyBulkCat" class="ghost" style="padding:4px 8px;">適用</button>
         </div>
-
         <button id="sortDate" class="ghost">📅 並べ替え</button>
-
         <div class="right">
           <button id="saveJson" class="warning">JSON保存</button>
           <button id="loadJson" class="warning">JSON読込</button>
           <input type="file" id="fileInput" accept=".json">
-
           <div class="sum-box" id="totalBox">¥0</div>
           <button id="exportXls" class="action">Excel保存</button>
           <button id="clearAll" class="ghost" style="font-size:11px; color:var(--muted);">全消去</button>
         </div>
       </div>
-
       <div class="table-wrap">
         <table class="sheet" id="sheet">
           <thead>
@@ -100,10 +78,12 @@
         </table>
       </div>
       <div style="margin-top:8px; font-size:11px; color:var(--muted);">
-        💡 複製ボタンを連打して連続でコピーできます。複製された行は一番下に追加されます。
+        💡 カテゴリ欄は文字を直接入力できます。JSON保存・読込でデータのバックアップが可能です。
       </div>
     </div>
   </div>
+
+  <datalist id="catList"></datalist>
 
 <script>
 const STORAGE_KEY = 'receipt_app_v6_final';
@@ -117,15 +97,21 @@ const totalBox = document.getElementById('totalBox');
 const saveStatus = document.getElementById('saveStatus');
 const bulkSelect = document.getElementById('bulkCatSelect');
 const fileInput = document.getElementById('fileInput');
+const datalist = document.getElementById('catList');
 
-// カテゴリ初期化
-defaultCats.forEach(c => {
-  const opt = document.createElement('option');
-  opt.value = c; opt.textContent = c;
-  bulkSelect.appendChild(opt);
-});
-
-render();
+// 初期設定
+function init(){
+  // カテゴリ候補の作成
+  datalist.innerHTML = '';
+  bulkSelect.innerHTML = '<option value="">一括カテゴリ...</option>';
+  defaultCats.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c;
+    datalist.appendChild(opt.cloneNode(true));
+    bulkSelect.appendChild(new Option(c, c));
+  });
+  render();
+}
 
 function load(){
   try {
@@ -147,10 +133,10 @@ function showSaveIndicator(){
 }
 
 function render(){
-  // チェック状態を保持するためのマップ
-  const checkedIndexes = new Set();
+  // チェック状態の保持
+  const checkedIdx = new Set();
   tbody.querySelectorAll('.rowSelect').forEach((cb, idx) => {
-    if(cb.checked) checkedIndexes.add(idx);
+    if(cb.checked) checkedIdx.add(idx);
   });
 
   tbody.innerHTML = '';
@@ -158,23 +144,17 @@ function render(){
     const tr = document.createElement('tr');
     tr.dataset.index = idx;
     tr.innerHTML = `
-      <td class="cb-cell"><input type="checkbox" class="rowSelect" ${checkedIndexes.has(idx) ? 'checked' : ''}></td>
-      <td><input class="cell" data-field="date" value="${escapeHtml(r.date||'')}" placeholder="MM-DD" inputmode="url" autocomplete="off"></td>
-      <td><input class="cell" data-field="amount" value="${r.amount!=null && r.amount !== ''? r.amount : ''}" inputmode="numeric" style="text-align:right"></td>
+      <td class="cb-cell"><input type="checkbox" class="rowSelect" ${checkedIdx.has(idx)?'checked':''}></td>
+      <td><input class="cell" data-field="date" value="${escapeHtml(r.date||'')}" placeholder="MM-DD" inputmode="url"></td>
+      <td><input class="cell" data-field="amount" value="${r.amount ?? ''}" inputmode="numeric" style="text-align:right"></td>
       <td><input class="cell" data-field="store" value="${escapeHtml(r.store||'')}" inputmode="kana"></td>
-      <td>${createCatSelect(r.category)}</td>
+      <td><input class="cell" data-field="category" list="catList" value="${escapeHtml(r.category||'')}"></td>
       <td><input class="cell" data-field="memo" value="${escapeHtml(r.memo||'')}"></td>
     `;
     tbody.appendChild(tr);
   });
   attachEvents();
   updateTotal();
-}
-
-function createCatSelect(selected){
-  const options = ['<option value="">(未選択)</option>']
-    .concat(defaultCats.map(c => `<option ${c===selected ? 'selected' : ''}>${c}</option>`));
-  return `<select class="cell" data-field="category">${options.join('')}</select>`;
 }
 
 function attachEvents(){
@@ -202,7 +182,7 @@ function onCellInput(e){
 function onCellKeyDown(e){
   if(e.key === 'Enter'){
     e.preventDefault();
-    const all = Array.from(tbody.querySelectorAll('input.cell, select.cell'));
+    const all = Array.from(tbody.querySelectorAll('.cell'));
     const i = all.indexOf(e.target);
     const next = e.shiftKey ? all[i-1] : all[i+1];
     if(next) next.focus();
@@ -225,7 +205,7 @@ function onDateAutoFill(e){
   save();
 }
 
-/* --- 操作機能 --- */
+// --- ボタン操作 ---
 
 document.getElementById('addRow').addEventListener('click', ()=>{
   records.push({date:'', amount:'', store:'', category:'', memo:''});
@@ -233,22 +213,13 @@ document.getElementById('addRow').addEventListener('click', ()=>{
   setTimeout(()=> tbody.querySelector('tr:last-child input[data-field="date"]')?.focus(), 50);
 });
 
-// 【改善】連続複製：確認窓を排除し、描画後もチェック状態を維持
 document.getElementById('dupRow').addEventListener('click', ()=>{
   const checks = tbody.querySelectorAll('.rowSelect');
   const newRows = [];
-  checks.forEach((cb, i) => { 
-    if(cb.checked) {
-      // データのディープコピー（参照を切る）
-      newRows.push(JSON.parse(JSON.stringify(records[i])));
-    } 
-  });
-  
-  if(newRows.length === 0) return alert('複製したい行を選択してください');
-  
+  checks.forEach((cb, i) => { if(cb.checked) newRows.push(JSON.parse(JSON.stringify(records[i]))); });
+  if(!newRows.length) return alert('複製したい行を選択してください');
   records = records.concat(newRows);
-  save(); 
-  render(); // 再描画時にチェック状態が維持されるように調整済み
+  save(); render();
 });
 
 document.getElementById('delRow').addEventListener('click', ()=>{
@@ -263,8 +234,7 @@ document.getElementById('delRow').addEventListener('click', ()=>{
 document.getElementById('applyBulkCat').addEventListener('click', ()=>{
   const cat = bulkSelect.value;
   if(!cat) return alert('カテゴリを選択してください');
-  const checks = tbody.querySelectorAll('.rowSelect');
-  checks.forEach((cb, i) => { if(cb.checked) records[i].category = cat; });
+  tbody.querySelectorAll('.rowSelect').forEach((cb, i) => { if(cb.checked) records[i].category = cat; });
   save(); render();
 });
 
@@ -282,16 +252,19 @@ document.getElementById('sortDate').addEventListener('click', ()=>{
   save(); render();
 });
 
-/* --- ファイル連携 --- */
+// --- JSON保存・読込 (重要修正箇所) ---
 
 document.getElementById('saveJson').addEventListener('click', ()=>{
+  if(records.length === 0) return alert('保存するデータがありません');
   const data = JSON.stringify(records, null, 2);
   const blob = new Blob([data], {type: 'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `receipt_data_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `receipt_backup_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 });
 
@@ -304,32 +277,41 @@ fileInput.addEventListener('change', (e) => {
   reader.onload = (event) => {
     try {
       const imported = JSON.parse(event.target.result);
-      if(!Array.isArray(imported)) throw new Error('Invalid format');
-      if(confirm('既存のデータに追加しますか？（キャンセルで上書き）')){
+      if(!Array.isArray(imported)) throw new Error();
+      if(confirm('既存のデータに追加しますか？\n（キャンセルすると上書きされます）')){
         records = records.concat(imported);
       } else {
         records = imported;
       }
       save(); render();
+      alert('読み込みが完了しました');
     } catch(err) {
-      alert('エラー: 正しいファイルではありません');
+      alert('エラー: 正しいJSONファイルではありません');
     }
     fileInput.value = '';
   };
   reader.readAsText(file);
 });
 
-/* --- ユーティリティ --- */
+// --- Excel保存 ---
 
 document.getElementById('exportXls').addEventListener('click', ()=>{
-  let html = '<html><head><meta charset="utf-8"></head><body><table border="1"><tr><th>日付</th><th>金額</th><th>店名</th><th>カテゴリ</th><th>摘要</th></tr>';
+  const total = records.reduce((s,x)=> s + (Number(x.amount)||0), 0);
+  let html = '<html><head><meta charset="utf-8"></head><body><table border="1">';
+  html += '<tr><th style="background:#eef2ff">日付</th><th style="background:#eef2ff">金額</th><th style="background:#eef2ff">店名</th><th style="background:#eef2ff">カテゴリ</th><th style="background:#eef2ff">摘要</th></tr>';
+  
   records.forEach(r => {
-    html += `<tr><td>${r.date}</td><td>${r.amount}</td><td>${escapeHtml(r.store)}</td><td>${r.category}</td><td>${escapeHtml(r.memo)}</td></tr>`;
+    html += `<tr><td>${r.date||''}</td><td>${r.amount||0}</td><td>${escapeHtml(r.store)}</td><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.memo)}</td></tr>`;
   });
+  
+  // 合計行を追加
+  html += `<tr><td style="background:#f8fafc;font-weight:bold">合計</td><td style="background:#f8fafc;font-weight:bold">${total}</td><td colspan="3" style="background:#f8fafc"></td></tr>`;
+  
   html += '</table></body></html>';
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([html], {type: 'application/vnd.ms-excel'}));
-  a.download = 'receipts.xls'; a.click();
+  a.download = `receipt_export_${new Date().toISOString().slice(0,10)}.xls`;
+  a.click();
 });
 
 document.getElementById('clearAll').addEventListener('click', ()=>{
@@ -341,9 +323,12 @@ function updateTotal(){
   totalBox.textContent = '¥' + String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function escapeHtml(s){ 
-  return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])) : ''; 
+function escapeHtml(s){
+  return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])) : '';
 }
+
+// 実行開始
+init();
 </script>
 </body>
 </html>
