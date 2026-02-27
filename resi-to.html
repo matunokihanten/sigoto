@@ -3,18 +3,45 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>レシート入力アプリ - 最終安定版</title>
+  <title>確定申告支援・税金シミュレーター</title>
   <style>
     :root{
       --bg:#f6f8fb; --card:#fff; --accent:#0b69ff; --muted:#6b7280; --grid:#cbd5e1;
-      --success:#10b981; --danger:#ef4444; --orange:#f59e0b;
+      --success:#10b981; --danger:#ef4444; --orange:#f59e0b; --purple:#8b5cf6; --tax:#059669;
     }
     html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;background:var(--bg);color:#111}
-    .wrap{max-width:1250px;margin:20px auto;padding:18px}
+    .wrap{max-width:1300px;margin:20px auto;padding:18px}
     h1{font-size:18px;margin:0 0 12px; display:flex; align-items:center; gap:10px;}
     .badge{background:#e0f2fe; color:var(--accent); font-size:11px; padding:2px 6px; border-radius:4px; border:1px solid #bae6fd;}
     .card{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 6px rgba(16,24,40,0.06); position:relative;}
     .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap;padding-bottom:12px;border-bottom:1px solid #eee}
+    
+    /* 扶養・税金パネルのスタイル */
+    .fuyo-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: #f8fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .fuyo-item { display: flex; flex-direction: column; gap: 4px; }
+    .fuyo-label { font-size: 11px; color: var(--muted); font-weight: bold; }
+    .fuyo-val { font-size: 16px; font-weight: 700; font-feature-settings: "tnum"; }
+    .fuyo-input { 
+      padding: 6px; border: 1px solid var(--grid); border-radius: 4px; font-size: 14px; 
+      width: 100%; box-sizing: border-box; font-weight: bold;
+    }
+    .status-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold;
+      margin-top: 4px; text-align: center;
+    }
+    .status-ok { background: #dcfce7; color: #166534; }
+    .status-ng { background: #fee2e2; color: #991b1b; }
+    .tax-result { color: var(--tax); font-size: 18px; }
+
     button{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px; transition:all 0.1s; display:flex; align-items:center; gap:4px;}
     button:hover{opacity:0.9}
     button:active{transform:translateY(1px);}
@@ -22,28 +49,82 @@
     button.danger{background:#fff;color:var(--danger);border:1px solid #fca5a5}
     button.action{background:var(--success);}
     button.warning{background:#fff; color:var(--orange); border:1px solid #fcd34d;}
+    
     .bulk-area{display:flex;gap:6px;align-items:center;background:#f8fafc;padding:4px 8px;border-radius:6px;border:1px dashed var(--grid);}
     .bulk-area select{padding:4px; border:1px solid var(--grid); border-radius:4px;}
-    .table-wrap{overflow:auto;border:1px solid var(--grid);border-radius:6px;background:#fff; max-height:65vh;}
+    
+    .table-wrap{overflow:auto;border:1px solid var(--grid);border-radius:6px;background:#fff; max-height:50vh;}
     table.sheet{border-collapse:collapse;width:100%;min-width:950px}
     table.sheet th, table.sheet td{border:1px solid var(--grid);padding:0;vertical-align:middle; height:36px;}
     table.sheet th{background:#eef2ff;font-weight:700;text-align:left;font-size:12px; padding:0 8px; position:sticky; top:0; z-index:10;}
+    
     input.cell{width:100%;height:100%;border:0;padding:0 8px;font-size:13px;box-sizing:border-box;background:transparent; font-family:inherit;}
     input.cell:focus{outline:2px solid var(--accent);outline-offset:-2px; background:rgba(11,105,255,0.05);}
+    
     .right{margin-left:auto;display:flex;gap:10px;align-items:center}
-    .sum-box{background:#f1f5f9;padding:6px 12px;border-radius:6px;font-weight:700; border:1px solid #e2e8f0; font-feature-settings: "tnum";}
+    .sum-box{background:var(--purple);color:#fff;padding:6px 12px;border-radius:6px;font-weight:700; font-feature-settings: "tnum";}
+    
     #saveStatus{position:absolute; top:14px; right:14px; font-size:12px; color:var(--success); opacity:0; transition:opacity 0.3s; pointer-events:none; font-weight:bold;}
     .cb-cell{text-align:center; background:#fafafa;}
     input[type="checkbox"]{cursor:pointer; width:16px; height:16px; margin:0;}
     #fileInput { display: none; }
-    @media(max-width:900px){ .toolbar{align-items:flex-start;} .right{margin-left:0; width:100%; justify-content:flex-end;} }
+    
+    .info-tip { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.2;}
+    
+    @media(max-width:900px){ .toolbar{align-items:flex-start;} .right{margin-left:0; width:100%; justify-content:flex-end;} .fuyo-panel{grid-template-columns: 1fr 1fr;} }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>レシート入力アプリ <span class="badge">JSON・自由入力対応</span></h1>
+    <h1>確定申告支援アプリ <span class="badge">扶養・税金概算対応版</span></h1>
+    
     <div class="card">
       <div id="saveStatus">✓ 保存完了</div>
+
+      <div class="fuyo-panel">
+        <div class="fuyo-item">
+          <label class="fuyo-label">年間売上（報酬額）</label>
+          <input type="number" id="revenueInput" class="fuyo-input" placeholder="0" value="0">
+          <div class="info-tip">※源泉徴収前の総額</div>
+        </div>
+        <div class="fuyo-item">
+          <label class="fuyo-label">扶養家族の人数（16歳以上）</label>
+          <input type="number" id="depCountInput" class="fuyo-input" placeholder="0" value="0" min="0">
+          <div class="info-tip">※1人につき38万円控除として計算</div>
+        </div>
+        <div class="fuyo-item">
+          <label class="fuyo-label">社会保険料等の合計（控除）</label>
+          <input type="number" id="otherDeductionInput" class="fuyo-input" placeholder="0" value="0">
+          <div class="info-tip">※年金・健康保険・生命保険など</div>
+        </div>
+        <div class="fuyo-item">
+          <label class="fuyo-label">青色申告控除</label>
+          <select id="blueReturnSelect" class="fuyo-input">
+            <option value="0">なし (白色)</option>
+            <option value="100000">10万円控除</option>
+            <option value="550000">55万円控除</option>
+            <option value="650000">65万円控除 (e-Tax等)</option>
+          </select>
+        </div>
+        
+        <div class="fuyo-item" style="border-left: 2px solid #ddd; padding-left: 15px;">
+          <label class="fuyo-label">差引所得（売上－経費）</label>
+          <div class="fuyo-val" id="netIncome">¥0</div>
+          <div id="taxStatus" class="status-badge" style="width: 100px;">判定中...</div>
+        </div>
+
+        <div class="fuyo-item">
+          <label class="fuyo-label" style="color:var(--tax)">概算所得税額</label>
+          <div class="fuyo-val tax-result" id="approxIncomeTax">¥0</div>
+          <div class="info-tip">※所得控除考慮後の所得税</div>
+        </div>
+        <div class="fuyo-item">
+          <label class="fuyo-label" style="color:var(--tax)">概算住民税額</label>
+          <div class="fuyo-val tax-result" id="approxInhabitantTax">¥0</div>
+          <div class="info-tip">※約10%で簡易計算</div>
+        </div>
+      </div>
+
       <div class="toolbar">
         <button id="addRow">＋ 行追加</button>
         <button id="dupRow" class="ghost" title="選択した行を末尾に連続コピー">📋 連続複製</button>
@@ -57,11 +138,12 @@
           <button id="saveJson" class="warning">JSON保存</button>
           <button id="loadJson" class="warning">JSON読込</button>
           <input type="file" id="fileInput" accept=".json">
-          <div class="sum-box" id="totalBox">¥0</div>
+          <div class="sum-box" id="totalBox" title="経費合計">経費: ¥0</div>
           <button id="exportXls" class="action">Excel保存</button>
           <button id="clearAll" class="ghost" style="font-size:11px; color:var(--muted);">全消去</button>
         </div>
       </div>
+
       <div class="table-wrap">
         <table class="sheet" id="sheet">
           <thead>
@@ -77,31 +159,37 @@
           <tbody id="tbody"></tbody>
         </table>
       </div>
-      <div style="margin-top:8px; font-size:11px; color:var(--muted);">
-        💡 カテゴリ欄は文字を直接入力できます。JSON保存・読込でデータのバックアップが可能です。
-      </div>
     </div>
   </div>
 
   <datalist id="catList"></datalist>
 
 <script>
-const STORAGE_KEY = 'receipt_app_v6_final';
-const defaultCats = ['交通費','交際費','消耗品費','旅費交通費','通信費','新聞図書費','会議費','その他'];
+const STORAGE_KEY = 'receipt_app_v8_tax';
+const SETTINGS_KEY = 'receipt_app_tax_settings';
+const defaultCats = ['交通費','交際費','消耗品費','旅費交通費','通信費','新聞図書費','会議費','地代家賃','水道光熱費','その他'];
 
 let records = load();
 let sortAsc = true;
 
 const tbody = document.getElementById('tbody');
 const totalBox = document.getElementById('totalBox');
+const netIncomeEl = document.getElementById('netIncome');
+const revenueInput = document.getElementById('revenueInput');
+const depCountInput = document.getElementById('depCountInput');
+const otherDeductionInput = document.getElementById('otherDeductionInput');
+const blueReturnSelect = document.getElementById('blueReturnSelect');
+
+const taxStatusEl = document.getElementById('taxStatus');
+const approxIncomeTaxEl = document.getElementById('approxIncomeTax');
+const approxInhabitantTaxEl = document.getElementById('approxInhabitantTax');
+
 const saveStatus = document.getElementById('saveStatus');
 const bulkSelect = document.getElementById('bulkCatSelect');
 const fileInput = document.getElementById('fileInput');
 const datalist = document.getElementById('catList');
 
-// 初期設定
 function init(){
-  // カテゴリ候補の作成
   datalist.innerHTML = '';
   bulkSelect.innerHTML = '<option value="">一括カテゴリ...</option>';
   defaultCats.forEach(c => {
@@ -110,6 +198,14 @@ function init(){
     datalist.appendChild(opt.cloneNode(true));
     bulkSelect.appendChild(new Option(c, c));
   });
+
+  // 保存設定の復元
+  const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  revenueInput.value = savedSettings.revenue || 0;
+  depCountInput.value = savedSettings.depCount || 0;
+  otherDeductionInput.value = savedSettings.otherDeduction || 0;
+  blueReturnSelect.value = savedSettings.blueReturn || 0;
+
   render();
 }
 
@@ -122,6 +218,13 @@ function load(){
 
 function save(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  const settings = {
+    revenue: revenueInput.value,
+    depCount: depCountInput.value,
+    otherDeduction: otherDeductionInput.value,
+    blueReturn: blueReturnSelect.value
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   showSaveIndicator();
   updateTotal();
 }
@@ -133,12 +236,10 @@ function showSaveIndicator(){
 }
 
 function render(){
-  // チェック状態の保持
   const checkedIdx = new Set();
   tbody.querySelectorAll('.rowSelect').forEach((cb, idx) => {
     if(cb.checked) checkedIdx.add(idx);
   });
-
   tbody.innerHTML = '';
   records.forEach((r, idx) => {
     const tr = document.createElement('tr');
@@ -196,21 +297,72 @@ function onDateAutoFill(e){
     const now = new Date();
     val = val.replace(/\//g, '-').replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
     const parts = val.split('-');
-    if(parts.length === 2){
-      val = `${now.getFullYear()}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
-    }
+    if(parts.length === 2) val = `${now.getFullYear()}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`;
   }
   e.target.value = val;
   records[e.target.closest('tr').dataset.index].date = val;
   save();
 }
 
-// --- ボタン操作 ---
+// --- 税金計算ロジック ---
+[revenueInput, depCountInput, otherDeductionInput, blueReturnSelect].forEach(el => {
+  el.addEventListener('input', save);
+});
 
+function updateTotal(){
+  const totalExp = records.reduce((s,x)=> s + (Number(x.amount)||0), 0);
+  const revenue = Number(revenueInput.value) || 0;
+  const netIncome = revenue - totalExp;
+
+  // 表示更新
+  totalBox.textContent = '経費: ¥' + formatNum(totalExp);
+  netIncomeEl.textContent = '¥' + formatNum(netIncome);
+
+  // 扶養判定 (所得48万円以下)
+  if(netIncome <= 480000){
+    taxStatusEl.textContent = '税務扶養内';
+    taxStatusEl.className = 'status-badge status-ok';
+  } else {
+    taxStatusEl.textContent = '扶養外';
+    taxStatusEl.className = 'status-badge status-ng';
+  }
+
+  // --- おおよその税金計算 ---
+  const basicDeduction = 480000; // 基礎控除
+  const blueDeduction = Number(blueReturnSelect.value) || 0; // 青色控除
+  const depDeduction = (Number(depCountInput.value) || 0) * 380000; // 扶養控除
+  const otherDeduction = Number(otherDeductionInput.value) || 0; // 社会保険等
+
+  // 課税所得金額
+  let taxableIncome = netIncome - basicDeduction - blueDeduction - depDeduction - otherDeduction;
+  if(taxableIncome < 0) taxableIncome = 0;
+
+  // 所得税 (簡易計算表)
+  let incomeTax = 0;
+  if(taxableIncome <= 1950000) incomeTax = taxableIncome * 0.05;
+  else if(taxableIncome <= 3300000) incomeTax = taxableIncome * 0.1 - 97500;
+  else if(taxableIncome <= 6950000) incomeTax = taxableIncome * 0.2 - 427500;
+  else if(taxableIncome <= 8999000) incomeTax = taxableIncome * 0.23 - 636000;
+  else incomeTax = taxableIncome * 0.33 - 1536000; // 超過分は省略
+  
+  // 復興特別所得税 (2.1%) 加算
+  incomeTax = incomeTax * 1.021;
+
+  // 住民税 (一律10% + 均等割5000円と仮定)
+  const inhabitantTax = taxableIncome > 0 ? (taxableIncome * 0.1 + 5000) : 0;
+
+  approxIncomeTaxEl.textContent = '¥' + formatNum(Math.floor(incomeTax));
+  approxInhabitantTaxEl.textContent = '¥' + formatNum(Math.floor(inhabitantTax));
+}
+
+function formatNum(n){
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+// --- ボタン操作 ---
 document.getElementById('addRow').addEventListener('click', ()=>{
   records.push({date:'', amount:'', store:'', category:'', memo:''});
   save(); render();
-  setTimeout(()=> tbody.querySelector('tr:last-child input[data-field="date"]')?.focus(), 50);
 });
 
 document.getElementById('dupRow').addEventListener('click', ()=>{
@@ -252,20 +404,21 @@ document.getElementById('sortDate').addEventListener('click', ()=>{
   save(); render();
 });
 
-// --- JSON保存・読込 (重要修正箇所) ---
-
 document.getElementById('saveJson').addEventListener('click', ()=>{
-  if(records.length === 0) return alert('保存するデータがありません');
-  const data = JSON.stringify(records, null, 2);
-  const blob = new Blob([data], {type: 'application/json'});
-  const url = URL.createObjectURL(blob);
+  const exportData = {
+    settings: {
+      revenue: revenueInput.value,
+      depCount: depCountInput.value,
+      otherDeduction: otherDeductionInput.value,
+      blueReturn: blueReturnSelect.value
+    },
+    expenses: records
+  };
+  const blob = new Blob([JSON.stringify(exportData, null, 2)], {type: 'application/json'});
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `receipt_backup_${new Date().toISOString().slice(0,10)}.json`;
-  document.body.appendChild(a);
+  a.href = URL.createObjectURL(blob);
+  a.download = `tax_data_${new Date().toISOString().slice(0,10)}.json`;
   a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 });
 
 document.getElementById('loadJson').addEventListener('click', () => fileInput.click());
@@ -277,36 +430,32 @@ fileInput.addEventListener('change', (e) => {
   reader.onload = (event) => {
     try {
       const imported = JSON.parse(event.target.result);
-      if(!Array.isArray(imported)) throw new Error();
-      if(confirm('既存のデータに追加しますか？\n（キャンセルすると上書きされます）')){
-        records = records.concat(imported);
-      } else {
-        records = imported;
+      const newRecs = imported.expenses || (Array.isArray(imported) ? imported : []);
+      if(imported.settings){
+        revenueInput.value = imported.settings.revenue || 0;
+        depCountInput.value = imported.settings.depCount || 0;
+        otherDeductionInput.value = imported.settings.otherDeduction || 0;
+        blueReturnSelect.value = imported.settings.blueReturn || 0;
       }
+      if(confirm('既存のデータに追加しますか？')){ records = records.concat(newRecs); } 
+      else { records = newRecs; }
       save(); render();
-      alert('読み込みが完了しました');
-    } catch(err) {
-      alert('エラー: 正しいJSONファイルではありません');
-    }
+    } catch(err) { alert('エラー: JSON形式が正しくありません'); }
     fileInput.value = '';
   };
   reader.readAsText(file);
 });
 
-// --- Excel保存 ---
-
 document.getElementById('exportXls').addEventListener('click', ()=>{
   const total = records.reduce((s,x)=> s + (Number(x.amount)||0), 0);
   let html = '<html><head><meta charset="utf-8"></head><body><table border="1">';
-  html += '<tr><th style="background:#eef2ff">日付</th><th style="background:#eef2ff">金額</th><th style="background:#eef2ff">店名</th><th style="background:#eef2ff">カテゴリ</th><th style="background:#eef2ff">摘要</th></tr>';
-  
+  html += `<tr><th colspan="5">税金計算サマリー</th></tr>`;
+  html += `<tr><td>売上</td><td>${revenueInput.value}</td><td>所得</td><td>${revenueInput.value - total}</td><td></td></tr>`;
+  html += `<tr><td>所得税(概算)</td><td>${approxIncomeTaxEl.textContent}</td><td>住民税(概算)</td><td>${approxInhabitantTaxEl.textContent}</td><td></td></tr>`;
+  html += '<tr><th>日付</th><th>金額</th><th>店名</th><th>カテゴリ</th><th>摘要</th></tr>';
   records.forEach(r => {
     html += `<tr><td>${r.date||''}</td><td>${r.amount||0}</td><td>${escapeHtml(r.store)}</td><td>${escapeHtml(r.category)}</td><td>${escapeHtml(r.memo)}</td></tr>`;
   });
-  
-  // 合計行を追加
-  html += `<tr><td style="background:#f8fafc;font-weight:bold">合計</td><td style="background:#f8fafc;font-weight:bold">${total}</td><td colspan="3" style="background:#f8fafc"></td></tr>`;
-  
   html += '</table></body></html>';
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([html], {type: 'application/vnd.ms-excel'}));
@@ -315,19 +464,13 @@ document.getElementById('exportXls').addEventListener('click', ()=>{
 });
 
 document.getElementById('clearAll').addEventListener('click', ()=>{
-  if(confirm('全てのデータを消去しますか？')) { records=[]; save(); render(); }
+  if(confirm('全て消去しますか？')) { records=[]; revenueInput.value=0; save(); render(); }
 });
-
-function updateTotal(){
-  const total = records.reduce((s,x)=> s + (Number(x.amount)||0), 0);
-  totalBox.textContent = '¥' + String(total).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-}
 
 function escapeHtml(s){
   return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])) : '';
 }
 
-// 実行開始
 init();
 </script>
 </body>
