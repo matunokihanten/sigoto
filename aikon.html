@@ -1,35 +1,50 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+  <link rel="manifest" href="manifest.json" />
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+
   <meta charset="UTF-8">
-  <title>Advanced 3D Icon Creator - 高機能アイコン作成ツール</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高度な3Dアイコン作成ツール</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=M+PLUS+Rounded+1c:wght@400;700&family=Kosugi+Maru&family=Varela+Round&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #667eea;
       --secondary: #764ba2;
       --accent: #f093fb;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
       --surface: #ffffff;
-      --background: #f8fafc;
+      --surface-2: #f8fafc;
+      --background: #f1f5f9;
       --text-primary: #1e293b;
       --text-secondary: #64748b;
+      --text-muted: #94a3b8;
       --border: #e2e8f0;
+      --border-focus: #cbd5e1;
+      --shadow-sm: rgba(0, 0, 0, 0.05);
       --shadow: rgba(0, 0, 0, 0.1);
+      --shadow-lg: rgba(0, 0, 0, 0.15);
       --radius: 12px;
-      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      --radius-sm: 8px;
+      --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       font-family: 'Inter', 'Noto Sans JP', sans-serif;
       min-height: 100vh;
       color: var(--text-primary);
+      line-height: 1.5;
     }
 
     .app-container {
@@ -37,7 +52,7 @@
       margin: 0 auto;
       padding: 20px;
       display: grid;
-      grid-template-columns: 400px 1fr;
+      grid-template-columns: minmax(320px, 400px) 1fr;
       gap: 30px;
       min-height: 100vh;
     }
@@ -49,6 +64,7 @@
       box-shadow: 0 20px 25px -5px var(--shadow), 0 10px 10px -5px var(--shadow);
       height: fit-content;
       backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .preview-area {
@@ -59,6 +75,7 @@
       display: flex;
       flex-direction: column;
       gap: 30px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     h1 {
@@ -73,10 +90,8 @@
       letter-spacing: -0.02em;
     }
 
-    .section {
-      margin-bottom: 25px;
-    }
-
+    .section { margin-bottom: 25px; }
+    
     .section-title {
       font-size: 1.1rem;
       font-weight: 600;
@@ -89,40 +104,21 @@
       gap: 8px;
     }
 
-    .control-row {
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      margin-bottom: 20px;
-    }
-
-    .control {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .control-inline {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 12px;
-    }
-
-    label {
-      font-weight: 500;
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-    }
-
+    .control-row { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+    .control { display: flex; flex-direction: column; gap: 8px; }
+    .control-inline { display: flex; flex-direction: row; align-items: center; gap: 12px; flex-wrap: wrap; }
+    
+    label { font-weight: 500; color: var(--text-secondary); font-size: 0.9rem; cursor: pointer; }
+    
     input, select, textarea {
       padding: 12px 16px;
       border: 2px solid var(--border);
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       font-size: 15px;
       transition: var(--transition);
       background: var(--surface);
       color: var(--text-primary);
+      font-family: inherit;
     }
 
     input:focus, select:focus, textarea:focus {
@@ -131,14 +127,34 @@
       box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
     }
 
+    input:invalid { border-color: var(--error); }
+    
+    input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    
+    input[type="file"] { padding: 10px; background: var(--surface-2); cursor: pointer; }
+    input[type="file"]::file-selector-button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      margin-right: 10px;
+      transition: var(--transition);
+    }
+    input[type="file"]::file-selector-button:hover { background: var(--secondary); }
+
     input[type="range"] {
       appearance: none;
       height: 6px;
       background: var(--border);
       border-radius: 3px;
       padding: 0;
+      border: none;
+      cursor: pointer;
     }
-
+    
     input[type="range"]::-webkit-slider-thumb {
       appearance: none;
       width: 20px;
@@ -149,55 +165,40 @@
       box-shadow: 0 2px 4px var(--shadow);
       transition: var(--transition);
     }
-
-    input[type="range"]::-webkit-slider-thumb:hover {
-      transform: scale(1.1);
-    }
-
+    input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+    
     input[type="color"] {
       width: 60px;
       height: 40px;
-      border-radius: 8px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
       padding: 2px;
+      border: 2px solid var(--border);
     }
 
-    textarea {
-      resize: vertical;
-      min-height: 80px;
-      font-family: inherit;
-    }
+    textarea { resize: vertical; min-height: 80px; font-family: inherit; }
 
-    .color-display {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 5px;
-    }
-
+    .color-display { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
     .color-box {
       width: 24px;
       height: 24px;
       border-radius: 6px;
       border: 2px solid var(--border);
       box-shadow: inset 0 1px 2px var(--shadow);
+      flex-shrink: 0;
     }
-
     .color-hex {
-      font-family: 'SF Mono', 'Monaco', monospace;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
       font-size: 0.85rem;
       color: var(--text-secondary);
-      background: var(--background);
+      background: var(--surface-2);
       padding: 4px 8px;
       border-radius: 4px;
+      min-width: 70px;
+      text-align: center;
     }
 
-    .radio-group, .checkbox-group {
-      display: flex;
-      gap: 15px;
-      flex-wrap: wrap;
-    }
-
+    .radio-group, .checkbox-group { display: flex; gap: 15px; flex-wrap: wrap; }
     .radio-item, .checkbox-item {
       display: flex;
       align-items: center;
@@ -206,11 +207,9 @@
       padding: 8px 12px;
       border-radius: 6px;
       transition: var(--transition);
+      border: 1px solid transparent;
     }
-
-    .radio-item:hover, .checkbox-item:hover {
-      background: var(--background);
-    }
+    .radio-item:hover, .checkbox-item:hover { background: var(--surface-2); border-color: var(--border-focus); }
 
     input[type="radio"], input[type="checkbox"] {
       appearance: none;
@@ -221,85 +220,42 @@
       position: relative;
       cursor: pointer;
       transition: var(--transition);
+      margin: 0;
+      padding: 0;
     }
-
-    input[type="checkbox"] {
-      border-radius: 4px;
-    }
-
+    input[type="checkbox"] { border-radius: 4px; }
+    
     input[type="radio"]:checked, input[type="checkbox"]:checked {
       border-color: var(--primary);
       background: var(--primary);
     }
-
     input[type="radio"]:checked::before {
-      content: '';
-      width: 8px;
-      height: 8px;
-      background: white;
-      border-radius: 50%;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      content: ''; width: 8px; height: 8px; background: white; border-radius: 50%;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     }
-
     input[type="checkbox"]:checked::before {
-      content: '✓';
-      color: white;
-      font-size: 12px;
-      font-weight: bold;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
+      content: '✓'; color: white; font-size: 12px; font-weight: bold;
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
     }
 
-    .button-group {
-      display: flex;
-      gap: 15px;
-      margin-top: 30px;
-    }
-
+    .button-group { display: flex; gap: 15px; margin-top: 30px; }
     button {
-      flex: 1;
-      padding: 14px 20px;
-      border: none;
-      border-radius: 10px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: var(--transition);
-      position: relative;
-      overflow: hidden;
+      flex: 1; padding: 14px 20px; border: none; border-radius: 10px;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: var(--transition);
+      position: relative; overflow: hidden; font-family: inherit; min-height: 48px;
     }
-
-    .btn-primary {
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: white;
-      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn-secondary {
-      background: linear-gradient(135deg, #f093fb, #f5576c);
-      color: white;
-      box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3);
-    }
-
-    .btn-accent {
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      color: white;
-      box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
-    }
-
-    button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
-    }
-
-    button:active {
-      transform: translateY(0);
-    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    
+    .btn-primary { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); }
+    .btn-secondary { background: linear-gradient(135deg, #f093fb, #f5576c); color: white; box-shadow: 0 4px 15px rgba(245, 87, 108, 0.3); }
+    .btn-accent { background: linear-gradient(135deg, #4facfe, #00f2fe); color: white; box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3); }
+    .btn-success { background: linear-gradient(135deg, var(--success), #059669); color: white; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); }
+    
+    button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4); }
+    button:active:not(:disabled) { transform: translateY(0); }
+    
+    .btn-outline { background: var(--surface); border: 2px solid var(--border); color: var(--text-secondary); box-shadow: none; }
+    .btn-outline:hover:not(:disabled) { background: var(--surface-2); border-color: var(--border-focus); color: var(--text-primary); box-shadow: none; transform: none; }
 
     .preview-canvas-container {
       display: flex;
@@ -309,235 +265,140 @@
       padding: 30px;
       background: linear-gradient(135deg, #f8fafc, #e2e8f0);
       border-radius: var(--radius);
-      border: 2px dashed var(--border);
+      border: 3px dashed var(--border);
+      position: relative;
+      transition: var(--transition);
+    }
+    .preview-canvas-container.dragover {
+      background: rgba(102, 126, 234, 0.1);
+      border-color: var(--primary);
     }
 
     canvas, #svgPreview {
       border-radius: var(--radius);
-      box-shadow: 0 10px 25px var(--shadow);
-      transition: var(--transition);
+      box-shadow: 0 10px 25px var(--shadow-lg);
+      transition: var(--transition-slow);
+      max-width: 100%;
+      height: auto;
+      background: transparent;
     }
 
-    canvas:hover, #svgPreview:hover {
-      transform: scale(1.02);
-    }
-
-    .size-indicator {
-      color: var(--text-secondary);
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .advanced-controls {
-      display: none;
-      animation: slideDown 0.3s ease-out;
-    }
-
-    .advanced-controls.show {
-      display: block;
-    }
-
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
+    .size-indicator { color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; }
+    
+    .advanced-controls { display: none; animation: slideDown 0.3s ease-out; }
+    .advanced-controls.show { display: block; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    
     .toggle-advanced {
-      background: none;
-      border: 2px solid var(--primary);
-      color: var(--primary);
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      margin-bottom: 20px;
-      transition: var(--transition);
+      background: none; border: 2px solid var(--primary); color: var(--primary);
+      padding: 8px 16px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 20px;
+      transition: var(--transition); width: 100%;
     }
+    .toggle-advanced:hover { background: var(--primary); color: white; transform: none; box-shadow: none; }
 
-    .toggle-advanced:hover {
-      background: var(--primary);
-      color: white;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .preset-buttons {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-      gap: 10px;
-      margin-top: 15px;
-    }
-
+    .preset-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; margin-top: 15px; }
     .preset-btn {
-      padding: 8px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      background: var(--background);
-      border: 1px solid var(--border);
-      cursor: pointer;
-      transition: var(--transition);
+      padding: 8px; border-radius: 6px; font-size: 0.8rem; background: var(--surface-2);
+      border: 1px solid var(--border); cursor: pointer; transition: var(--transition);
+      color: var(--text-primary); font-weight: 500;
     }
+    .preset-btn:hover { background: var(--primary); color: white; transform: none; box-shadow: none; }
 
-    .preset-btn:hover {
-      background: var(--primary);
-      color: white;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .export-options {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 15px;
-      margin-top: 20px;
-    }
-
+    .export-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 15px; margin-top: 20px; }
     .export-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      padding: 20px;
-      border: 2px solid var(--border);
-      border-radius: var(--radius);
-      background: var(--surface);
-      cursor: pointer;
-      transition: var(--transition);
+      display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px;
+      border: 2px solid var(--border); border-radius: var(--radius); background: var(--surface);
+      cursor: pointer; transition: var(--transition); text-decoration: none; color: inherit;
     }
-
-    .export-btn:hover {
-      border-color: var(--primary);
-      background: rgba(102, 126, 234, 0.05);
-      transform: translateY(-2px);
-    }
-
+    .export-btn:hover { border-color: var(--primary); background: rgba(102, 126, 234, 0.05); transform: translateY(-2px); }
     .export-icon {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      font-weight: bold;
-      color: white;
+      width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; font-weight: bold; color: white;
     }
-
-    .history-panel {
-      margin-top: 30px;
-      padding: 20px;
-      background: var(--background);
-      border-radius: var(--radius);
-    }
-
-    .history-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-      gap: 10px;
-      margin-top: 15px;
-    }
-
-    .history-item {
-      aspect-ratio: 1;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: var(--transition);
-      border: 2px solid transparent;
-    }
-
-    .history-item:hover {
-      border-color: var(--primary);
-      transform: scale(1.05);
-    }
-
-    .range-display {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .range-display input[type="range"] {
-      flex: 1;
-    }
-
+    
+    .range-display { display: flex; align-items: center; gap: 10px; }
+    .range-display input[type="range"] { flex: 1; }
     .range-display output {
-      min-width: 40px;
-      text-align: center;
-      font-weight: 600;
-      color: var(--primary);
+      min-width: 50px; text-align: center; font-weight: 600; color: var(--primary);
+      background: var(--surface-2); padding: 4px 8px; border-radius: 4px; font-size: 0.9rem;
     }
     
-    .size-input-group {
-      display: flex;
-      gap: 10px;
-    }
+    .size-input-group { display: flex; gap: 10px; }
+    .size-input-group input { flex: 1; }
     
-    .size-input-group input {
-      flex: 1;
-    }
-
-    .tooltip {
-      position: relative;
-    }
-
+    .tooltip { position: relative; }
     .tooltip::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--text-primary);
-      color: white;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      white-space: nowrap;
-      opacity: 0;
-      pointer-events: none;
-      transition: var(--transition);
-      z-index: 1000;
+      content: attr(data-tooltip); position: absolute; top: -10px; left: 50%;
+      transform: translate(-50%, -100%); background: var(--text-primary); color: white;
+      padding: 6px 10px; border-radius: 6px; font-size: 0.8rem; white-space: nowrap;
+      opacity: 0; pointer-events: none; transition: var(--transition); z-index: 1000;
+    }
+    .tooltip:hover::after { opacity: 1; transform: translate(-50%, -100%); }
+
+    .error-message, .success-message {
+      padding: 12px; border-radius: var(--radius-sm); margin-top: 10px; font-size: 0.9rem; display: none;
+    }
+    .error-message { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--error); color: var(--error); }
+    .success-message { background: rgba(16, 185, 129, 0.1); border: 1px solid var(--success); color: var(--success); }
+    
+    .mode-switcher {
+      display: flex; background: var(--surface-2); border-radius: var(--radius-sm);
+      padding: 6px; margin-bottom: 25px; border: 1px solid var(--border);
+    }
+    .mode-switcher label {
+      flex: 1; text-align: center; padding: 10px; border-radius: 6px; font-weight: 600;
+      color: var(--text-secondary); cursor: pointer; transition: var(--transition); position: relative;
+    }
+    .mode-switcher input[type="radio"] { display: none; }
+    .mode-switcher input[type="radio"]:checked + label {
+      background: var(--surface); color: var(--primary); box-shadow: 0 2px 8px var(--shadow-sm); border: 1px solid var(--border-focus);
     }
 
-    .tooltip:hover::after {
-      opacity: 1;
-      transform: translateX(-50%) translateY(-5px);
+    /* ユーティリティ領域 */
+    .utility-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-top: 10px;
     }
 
-    @media (max-width: 1200px) {
-      .app-container {
-        grid-template-columns: 1fr;
-        max-width: 800px;
-      }
-    }
-
+    @media (max-width: 1200px) { .app-container { grid-template-columns: 1fr; max-width: 800px; } }
     @media (max-width: 768px) {
-      .app-container {
-        padding: 15px;
-      }
-      
-      .control-panel, .preview-area {
-        padding: 20px;
-      }
-
-      h1 {
-        font-size: 2rem;
-      }
-
-      .button-group {
-        flex-direction: column;
-      }
+      .app-container { padding: 15px; gap: 20px; }
+      .control-panel, .preview-area { padding: 20px; }
+      h1 { font-size: 2rem; }
+      .button-group { flex-direction: column; }
+      .export-options { grid-template-columns: repeat(2, 1fr); }
+      .radio-group, .checkbox-group { flex-direction: column; gap: 10px; }
+      .preset-buttons { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .control-inline { flex-direction: column; align-items: stretch; }
+      .size-input-group { flex-direction: column; }
+      .export-options { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <div class="app-container">
     <div class="control-panel">
-      <h1>🎨 Advanced 3D Icon Creator</h1>
+      <h1>🎨 高度な3Dアイコン作成ツール</h1>
+
+      <div class="mode-switcher">
+        <input type="radio" name="mode" id="modeText" value="text" checked>
+        <label for="modeText">📝 テキスト</label>
+        
+        <input type="radio" name="mode" id="modeImage" value="image">
+        <label for="modeImage">🖼️ 画像</label>
+      </div>
       
-      <div class="section">
+      <div class="section" id="textSettingsSection">
         <div class="section-title">📝 テキスト設定</div>
         <div class="control">
           <label for="iconText">表示テキスト</label>
-          <textarea id="iconText" placeholder="アイコンに表示するテキストを入力">🎯</textarea>
+          <textarea id="iconText" placeholder="アイコンに表示するテキストを入力" rows="2" maxlength="50">松乃木飯店</textarea>
+          <small class="color-hex">文字数: <span id="textLength">5</span>/50</small>
         </div>
         
         <div class="control">
@@ -549,6 +410,7 @@
             <option value="'Kosugi Maru', sans-serif">Kosugi Maru</option>
             <option value="'Varela Round', sans-serif">Varela Round</option>
             <option value="system-ui, sans-serif">システムフォント</option>
+            <option value="'Courier New', monospace">等幅フォント</option>
           </select>
         </div>
 
@@ -561,23 +423,33 @@
             <option value="600">SemiBold (600)</option>
             <option value="700">Bold (700)</option>
             <option value="800" selected>ExtraBold (800)</option>
+            <option value="900">Black (900)</option>
           </select>
         </div>
       </div>
 
-      <div class="section">
-        <div class="section-title">🎨 カラー設定</div>
+      <div class="section" id="imageSettingsSection" style="display: none;">
+        <div class="section-title">🖼️ 画像設定</div>
         <div class="control">
-          <label for="textColor">文字色</label>
-          <div class="control-inline">
-            <input type="color" id="textColor" value="#ffffff">
-            <div class="color-display">
-              <div class="color-box" id="textColorBox"></div>
-              <div class="color-hex" id="textColorHex">#FFFFFF</div>
-            </div>
-          </div>
+          <label for="imageUpload">画像ファイル (ドラッグ＆ドロップ対応)</label>
+          <input type="file" id="imageUpload" accept="image/png, image/jpeg, image/webp">
+        </div>
+        
+        <div class="control">
+          <label for="imageFit">画像の表示方法</label>
+          <select id="imageFit">
+            <option value="contain" selected>全体を表示 (Contain)</option>
+            <option value="cover">全体を埋める (Cover)</option>
+          </select>
         </div>
 
+        <div class="control">
+          <button id="clearImageBtn" class="btn-outline">画像をクリア</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">🎨 カラー設定 (背景)</div>
         <div class="control">
           <label for="gradColor1">背景グラデーション1</label>
           <div class="control-inline">
@@ -601,12 +473,14 @@
         </div>
 
         <div class="preset-buttons">
-          <button class="preset-btn" data-colors="#667eea,#764ba2">Ocean</button>
-          <button class="preset-btn" data-colors="#f093fb,#f5576c">Sunset</button>
-          <button class="preset-btn" data-colors="#4facfe,#00f2fe">Sky</button>
-          <button class="preset-btn" data-colors="#43e97b,#38f9d7">Forest</button>
-          <button class="preset-btn" data-colors="#fa709a,#fee140">Warm</button>
-          <button class="preset-btn" data-colors="#a8edea,#fed6e3">Pastel</button>
+          <button class="preset-btn" data-colors="#667eea,#764ba2">オーシャン</button>
+          <button class="preset-btn" data-colors="#f093fb,#f5576c">サンセット</button>
+          <button class="preset-btn" data-colors="#4facfe,#00f2fe">スカイ</button>
+          <button class="preset-btn" data-colors="#43e97b,#38f9d7">フォレスト</button>
+          <button class="preset-btn" data-colors="#fa709a,#fee140">ウォーム</button>
+          <button class="preset-btn" data-colors="#a8edea,#fed6e3">パステル</button>
+          <button class="preset-btn" data-colors="#ff6b6b,#ee5a52">コーラル</button>
+          <button class="preset-btn" data-colors="#4ecdc4,#44a08d">ティール</button>
         </div>
       </div>
 
@@ -615,21 +489,21 @@
         <div class="control">
           <label for="iconSize">アイコンサイズ</label>
           <select id="iconSize">
-            <option value="64">64×64 (Favicon)</option>
-            <option value="128">128×128 (App Icon)</option>
-            <option value="256">256×256 (Standard)</option>
-            <option value="512">512×512 (High Res)</option>
-            <option value="1024">1024×1024 (Ultra)</option>
-            <option value="custom" selected>カスタム</option>
+            <option value="64">64×64 (ファビコン)</option>
+            <option value="128">128×128 (アプリ)</option>
+            <option value="192">192×192 (ウェーブ)</option>
+            <option value="256" selected>256×256 (標準)</option>
+            <option value="512">512×512 (高解像度)</option>
+            <option value="1024">1024×1024 (超高解像度)</option>
+            <option value="custom">カスタム</option>
           </select>
         </div>
-
         <div class="control size-input-group" id="customSizeInputs" style="display: none;">
-          <input type="number" id="iconWidth" placeholder="幅 (px)" value="256" min="32" max="2048">
-          <input type="number" id="iconHeight" placeholder="高さ (px)" value="256" min="32" max="2048">
+          <input type="number" id="iconWidth" placeholder="幅 (px)" value="256" min="32" max="2048" step="1">
+          <input type="number" id="iconHeight" placeholder="高さ (px)" value="256" min="32" max="2048" step="1">
         </div>
 
-        <div class="control">
+        <div class="control" id="textLetterSpacingControl">
           <label for="letterSpacing">文字間隔</label>
           <div class="range-display">
             <input type="range" id="letterSpacing" min="-5" max="20" value="0" step="0.5">
@@ -637,7 +511,7 @@
           </div>
         </div>
 
-        <div class="control">
+        <div class="control" id="textLineHeightControl">
           <label for="lineHeight">行間隔</label>
           <div class="range-display">
             <input type="range" id="lineHeight" min="0.8" max="2.0" value="1.2" step="0.1">
@@ -646,519 +520,226 @@
         </div>
       </div>
 
-      <button class="toggle-advanced" onclick="toggleAdvanced()">🔧 高度な設定</button>
+      <button class="toggle-advanced" onclick="toggleAdvanced()">🔧 高度な設定を表示</button>
 
       <div class="advanced-controls" id="advancedControls">
         <div class="section">
           <div class="section-title">💫 エフェクト</div>
-          <div class="control">
-            <label>ドロップシャドウ</label>
-            <div class="radio-group">
-              <div class="radio-item">
-                <input type="radio" name="dropShadow" value="0" id="shadow0">
-                <label for="shadow0">なし</label>
-              </div>
-              <div class="radio-item">
-                <input type="radio" name="dropShadow" value="3" id="shadow3" checked>
-                <label for="shadow3">軽い</label>
-              </div>
-              <div class="radio-item">
-                <input type="radio" name="dropShadow" value="6" id="shadow6">
-                <label for="shadow6">標準</label>
-              </div>
-              <div class="radio-item">
-                <input type="radio" name="dropShadow" value="10" id="shadow10">
-                <label for="shadow10">強い</label>
-              </div>
-            </div>
-          </div>
 
           <div class="control">
             <div class="checkbox-item">
-              <input type="checkbox" id="addOutline" checked>
-              <label for="addOutline">アウトライン追加</label>
+              <input type="checkbox" id="enableFrame">
+              <label for="enableFrame">🖼️ 額縁エフェクトを追加</label>
+            </div>
+          </div>
+          
+          <div id="frameSettings" style="display: none; padding-left: 10px; border-left: 2px solid var(--border); margin-top: 10px; margin-bottom: 20px;">
+            <div class="control" style="margin-bottom: 15px;">
+              <label for="frameColor">額縁の色</label>
+              <div class="control-inline">
+                <input type="color" id="frameColor" value="#8b5a2b">
+                <div class="color-display"><div class="color-box" id="frameColorBox"></div><div class="color-hex" id="frameColorHex">#8B5A2B</div></div>
+              </div>
+            </div>
+            <div class="control">
+              <label for="frameWidth">額縁の太さ</label>
+              <div class="range-display">
+                <input type="range" id="frameWidth" min="2" max="40" value="12">
+                <output id="frameWidthValue">12</output>
+              </div>
             </div>
           </div>
 
-          <div class="control" id="outlineControls">
-            <label for="outlineColor">アウトライン色</label>
-            <div class="control-inline">
-              <input type="color" id="outlineColor" value="#000000">
-              <div class="color-display">
-                <div class="color-box" id="outlineColorBox"></div>
-                <div class="color-hex" id="outlineColorHex">#000000</div>
+          <div class="control">
+            <label>ドロップシャドウ (背景)</label>
+            <div class="radio-group">
+              <div class="radio-item"><input type="radio" name="dropShadow" value="0" id="shadow0"><label for="shadow0">なし</label></div>
+              <div class="radio-item"><input type="radio" name="dropShadow" value="3" id="shadow3" checked><label for="shadow3">軽い</label></div>
+              <div class="radio-item"><input type="radio" name="dropShadow" value="6" id="shadow6"><label for="shadow6">標準</label></div>
+              <div class="radio-item"><input type="radio" name="dropShadow" value="10" id="shadow10"><label for="shadow10">強い</label></div>
+            </div>
+          </div>
+          
+          <div class="control">
+            <label>インナーシャドウ (背景)</label>
+            <div class="radio-group">
+              <div class="radio-item"><input type="radio" name="innerShadow" value="0" id="innerShadow0" checked><label for="innerShadow0">なし</label></div>
+              <div class="radio-item"><input type="radio" name="innerShadow" value="5" id="innerShadow5"><label for="innerShadow5">軽い</label></div>
+              <div class="radio-item"><input type="radio" name="innerShadow" value="10" id="innerShadow10"><label for="innerShadow10">標準</label></div>
+            </div>
+          </div>
+
+          <div id="textEffectControls">
+            <div class="control">
+              <label for="textGradColor1">テキストグラデーション1</label>
+              <div class="control-inline">
+                <input type="color" id="textGradColor1" value="#ffffff">
+                <div class="color-display"><div class="color-box" id="textGradColor1Box"></div><div class="color-hex" id="textGradColor1Hex">#FFFFFF</div></div>
+              </div>
+            </div>
+            <div class="control">
+              <label for="textGradColor2">テキストグラデーション2</label>
+              <div class="control-inline">
+                <input type="color" id="textGradColor2" value="#e0e0e0">
+                <div class="color-display"><div class="color-box" id="textGradColor2Box"></div><div class="color-hex" id="textGradColor2Hex">#E0E0E0</div></div>
+              </div>
+            </div>
+
+            <div class="control">
+              <div class="checkbox-item">
+                <input type="checkbox" id="addOutline" checked>
+                <label for="addOutline">アウトライン追加</label>
+              </div>
+            </div>
+
+            <div class="control" id="outlineControls">
+              <label for="outlineColor">アウトライン色</label>
+              <div class="control-inline">
+                <input type="color" id="outlineColor" value="#000000">
+                <div class="color-display"><div class="color-box" id="outlineColorBox"></div><div class="color-hex" id="outlineColorHex">#000000</div></div>
               </div>
             </div>
             
-            <label for="outlineWidth">アウトライン幅</label>
-            <div class="range-display">
-              <input type="range" id="outlineWidth" min="1" max="10" value="5">
-              <output id="outlineWidthValue">5</output>
+            <div class="control" id="outlineWidthControl">
+              <label for="outlineWidth">アウトライン幅</label>
+              <div class="range-display">
+                <input type="range" id="outlineWidth" min="1" max="20" value="5">
+                <output id="outlineWidthValue">5</output>
+              </div>
             </div>
           </div>
 
           <div class="control">
             <label for="cornerRadius">角丸の強さ</label>
             <div class="range-display">
-              <input type="range" id="cornerRadius" min="0" max="50" value="15">
-              <output id="cornerRadiusValue">15</output>
-            </div>
-          </div>
-
-          <div class="control">
-            <label for="gradientAngle">グラデーション角度</label>
-            <div class="range-display">
-              <input type="range" id="gradientAngle" min="0" max="360" value="135">
-              <output id="gradientAngleValue">135°</output>
+              <input type="range" id="cornerRadius" min="0" max="50" value="20">
+              <output id="cornerRadiusValue">20%</output>
             </div>
           </div>
         </div>
       </div>
 
       <div class="button-group">
-        <button class="btn-primary" onclick="createIcon()">🚀 作成</button>
-        <button class="btn-secondary" onclick="randomizeColors()">🎲 ランダム</button>
-        <button class="btn-accent" onclick="resetToDefaults()">🔄 リセット</button>
+        <button class="btn-primary" id="randomizeBtn">🎲 ランダム生成</button>
+        <button class="btn-secondary" id="resetBtn">🔄 リセット</button>
       </div>
     </div>
 
     <div class="preview-area">
-      <div class="section">
-        <div class="section-title">👁️ プレビュー</div>
-        <div class="preview-canvas-container">
-          <canvas id="iconCanvas" width="256" height="256"></canvas>
-          <div id="svgPreview" style="display: none;"></div>
-          <div class="size-indicator" id="sizeIndicator">256×256 pixels</div>
+      <div class="preview-canvas-container" id="dropZone">
+        <canvas id="iconCanvas" width="256" height="256"></canvas>
+        <div class="utility-bar">
+          <div class="checkbox-item tooltip" data-tooltip="Android等で丸く切り抜かれる安全領域">
+            <input type="checkbox" id="showGuide">
+            <label for="showGuide">PWAセーフエリアガイドを表示</label>
+          </div>
+          <div class="size-indicator" id="sizeIndicator">256 x 256 px</div>
         </div>
       </div>
 
       <div class="section">
-        <div class="section-title">📤 エクスポート</div>
+        <div class="section-title">⬇️ ダウンロードとエクスポート</div>
+        
+        <button id="copyToClipboardBtn" class="btn-outline" style="width: 100%; margin-bottom: 15px; border-color: var(--primary); color: var(--primary);">
+          📋 画像をクリップボードにコピー
+        </button>
+
         <div class="export-options">
-          <div class="export-btn" onclick="downloadIcon('png')">
-            <div class="export-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">PNG</div>
-            <span>PNG形式</span>
-            <small>透過対応・Web用</small>
-          </div>
-          <div class="export-btn" onclick="downloadIcon('jpeg')">
-            <div class="export-icon" style="background: linear-gradient(135deg, #f093fb, #f5576c);">JPG</div>
-            <span>JPEG形式</span>
-            <small>高圧縮・写真用</small>
-          </div>
-          <div class="export-btn" onclick="downloadIcon('svg')">
-            <div class="export-icon" style="background: linear-gradient(135deg, #4facfe, #00f2fe);">SVG</div>
-            <span>SVG形式</span>
-            <small>ベクター・無劣化</small>
-          </div>
-          <div class="export-btn" onclick="downloadIcon('ico')">
-            <div class="export-icon" style="background: linear-gradient(135deg, #43e97b, #38f9d7);">ICO</div>
-            <span>ICO形式</span>
-            <small>Windows用</small>
-          </div>
+          <a href="#" id="downloadPngBtn" class="export-btn tooltip" data-tooltip="ウェブの透過アイコン、ロゴに">
+            <span class="export-icon" style="background: var(--success);">PNG</span>
+            <span>PNG</span>
+          </a>
+          <a href="#" id="downloadJpgBtn" class="export-btn tooltip" data-tooltip="写真など、透過が不要な画像に">
+            <span class="export-icon" style="background: var(--warning);">JPG</span>
+            <span>JPG</span>
+          </a>
+          <a href="#" id="downloadWebpBtn" class="export-btn tooltip" data-tooltip="高画質を保ちつつ、軽量なウェブ画像に">
+            <span class="export-icon" style="background: var(--primary);">WEBP</span>
+            <span>WEBP</span>
+          </a>
+          <a href="#" id="downloadSvgBtn" class="export-btn tooltip" data-tooltip="サイズを変えても劣化しないベクター画像に">
+            <span class="export-icon" style="background: var(--accent);">SVG</span>
+            <span>SVG</span>
+          </a>
+          <a href="#" id="downloadIcoBtn" class="export-btn tooltip" data-tooltip="Windowsのファビコンやショートカットに最適">
+            <span class="export-icon" style="background: #5D5DFF;">ICO</span>
+            <span>ICO</span>
+          </a>
         </div>
-      </div>
-
-      <div class="history-panel">
-        <div class="section-title">📚 履歴</div>
-        <div class="history-grid" id="historyGrid">
-          </div>
+        <div class="success-message" id="copySuccessMessage">✅ 画像がクリップボードにコピーされました！</div>
+        <div class="error-message" id="copyErrorMessage">⚠️ 画像のコピーに失敗しました。ブラウザが対応していない可能性があります。</div>
       </div>
     </div>
   </div>
 
   <script>
-    let iconHistory = [];
-    const maxHistory = 12;
+    // 要素の取得
+    const canvas = document.getElementById('iconCanvas');
+    const ctx = canvas.getContext('2d');
+    const iconTextarea = document.getElementById('iconText');
+    const textLengthSpan = document.getElementById('textLength');
+    const fontFamilySelect = document.getElementById('fontFamily');
+    const fontWeightSelect = document.getElementById('fontWeight');
+    const gradColor1Input = document.getElementById('gradColor1');
+    const gradColor2Input = document.getElementById('gradColor2');
+    const iconSizeSelect = document.getElementById('iconSize');
+    const iconWidthInput = document.getElementById('iconWidth');
+    const iconHeightInput = document.getElementById('iconHeight');
+    const customSizeInputs = document.getElementById('customSizeInputs');
+    const letterSpacingRange = document.getElementById('letterSpacing');
+    const letterSpacingValue = document.getElementById('letterSpacingValue');
+    const lineHeightRange = document.getElementById('lineHeight');
+    const lineHeightValue = document.getElementById('lineHeightValue');
+    const cornerRadiusRange = document.getElementById('cornerRadius');
+    const cornerRadiusValue = document.getElementById('cornerRadiusValue');
+    const dropShadowRadios = document.querySelectorAll('input[name="dropShadow"]');
+    const innerShadowRadios = document.querySelectorAll('input[name="innerShadow"]');
+    const addOutlineCheckbox = document.getElementById('addOutline');
+    const outlineColorInput = document.getElementById('outlineColor');
+    const outlineWidthRange = document.getElementById('outlineWidth');
+    const outlineWidthValue = document.getElementById('outlineWidthValue');
+    const outlineControls = document.getElementById('outlineControls');
+    const randomizeBtn = document.getElementById('randomizeBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const presetBtns = document.querySelectorAll('.preset-btn');
+    const downloadPngBtn = document.getElementById('downloadPngBtn');
+    const downloadJpgBtn = document.getElementById('downloadJpgBtn');
+    const downloadWebpBtn = document.getElementById('downloadWebpBtn');
+    const downloadSvgBtn = document.getElementById('downloadSvgBtn');
+    const downloadIcoBtn = document.getElementById('downloadIcoBtn');
+    const copySuccessMessage = document.getElementById('copySuccessMessage');
+    const copyErrorMessage = document.getElementById('copyErrorMessage');
+    const sizeIndicator = document.getElementById('sizeIndicator');
+    const textGradColor1Input = document.getElementById('textGradColor1');
+    const textGradColor2Input = document.getElementById('textGradColor2');
+    
+    // 既存追加要素
+    const modeRadios = document.querySelectorAll('input[name="mode"]');
+    const textSettingsSection = document.getElementById('textSettingsSection');
+    const imageSettingsSection = document.getElementById('imageSettingsSection');
+    const imageUploadInput = document.getElementById('imageUpload');
+    const imageFitSelect = document.getElementById('imageFit');
+    const clearImageBtn = document.getElementById('clearImageBtn');
+    const textLetterSpacingControl = document.getElementById('textLetterSpacingControl');
+    const textLineHeightControl = document.getElementById('textLineHeightControl');
+    const textEffectControls = document.getElementById('textEffectControls');
+    const outlineWidthControl = document.getElementById('outlineWidthControl');
 
-    // Initialize app
-    document.addEventListener('DOMContentLoaded', function() {
-      initializeControls();
-      createIcon();
-      loadHistory();
-    });
+    // 新規追加要素
+    const enableFrameCheckbox = document.getElementById('enableFrame');
+    const frameSettings = document.getElementById('frameSettings');
+    const frameColorInput = document.getElementById('frameColor');
+    const frameWidthRange = document.getElementById('frameWidth');
+    const frameWidthValue = document.getElementById('frameWidthValue');
+    const showGuideCheckbox = document.getElementById('showGuide');
+    const copyToClipboardBtn = document.getElementById('copyToClipboardBtn');
+    const dropZone = document.getElementById('dropZone');
 
-    function initializeControls() {
-      // Color inputs
-      const colorInputs = [
-        { id: 'textColor', hexId: 'textColorHex', boxId: 'textColorBox' },
-        { id: 'gradColor1', hexId: 'gradColor1Hex', boxId: 'gradColor1Box' },
-        { id: 'gradColor2', hexId: 'gradColor2Hex', boxId: 'gradColor2Box' },
-        { id: 'outlineColor', hexId: 'outlineColorHex', boxId: 'outlineColorBox' }
-      ];
+    let patternType = 'none';
+    let uploadedImage = null;
+    let currentMode = 'text';
 
-      colorInputs.forEach(item => {
-        const input = document.getElementById(item.id);
-        const hex = document.getElementById(item.hexId);
-        const box = document.getElementById(item.boxId);
-
-        function updateColorDisplay() {
-          hex.textContent = input.value.toUpperCase();
-          box.style.backgroundColor = input.value;
-        }
-
-        input.addEventListener('input', updateColorDisplay);
-        updateColorDisplay();
-      });
-
-      // Range inputs
-      const rangeInputs = [
-        { id: 'letterSpacing', outputId: 'letterSpacingValue' },
-        { id: 'lineHeight', outputId: 'lineHeightValue' },
-        { id: 'outlineWidth', outputId: 'outlineWidthValue' },
-        { id: 'cornerRadius', outputId: 'cornerRadiusValue' },
-        { id: 'gradientAngle', outputId: 'gradientAngleValue', suffix: '°' }
-      ];
-
-      rangeInputs.forEach(item => {
-        const input = document.getElementById(item.id);
-        const output = document.getElementById(item.outputId);
-        
-        input.addEventListener('input', function() {
-          output.textContent = this.value + (item.suffix || '');
-        });
-      });
-
-      // Outline toggle
-      document.getElementById('addOutline').addEventListener('change', function() {
-        document.getElementById('outlineControls').style.display = 
-          this.checked ? 'block' : 'none';
-      });
-      
-      // Custom size toggle
-      const iconSizeSelect = document.getElementById('iconSize');
-      const customSizeInputs = document.getElementById('customSizeInputs');
-      const iconWidthInput = document.getElementById('iconWidth');
-      const iconHeightInput = document.getElementById('iconHeight');
-
-      function toggleCustomSizeInputs() {
-        if (iconSizeSelect.value === 'custom') {
-          customSizeInputs.style.display = 'flex';
-          iconWidthInput.value = iconWidthInput.value || '256';
-          iconHeightInput.value = iconHeightInput.value || '256';
-        } else {
-          customSizeInputs.style.display = 'none';
-        }
-      }
-
-      iconSizeSelect.addEventListener('change', toggleCustomSizeInputs);
-      iconWidthInput.addEventListener('input', debounce(createIcon, 300));
-      iconHeightInput.addEventListener('input', debounce(createIcon, 300));
-      
-      // Initial state
-      toggleCustomSizeInputs();
-
-      // Auto-update on changes
-      document.querySelectorAll('input, select, textarea').forEach(element => {
-        element.addEventListener('input', debounce(createIcon, 300));
-      });
-
-      // Preset colors
-      document.querySelectorAll('.preset-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-          const colors = this.dataset.colors.split(',');
-          document.getElementById('gradColor1').value = colors[0];
-          document.getElementById('gradColor2').value = colors[1];
-          
-          // Update displays
-          document.getElementById('gradColor1Hex').textContent = colors[0].toUpperCase();
-          document.getElementById('gradColor1Box').style.backgroundColor = colors[0];
-          document.getElementById('gradColor2Hex').textContent = colors[1].toUpperCase();
-          document.getElementById('gradColor2Box').style.backgroundColor = colors[1];
-          
-          createIcon();
-        });
-      });
-    }
-
-    function getParams() {
-      const iconSizeSelect = document.getElementById('iconSize');
-      let width, height;
-      if (iconSizeSelect.value === 'custom') {
-        width = parseInt(document.getElementById('iconWidth').value, 10);
-        height = parseInt(document.getElementById('iconHeight').value, 10);
-        if (isNaN(width) || width < 32) width = 256;
-        if (isNaN(height) || height < 32) height = 256;
-      } else {
-        const size = parseInt(iconSizeSelect.value);
-        width = size;
-        height = size;
-      }
-
-      return {
-        text: document.getElementById('iconText').value,
-        iconWidth: width,
-        iconHeight: height,
-        fontFamily: document.getElementById('fontFamily').value,
-        fontWeight: document.getElementById('fontWeight').value,
-        textColor: document.getElementById('textColor').value,
-        gradColor1: document.getElementById('gradColor1').value,
-        gradColor2: document.getElementById('gradColor2').value,
-        letterSpacing: parseFloat(document.getElementById('letterSpacing').value),
-        lineHeight: parseFloat(document.getElementById('lineHeight').value),
-        dropShadow: parseInt(document.querySelector('input[name="dropShadow"]:checked').value),
-        addOutline: document.getElementById('addOutline').checked,
-        outlineColor: document.getElementById('outlineColor').value,
-        outlineWidth: parseInt(document.getElementById('outlineWidth').value),
-        cornerRadius: parseInt(document.getElementById('cornerRadius').value),
-        gradientAngle: parseInt(document.getElementById('gradientAngle').value)
-      };
-    }
-
-    function createIcon() {
-      const params = getParams();
-      const canvas = document.getElementById('iconCanvas');
-      canvas.width = params.iconWidth;
-      canvas.height = params.iconHeight;
-      
-      document.getElementById('sizeIndicator').textContent = `${params.iconWidth}×${params.iconHeight} pixels`;
-      
-      const ctx = canvas.getContext('2d');
-      drawIcon(ctx, params);
-      
-      // Add to history
-      addToHistory(canvas.toDataURL(), params);
-    }
-
-    function drawIcon(ctx, params) {
-      ctx.clearRect(0, 0, params.iconWidth, params.iconHeight);
-
-      // Create gradient
-      const angle = (params.gradientAngle * Math.PI) / 180;
-      const x1 = params.iconWidth / 2 + Math.cos(angle) * params.iconWidth / 2;
-      const y1 = params.iconHeight / 2 + Math.sin(angle) * params.iconHeight / 2;
-      const x2 = params.iconWidth / 2 - Math.cos(angle) * params.iconWidth / 2;
-      const y2 = params.iconHeight / 2 - Math.sin(angle) * params.iconHeight / 2;
-
-      const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
-      gradient.addColorStop(0, params.gradColor1);
-      gradient.addColorStop(1, params.gradColor2);
-
-      // Draw background with corner radius
-      const radius = (params.cornerRadius / 100) * Math.min(params.iconWidth, params.iconHeight) * 0.3;
-      ctx.fillStyle = gradient;
-      roundRect(ctx, 0, 0, params.iconWidth, params.iconHeight, radius);
-      ctx.fill();
-
-      // Add depth effect
-      const depthGradient = ctx.createRadialGradient(
-        params.iconWidth * 0.3, params.iconHeight * 0.3, 0,
-        params.iconWidth * 0.3, params.iconHeight * 0.3, Math.max(params.iconWidth, params.iconHeight) * 0.8
-      );
-      depthGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-      depthGradient.addColorStop(1, 'rgba(0, 0, 0, 0.2)');
-      
-      ctx.fillStyle = depthGradient;
-      roundRect(ctx, 0, 0, params.iconWidth, params.iconHeight, radius);
-      ctx.fill();
-
-      // Calculate optimal font size
-      const lines = params.text.split('\n');
-      let fontSize = Math.min(params.iconWidth, params.iconHeight) * 0.4;
-      const padding = Math.min(params.iconWidth, params.iconHeight) * 0.15;
-
-      ctx.font = `${params.fontWeight} ${fontSize}px ${params.fontFamily}`;
-      
-      while (fontSize > 10) {
-        let maxWidth = 0;
-        const totalHeight = lines.length * fontSize * params.lineHeight;
-
-        for (const line of lines) {
-          let lineWidth = 0;
-          for (let i = 0; i < line.length; i++) {
-            lineWidth += ctx.measureText(line[i]).width;
-            if (i < line.length - 1) {
-              lineWidth += params.letterSpacing;
-            }
-          }
-          maxWidth = Math.max(maxWidth, lineWidth);
-        }
-
-        if (maxWidth <= params.iconWidth - padding * 2 && 
-            totalHeight <= params.iconHeight - padding * 2) {
-          break;
-        }
-        
-        fontSize -= 2;
-        ctx.font = `${params.fontWeight} ${fontSize}px ${params.fontFamily}`;
-      }
-
-      // Set text properties
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      
-      // Shadow
-      if (params.dropShadow > 0) {
-        ctx.shadowOffsetX = params.dropShadow;
-        ctx.shadowOffsetY = params.dropShadow;
-        ctx.shadowBlur = params.dropShadow * 2;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-      }
-
-      // Draw text
-      const startY = params.iconHeight / 2 - ((lines.length - 1) * fontSize * params.lineHeight) / 2;
-
-      lines.forEach((line, lineIndex) => {
-        const y = startY + lineIndex * fontSize * params.lineHeight;
-        
-        if (params.addOutline) {
-          ctx.lineWidth = params.outlineWidth;
-          ctx.strokeStyle = params.outlineColor;
-          ctx.strokeText(line, params.iconWidth / 2, y);
-        }
-        
-        ctx.fillStyle = params.textColor;
-        ctx.fillText(line, params.iconWidth / 2, y);
-      });
-
-      // Reset shadow
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
-      ctx.shadowBlur = 0;
-    }
-
-    function roundRect(ctx, x, y, width, height, radius) {
-      ctx.beginPath();
-      ctx.moveTo(x + radius, y);
-      ctx.lineTo(x + width - radius, y);
-      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-      ctx.lineTo(x + width, y + height - radius);
-      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-      ctx.lineTo(x + radius, y + height);
-      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-      ctx.lineTo(x, y + radius);
-      ctx.quadraticCurveTo(x, y, x + radius, y);
-      ctx.closePath();
-    }
-
-    function randomizeColors() {
-      const colors = [
-        ['#667eea', '#764ba2'], ['#f093fb', '#f5576c'], ['#4facfe', '#00f2fe'],
-        ['#43e97b', '#38f9d7'], ['#fa709a', '#fee140'], ['#a8edea', '#fed6e3'],
-        ['#ffecd2', '#fcb69f'], ['#ff8a80', '#ff5722'], ['#81c784', '#4caf50'],
-        ['#64b5f6', '#2196f3'], ['#ba68c8', '#9c27b0'], ['#ffb74d', '#ff9800']
-      ];
-      
-      const randomPair = colors[Math.floor(Math.random() * colors.length)];
-      
-      document.getElementById('gradColor1').value = randomPair[0];
-      document.getElementById('gradColor2').value = randomPair[1];
-      
-      // Update displays
-      document.getElementById('gradColor1Hex').textContent = randomPair[0].toUpperCase();
-      document.getElementById('gradColor1Box').style.backgroundColor = randomPair[0];
-      document.getElementById('gradColor2Hex').textContent = randomPair[1].toUpperCase();
-      document.getElementById('gradColor2Box').style.backgroundColor = randomPair[1];
-      
-      // Random text color for contrast
-      const textColors = ['#ffffff', '#000000', '#333333', '#f0f0f0'];
-      const randomTextColor = textColors[Math.floor(Math.random() * textColors.length)];
-      document.getElementById('textColor').value = randomTextColor;
-      document.getElementById('textColorHex').textContent = randomTextColor.toUpperCase();
-      document.getElementById('textColorBox').style.backgroundColor = randomTextColor;
-      
-      createIcon();
-    }
-
-    function resetToDefaults() {
-      // Reset all controls to default values
-      document.getElementById('iconText').value = '🎯';
-      document.getElementById('iconSize').value = 'custom';
-      document.getElementById('iconWidth').value = '256';
-      document.getElementById('iconHeight').value = '256';
-      document.getElementById('fontFamily').value = "'M PLUS Rounded 1c', sans-serif";
-      document.getElementById('fontWeight').value = '800';
-      document.getElementById('textColor').value = '#ffffff';
-      document.getElementById('gradColor1').value = '#667eea';
-      document.getElementById('gradColor2').value = '#764ba2';
-      document.getElementById('letterSpacing').value = '0';
-      document.getElementById('lineHeight').value = '1.2';
-      document.getElementById('shadow3').checked = true;
-      document.getElementById('addOutline').checked = true;
-      document.getElementById('outlineColor').value = '#000000';
-      document.getElementById('outlineWidth').value = '5';
-      document.getElementById('cornerRadius').value = '15';
-      document.getElementById('gradientAngle').value = '135';
-      
-      // Update displays
-      document.getElementById('outlineControls').style.display = 'block';
-      document.getElementById('customSizeInputs').style.display = 'flex';
-      initializeControls();
-      createIcon();
-    }
-
-    function toggleAdvanced() {
-      const controls = document.getElementById('advancedControls');
-      const button = document.querySelector('.toggle-advanced');
-      
-      if (controls.classList.contains('show')) {
-        controls.classList.remove('show');
-        button.textContent = '🔧 高度な設定';
-      } else {
-        controls.classList.add('show');
-        button.textContent = '🔧 設定を閉じる';
-      }
-    }
-
-    function downloadIcon(format) {
-      const canvas = document.getElementById('iconCanvas');
-      const params = getParams();
-      
-      if (format === 'svg') {
-        const svgData = generateSVG(params);
-        const blob = new Blob([svgData], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
-        downloadFile(url, `icon.svg`);
-      } else if (format === 'ico') {
-        const blob = canvasToICO(canvas);
-        const url = URL.createObjectURL(blob);
-        downloadFile(url, `icon.ico`);
-      } else {
-        const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
-        const dataURL = canvas.toDataURL(mimeType, 0.9);
-        downloadFile(dataURL, `icon.${format}`);
-      }
-    }
-
-    function generateSVG(params) {
-      const radius = (params.cornerRadius / 100) * Math.min(params.iconWidth, params.iconHeight) * 0.3;
-      const lines = params.text.split('\n');
-      
-      let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${params.iconWidth}" height="${params.iconHeight}">`;
-      svg += `<defs>
-        <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%" gradientTransform="rotate(${params.gradientAngle})">
-          <stop offset="0%" stop-color="${params.gradColor1}"/>
-          <stop offset="100%" stop-color="${params.gradColor2}"/>
-        </linearGradient>`;
-      
-      if (params.dropShadow > 0) {
-        svg += `<filter id="shadow">
-          <feDropShadow dx="${params.dropShadow}" dy="${params.dropShadow}" stdDeviation="${params.dropShadow}" flood-opacity="0.4"/>
-        </filter>`;
-      }
-      
-      svg += `</defs>`;
-      svg += `<rect width="${params.iconWidth}" height="${params.iconHeight}" rx="${radius}" fill="url(#bg)"/>`;
-      
-      const fontSize = Math.min(params.iconWidth, params.iconHeight) * 0.4;
-      const startY = params.iconHeight / 2;
-      
-      svg += `<text x="50%" y="${startY}" text-anchor="middle" dominant-baseline="central"`;
-      svg += ` font-family="${params.fontFamily}" font-size="${fontSize}" font-weight="${params.fontWeight}"`;
-      svg += ` fill="${params.textColor}" letter-spacing="${params.letterSpacing}px"`;
-      
-      if (params.addOutline) {
-        svg += ` stroke="${params.outlineColor}" stroke-width="${params.outlineWidth}"`;
-      }
-      
-      if (params.dropShadow > 0) {
-        svg += ` filter="url(#shadow)"`;
-      }
-      
-      svg += `>${params.text}</text></svg>`;
-      
-      return svg;
-    }
-
+    // ICOファイル作成関数
     function canvasToICO(canvas) {
       const pngDataUrl = canvas.toDataURL('image/png');
       const pngBase64 = pngDataUrl.split(',')[1];
@@ -1171,137 +752,672 @@
       const view = new DataView(buffer);
       
       let offset = 0;
+      view.setUint16(offset, 0, true); offset += 2;
+      view.setUint16(offset, 1, true); offset += 2;
+      view.setUint16(offset, 1, true); offset += 2;
       
-      // ICO Header
-      view.setUint16(offset, 0, true); offset += 2; // Reserved
-      view.setUint16(offset, 1, true); offset += 2; // Type (1 = icon)
-      view.setUint16(offset, 1, true); offset += 2; // Count
-      
-      // Directory Entry
-      const size = Math.min(canvas.width, canvas.height);
+      const size = canvas.width;
       view.setUint8(offset, size >= 256 ? 0 : size); offset++;
       view.setUint8(offset, size >= 256 ? 0 : size); offset++;
-      view.setUint8(offset, 0); offset++; // Colors
-      view.setUint8(offset, 0); offset++; // Reserved
-      view.setUint16(offset, 1, true); offset += 2; // Planes
-      view.setUint16(offset, 32, true); offset += 2; // Bits per pixel
-      view.setUint32(offset, pngLength, true); offset += 4; // Size
-      view.setUint32(offset, headerSize, true); offset += 4; // Offset
+      view.setUint8(offset, 0); offset++;
+      view.setUint8(offset, 0); offset++;
+      view.setUint16(offset, 1, true); offset += 2;
+      view.setUint16(offset, 32, true); offset += 2;
+      view.setUint32(offset, pngLength, true); offset += 4;
+      view.setUint32(offset, headerSize, true); offset += 4;
       
-      // PNG Data
       for (let i = 0; i < pngLength; i++) {
         view.setUint8(offset + i, pngBytes.charCodeAt(i));
       }
-      
       return new Blob([buffer], { type: 'image/x-icon' });
     }
 
-    function downloadFile(url, filename) {
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      link.click();
+    // 初期状態の設定
+    function initializeState() {
+      iconTextarea.value = '松乃木飯店';
+      fontFamilySelect.value = "'M PLUS Rounded 1c', sans-serif";
+      fontWeightSelect.value = '800';
+      letterSpacingRange.value = '0';
+      lineHeightRange.value = '1.2';
       
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
+      gradColor1Input.value = '#667eea';
+      gradColor2Input.value = '#764ba2';
+      textGradColor1Input.value = '#ffffff';
+      textGradColor2Input.value = '#e0e0e0';
+
+      iconSizeSelect.value = '256';
+      iconWidthInput.value = '256';
+      iconHeightInput.value = '256';
+
+      cornerRadiusRange.value = '20';
+      addOutlineCheckbox.checked = true;
+      outlineColorInput.value = '#000000';
+      outlineWidthRange.value = '5';
+      document.getElementById('shadow3').checked = true;
+      document.getElementById('innerShadow0').checked = true;
+      
+      enableFrameCheckbox.checked = false;
+      frameColorInput.value = '#8b5a2b';
+      frameWidthRange.value = '12';
+      showGuideCheckbox.checked = false;
+
+      patternType = 'none';
+      uploadedImage = null;
+      imageUploadInput.value = null;
+      imageFitSelect.value = 'contain';
+      currentMode = 'text';
+      document.getElementById('modeText').checked = true;
+
+      updateUI();
+      drawIcon();
     }
 
-    function addToHistory(dataURL, params) {
-      const historyItem = {
-        dataURL,
-        params: { ...params },
-        timestamp: Date.now()
-      };
+    // UIの値を更新
+    function updateUI() {
+      document.getElementById('textGradColor1Hex').textContent = textGradColor1Input.value.toUpperCase();
+      document.getElementById('textGradColor1Box').style.backgroundColor = textGradColor1Input.value;
+      document.getElementById('textGradColor2Hex').textContent = textGradColor2Input.value.toUpperCase();
+      document.getElementById('textGradColor2Box').style.backgroundColor = textGradColor2Input.value;
+      document.getElementById('gradColor1Hex').textContent = gradColor1Input.value.toUpperCase();
+      document.getElementById('gradColor1Box').style.backgroundColor = gradColor1Input.value;
+      document.getElementById('gradColor2Hex').textContent = gradColor2Input.value.toUpperCase();
+      document.getElementById('gradColor2Box').style.backgroundColor = gradColor2Input.value;
       
-      iconHistory.unshift(historyItem);
+      document.getElementById('frameColorHex').textContent = frameColorInput.value.toUpperCase();
+      document.getElementById('frameColorBox').style.backgroundColor = frameColorInput.value;
+      frameWidthValue.textContent = frameWidthRange.value;
+      frameSettings.style.display = enableFrameCheckbox.checked ? 'block' : 'none';
+
+      letterSpacingValue.textContent = letterSpacingRange.value;
+      lineHeightValue.textContent = lineHeightRange.value;
+      outlineWidthValue.textContent = outlineWidthRange.value;
+      cornerRadiusValue.textContent = `${cornerRadiusRange.value}%`;
+
+      textLengthSpan.textContent = iconTextarea.value.length;
+      customSizeInputs.style.display = iconSizeSelect.value === 'custom' ? 'flex' : 'none';
+      outlineControls.style.display = addOutlineCheckbox.checked ? 'flex' : 'none';
+      outlineWidthControl.style.display = addOutlineCheckbox.checked ? 'flex' : 'none';
+
+      const isTextMode = currentMode === 'text';
+      textSettingsSection.style.display = isTextMode ? 'block' : 'none';
+      textLetterSpacingControl.style.display = isTextMode ? 'flex' : 'none';
+      textLineHeightControl.style.display = isTextMode ? 'flex' : 'none';
+      textEffectControls.style.display = isTextMode ? 'block' : 'none';
+      imageSettingsSection.style.display = isTextMode ? 'none' : 'block';
       
-      if (iconHistory.length > maxHistory) {
-        iconHistory = iconHistory.slice(0, maxHistory);
-      }
-      
-      saveHistory();
-      updateHistoryDisplay();
+      downloadSvgBtn.style.display = isTextMode ? 'flex' : 'none';
     }
 
-    function updateHistoryDisplay() {
-      const grid = document.getElementById('historyGrid');
-      grid.innerHTML = '';
-      
-      iconHistory.forEach((item, index) => {
-        const img = document.createElement('img');
-        img.src = item.dataURL;
-        img.className = 'history-item';
-        img.title = `${item.params.text} - ${new Date(item.timestamp).toLocaleString()}`;
-        
-        img.addEventListener('click', () => {
-          loadFromHistory(item.params);
-        });
-        
-        grid.appendChild(img);
-      });
-    }
+    // キャンバスにアイコンを描画
+    function drawIcon() {
+      const text = iconTextarea.value.trim();
+      const fontFamily = fontFamilySelect.value;
+      const fontWeight = fontWeightSelect.value;
+      const textGradColor1 = textGradColor1Input.value;
+      const textGradColor2 = textGradColor2Input.value;
+      const gradColor1 = gradColor1Input.value;
+      const gradColor2 = gradColor2Input.value;
+      const letterSpacing = parseFloat(letterSpacingRange.value);
+      const lineHeight = parseFloat(lineHeightRange.value);
+      const cornerRadius = parseFloat(cornerRadiusRange.value) / 100;
+      const dropShadow = parseInt(document.querySelector('input[name="dropShadow"]:checked').value);
+      const innerShadow = parseInt(document.querySelector('input[name="innerShadow"]:checked').value);
+      const addOutline = addOutlineCheckbox.checked;
+      const outlineColor = outlineColorInput.value;
+      const outlineWidth = parseInt(outlineWidthRange.value);
 
-    function loadFromHistory(params) {
-      // Load parameters into UI
-      Object.keys(params).forEach(key => {
-        const element = document.getElementById(key);
-        if (element) {
-          if (element.type === 'radio') {
-            document.querySelector(`input[name="${key}"][value="${params[key]}"]`).checked = true;
-          } else if (element.type === 'checkbox') {
-            element.checked = params[key];
-          } else {
-            element.value = params[key];
-          }
-        }
-      });
+      const width = iconSizeSelect.value === 'custom' ? parseInt(iconWidthInput.value) : parseInt(iconSizeSelect.value);
+      const height = iconSizeSelect.value === 'custom' ? parseInt(iconHeightInput.value) : parseInt(iconSizeSelect.value);
       
-      // Handle custom size separately
-      const iconSizeSelect = document.getElementById('iconSize');
-      if (params.iconWidth && params.iconHeight) {
-        iconSizeSelect.value = 'custom';
-        document.getElementById('iconWidth').value = params.iconWidth;
-        document.getElementById('iconHeight').value = params.iconHeight;
+      if (isNaN(width) || isNaN(height) || width < 32 || height < 32) return;
+
+      canvas.width = width;
+      canvas.height = height;
+      sizeIndicator.textContent = `${width} x ${height} px`;
+
+      ctx.clearRect(0, 0, width, height);
+      
+      // ドロップシャドウ
+      if (dropShadow > 0) {
+        ctx.shadowColor = `rgba(0, 0, 0, 0.3)`;
+        ctx.shadowBlur = dropShadow * 3;
+        ctx.shadowOffsetX = dropShadow * 1;
+        ctx.shadowOffsetY = dropShadow * 1.5;
       } else {
-        iconSizeSelect.value = params.iconWidth;
+         ctx.shadowColor = 'transparent';
       }
 
-      initializeControls();
-      createIcon();
-    }
+      // 角丸パス作成
+      const radius = width * cornerRadius;
+      ctx.beginPath();
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(width - radius, 0);
+      ctx.quadraticCurveTo(width, 0, width, radius);
+      ctx.lineTo(width, height - radius);
+      ctx.quadraticCurveTo(width, height, width - radius, height);
+      ctx.lineTo(radius, height);
+      ctx.quadraticCurveTo(0, height, 0, height - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+      
+      ctx.save();
+      
+      // ベースグラデーション
+      const gradient = ctx.createLinearGradient(0, 0, width, height);
+      gradient.addColorStop(0, gradColor1);
+      gradient.addColorStop(1, gradColor2);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      
+      ctx.restore();
+      ctx.shadowColor = 'transparent';
 
-    function saveHistory() {
-      try {
-        localStorage.setItem('iconHistory', JSON.stringify(iconHistory));
-      } catch (e) {
-        console.warn('Could not save history to localStorage');
+      // インナーシャドウ
+      if (innerShadow > 0) {
+        ctx.save();
+        ctx.clip();
+        ctx.shadowColor = `rgba(0, 0, 0, 0.4)`;
+        ctx.shadowBlur = innerShadow * 2;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 0;
+        
+        ctx.fillStyle = "black";
+        ctx.beginPath();
+        ctx.rect(0, 0, width, height);
+        ctx.moveTo(radius, 0);
+        ctx.lineTo(width - radius, 0);
+        ctx.quadraticCurveTo(width, 0, width, radius);
+        ctx.lineTo(width, height - radius);
+        ctx.quadraticCurveTo(width, height, width - radius, height);
+        ctx.lineTo(radius, height);
+        ctx.quadraticCurveTo(0, height, 0, height - radius);
+        ctx.lineTo(0, radius);
+        ctx.quadraticCurveTo(0, 0, radius, 0);
+        ctx.closePath();
+        
+        ctx.fill("evenodd");
+        ctx.restore();
       }
-    }
 
-    function loadHistory() {
-      try {
-        const saved = localStorage.getItem('iconHistory');
-        if (saved) {
-          iconHistory = JSON.parse(saved);
-          updateHistoryDisplay();
+      // 描画モードによる分岐
+      if (currentMode === 'text' && text) {
+        const lines = text.split('\n');
+        const maxTextWidth = width * 0.85;
+        const maxTextHeight = height * 0.85;
+        let fontSize = Math.min(width, height);
+
+        while (true) {
+          ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+          let totalTextHeight = 0;
+          let maxWidth = 0;
+
+          lines.forEach((line) => {
+            const metrics = ctx.measureText(line);
+            const textWidth = metrics.width + (line.length - 1) * (letterSpacing * (fontSize / 100));
+            maxWidth = Math.max(maxWidth, textWidth);
+            totalTextHeight += fontSize * lineHeight;
+          });
+
+          if (maxWidth <= maxTextWidth && totalTextHeight <= maxTextHeight) {
+            break;
+          }
+          fontSize -= 1;
+          if (fontSize <= 10) break;
         }
-      } catch (e) {
-        console.warn('Could not load history from localStorage');
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const textGradient = ctx.createLinearGradient(0, height / 2, width, height / 2);
+        textGradient.addColorStop(0, textGradColor1);
+        textGradient.addColorStop(1, textGradColor2);
+
+        const textHeight = fontSize * lineHeight;
+        const totalHeight = textHeight * (lines.length - 1);
+        const startY = height / 2 - (totalHeight / 2) + (fontSize * lineHeight - fontSize) / 2;
+
+        // メインテキスト描画
+        lines.forEach((line, index) => {
+          const yPos = startY + index * textHeight;
+          if (addOutline) {
+            ctx.strokeStyle = outlineColor;
+            ctx.lineWidth = outlineWidth;
+            ctx.lineJoin = 'round';
+            ctx.strokeText(line, width / 2, yPos);
+          }
+          ctx.fillStyle = textGradient;
+          ctx.fillText(line, width / 2, yPos);
+        });
+
+      } else if (currentMode === 'image' && uploadedImage) {
+        const fit = imageFitSelect.value;
+        ctx.save();
+        
+        ctx.beginPath();
+        ctx.moveTo(radius, 0);
+        ctx.lineTo(width - radius, 0);
+        ctx.quadraticCurveTo(width, 0, width, radius);
+        ctx.lineTo(width, height - radius);
+        ctx.quadraticCurveTo(width, height, width - radius, height);
+        ctx.lineTo(radius, height);
+        ctx.quadraticCurveTo(0, height, 0, height - radius);
+        ctx.lineTo(0, radius);
+        ctx.quadraticCurveTo(0, 0, radius, 0);
+        ctx.closePath();
+        ctx.clip();
+
+        const imgWidth = uploadedImage.width;
+        const imgHeight = uploadedImage.height;
+        const canvasAspect = width / height;
+        const imgAspect = imgWidth / imgHeight;
+        
+        let scale = 1, dx = 0, dy = 0, dw = 0, dh = 0;
+
+        if (fit === 'cover') {
+            if (imgAspect > canvasAspect) {
+                scale = height / imgHeight;
+                dw = imgWidth * scale; dh = height;
+                dx = (width - dw) / 2; dy = 0;
+            } else {
+                scale = width / imgWidth;
+                dw = width; dh = imgHeight * scale;
+                dx = 0; dy = (height - dh) / 2;
+            }
+        } else {
+            if (imgAspect > canvasAspect) {
+                scale = width / imgWidth;
+                dw = width; dh = imgHeight * scale;
+                dx = 0; dy = (height - dh) / 2;
+            } else {
+                scale = height / imgHeight;
+                dw = imgWidth * scale; dh = height;
+                dx = (width - dw) / 2; dy = 0;
+            }
+        }
+
+        ctx.drawImage(uploadedImage, dx, dy, dw, dh);
+        ctx.restore();
+      }
+
+      // 新機能: 額縁エフェクトの描画
+      if (enableFrameCheckbox.checked) {
+        const fColor = frameColorInput.value;
+        const fWidth = parseInt(frameWidthRange.value);
+
+        ctx.save();
+        
+        // 外枠のパスを再作成
+        ctx.beginPath();
+        ctx.moveTo(radius, 0);
+        ctx.lineTo(width - radius, 0);
+        ctx.quadraticCurveTo(width, 0, width, radius);
+        ctx.lineTo(width, height - radius);
+        ctx.quadraticCurveTo(width, height, width - radius, height);
+        ctx.lineTo(radius, height);
+        ctx.quadraticCurveTo(0, height, 0, height - radius);
+        ctx.lineTo(0, radius);
+        ctx.quadraticCurveTo(0, 0, radius, 0);
+        ctx.closePath();
+        
+        ctx.clip(); // はみ出し防止
+
+        // ベースの額縁（外周の中央に線が引かれるため太さは2倍にする）
+        ctx.lineWidth = fWidth * 2;
+        ctx.strokeStyle = fColor;
+        ctx.stroke();
+
+        // 額縁の立体感（内側の影とハイライト）
+        const innerRadius = Math.max(0, radius - fWidth);
+        ctx.beginPath();
+        ctx.moveTo(fWidth + innerRadius, fWidth);
+        ctx.lineTo(width - fWidth - innerRadius, fWidth);
+        ctx.quadraticCurveTo(width - fWidth, fWidth, width - fWidth, fWidth + innerRadius);
+        ctx.lineTo(width - fWidth, height - fWidth - innerRadius);
+        ctx.quadraticCurveTo(width - fWidth, height - fWidth, width - fWidth - innerRadius, height - fWidth);
+        ctx.lineTo(fWidth + innerRadius, height - fWidth);
+        ctx.quadraticCurveTo(fWidth, height - fWidth, fWidth, height - fWidth - innerRadius);
+        ctx.lineTo(fWidth, fWidth + innerRadius);
+        ctx.quadraticCurveTo(fWidth, fWidth, fWidth + innerRadius, fWidth);
+        ctx.closePath();
+
+        // 内側の暗い線（シャドウ）
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.stroke();
+
+        // そのすぐ内側の明るい線（ハイライト）
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.stroke();
+
+        // 額縁そのものにハイライトを重ねて丸み・光沢を出す
+        ctx.beginPath();
+        ctx.moveTo(radius, 0);
+        ctx.lineTo(width - radius, 0);
+        ctx.quadraticCurveTo(width, 0, width, radius);
+        ctx.lineTo(width, height - radius);
+        ctx.quadraticCurveTo(width, height, width - radius, height);
+        ctx.lineTo(radius, height);
+        ctx.quadraticCurveTo(0, height, 0, height - radius);
+        ctx.lineTo(0, radius);
+        ctx.quadraticCurveTo(0, 0, radius, 0);
+        ctx.closePath();
+
+        ctx.lineWidth = fWidth * 2;
+        const frameGloss = ctx.createLinearGradient(0, 0, width, height);
+        frameGloss.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+        frameGloss.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+        frameGloss.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+        ctx.strokeStyle = frameGloss;
+        ctx.stroke();
+
+        ctx.restore();
+      }
+
+      // PWAセーフエリアガイド
+      if (showGuideCheckbox.checked) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(width / 2, height / 2, width * 0.4, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+        ctx.lineWidth = Math.max(1, width * 0.005);
+        ctx.setLineDash([width * 0.02, width * 0.02]);
+        ctx.stroke();
+        
+        ctx.fillStyle = 'rgba(255, 0, 0, 0.1)';
+        ctx.fill();
+        ctx.restore();
       }
     }
 
-    function debounce(func, wait) {
-      let timeout;
-      return function executedFunction(...args) {
-        const later = () => {
-          clearTimeout(timeout);
-          func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-      };
+    // SVG生成
+    function createSvgString() {
+      const gradColor1 = gradColor1Input.value;
+      const gradColor2 = gradColor2Input.value;
+      const cornerRadius = parseFloat(cornerRadiusRange.value);
+      const dropShadow = parseInt(document.querySelector('input[name="dropShadow"]:checked').value);
+      const innerShadow = parseInt(document.querySelector('input[name="innerShadow"]:checked').value);
+      const enableFrame = enableFrameCheckbox.checked;
+      
+      const size = iconSizeSelect.value === 'custom' ? parseInt(iconWidthInput.value) : parseInt(iconSizeSelect.value);
+      const width = size, height = size;
+      const radius = width * (cornerRadius / 100);
+
+      let svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">`;
+      svg += `<defs>`;
+      svg += `<linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:${gradColor1}"/><stop offset="100%" style="stop-color:${gradColor2}"/></linearGradient>`;
+      
+      if (dropShadow > 0) {
+        svg += `<filter id="shadow"><feDropShadow dx="${dropShadow * 1}" dy="${dropShadow * 1.5}" stdDeviation="${dropShadow * 0.5}" flood-color="rgba(0, 0, 0, 0.3)"/></filter>`;
+      }
+      if (innerShadow > 0) {
+        svg += `<filter id="innerShadow"><feOffset dx="0" dy="0"/><feGaussianBlur stdDeviation="${innerShadow * 0.2}"/><feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1"/><feFlood flood-color="rgba(0,0,0,0.4)"/><feComposite in2="SourceGraphic" operator="in"/><feComposite operator="over" in2="SourceGraphic"/></filter>`;
+      }
+
+      if (enableFrame) {
+        svg += `<linearGradient id="frameGloss" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:white;stop-opacity:0.4"/><stop offset="50%" style="stop-color:white;stop-opacity:0"/><stop offset="100%" style="stop-color:black;stop-opacity:0.3"/></linearGradient>`;
+      }
+
+      if (currentMode === 'image' && uploadedImage) {
+        const fit = imageFitSelect.value;
+        svg += `<clipPath id="svgClip"><rect width="100%" height="100%" rx="${radius}" ry="${radius}"/></clipPath></defs>`;
+        let rectFilter = dropShadow > 0 ? `filter="url(#shadow)"` : '';
+        svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="url(#bgGrad)" ${rectFilter}/>`;
+        
+        svg += `<g clip-path="url(#svgClip)">`;
+        const preserveAspect = (fit === 'cover') ? 'xMidYMid slice' : 'xMidYMid meet';
+        svg += `<image href="${uploadedImage.src}" width="100%" height="100%" preserveAspectRatio="${preserveAspect}"/>`;
+        svg += `</g>`;
+      } else {
+        const text = iconTextarea.value.trim();
+        const fontFamily = fontFamilySelect.value;
+        const fontWeight = fontWeightSelect.value;
+        const textGradColor1 = textGradColor1Input.value;
+        const textGradColor2 = textGradColor2Input.value;
+        const letterSpacing = parseFloat(letterSpacingRange.value);
+        const lineHeight = parseFloat(lineHeightRange.value);
+        const addOutline = addOutlineCheckbox.checked;
+        const outlineColor = outlineColorInput.value;
+        const outlineWidth = parseInt(outlineWidthRange.value);
+
+        svg += `<linearGradient id="textGrad" x1="0%" y1="50%" x2="100%" y2="50%"><stop offset="0%" style="stop-color:${textGradColor1}"/><stop offset="100%" style="stop-color:${textGradColor2}"/></linearGradient></defs>`;
+        
+        let rectFilter = dropShadow > 0 ? `filter="url(#shadow)"` : '';
+        svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="url(#bgGrad)" ${rectFilter}/>`;
+
+        if (text) {
+          const lines = text.split('\n');
+          let fontSize = Math.min(width, height);
+          const maxTextWidth = width * 0.9;
+          const maxTextHeight = height * 0.9;
+          
+          const testSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          testSvg.style.visibility = 'hidden'; testSvg.style.position = 'absolute';
+          const testText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          testText.setAttribute('font-family', fontFamily);
+          testText.setAttribute('font-weight', fontWeight);
+          testText.setAttribute('letter-spacing', letterSpacing);
+          testSvg.appendChild(testText); document.body.appendChild(testSvg);
+          
+          while (true) {
+            let totalTextHeight = 0, maxWidth = 0;
+            testText.setAttribute('font-size', fontSize + 'px');
+            lines.forEach((line) => {
+              testText.textContent = line;
+              const textWidth = testText.getComputedTextLength();
+              maxWidth = Math.max(maxWidth, textWidth);
+              totalTextHeight += fontSize * lineHeight;
+            });
+            if (maxWidth <= maxTextWidth && totalTextHeight <= maxTextHeight) break;
+            fontSize -= 1;
+            if (fontSize <= 10) break;
+          }
+          document.body.removeChild(testSvg);
+          
+          const textHeight = fontSize * lineHeight;
+          const totalHeight = textHeight * (lines.length - 1);
+          const startY = (height / 2) - (totalHeight / 2) + (fontSize * 0.3);
+          
+          const textAttrs = `fill="url(#textGrad)" font-family="${fontFamily}" font-weight="${fontWeight}" font-size="${fontSize}px" text-anchor="middle" letter-spacing="${letterSpacing}"`;
+          
+          lines.forEach((line, index) => {
+            const yPos = startY + index * textHeight;
+            if (addOutline) {
+              svg += `<text x="${width / 2}" y="${yPos}" ${textAttrs} stroke="${outlineColor}" stroke-width="${outlineWidth}" stroke-linejoin="round">${line}</text>`;
+            }
+            svg += `<text x="${width / 2}" y="${yPos}" ${textAttrs}>${line}</text>`;
+          });
+        }
+      }
+
+      // 額縁のSVG要素を追加
+      if (enableFrame) {
+        const fColor = frameColorInput.value;
+        const fWidth = parseInt(frameWidthRange.value);
+        const innerRadius = Math.max(0, radius - fWidth);
+        
+        svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="none" stroke="${fColor}" stroke-width="${fWidth * 2}" />`;
+        svg += `<rect width="100%" height="100%" rx="${radius}" ry="${radius}" fill="none" stroke="url(#frameGloss)" stroke-width="${fWidth * 2}" />`;
+        svg += `<rect x="${fWidth}" y="${fWidth}" width="${width - fWidth*2}" height="${height - fWidth*2}" rx="${innerRadius}" ry="${innerRadius}" fill="none" stroke="rgba(0,0,0,0.5)" stroke-width="3" />`;
+        svg += `<rect x="${fWidth}" y="${fWidth}" width="${width - fWidth*2}" height="${height - fWidth*2}" rx="${innerRadius}" ry="${innerRadius}" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1" />`;
+      }
+
+      svg += `</svg>`;
+      return svg;
     }
+
+    // イベントリスナー
+    const inputs = [
+      iconTextarea, fontFamilySelect, fontWeightSelect,
+      gradColor1Input, gradColor2Input, textGradColor1Input, textGradColor2Input, iconSizeSelect, iconWidthInput,
+      iconHeightInput, letterSpacingRange, lineHeightRange,
+      cornerRadiusRange, addOutlineCheckbox, outlineColorInput, outlineWidthRange,
+      imageFitSelect, enableFrameCheckbox, frameColorInput, frameWidthRange, showGuideCheckbox
+    ];
+    
+    inputs.forEach(input => input.addEventListener('input', () => { updateUI(); drawIcon(); }));
+    dropShadowRadios.forEach(radio => radio.addEventListener('change', () => { drawIcon(); }));
+    innerShadowRadios.forEach(radio => radio.addEventListener('change', () => { drawIcon(); }));
+
+    modeRadios.forEach(radio => radio.addEventListener('change', (e) => {
+      currentMode = e.target.value;
+      updateUI();
+      drawIcon();
+    }));
+
+    // 画像アップロード共通処理
+    function handleImageFile(file) {
+      if (file && file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          uploadedImage = new Image();
+          uploadedImage.onload = () => {
+            document.getElementById('modeImage').checked = true;
+            currentMode = 'image';
+            updateUI();
+            drawIcon();
+          };
+          uploadedImage.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    imageUploadInput.addEventListener('change', (e) => handleImageFile(e.target.files[0]));
+
+    // ドラッグ＆ドロップ機能
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+      if (e.dataTransfer.files.length > 0) {
+        handleImageFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    clearImageBtn.addEventListener('click', () => {
+      uploadedImage = null;
+      imageUploadInput.value = null;
+      drawIcon();
+    });
+
+    presetBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const colors = btn.dataset.colors.split(',');
+        gradColor1Input.value = colors[0];
+        gradColor2Input.value = colors[1];
+        patternType = 'none';
+        updateUI(); drawIcon();
+      });
+    });
+
+    randomizeBtn.addEventListener('click', () => {
+      const randomHex = () => '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+      gradColor1Input.value = randomHex(); gradColor2Input.value = randomHex();
+      cornerRadiusRange.value = Math.floor(Math.random() * 50);
+
+      if (currentMode === 'text') {
+        textGradColor1Input.value = randomHex(); textGradColor2Input.value = randomHex();
+        const randomWeight = ['300', '400', '500', '600', '700', '800', '900'];
+        fontWeightSelect.value = randomWeight[Math.floor(Math.random() * randomWeight.length)];
+        letterSpacingRange.value = Math.floor(Math.random() * 25) - 5;
+      }
+      
+      if (enableFrameCheckbox.checked) {
+        frameColorInput.value = randomHex();
+      }
+      
+      updateUI(); drawIcon();
+    });
+
+    resetBtn.addEventListener('click', initializeState);
+
+    // クリップボードへコピー機能
+    copyToClipboardBtn.addEventListener('click', async () => {
+      // コピー時はガイドラインを一時的に消して再描画
+      const wasGuideOn = showGuideCheckbox.checked;
+      if(wasGuideOn) { showGuideCheckbox.checked = false; drawIcon(); }
+
+      try {
+        canvas.toBlob(async (blob) => {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          
+          copySuccessMessage.style.display = 'block';
+          copyErrorMessage.style.display = 'none';
+          setTimeout(() => copySuccessMessage.style.display = 'none', 3000);
+
+          // ガイドを元に戻す
+          if(wasGuideOn) { showGuideCheckbox.checked = true; drawIcon(); }
+        }, 'image/png');
+      } catch (err) {
+        copyErrorMessage.style.display = 'block';
+        copySuccessMessage.style.display = 'none';
+        setTimeout(() => copyErrorMessage.style.display = 'none', 3000);
+        console.error('コピー失敗:', err);
+        if(wasGuideOn) { showGuideCheckbox.checked = true; drawIcon(); }
+      }
+    });
+
+    downloadPngBtn.addEventListener('click', () => {
+      drawIcon(); const size = canvas.width;
+      downloadPngBtn.href = canvas.toDataURL('image/png');
+      downloadPngBtn.download = `icon${size}.png`;
+    });
+
+    downloadJpgBtn.addEventListener('click', () => {
+      drawIcon(); const size = canvas.width;
+      downloadJpgBtn.href = canvas.toDataURL('image/jpeg', 0.9);
+      downloadJpgBtn.download = `icon${size}.jpeg`;
+    });
+
+    downloadWebpBtn.addEventListener('click', () => {
+      drawIcon(); const size = canvas.width;
+      downloadWebpBtn.href = canvas.toDataURL('image/webp');
+      downloadWebpBtn.download = `icon${size}.webp`;
+    });
+
+    downloadSvgBtn.addEventListener('click', (event) => {
+      if (currentMode === 'text') {
+        const size = iconSizeSelect.value === 'custom' ? parseInt(iconWidthInput.value) : parseInt(iconSizeSelect.value);
+        const svgString = createSvgString();
+        const blob = new Blob([svgString], {type: 'image/svg+xml'});
+        downloadSvgBtn.href = URL.createObjectURL(blob);
+        downloadSvgBtn.download = `icon${size}.svg`;
+      } else {
+        alert('画像モードではSVGエクスポートはサポートされていません。PNGをご利用ください。');
+        event.preventDefault();
+      }
+    });
+
+    downloadIcoBtn.addEventListener('click', () => {
+      drawIcon(); const size = canvas.width;
+      const icoBlob = canvasToICO(canvas);
+      const url = URL.createObjectURL(icoBlob);
+      downloadIcoBtn.href = url;
+      downloadIcoBtn.download = `icon${size}.ico`;
+    });
+
+    function toggleAdvanced() {
+      const advancedControls = document.getElementById('advancedControls');
+      const toggleBtn = document.querySelector('.toggle-advanced');
+      const isVisible = advancedControls.classList.contains('show');
+      
+      if (isVisible) {
+        advancedControls.classList.remove('show');
+        toggleBtn.textContent = '🔧 高度な設定を表示';
+      } else {
+        advancedControls.classList.add('show');
+        toggleBtn.textContent = '❌ 高度な設定を隠す';
+      }
+    }
+
+    window.onload = initializeState;
   </script>
 </body>
 </html>
