@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中華経営シミュレーター Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --china-red: #d32f2f;
+            --china-gold: #ffd700;
+            --bg-color: #f4f4f4;
+        }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 800px) { .container { grid-template-columns: 1fr; } }
+        
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-top: 5px solid var(--china-red); }
+        h1, h2 { color: var(--china-red); margin-top: 0; border-bottom: 2px solid var(--china-gold); padding-bottom: 10px; }
+        
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 0.9em; font-weight: bold; margin-bottom: 5px; color: #555; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        
+        button { width: 100%; padding: 15px; background: var(--china-red); color: white; border: none; border-radius: 6px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #b71c1c; transform: translateY(-2px); }
+
+        .result-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .result-item.total { font-weight: bold; font-size: 1.2em; color: var(--china-red); border-bottom: 2px solid var(--china-red); }
+        .profit-plus { color: #2e7d32; }
+        .profit-minus { color: #d32f2f; }
+        
+        .chart-container { position: relative; height: 300px; width: 100%; margin-top: 20px; }
+        .badge { font-size: 0.7em; background: #eee; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div style="text-align: center; margin-bottom: 20px;">
+    <h1>🥠 中華経営シミュレーター Pro 100%</h1>
+    <p>詳細なコスト計算と労働力シミュレーション</p>
+</div>
+
+<div class="container">
+    <div class="card">
+        <h2>店舗設定</h2>
+        <div class="input-group">
+            <label>総席数 (席)</label>
+            <input type="number" id="seats" value="30">
+        </div>
+        <div class="input-group">
+            <label>1日平均客数 (人)</label>
+            <input type="number" id="customers" value="60">
+        </div>
+        <div class="input-group">
+            <label>客単価 (円)</label>
+            <input type="number" id="price" value="1200">
+        </div>
+        <hr>
+        <h2>コスト詳細設定 (%)</h2>
+        <div class="input-group">
+            <label>原価率 (材料費 %) <span class="badge">目安30%</span></label>
+            <input type="number" id="costRate" value="30">
+        </div>
+        <div class="input-group">
+            <label>家賃 (月額/円)</label>
+            <input type="number" id="rentFix" value="250000">
+        </div>
+        <div class="input-group">
+            <label>時給単価 (円)</label>
+            <input type="number" id="hourlyWage" value="1100">
+        </div>
+        <button onclick="calculatePro()">経営分析を実行</button>
+    </div>
+
+    <div class="card" id="resultCard" style="display:none;">
+        <h2>分析結果レポート</h2>
+        <div class="result-item total"><span>月間推定売上</span><span id="resSales"></span></div>
+        <div class="result-item"><span>平日売上目安</span><span id="resWeekday"></span></div>
+        <div class="result-item"><span>休日売上目安</span><span id="resHoliday"></span></div>
+        
+        <h3>コスト・利益</h3>
+        <div class="result-item"><span>材料費 (原価)</span><span id="resCogs"></span></div>
+        <div class="result-item"><span>人件費合計</span><span id="resLaborTotal"></span></div>
+        <div class="result-item"><span>家賃・光熱費・他</span><span id="resFixed"></span></div>
+        <div class="result-item total"><span>営業利益 (手残り)</span><span id="resNetProfit"></span></div>
+        
+        <h3>労働力シミュレーション</h3>
+        <div class="result-item"><span>必要社員数</span><span id="resStaff"></span></div>
+        <div class="result-item"><span>バイト延べ労働時間</span><span id="resPartHours"></span></div>
+        <div class="result-item"><span>推奨バイト採用人数</span><span id="resPartCount"></span></div>
+
+        <div class="chart-container">
+            <canvas id="profitChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+let myChart = null;
+
+function calculatePro() {
+    // 入力値取得
+    const seats = Number(document.getElementById('seats').value);
+    const customers = Number(document.getElementById('customers').value);
+    const price = Number(document.getElementById('price').value);
+    const costRate = Number(document.getElementById('costRate').value) / 100;
+    const rent = Number(document.getElementById('rentFix').value);
+    const hourlyWage = Number(document.getElementById('hourlyWage').value);
+
+    // 1. 売上計算
+    const monthlySales = customers * price * 30;
+    const weekdaySales = (monthlySales / (22 + (8 * 1.5))) * 1;
+    const holidaySales = weekdaySales * 1.5;
+
+    // 2. 原価(COGS)
+    const cogs = monthlySales * costRate;
+
+    // 3. 人件費計算
+    // 社員：20席ごとに1人と仮定（月給25万とする）
+    const staffCount = Math.max(1, Math.ceil(seats / 20));
+    const staffCost = staffCount * 250000;
+    
+    // アルバイト：売上の15%をバイト代に充てると仮定して時間を逆算
+    const partTimeBudget = monthlySales * 0.15;
+    const totalPartHours = Math.round(partTimeBudget / hourlyWage);
+    const partTimeCount = Math.ceil(totalPartHours / 60); // 1人月60時間労働と仮定
+
+    const totalLaborCost = staffCost + partTimeBudget;
+
+    // 4. 固定費・その他（家賃 + 光熱費(5%) + 雑費(5%)）
+    const otherCosts = (monthlySales * 0.10) + rent;
+
+    // 5. 利益
+    const netProfit = monthlySales - cogs - totalLaborCost - otherCosts;
+
+    // 表示処理
+    document.getElementById('resultCard').style.display = 'block';
+    document.getElementById('resSales').innerText = `¥${Math.round(monthlySales).toLocaleString()}`;
+    document.getElementById('resWeekday').innerText = `¥${Math.round(weekdaySales).toLocaleString()}`;
+    document.getElementById('resHoliday').innerText = `¥${Math.round(holidaySales).toLocaleString()}`;
+    document.getElementById('resCogs').innerText = `¥${Math.round(cogs).toLocaleString()} (${costRate*100}%)`;
+    document.getElementById('resLaborTotal').innerText = `¥${Math.round(totalLaborCost).toLocaleString()}`;
+    document.getElementById('resFixed').innerText = `¥${Math.round(otherCosts).toLocaleString()}`;
+    
+    const profitEl = document.getElementById('resNetProfit');
+    profitEl.innerText = `¥${Math.round(netProfit).toLocaleString()}`;
+    profitEl.className = netProfit >= 0 ? 'result-item total profit-plus' : 'result-item total profit-minus';
+
+    document.getElementById('resStaff').innerText = `${staffCount} 名`;
+    document.getElementById('resPartHours').innerText = `${totalPartHours} 時間/月`;
+    document.getElementById('resPartCount').innerText = `${partTimeCount} 名程度`;
+
+    // グラフ更新
+    updateChart(cogs, totalLaborCost, otherCosts, netProfit);
+}
+
+function updateChart(cogs, labor, fixed, profit) {
+    const ctx = document.getElementById('profitChart').getContext('2d');
+    if (myChart) myChart.destroy();
+    
+    myChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['原価(材料)', '人件費', '家賃・固定費', '営業利益'],
+            datasets: [{
+                data: [cogs, labor, fixed, Math.max(0, profit)],
+                backgroundColor: ['#ffca28', '#42a5f5', '#ef5350', '#66bb6a']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+}
+</script>
+
+</body>
+</html>
