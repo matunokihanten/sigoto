@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ゆうちょ変換プロ - 一括・画像保存対応</title>
+    <style>
+        :root { --main-color: #007d32; --bg-color: #f0f4f2; }
+        body { font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; color: #333; }
+        .container { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 700px; margin: auto; }
+        h1 { color: var(--main-color); text-align: center; font-size: 1.5rem; margin-bottom: 1.5rem; }
+        
+        /* タブ */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; background: #eee; border-radius: 8px; font-weight: bold; transition: 0.3s; }
+        .tab.active { background: var(--main-color); color: white; }
+
+        .input-area { margin-bottom: 20px; }
+        label { display: block; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold; color: #555; }
+        textarea, input, select { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 1rem; box-sizing: border-box; margin-bottom: 10px; }
+        textarea { height: 100px; resize: vertical; }
+        input:focus { border-color: var(--main-color); outline: none; }
+
+        .btn-group { display: flex; gap: 10px; }
+        button { flex: 1; padding: 14px; background: var(--main-color); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+        button.secondary { background: #555; }
+
+        /* 結果表示 */
+        #results-container { margin-top: 20px; }
+        .card { background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 15px; margin-bottom: 15px; position: relative; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .card-header { border-bottom: 2px solid var(--main-color); margin-bottom: 10px; padding-bottom: 5px; font-weight: bold; color: var(--main-color); display: flex; justify-content: space-between; }
+        .grid { display: grid; grid-template-columns: 100px 1fr; gap: 5px; font-size: 0.95rem; }
+        .label { color: #777; }
+        .value { font-weight: bold; font-family: monospace; font-size: 1.1rem; }
+        .kana { font-size: 0.8rem; color: #666; font-weight: normal; margin-left: 5px; }
+
+        .card-btns { display: flex; gap: 8px; margin-top: 12px; }
+        .mini-btn { flex: 1; padding: 8px; font-size: 0.8rem; border-radius: 5px; border: 1px solid #ccc; background: #f9f9f9; cursor: pointer; }
+        .mini-btn:hover { background: #eee; }
+
+        .error { color: #d93025; background: #fce8e6; padding: 10px; border-radius: 8px; margin-bottom: 10px; display: none; }
+        
+        /* キャンバス（画像生成用、非表示） */
+        #export-canvas { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>ゆうちょ銀行 振込用番号変換プロ</h1>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('to-transfer')">記号番号 → 振込用</div>
+        <div class="tab" onclick="switchTab('to-symbol')">振込用 → 記号番号</div>
+    </div>
+
+    <div id="panel-to-transfer" class="input-area">
+        <label>記号・番号（一括入力可：1行に1口座）</label>
+        <textarea id="bulk-input" placeholder="例:&#13;10120-12345671&#13;10500 9876543"></textarea>
+        <div class="hint" style="font-size: 0.7rem; color: #888; margin-bottom: 10px;">※スペースやハイフンで区切ってください。複数行で一括変換できます。</div>
+        <button onclick="processToTransfer()">一括変換する</button>
+    </div>
+
+    <div id="panel-to-symbol" class="input-area" style="display:none;">
+        <div style="display: flex; gap: 10px;">
+            <div style="flex:1;">
+                <label>店番</label>
+                <input type="text" id="in-branch" placeholder="018" maxlength="3">
+            </div>
+            <div style="flex:1;">
+                <label>預金種目</label>
+                <select id="in-type">
+                    <option value="1">普通預金</option>
+                    <option value="0">当座預金</option>
+                </select>
+            </div>
+        </div>
+        <label>口座番号</label>
+        <input type="text" id="in-account" placeholder="1234567" maxlength="7">
+        <button onclick="processToSymbol()">変換する</button>
+    </div>
+
+    <div id="error-msg" class="error"></div>
+
+    <div id="results-container"></div>
+</div>
+
+<canvas id="export-canvas" width="600" height="400"></canvas>
+
+<script>
+    const KANJI_MAP = ["〇", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
+    const KANA_MAP = ["ゼロ", "イチ", "ニ", "サン", "ヨン", "ゴ", "ロク", "ナナ", "ハチ", "キュウ"];
+
+    function switchTab(type) {
+        const isToTransfer = type === 'to-transfer';
+        document.querySelectorAll('.tab')[0].classList.toggle('active', isToTransfer);
+        document.querySelectorAll('.tab')[1].classList.toggle('active', !isToTransfer);
+        document.getElementById('panel-to-transfer').style.display = isToTransfer ? 'block' : 'none';
+        document.getElementById('panel-to-symbol').style.display = isToTransfer ? 'none' : 'block';
+        document.getElementById('results-container').innerHTML = '';
+    }
+
+    // 記号番号 → 振込用（一括処理）
+    function processToTransfer() {
+        const input = document.getElementById('bulk-input').value.trim();
+        const resultsContainer = document.getElementById('results-container');
+        resultsContainer.innerHTML = '';
+        
+        if (!input) return showErr("入力してください。");
+
+        const lines = input.split(/\n/);
+        lines.forEach(line => {
+            const parts = line.split(/[\s\-\s,]+/).filter(p => p !== "");
+            if (parts.length >= 2) {
+                const symbol = parts[0];
+                const number = parts[1];
+                const result = convertSymbolToTransfer(symbol, number);
+                if (result) renderCard(result);
+            }
+        });
+    }
+
+    function convertSymbolToTransfer(symbol, number) {
+        if (symbol.length !== 5) return null;
+        const typeDigit = symbol[0];
+        const branchCode = symbol.substring(1, 3) + "8";
+        const branchKanji = branchCode.split('').map(d => KANJI_MAP[d]).join('');
+        const branchKana = branchCode.split('').map(d => KANA_MAP[d]).join('');
+        const typeName = typeDigit === '1' ? "普通預金" : "当座預金";
+        const accountNum = number.length > 1 ? number.slice(0, -1).padStart(7, '0') : number.padStart(7, '0');
+
+        return {
+            title: `記号:${symbol} 番号:${number}`,
+            bank: "ゆうちょ銀行",
+            branchName: `${branchKanji}店`,
+            branchKana: `（${branchKana}）`,
+            branchCode: branchCode,
+            type: typeName,
+            account: accountNum
+        };
+    }
+
+    // 振込用 → 記号番号
+    function processToSymbol() {
+        const branch = document.getElementById('in-branch').value.trim();
+        const type = document.getElementById('in-type').value;
+        const account = document.getElementById('in-account').value.trim();
+
+        if (branch.length !== 3 || !account) return showErr("店番と口座番号を正しく入力してください。");
+
+        const symbol = type + branch.substring(0, 2) + "01";
+        const number = account + "1";
+
+        renderCard({
+            title: "ゆうちょ記号・番号への変換",
+            isReverse: true,
+            symbol: symbol,
+            number: number,
+            type: type === '1' ? "普通" : "当座"
+        });
+    }
+
+    // 結果カードの描画
+    function renderCard(data) {
+        document.getElementById('error-msg').style.display = 'none';
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        let html = `<div class="card-header">${data.title}</div><div class="grid">`;
+        
+        if (data.isReverse) {
+            html += `
+                <div class="label">記号</div><div class="value">${data.symbol}</div>
+                <div class="label">番号</div><div class="value">${data.number}</div>
+                <div class="label">種目</div><div class="value">${data.type}</div>
+            `;
+        } else {
+            html += `
+                <div class="label">銀行名</div><div class="value">${data.bank}</div>
+                <div class="label">店名</div><div class="value">${data.branchName}<span class="kana">${data.branchKana}</span></div>
+                <div class="label">店番</div><div class="value">${data.branchCode}</div>
+                <div class="label">預金種目</div><div class="value">${data.type}</div>
+                <div class="label">口座番号</div><div class="value">${data.account}</div>
+            `;
+        }
+        html += `</div>`;
+        html += `
+            <div class="card-btns">
+                <button class="mini-btn" onclick="copyCard(this)">コピー</button>
+                <button class="mini-btn" onclick="saveAsImage(this)">画像として保存</button>
+            </div>
+        `;
+        card.innerHTML = html;
+        document.getElementById('results-container').appendChild(card);
+    }
+
+    // コピー機能
+    function copyCard(btn) {
+        const card = btn.closest('.card');
+        const header = card.querySelector('.card-header').innerText;
+        const items = Array.from(card.querySelectorAll('.grid > div')).map(el => el.innerText);
+        let text = `【${header}】\n`;
+        for (let i = 0; i < items.length; i += 2) {
+            text += `${items[i]}: ${items[i+1]}\n`;
+        }
+        navigator.clipboard.writeText(text).then(() => {
+            const originalText = btn.innerText;
+            btn.innerText = "コピーしました！";
+            setTimeout(() => btn.innerText = originalText, 2000);
+        });
+    }
+
+    // 画像保存機能 (Canvasを使用)
+    function saveAsImage(btn) {
+        const card = btn.closest('.card');
+        const canvas = document.getElementById('export-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 背景描画
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.strokeStyle = "#007d32";
+        ctx.lineWidth = 10;
+        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = "#007d32";
+        ctx.font = "bold 28px sans-serif";
+        ctx.fillText("ゆうちょ銀行 振込口座メモ", 40, 60);
+
+        ctx.fillStyle = "#333333";
+        ctx.font = "22px sans-serif";
+        
+        const labels = card.querySelectorAll('.label');
+        const values = card.querySelectorAll('.value');
+        
+        let y = 120;
+        labels.forEach((label, i) => {
+            ctx.fillStyle = "#777777";
+            ctx.fillText(label.innerText, 40, y);
+            ctx.fillStyle = "#000000";
+            ctx.font = "bold 24px monospace";
+            ctx.fillText(values[i].innerText, 180, y);
+            ctx.font = "22px sans-serif";
+            y += 45;
+        });
+
+        // ダウンロード
+        const link = document.createElement('a');
+        link.download = 'yucho_transfer_memo.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    }
+
+    function showErr(msg) {
+        const err = document.getElementById('error-msg');
+        err.innerText = msg;
+        err.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
