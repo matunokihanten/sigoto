@@ -3,56 +3,258 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>最終究極版：フォルダ整理エージェント PRO + UNDO</title>
+    <title>フォルダ整理エージェント PRO + UNDO (Ver.100% Fixed)</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; line-height: 1.6; }
-        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
-        .panel { background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 20px; }
-        h3 { margin-top: 0; color: #34495e; border-left: 5px solid #3498db; padding-left: 10px; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; cursor: pointer; }
-        input[type="checkbox"] { transform: scale(1.2); margin-right: 10px; }
-        input[type="text"] { padding: 8px; width: 250px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background: #3498db; color: #fff; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; transition: all 0.3s; margin-top: 10px; }
-        button:hover { background: #2980b9; transform: translateY(-2px); }
-        button.success { background: #2ecc71; }
-        button.undo { background: #e67e22; }
-        button:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+        /* モダンなCSSリセットとベーススタイル */
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --success: #10b981;
+            --success-hover: #059669;
+            --warning: #f59e0b;
+            --warning-hover: #d97706;
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+        }
+
+        body { 
+            font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            padding: 30px 20px; 
+            line-height: 1.6; 
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 { 
+            color: #0f172a; 
+            font-size: 1.8rem;
+            border-bottom: 3px solid var(--primary); 
+            padding-bottom: 12px; 
+            margin-bottom: 30px;
+        }
+
+        /* パネルデザイン */
+        .panel { 
+            background: var(--panel-bg); 
+            padding: 25px 30px; 
+            border-radius: 16px; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); 
+            margin-bottom: 25px; 
+            border: 1px solid var(--border);
+        }
+
+        h3 { 
+            margin-top: 0; 
+            color: #1e293b; 
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+
+        h3::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 20px;
+            background-color: var(--primary);
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+
+        /* フォーム要素 */
+        label { 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 12px; 
+            font-weight: 500; 
+            cursor: pointer; 
+            transition: color 0.2s; 
+        }
+        label:hover { color: var(--primary); }
         
-        .progress-container { width: 100%; background-color: #eee; border-radius: 10px; margin: 20px 0; display: none; }
-        .progress-bar { width: 0%; height: 20px; background-color: #2ecc71; border-radius: 10px; transition: width 0.1s; text-align: center; color: white; font-size: 12px; line-height: 20px; }
+        input[type="checkbox"] { 
+            width: 18px; 
+            height: 18px; 
+            margin-right: 12px; 
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+
+        input[type="text"] { 
+            padding: 10px 14px; 
+            width: 100%; 
+            max-width: 300px; 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        input[type="file"] {
+            display: block;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f1f5f9;
+            border-radius: 8px;
+            width: 100%;
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        /* ボタンデザイン */
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 15px; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 12px; }
-        th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
-        th { background-color: #f8f9fa; }
-        textarea { width: 100%; height: 100px; font-family: 'Consolas', monospace; padding: 10px; box-sizing: border-box; background: #2c3e50; color: #ecf0f1; border-radius: 8px; border: none; margin-top: 10px; display: none; }
-        .info-box { background-color: #ebf5fb; border-left: 5px solid #3498db; padding: 15px; border-radius: 4px; font-size: 14px; margin-top: 10px; }
+        button { 
+            background: var(--primary); 
+            color: #fff; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 15px; 
+            font-weight: 600; 
+            transition: all 0.2s ease; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        button:hover:not(:disabled) { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3); }
+        button:active:not(:disabled) { transform: translateY(0); }
+        
+        button.success { background: var(--success); }
+        button.success:hover:not(:disabled) { background: var(--success-hover); box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3); }
+        
+        button.undo { background: var(--warning); }
+        button.undo:hover:not(:disabled) { background: var(--warning-hover); box-shadow: 0 4px 6px -1px rgba(245, 158, 11, 0.3); }
+        
+        button:disabled { background: #cbd5e1; cursor: not-allowed; color: #94a3b8; }
+
+        /* プログレスバー */
+        .progress-container { 
+            width: 100%; 
+            background-color: #e2e8f0; 
+            border-radius: 999px; 
+            margin: 20px 0; 
+            overflow: hidden;
+            display: none; 
+            height: 16px;
+        }
+        .progress-bar { 
+            width: 0%; 
+            height: 100%; 
+            background-color: var(--primary); 
+            transition: width 0.15s ease-out; 
+        }
+
+        /* テーブル */
+        .table-wrapper {
+            max-height: 250px; 
+            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            margin-top: 15px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { border-bottom: 1px solid var(--border); padding: 12px 16px; text-align: left; }
+        th { background-color: #f8fafc; font-weight: 600; color: var(--text-muted); position: sticky; top: 0; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: #f1f5f9; }
+
+        /* テキストエリア */
+        textarea { 
+            width: 100%; 
+            height: 120px; 
+            font-family: 'Fira Code', 'Consolas', monospace; 
+            padding: 16px; 
+            box-sizing: border-box; 
+            background: #1e293b; 
+            color: #f8fafc; 
+            border-radius: 8px; 
+            border: none; 
+            margin-top: 15px; 
+            display: none; 
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        /* インフォボックス */
+        .info-box { 
+            background-color: #eff6ff; 
+            border-left: 4px solid var(--primary); 
+            padding: 16px; 
+            border-radius: 0 8px 8px 0; 
+            font-size: 14px; 
+            color: #1e40af;
+            margin-bottom: 15px;
+        }
+
+        /* トースト通知 */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            font-weight: bold;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            pointer-events: none;
+            z-index: 1000;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        #statusMessage { font-weight: 600; color: var(--primary); margin: 10px 0; }
     </style>
 </head>
 <body>
+
+    <!-- トースト通知用コンテナ -->
+    <div id="toast" class="toast">通知メッセージ</div>
 
     <h1>フォルダ整理エージェント PRO + UNDO</h1>
 
     <div class="panel">
         <h3>1. 整理ルールの設定</h3>
-        <label><input type="checkbox" id="ruleSmartRename" checked> <b>【機能2】スマートリネーム</b> (日付付与＋ゴミ掃除)</label>
-        <label><input type="checkbox" id="ruleDate"> 日付別フォルダ (2026年05月...)</label>
-        <label><input type="checkbox" id="ruleExt" checked> 拡張子別フォルダ (Images, Documents...)</label>
-        <label><input type="checkbox" id="ruleSize"> サイズ別 (100MB以上を分離)</label>
-        <label><input type="checkbox" id="ruleKeyword"> キーワード別:</label>
+        <label><input type="checkbox" id="ruleSmartRename" checked> <span><b>【機能2】スマートリネーム</b> (日付付与＋ゴミ掃除)</span></label>
+        <label><input type="checkbox" id="ruleDate"> <span>日付別フォルダ (2026年05月...)</span></label>
+        <label><input type="checkbox" id="ruleExt" checked> <span>拡張子別フォルダ (Images, Documents...)</span></label>
+        <label><input type="checkbox" id="ruleSize"> <span>サイズ別 (100MB以上を分離)</span></label>
+        
+        <!-- 【バグ修正】消えていたチェックボックスを復活させました -->
+        <label style="margin-bottom: 4px;">
+            <input type="checkbox" id="ruleKeyword"> <span>キーワード別:</span>
+        </label>
         <input type="text" id="keywordInput" placeholder="例: 請求書" value="請求書">
     </div>
 
     <div class="panel">
         <h3>2. フォルダの分析</h3>
-        <p>整理したいフォルダ（Downloadsなど）を選択してください。</p>
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 15px;">整理したいフォルダ（Downloadsなど）を選択してください。</p>
         <input type="file" id="folderInput" webkitdirectory directory multiple>
         
         <div id="progressContainer" class="progress-container">
-            <div id="progressBar" class="progress-bar">0%</div>
+            <div id="progressBar" class="progress-bar"></div>
         </div>
-        <div id="statusMessage" style="font-weight: bold; color: #2980b9; margin: 10px 0;"></div>
+        <div id="statusMessage"></div>
         
-        <div style="max-height: 200px; overflow-y: auto;">
+        <div class="table-wrapper">
             <table id="resultTable">
                 <thead><tr><th>元の名前</th><th>新しい名前</th><th>移動先</th></tr></thead>
                 <tbody></tbody>
@@ -65,17 +267,21 @@
         <div class="info-box">
             分析完了後、下のボタンでコピーし、メモ帳に貼り付けて <b>execute_organize.js</b> として保存してください。
         </div>
-        <button id="btnPrepare" disabled>整理コードを生成</button>
-        <button id="btnCopy" class="success" style="display:none;">整理コードをコピー</button>
+        <div class="btn-group">
+            <button id="btnPrepare" disabled>整理コードを生成</button>
+            <button id="btnCopy" class="success" style="display:none;">整理コードをコピー</button>
+        </div>
         <textarea id="outputScript" readonly></textarea>
     </div>
 
     <div class="panel">
-        <h3>4. 復元コード（元に戻す用）<span style="color: #e67e22;">【NEW 機能13】</span></h3>
-        <div class="info-box">
+        <h3>4. 復元コード（元に戻す用）</h3>
+        <div class="info-box" style="background-color: #fffbeb; border-color: #f59e0b; color: #b45309;">
             整理を元に戻したくなった時のための保険です。同様に <b>execute_undo.js</b> として保存してください。
         </div>
-        <button id="btnCopyUndo" class="undo" style="display:none;">復元コードをコピー</button>
+        <div class="btn-group">
+            <button id="btnCopyUndo" class="undo" style="display:none;">復元コードをコピー</button>
+        </div>
         <textarea id="outputUndoScript" readonly></textarea>
     </div>
 
@@ -88,17 +294,61 @@
 
     let simulationData = [];
 
-    function applySmartRename(filename, lastModified) {
-        let name = filename;
-        let ext = name.slice((name.lastIndexOf(".") - 1 >>> 0) + 2);
-        let base = name.substring(0, name.lastIndexOf('.')) || name;
-        base = base.replace(/^(Copy of |コピー\s?～\s?|副本\s?)/i, '').replace(/(\s?-\s?コピー|\s?のコピー|\(\d+\))$/i, '').replace(/[_-]+/g, ' ').trim();
-        const d = new Date(lastModified);
-        const dateStr = d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
-        return dateStr + "_" + base + "." + ext;
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
-    // バグ修正済みのメインイベントリスナー
+    // 【修正】ローカルHTMLファイルでも確実にコピーできるよう安全設計を追加
+    async function copyToClipboard(elementId, successMessage) {
+        const textarea = document.getElementById(elementId);
+        const text = textarea.value;
+        
+        try {
+            // navigator.clipboardが存在するかチェック
+            if (!navigator.clipboard) {
+                throw new Error("Clipboard API not available");
+            }
+            await navigator.clipboard.writeText(text);
+            showToast(successMessage);
+        } catch (err) {
+            // 古い方式（フォールバック）で確実にコピーする
+            textarea.select();
+            document.execCommand('copy');
+            // 選択状態を解除して見た目を綺麗にする
+            window.getSelection().removeAllRanges();
+            showToast(successMessage + " (コピー完了)");
+        }
+    }
+
+    function escapeJS(str) {
+        let res = "";
+        for (let i = 0; i < str.length; i++) {
+            let code = str.charCodeAt(i);
+            if (str[i] === '\\') res += '\\\\';
+            else if (str[i] === '"') res += '\\"';
+            else if (code > 127) res += '\\u' + code.toString(16).padStart(4, '0');
+            else res += str[i];
+        }
+        return res;
+    }
+
+    function applySmartRename(filename, lastModified) {
+        let extIndex = filename.lastIndexOf(".");
+        let ext = extIndex !== -1 ? filename.slice(extIndex + 1) : "";
+        let base = extIndex !== -1 ? filename.substring(0, extIndex) : filename;
+        
+        base = base.replace(/^(Copy of |コピー\s?～\s?|副本\s?)/i, '')
+                   .replace(/(\s?-\s?コピー|\s?のコピー|\(\d+\))$/i, '')
+                   .replace(/[_-]+/g, ' ').trim();
+                   
+        const d = new Date(lastModified);
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return ext ? `${dateStr}_${base}.${ext}` : `${dateStr}_${base}`;
+    }
+
     document.getElementById('folderInput').addEventListener('change', async function(event) {
         const files = Array.from(event.target.files);
         if (files.length === 0) return;
@@ -111,7 +361,13 @@
         tableBody.innerHTML = '';
         simulationData = [];
         progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
         document.getElementById('btnPrepare').disabled = true;
+        
+        document.getElementById('outputScript').style.display = 'none';
+        document.getElementById('outputUndoScript').style.display = 'none';
+        document.getElementById('btnCopy').style.display = 'none';
+        document.getElementById('btnCopyUndo').style.display = 'none';
 
         const useSmart = document.getElementById('ruleSmartRename').checked;
         const useSize = document.getElementById('ruleSize').checked;
@@ -121,103 +377,125 @@
         const useExt = document.getElementById('ruleExt').checked;
 
         let usedNames = {};
+        let tableHTML = ""; 
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
             if(file.name.startsWith('.')) continue;
 
-            if (i % 20 === 0 || i === files.length - 1) {
-                const percent = Math.round((i / files.length) * 100);
+            if (i % 50 === 0 || i === files.length - 1) {
+                const percent = Math.round(((i + 1) / files.length) * 100);
                 progressBar.style.width = percent + '%';
-                progressBar.innerText = percent + '%';
-                statusMessage.innerText = "分析中... (" + (i + 1) + " / " + files.length + ")";
-                await new Promise(r => setTimeout(r, 0));
+                statusMessage.innerText = `分析中... (${i + 1} / ${files.length})`;
+                await new Promise(resolve => setTimeout(resolve, 0));
             }
 
             let targetFolder = 'Others';
             let ext = "." + file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2).toLowerCase();
 
-            if (useSize && file.size > 100 * 1024 * 1024) targetFolder = 'Large_Files';
-            else if (useKeyword && keywordVal && file.name.includes(keywordVal)) targetFolder = "Keyword_" + keywordVal;
-            else if (useDate) {
+            if (useSize && file.size > 100 * 1024 * 1024) {
+                targetFolder = 'Large_Files';
+            } else if (useKeyword && keywordVal && file.name.includes(keywordVal)) {
+                targetFolder = "Keyword_" + keywordVal;
+            } else if (useDate) {
                 const d = new Date(file.lastModified);
                 targetFolder = d.getFullYear() + "\u5e74" + ("0" + (d.getMonth() + 1)).slice(-2) + "\u6708";
+            } else if (useExt) {
+                targetFolder = extMap[ext] || 'Others';
             }
-            else if (useExt) targetFolder = extMap[ext] || 'Others';
 
             let finalName = useSmart ? applySmartRename(file.name, file.lastModified) : file.name;
             let checkKey = targetFolder + '/' + finalName;
+            
             if (usedNames[checkKey]) {
                 let count = 1;
-                let base = finalName.substring(0, finalName.lastIndexOf('.'));
-                let dotExt = finalName.substring(finalName.lastIndexOf('.'));
-                while (usedNames[targetFolder + '/' + base + '(' + count + ')' + dotExt]) count++;
+                let extIndex = finalName.lastIndexOf('.');
+                let base = extIndex !== -1 ? finalName.substring(0, extIndex) : finalName;
+                let dotExt = extIndex !== -1 ? finalName.substring(extIndex) : "";
+                
+                while (usedNames[targetFolder + '/' + base + '(' + count + ')' + dotExt]) {
+                    count++;
+                }
                 finalName = base + '(' + count + ')' + dotExt;
             }
-            usedNames[checkKey] = true;
+            usedNames[targetFolder + '/' + finalName] = true;
 
             simulationData.push({ f: file.name, d: targetFolder, t: finalName });
 
             if (i < 50) {
-                tableBody.insertAdjacentHTML('beforeend', "<tr><td>"+file.name+"</td><td>"+finalName+"</td><td>"+targetFolder+"</td></tr>");
+                tableHTML += `<tr><td>${file.name}</td><td>${finalName}</td><td>${targetFolder}</td></tr>`;
             }
         }
-        statusMessage.innerText = "分析完了！ " + simulationData.length + " 件の準備ができました。";
+        
+        tableBody.innerHTML = tableHTML;
+        if(files.length > 50) {
+            tableBody.innerHTML += `<tr><td colspan="3" style="text-align: center; color: #64748b;">...他 ${simulationData.length - 50} 件のファイル</td></tr>`;
+        }
+        
+        statusMessage.innerText = `分析完了！ ${simulationData.length} 件の準備ができました。`;
         document.getElementById('btnPrepare').disabled = false;
+        setTimeout(() => progressContainer.style.display = 'none', 500);
     });
+
+    function buildScript(isUndo) {
+        let lines = [
+            'var fso = new ActiveXObject("Scripting.FileSystemObject");',
+            'var cur = fso.GetParentFolderName(WScript.ScriptFullName);',
+            'var plan = ['
+        ];
+        
+        simulationData.forEach((item, index) => {
+            const comma = index < simulationData.length - 1 ? ',' : '';
+            lines.push(`  {f:"${escapeJS(item.f)}", d:"${escapeJS(item.d)}", t:"${escapeJS(item.t)}"}${comma}`);
+        });
+        
+        lines.push('];');
+        lines.push('var ok=0, ng=0;');
+        lines.push('for(var i=0; i<plan.length; i++){');
+        lines.push('  var p=plan[i]; if(!p)continue;');
+        
+        if (isUndo) {
+            lines.push('  var targetPath = fso.BuildPath(fso.BuildPath(cur, p.d), p.t);');
+            lines.push('  var originalPath = fso.BuildPath(cur, p.f);');
+            lines.push('  if(fso.FileExists(targetPath)){');
+            lines.push('    try { fso.MoveFile(targetPath, originalPath); ok++; } catch(e){ ng++; }');
+            lines.push('  }');
+        } else {
+            lines.push('  var fp=fso.BuildPath(cur, p.f), dp=fso.BuildPath(cur, p.d), tp=fso.BuildPath(dp, p.t);');
+            lines.push('  if(fso.FileExists(fp)){');
+            lines.push('    if(!fso.FolderExists(dp)) fso.CreateFolder(dp);');
+            lines.push('    try { fso.MoveFile(fp, tp); ok++; } catch(e){ ng++; }');
+            lines.push('  }');
+        }
+        
+        lines.push('}');
+        const successMsg = isUndo ? '\\u5fa9\\u5143\\u5b8c\\u4e86' : '\\u6210\\u529f'; 
+        lines.push(`WScript.Echo("${successMsg}: "+ok+"\\u4ef6\\n\\u5931\\u6557: "+ng+"\\u4ef6");`);
+        
+        return lines.join('\n');
+    }
 
     document.getElementById('btnPrepare').addEventListener('click', function() {
-        function escapeJS(str) {
-            let res = "";
-            for (let i = 0; i < str.length; i++) {
-                let code = str.charCodeAt(i);
-                if (str[i] === '\\') res += '\\\\';
-                else if (str[i] === '"') res += '\\"';
-                else if (code > 127) res += '\\u' + code.toString(16).padStart(4, '0');
-                else res += str[i];
-            }
-            return res;
-        }
+        const orgScript = buildScript(false);
+        const undoScript = buildScript(true);
 
-        // --- 整理用スクリプト生成 ---
-        let s = 'var fso = new ActiveXObject("Scripting.FileSystemObject");\nvar cur = fso.GetParentFolderName(WScript.ScriptFullName);\nvar plan = [\n';
-        for (let i = 0; i < simulationData.length; i++) {
-            let item = simulationData[i];
-            s += '  {f:"' + escapeJS(item.f) + '", d:"' + escapeJS(item.d) + '", t:"' + escapeJS(item.t) + '"}';
-            s += (i < simulationData.length - 1) ? ',\n' : '\n';
-        }
-        s += '];\nvar ok=0, ng=0;\nfor(var i=0; i<plan.length; i++){\n  var p=plan[i]; if(!p)continue;\n  var fp=fso.BuildPath(cur, p.f), dp=fso.BuildPath(cur, p.d), tp=fso.BuildPath(dp, p.t);\n  if(fso.FileExists(fp)){\n    if(!fso.FolderExists(dp)) fso.CreateFolder(dp);\n    try { fso.MoveFile(fp, tp); ok++; } catch(e){ ng++; }\n  }\n}\nWScript.Echo("\\u6210\\u529f: "+ok+"\\u4ef6\\n\\u5931\\u6557: "+ng+"\\u4ef6");';
-
-        // --- 復元用スクリプト生成 (逆移動) ---
-        let u = 'var fso = new ActiveXObject("Scripting.FileSystemObject");\nvar cur = fso.GetParentFolderName(WScript.ScriptFullName);\nvar plan = [\n';
-        for (let i = 0; i < simulationData.length; i++) {
-            let item = simulationData[i];
-            u += '  {f:"' + escapeJS(item.f) + '", d:"' + escapeJS(item.d) + '", t:"' + escapeJS(item.t) + '"}';
-            u += (i < simulationData.length - 1) ? ',\n' : '\n';
-        }
-        u += '];\nvar s=0;\nfor(var i=0; i<plan.length; i++){\n  var p=plan[i];\n  var targetPath = fso.BuildPath(fso.BuildPath(cur, p.d), p.t);\n  var originalPath = fso.BuildPath(cur, p.f);\n  if(fso.FileExists(targetPath)){\n    try { fso.MoveFile(targetPath, originalPath); s++; } catch(e){}\n  }\n}\nWScript.Echo("\\u5fa9\\u5143\\u5b8c\\u4e86: "+s+"\\u4ef6");';
-
-        document.getElementById('outputScript').value = s;
-        document.getElementById('outputScript').style.display = 'block';
-        document.getElementById('outputUndoScript').value = u;
-        document.getElementById('outputUndoScript').style.display = 'block';
+        const outScript = document.getElementById('outputScript');
+        const outUndo = document.getElementById('outputUndoScript');
         
-        document.getElementById('btnCopy').style.display = 'inline-block';
-        document.getElementById('btnCopyUndo').style.display = 'inline-block';
-        alert("コードを生成しました！");
+        outScript.value = orgScript;
+        outUndo.value = undoScript;
+        
+        outScript.style.display = 'block';
+        outUndo.style.display = 'block';
+        
+        document.getElementById('btnCopy').style.display = 'flex';
+        document.getElementById('btnCopyUndo').style.display = 'flex';
+        
+        showToast("コードの生成が完了しました！");
     });
 
-    document.getElementById('btnCopy').addEventListener('click', function() {
-        document.getElementById('outputScript').select();
-        document.execCommand('copy');
-        alert("整理コードをコピーしました！");
-    });
-
-    document.getElementById('btnCopyUndo').addEventListener('click', function() {
-        document.getElementById('outputUndoScript').select();
-        document.execCommand('copy');
-        alert("復元コードをコピーしました！");
-    });
+    document.getElementById('btnCopy').addEventListener('click', () => copyToClipboard('outputScript', '整理コードをコピーしました！'));
+    document.getElementById('btnCopyUndo').addEventListener('click', () => copyToClipboard('outputUndoScript', '復元コードをコピーしました！'));
 </script>
 </body>
 </html>
