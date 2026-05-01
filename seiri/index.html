@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最終完全版：フォルダ整理エージェント</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; cursor: pointer; }
+        input[type="checkbox"] { margin-right: 8px; }
+        input[type="text"] { padding: 5px; width: 200px; margin-bottom: 10px; }
+        button { background: #3498db; color: #fff; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-size: 16px; margin-right: 10px; font-weight: bold; }
+        button:hover { background: #2980b9; }
+        button.success { background: #2ecc71; }
+        button.success:hover { background: #27ae60; }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        textarea { width: 100%; height: 150px; font-family: monospace; padding: 10px; box-sizing: border-box; background: #2c3e50; color: #ecf0f1; border-radius: 5px; }
+        .info-box { background-color: #e8f4fd; border-left: 5px solid #3498db; padding: 15px; margin-top: 10px; font-size: 14px; }
+        .warning-text { color: #e74c3c; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>フォルダ整理エージェント</h1>
+
+    <div class="panel">
+        <h3>1. 整理ルールの設定</h3>
+        <label><input type="checkbox" id="ruleSize"> サイズ別（100MB以上のファイルを「Large_Files」へ）</label>
+        <label><input type="checkbox" id="ruleKeyword"> キーワード別（ファイル名に含む文字で分ける）</label>
+        <input type="text" id="keywordInput" placeholder="例: 請求書, 写真" value="請求書">
+        <label><input type="checkbox" id="ruleDate"> 日付別（更新日時の「YYYY年MM月」フォルダへ）</label>
+        <label><input type="checkbox" id="ruleExt" checked> 拡張子別（Images, Documents等へ / 標準設定）</label>
+        <label><input type="checkbox" id="ruleArchive"> 古いファイルをアーカイブ（1年以上更新されていないものを「Old_Archive」へ）</label>
+    </div>
+
+    <div class="panel">
+        <h3>2. フォルダの選択と分析</h3>
+        <p>整理したいフォルダを選択してください。（ここではまだ移動は行われません）</p>
+        <input type="file" id="folderInput" webkitdirectory directory multiple>
+        <div id="statusMessage" class="warning-text"></div>
+        
+        <h4 style="margin-top: 20px;">シミュレーション結果（先頭100件を表示）</h4>
+        <div style="max-height: 250px; overflow-y: auto;">
+            <table id="resultTable">
+                <thead>
+                    <tr>
+                        <th>元のファイル名</th>
+                        <th>移動先のフォルダ名</th>
+                        <th>新しいファイル名</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- ここに結果が表示されます -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="panel">
+        <h3>3. 実行コードの作成（セキュリティエラー回避版）</h3>
+        <p>分析が完了したら、以下の手順で実行ファイルを作成してください。</p>
+        <div class="info-box">
+            <strong>【セキュリティエラーを出さない手順】</strong><br>
+            1. 下の<strong>「実行コードを表示」</strong>ボタンを押す。<br>
+            2. 表示されたコードを<strong>「クリップボードにコピー」</strong>する。<br>
+            3. <strong>メモ帳</strong>を開き、貼り付けて <strong>execute_organize.js</strong> という名前で保存する。<br>
+            4. 保存したファイルを整理したいフォルダに入れてダブルクリック！
+        </div>
+        <br>
+        <button id="btnPrepare" disabled>1. 実行コードを表示</button>
+        <button id="btnCopy" class="success" style="display:none;">2. クリップボードにコピー</button>
+        <br><br>
+        <textarea id="outputScript" style="display:none;" readonly></textarea>
+        <textarea id="logArea" style="margin-top:20px;" readonly placeholder="分析ログがここに表示されます..."></textarea>
+    </div>
+
+<script>
+    const extMap = {
+        '.jpg': 'Images', '.png': 'Images', '.gif': 'Images', '.jpeg': 'Images',
+        '.pdf': 'Documents', '.doc': 'Documents', '.docx': 'Documents', '.txt': 'Documents', '.xlsx': 'Documents', '.csv': 'Documents',
+        '.zip': 'Archives', '.rar': 'Archives', '.7z': 'Archives',
+        '.exe': 'Installers', '.msi': 'Installers'
+    };
+
+    let simulationData = []; 
+
+    document.getElementById('folderInput').addEventListener('change', function(event) {
+        const files = event.target.files;
+        if (files.length === 0) return;
+
+        const MAX_DISPLAY = 100;
+        let displayCount = 0;
+        const tableBody = document.querySelector('#resultTable tbody');
+        const logArea = document.getElementById('logArea');
+        const statusMessage = document.getElementById('statusMessage');
+        
+        tableBody.innerHTML = '';
+        logArea.value = '';
+        simulationData = [];
+
+        const useSize = document.getElementById('ruleSize').checked;
+        const useKeyword = document.getElementById('ruleKeyword').checked;
+        const keywordVal = document.getElementById('keywordInput').value;
+        const useDate = document.getElementById('ruleDate').checked;
+        const useExt = document.getElementById('ruleExt').checked;
+        const useArchive = document.getElementById('ruleArchive').checked;
+
+        let usedNames = {}; 
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
+        let logText = "--- 分析開始 ---\n";
+        let tableHTML = ""; 
+
+        setTimeout(() => {
+            Array.from(files).forEach(file => {
+                if(file.name.startsWith('.')) return;
+
+                let targetFolder = 'Others';
+                let ext = file.name.slice((file.name.lastIndexOf(".") - 1 >>> 0) + 2).toLowerCase();
+                let extWithDot = '.' + ext;
+                let fileDate = new Date(file.lastModified);
+
+                if (useArchive && fileDate < oneYearAgo) targetFolder = 'Old_Archive';
+                else if (useSize && file.size > 100 * 1024 * 1024) targetFolder = 'Large_Files';
+                else if (useKeyword && keywordVal && file.name.includes(keywordVal)) targetFolder = `Keyword_${keywordVal}`;
+                else if (useDate) {
+                    let d = new Date(file.lastModified);
+                    targetFolder = d.getFullYear() + "\u5e74" + ("0" + (d.getMonth() + 1)).slice(-2) + "\u6708";
+                }
+                else if (useExt) targetFolder = extMap[extWithDot] || 'Others';
+
+                let newName = file.name;
+                let checkKey = targetFolder + '/' + newName;
+                if (usedNames[checkKey]) {
+                    let count = 1;
+                    let base = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    while (usedNames[targetFolder + '/' + base + '(' + count + ')' + extWithDot]) count++;
+                    newName = base + '(' + count + ')' + extWithDot;
+                }
+                usedNames[targetFolder + '/' + newName] = true;
+
+                if (displayCount < MAX_DISPLAY) {
+                    tableHTML += `<tr><td>${file.name}</td><td>${targetFolder}</td><td>${newName}</td></tr>`;
+                    displayCount++;
+                }
+
+                simulationData.push({
+                    f: file.name,
+                    d: targetFolder,
+                    t: newName
+                });
+            });
+
+            tableBody.innerHTML = tableHTML;
+            statusMessage.innerText = `分析完了: ${simulationData.length} 件のファイルを検出しました。`;
+            logArea.value = logText + `合計 ${simulationData.length} 件の移動計画を作成しました。`;
+            document.getElementById('btnPrepare').disabled = false;
+        }, 100);
+    });
+
+    document.getElementById('btnPrepare').addEventListener('click', function() {
+        function escapeJS(str) {
+            let res = "";
+            for (let i = 0; i < str.length; i++) {
+                let code = str.charCodeAt(i);
+                if (str[i] === '\\') res += '\\\\';
+                else if (str[i] === '"') res += '\\"';
+                else if (code > 127) res += '\\u' + code.toString(16).padStart(4, '0');
+                else res += str[i];
+            }
+            return res;
+        }
+
+        let s = 'var fso = new ActiveXObject("Scripting.FileSystemObject");\n';
+        s += 'var cur = fso.GetParentFolderName(WScript.ScriptFullName);\n';
+        s += 'var plan = [\n';
+        for (let i = 0; i < simulationData.length; i++) {
+            let item = simulationData[i];
+            s += '  {f:"' + escapeJS(item.f) + '", d:"' + escapeJS(item.d) + '", t:"' + escapeJS(item.t) + '"}';
+            s += (i < simulationData.length - 1) ? ',\n' : '\n';
+        }
+        s += '];\n';
+        s += 'var ok=0, ng=0;\n';
+        s += 'for(var i=0; i<plan.length; i++){\n';
+        s += '  var p=plan[i]; if(!p)continue;\n';
+        s += '  var fp=fso.BuildPath(cur, p.f), dp=fso.BuildPath(cur, p.d), tp=fso.BuildPath(dp, p.t);\n';
+        s += '  if(fso.FileExists(fp)){\n';
+        s += '    if(!fso.FolderExists(dp)) fso.CreateFolder(dp);\n';
+        s += '    try { fso.MoveFile(fp, tp); ok++; } catch(e){ ng++; }\n';
+        s += '  }\n';
+        s += '}\n';
+        s += 'WScript.Echo("\\u5b8c\\u4e86\uff01\\n\\u6210\\u529f: "+ok+"\\u4ef6\\n\\u5931\\u6557: "+ng+"\\u4ef6");';
+
+        const output = document.getElementById('outputScript');
+        output.value = s;
+        output.style.display = 'block';
+        document.getElementById('btnCopy').style.display = 'inline-block';
+    });
+
+    document.getElementById('btnCopy').addEventListener('click', function() {
+        const output = document.getElementById('outputScript');
+        output.select();
+        document.execCommand('copy');
+        alert("コードをコピーしました！メモ帳に貼り付けて保存してください。");
+    });
+</script>
+</body>
+</html>
