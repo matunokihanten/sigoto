@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Pro QR Designer - Advanced</title>
+    <script src="https://cdn.jsdelivr.net/npm/easyqrcodejs@4.4.10/dist/easy.qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; --secondary: #64748b; --success: #22c55e; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: #f8fafc; padding: 20px; color: #1e293b; line-height: 1.5; }
+        .app-container { max-width: 1000px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .grid { display: grid; grid-template-columns: 1fr 360px; gap: 40px; }
+        
+        /* 設定エリア */
+        .controls { display: flex; flex-direction: column; gap: 20px; }
+        .section-title { font-size: 1rem; font-weight: bold; border-left: 4px solid var(--primary); padding-left: 10px; margin-bottom: 10px; }
+        .input-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-weight: 600; font-size: 0.85rem; color: #475569; }
+        input, select, textarea { padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; }
+        
+        /* プリセット切替 */
+        .mode-selector { display: flex; gap: 10px; margin-bottom: 10px; }
+        .mode-btn { flex: 1; padding: 8px; border: 1px solid #cbd5e1; background: #fff; cursor: pointer; border-radius: 6px; font-size: 0.85rem; }
+        .mode-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+        /* プレビューエリア */
+        .preview-area { background: #f1f5f9; border-radius: 12px; padding: 30px; display: flex; flex-direction: column; align-items: center; position: sticky; top: 20px; height: fit-content; }
+        
+        /* 2Dフレーム */
+        #qrExportArea {
+            background: #fff;
+            padding: 24px;
+            border: 6px solid #000;
+            border-radius: 24px;
+            text-align: center;
+            display: inline-block;
+        }
+        .qr-label { margin-top: 16px; font-size: 1.6rem; font-weight: 900; letter-spacing: 0.05em; text-transform: uppercase; }
+
+        /* ボタン */
+        .btn-stack { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        button { padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-main { background: var(--primary); color: white; grid-column: span 2; }
+        .btn-png { background: var(--success); color: white; }
+        .btn-svg { background: #334155; color: white; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h2 style="margin: 0 0 30px 0; color: #0f172a;">Pro QR Generator</h2>
+    
+    <div class="grid">
+        <div class="controls">
+            <div>
+                <div class="section-title">1. 用途を選択</div>
+                <div class="mode-selector">
+                    <button class="mode-btn active" onclick="setMode('url')">URL</button>
+                    <button class="mode-btn" onclick="setMode('wifi')">Wi-Fi</button>
+                    <button class="mode-btn" onclick="setMode('mail')">メール</button>
+                </div>
+                
+                <div id="fields-url" class="input-group">
+                    <label>URL</label>
+                    <input type="text" id="input-url" value="https://example.com">
+                </div>
+
+                <div id="fields-wifi" class="input-group hidden">
+                    <label>ネットワーク名 (SSID)</label>
+                    <input type="text" id="input-wifi-ssid" placeholder="MyWiFiName">
+                    <label style="margin-top:8px;">パスワード</label>
+                    <input type="text" id="input-wifi-pass" placeholder="password123">
+                    <label style="margin-top:8px;">暗号化形式</label>
+                    <select id="input-wifi-type">
+                        <option value="WPA">WPA/WPA2</option>
+                        <option value="WEP">WEP</option>
+                        <option value="nopass">なし</option>
+                    </select>
+                </div>
+
+                <div id="fields-mail" class="input-group hidden">
+                    <label>宛先メールアドレス</label>
+                    <input type="text" id="input-mail-to" placeholder="info@example.com">
+                    <label style="margin-top:8px;">件名</label>
+                    <input type="text" id="input-mail-sub" placeholder="お問い合わせ">
+                </div>
+            </div>
+
+            <div>
+                <div class="section-title">2. デザイン設定</div>
+                <div class="input-group">
+                    <label>表示ラベル（枠下の文字）</label>
+                    <input type="text" id="customLabel" value="SCAN ME">
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-top:15px;">
+                    <div class="input-group">
+                        <label>テーマカラー</label>
+                        <input type="color" id="themeColor" value="#000000">
+                    </div>
+                    <div class="input-group">
+                        <label>誤り訂正レベル</label>
+                        <select id="eccLevel">
+                            <option value="L">L (7%) - シンプル</option>
+                            <option value="M">M (15%) - 標準</option>
+                            <option value="Q">Q (25%) - 高耐性</option>
+                            <option value="H" selected>H (30%) - 最高</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-main" onclick="updateQR()">プレビューを更新</button>
+        </div>
+
+        <div class="preview-area">
+            <div id="qrExportArea">
+                <div id="qrcode"></div>
+                <div id="qrLabelText" class="qr-label">SCAN ME</div>
+            </div>
+            
+            <div class="btn-stack" style="width: 100%;">
+                <button class="btn-png" onclick="downloadPNG()">PNG保存 (フレーム付)</button>
+                <button class="btn-svg" onclick="downloadSVG()">SVG保存 (QRのみ)</button>
+            </div>
+            <p style="font-size: 0.7rem; color: #64748b; text-align: center;">
+                ※SVGは拡大してもぼやけない印刷用データです
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentMode = 'url';
+    let qrGenerator = null;
+
+    // モード切替（Wi-Fi, メール, URL）
+    function setMode(mode) {
+        currentMode = mode;
+        document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+        event.target.classList.add('active');
+        
+        ['url', 'wifi', 'mail'].forEach(m => {
+            document.getElementById(`fields-${m}`).classList.add('hidden');
+        });
+        document.getElementById(`fields-${mode}`).classList.remove('hidden');
+    }
+
+    // QR内容の構築
+    function getQRData() {
+        if (currentMode === 'url') return document.getElementById('input-url').value;
+        if (currentMode === 'wifi') {
+            const ssid = document.getElementById('input-wifi-ssid').value;
+            const pass = document.getElementById('input-wifi-pass').value;
+            const type = document.getElementById('input-wifi-type').value;
+            return `WIFI:S:${ssid};T:${type};P:${pass};;`;
+        }
+        if (currentMode === 'mail') {
+            const to = document.getElementById('input-mail-to').value;
+            const sub = encodeURIComponent(document.getElementById('input-mail-sub').value);
+            return `mailto:${to}?subject=${sub}`;
+        }
+        return '';
+    }
+
+    // プレビュー更新
+    function updateQR() {
+        const data = getQRData();
+        const color = document.getElementById('themeColor').value;
+        const labelText = document.getElementById('customLabel').value;
+        const ecc = document.getElementById('eccLevel').value;
+
+        // UI反映
+        const wrapper = document.getElementById('qrExportArea');
+        const label = document.getElementById('qrLabelText');
+        wrapper.style.borderColor = color;
+        label.style.color = color;
+        label.innerText = labelText;
+
+        const container = document.getElementById('qrcode');
+        container.innerHTML = '';
+
+        qrGenerator = new QRCode(container, {
+            text: data,
+            width: 240, height: 240,
+            colorDark: color,
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel[ecc],
+            quietZone: 15
+        });
+    }
+
+    // PNGダウンロード（html2canvasを使用）
+    function downloadPNG() {
+        html2canvas(document.getElementById('qrExportArea'), { scale: 2 }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `qr-design.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+    }
+
+    // 1. SVGダウンロード機能
+    function downloadSVG() {
+        // easyqrcodejsは内部でSVG要素を作成できるため、それを抽出
+        const data = getQRData();
+        const color = document.getElementById('themeColor').value;
+        const ecc = document.getElementById('eccLevel').value;
+
+        // 一時的なSVG生成用のコンテナ
+        const tempDiv = document.createElement('div');
+        new QRCode(tempDiv, {
+            text: data,
+            width: 500, height: 500,
+            colorDark: color,
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel[ecc],
+            drawer: 'svg' // SVG形式を指定
+        });
+
+        setTimeout(() => {
+            const svgElement = tempDiv.querySelector('svg');
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.download = "qr-code-vector.svg";
+            link.href = url;
+            link.click();
+        }, 100);
+    }
+
+    window.onload = updateQR;
+</script>
+
+</body>
+</html>
