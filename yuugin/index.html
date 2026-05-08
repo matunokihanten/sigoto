@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>封筒・はがき 宛名印刷フォーム（4サイズ対応版）</title>
+<style>
+  :root {
+    --env-width: 240mm;
+    --env-height: 332mm;
+    --primary-color: #005a9e;
+    --bg-color: #f3f4f6;
+    
+    /* フォントサイズ初期値 */
+    --size-postal: 18px;
+    --size-address: 22px;
+    --size-company: 56px;
+
+    /* フォントの太さ（Weight） */
+    --weight-postal: 600;
+    --weight-address: 900;
+    --weight-company: 900;
+
+    /* 印刷強制用：文字の物理的な縁取り太さ */
+    --stroke-postal: 0px;
+    --stroke-address: 0px;
+    --stroke-company: 0px;
+
+    /* 位置オフセット（微調整用） */
+    --offset-postal-x: -20mm;
+    --offset-postal-y: 0mm;
+    --offset-address-y: 0mm;
+    --offset-company-y: 0mm;
+  }
+  
+  body {
+    font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Noto Serif JP", serif;
+    margin: 0;
+    padding: 20px;
+    background: var(--bg-color);
+    color: #333;
+  }
+  
+  .ui-font {
+    font-family: "Yu Gothic", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  }
+
+  h2 { margin: 0 0 20px 0; font-size: 20px; color: #111; }
+
+  .container {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .form-panel {
+    flex: 0 0 420px;
+    padding: 20px;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  }
+
+  .form-group { margin-bottom: 20px; }
+  
+  .label-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 6px;
+  }
+  
+  label { font-weight: 600; font-size: 13px; color: #444; margin: 0; }
+  
+  .controls-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 8px;
+    background: #f8fafc;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #e2e8f0;
+  }
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #475569;
+  }
+  .slider-wrap input[type="range"] {
+    width: 65px;
+    margin: 0;
+    cursor: pointer;
+  }
+  .slider-val {
+    display: inline-block;
+    width: 24px;
+    text-align: right;
+    font-weight: bold;
+    color: var(--primary-color);
+  }
+
+  .adjust-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 12px;
+    border-radius: 6px;
+    margin-top: 24px;
+  }
+  .adjust-box label { margin-bottom: 10px; display: block; color: #0f172a; font-size: 14px; font-weight: bold; }
+  .adjust-row { display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; }
+
+  input[type="text"], textarea, select {
+    width: 100%;
+    padding: 10px;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.2s;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--primary-color);
+    outline: none;
+  }
+
+  .flex-row { display: flex; gap: 8px; align-items: center; }
+  .postal-input { width: 140px !important; }
+
+  .btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 4px;
+    background: var(--primary-color);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: center;
+  }
+  .btn:hover { background: #004578; }
+  .btn-outline { background: #fff; color: var(--primary-color); border: 1px solid var(--primary-color); }
+  .btn-block { width: 100%; display: block; margin-top: 24px; font-size: 16px; padding: 14px; }
+
+  .radio-group { display: flex; gap: 16px; margin-top: 4px; }
+  .radio-group label { font-weight: normal; font-size: 14px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+  /* プレビューエリア */
+  .preview-panel {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    background: #e5e7eb;
+    padding: 20px;
+    border-radius: 8px;
+    min-height: calc(100vh - 80px);
+  }
+
+  .envelope {
+    width: var(--env-width);
+    height: var(--env-height);
+    background: #fff;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    position: relative;
+    box-sizing: border-box;
+    transition: width 0.2s, height 0.2s;
+    transform-origin: top left;
+  }
+
+  .env-text { white-space: pre; line-height: 1.6; }
+  .postal-mark { font-family: sans-serif; font-weight: bold; margin-right: 4px; }
+
+  /* CSS変数適用 */
+  .to-postal {
+    font-size: var(--size-postal);
+    font-weight: var(--weight-postal);
+    -webkit-text-stroke: var(--stroke-postal) currentColor;
+    transform: translate(var(--offset-postal-x), var(--offset-postal-y));
+  }
+  .to-address {
+    font-size: var(--size-address);
+    font-weight: var(--weight-address);
+    -webkit-text-stroke: var(--stroke-address) currentColor;
+  }
+  .to-company {
+    font-size: var(--size-company);
+    font-weight: var(--weight-company);
+    -webkit-text-stroke: var(--stroke-company) currentColor;
+  }
+
+  /* -------------------------------------
+     縦書きレイアウト
+  -------------------------------------- */
+  .layout-vertical .to-postal {
+    position: absolute;
+    top: 10%;
+    right: 15%;
+    letter-spacing: 4px;
+    font-family: sans-serif;
+  }
+  .layout-vertical .to-address {
+    position: absolute;
+    top: 20%;
+    right: 15%;
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    transform: translateY(var(--offset-address-y));
+  }
+  .layout-vertical .to-company {
+    position: absolute;
+    top: 30%;
+    right: 50%;
+    transform: translate(50%, var(--offset-company-y));
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    letter-spacing: 2px;
+  }
+
+  /* -------------------------------------
+     横書きレイアウト
+  -------------------------------------- */
+  .layout-horizontal .to-postal {
+    position: absolute;
+    top: 15%;
+    left: 15%;
+    letter-spacing: 2px;
+    font-family: sans-serif;
+  }
+  .layout-horizontal .to-address {
+    position: absolute;
+    top: 25%;
+    left: 15%;
+    width: 70%;
+    transform: translateY(var(--offset-address-y));
+  }
+  .layout-horizontal .to-company {
+    position: absolute;
+    top: 45%;
+    left: 15%;
+    transform: translateY(var(--offset-company-y));
+  }
+
+  /* -------------------------------------
+     印刷用スタイル
+  -------------------------------------- */
+  @media print {
+    html, body {
+      width: auto !important;
+      height: auto !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .container { display: block !important; margin: 0 !important; padding: 0 !important; }
+    .form-panel { display: none !important; }
+    .preview-panel { padding: 0 !important; margin: 0 !important; background: none !important; display: block !important; min-height: auto !important; overflow: visible !important; }
+    .envelope {
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      transform: none !important;
+      width: var(--env-width) !important;
+      height: var(--env-height) !important;
+      page-break-inside: avoid;
+    }
+  }
+</style>
+<style id="print-page-style"></style>
+</head>
+<body>
+
+<div class="container">
+  <div class="form-panel ui-font">
+    <h2>封筒・はがき 宛名印刷フォーム</h2>
+
+    <div class="form-group">
+      <label>印刷サイズ</label>
+      <select id="env-size">
+        <option value="kaku2">角形2号 (240×332mm) - A4そのまま</option>
+        <option value="chou3">長形3号 (120×235mm) - A4三つ折り</option>
+        <option value="you2">洋形2号 (114×162mm) - 招待状など</option>
+        <option value="hagaki">通常はがき (100×148mm)</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>文字の方向</label>
+      <div class="radio-group">
+        <label><input type="radio" name="direction" value="vertical" checked> 縦書き</label>
+        <label><input type="radio" name="direction" value="horizontal"> 横書き</label>
+      </div>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+
+    <div class="form-group">
+      <div class="label-header"><label>宛先 郵便番号</label></div>
+      <div class="controls-row">
+        <div class="slider-wrap">
+          サイズ: <input type="range" id="size-postal" min="10" max="40" value="18">
+          <span id="val-size-postal" class="slider-val">18</span>px
+        </div>
+        <div class="slider-wrap">
+          太さ: <input type="range" id="weight-postal" min="100" max="900" step="100" value="600">
+          <span id="val-weight-postal" class="slider-val">600</span>
+        </div>
+      </div>
+      <div class="flex-row">
+        <input id="to-post" class="postal-input" type="text" placeholder="460-0022" maxlength="8" />
+        <button id="lookup" class="btn btn-outline" type="button">住所検索</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="label-header"><label>宛先 住所</label></div>
+      <div class="controls-row">
+        <div class="slider-wrap">
+          サイズ: <input type="range" id="size-address" min="8" max="50" value="22">
+          <span id="val-size-address" class="slider-val">22</span>px
+        </div>
+        <div class="slider-wrap">
+          太さ: <input type="range" id="weight-address" min="100" max="900" step="100" value="900">
+          <span id="val-weight-address" class="slider-val">900</span>
+        </div>
+      </div>
+      <textarea id="to-address" rows="3" placeholder="愛知県名古屋市中区..."></textarea>
+      <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-weight:normal; cursor:pointer; font-size:13px;">
+        <input type="checkbox" id="kanji-convert" checked> 
+        縦書き時に番地を漢数字に自動変換する
+      </label>
+    </div>
+
+    <div class="form-group">
+      <div class="label-header"><label>宛先 会社名・部署・氏名</label></div>
+      <div class="controls-row">
+        <div class="slider-wrap">
+          サイズ: <input type="range" id="size-company" min="10" max="80" value="56">
+          <span id="val-size-company" class="slider-val">56</span>px
+        </div>
+        <div class="slider-wrap">
+          太さ: <input type="range" id="weight-company" min="100" max="900" step="100" value="900">
+          <span id="val-weight-company" class="slider-val">900</span>
+        </div>
+      </div>
+      <textarea id="to-company" rows="2" placeholder="株式会社evolve&#10;代表取締役 〇〇様"></textarea>
+    </div>
+
+    <div class="adjust-box">
+      <label>📍 位置・間隔の微調整</label>
+      <div class="adjust-row">
+        <span style="font-size:11px;">郵便番号 (左右)</span>
+        <div class="slider-wrap">
+          <input type="range" id="offset-postal-x" min="-80" max="80" value="-20">
+          <span id="val-postal-x" class="slider-val">-20</span>mm
+        </div>
+      </div>
+      <div class="adjust-row">
+        <span style="font-size:11px;">郵便番号 (上下)</span>
+        <div class="slider-wrap">
+          <input type="range" id="offset-postal-y" min="-80" max="80" value="0">
+          <span id="val-postal-y" class="slider-val">0</span>mm
+        </div>
+      </div>
+      <div class="adjust-row" style="margin-top:10px;">
+        <span style="font-size:11px;">住所の位置 (上下)</span>
+        <div class="slider-wrap">
+          <input type="range" id="offset-address-y" min="-120" max="120" value="0">
+          <span id="val-address-y" class="slider-val">0</span>mm
+        </div>
+      </div>
+      <div class="adjust-row">
+        <span style="font-size:11px;">宛名の位置 (上下)</span>
+        <div class="slider-wrap">
+          <input type="range" id="offset-company-y" min="-120" max="120" value="0">
+          <span id="val-company-y" class="slider-val">0</span>mm
+        </div>
+      </div>
+    </div>
+    
+    <button id="print" class="btn btn-block" type="button">🖨️ 印刷プレビューを開く</button>
+  </div>
+
+  <div class="preview-panel">
+    <div id="envelope" class="envelope layout-vertical">
+      <div class="to-postal env-text"><span class="postal-mark">〒</span><span id="preview-to-post"></span></div>
+      <div id="preview-to-address" class="to-address env-text"></div>
+      <div id="preview-to-company" class="to-company env-text"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const envSize = document.getElementById('env-size');
+  const dirRadios = document.querySelectorAll('input[name="direction"]');
+  const kanjiConvert = document.getElementById('kanji-convert');
+  const toPost = document.getElementById('to-post');
+  const toAddress = document.getElementById('to-address');
+  const toCompany = document.getElementById('to-company');
+  
+  const sliders = ['size-postal', 'weight-postal', 'size-address', 'weight-address', 'size-company', 'weight-company', 'offset-postal-x', 'offset-postal-y', 'offset-address-y', 'offset-company-y'];
+  
+  const previewToPost = document.getElementById('preview-to-post');
+  const previewToAddress = document.getElementById('preview-to-address');
+  const previewToCompany = document.getElementById('preview-to-company');
+  const envelope = document.getElementById('envelope');
+  const printPageStyle = document.getElementById('print-page-style');
+
+  const sizes = {
+    kaku2: { width: '240mm', height: '332mm' },
+    chou3: { width: '120mm', height: '235mm' },
+    you2:  { width: '114mm', height: '162mm' },
+    hagaki: { width: '100mm', height: '148mm' }
+  };
+
+  function formatPostal(val) {
+    const digits = val.replace(/[^0-9]/g, '');
+    if (digits.length > 3) return digits.slice(0,3) + '-' + digits.slice(3,7);
+    return digits;
+  }
+
+  function toKanji(str) {
+    if (!str) return '';
+    str = str.replace(/[Ａ-Ｚａ-ｚ０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    const kanjiMap = {'0':'〇','1':'一','2':'二','3':'三','4':'四','5':'五','6':'六','7':'七','8':'八','9':'九'};
+    return str.replace(/[0-9]/g, m => kanjiMap[m]).replace(/[-－‑–—−]/g, '｜');
+  }
+
+  function getStrokeWidth(weightVal) {
+    const w = parseInt(weightVal, 10);
+    if (w <= 400) return '0px';
+    return ((w - 400) * 0.00015) + 'em'; 
+  }
+
+  function adjustScale() {
+    if (window.matchMedia('print').matches) return;
+    envelope.style.transformOrigin = "top left";
+    const panel = document.querySelector('.preview-panel');
+    const panelWidth = panel.clientWidth - 40;
+    const panelHeight = panel.clientHeight - 40;
+    const envW = envelope.offsetWidth;
+    const envH = envelope.offsetHeight;
+    if(envW === 0 || envH === 0) return;
+    const scale = Math.min(panelWidth / envW, panelHeight / envH, 1);
+    const translateX = Math.max(0, (panelWidth - (envW * scale)) / 2);
+    envelope.style.transform = `translate(${translateX}px, 0) scale(${scale})`;
+  }
+
+  function updatePreview() {
+    const size = sizes[envSize.value];
+    document.documentElement.style.setProperty('--env-width', size.width);
+    document.documentElement.style.setProperty('--env-height', size.height);
+    printPageStyle.textContent = `@page { size: ${size.width} ${size.height}; margin: 0; }`;
+
+    const isVertical = document.querySelector('input[name="direction"]:checked').value === 'vertical';
+    envelope.className = `envelope ${isVertical ? 'layout-vertical' : 'layout-horizontal'}`;
+
+    // スライダー値の適用
+    sliders.forEach(id => {
+      const el = document.getElementById(id);
+      const val = el.value;
+      const unit = id.includes('offset') ? 'mm' : (id.includes('size') ? 'px' : '');
+      document.documentElement.style.setProperty('--' + id, val + unit);
+      document.getElementById('val-' + id).textContent = val;
+      
+      if(id.includes('weight')) {
+        const target = id.split('-')[1];
+        document.documentElement.style.setProperty('--stroke-' + target, getStrokeWidth(val));
+      }
+    });
+
+    toPost.value = formatPostal(toPost.value);
+    previewToPost.textContent = toPost.value;
+    previewToCompany.textContent = toCompany.value;
+
+    const useKanji = isVertical && kanjiConvert.checked;
+    previewToAddress.textContent = useKanji ? toKanji(toAddress.value) : toAddress.value;
+
+    setTimeout(adjustScale, 50);
+  }
+
+  document.getElementById('lookup').addEventListener('click', async function() {
+    const code = toPost.value.replace(/[^0-9]/g, '');
+    if (code.length < 7) { alert('郵便番号を7桁で入力してください。'); return; }
+    this.textContent = '検索中...'; this.disabled = true;
+    try {
+      const resp = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${code}`);
+      const data = await resp.json();
+      if (data && data.results) {
+        toAddress.value = `${data.results[0].address1}${data.results[0].address2}${data.results[0].address3}`;
+        updatePreview();
+      } else { alert('住所が見つかりませんでした。'); }
+    } catch (e) { alert('通信エラーが発生しました。'); }
+    this.textContent = '住所検索'; this.disabled = false;
+  });
+
+  [toPost, toAddress, toCompany, ...sliders.map(id => document.getElementById(id))].forEach(el => {
+    if(el) el.addEventListener('input', updatePreview);
+  });
+  
+  envSize.addEventListener('change', updatePreview);
+  dirRadios.forEach(el => el.addEventListener('change', updatePreview));
+  kanjiConvert.addEventListener('change', updatePreview);
+  window.addEventListener('resize', adjustScale);
+  document.getElementById('print').addEventListener('click', () => window.print());
+  window.addEventListener('beforeprint', () => { envelope.style.transform = 'none'; });
+  window.addEventListener('afterprint', () => { adjustScale(); });
+
+  updatePreview();
+</script>
+</body>
+</html>
