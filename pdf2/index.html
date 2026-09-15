@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>フォルダ内PDF・画像 サムネイルグリッド</title>
+
+  <!-- PDF.js（CDN）: PDFのサムネイルとプレビューに使用 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+  <style>
+    :root { --gap:12px; --accent:#0a84ff; --muted:#666; --bg:#fafafa; }
+    html,body { height:100%; margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif; background:var(--bg); }
+    header { display:flex; gap:12px; align-items:center; padding:12px; background:#fff; border-bottom:1px solid #e6e6e6; }
+    .btn { background:var(--accent); color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:600; text-decoration:none; }
+    .btn.secondary { background:#666; }
+    #controls { display:flex; gap:8px; align-items:center; }
+    #search { padding:8px; border-radius:8px; border:1px solid #ddd; min-width:220px; }
+    main { display:flex; gap:12px; padding:12px; height:calc(100% - 72px); box-sizing:border-box; min-height:0; }
+    /* 左: グリッド、右: プレビュー */
+    #gridWrap { flex:1 1 65%; display:flex; flex-direction:column; min-width:0; }
+    #grid { flex:1; background:#fff; border:1px solid #e6e6e6; padding:12px; box-sizing:border-box; overflow:auto; display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:12px; align-content:start; }
+    .tile { position:relative; background:#f8f8f8; border-radius:8px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; height:220px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+    .thumbWrap { flex:1; display:flex; align-items:center; justify-content:center; background:#fff; }
+    .thumb { max-width:100%; max-height:100%; object-fit:contain; display:block; }
+    .label { padding:8px; font-size:13px; color:#222; border-top:1px solid #eee; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.6)); }
+    .overlayName { position:absolute; left:8px; right:8px; bottom:40px; background:rgba(0,0,0,0.55); color:#fff; font-size:12px; padding:6px 8px; border-radius:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pdfBadge { position:absolute; top:8px; left:8px; background:#ff6b6b; color:#fff; padding:4px 6px; font-size:12px; border-radius:6px; }
+    /* プレビュー領域 */
+    #preview { flex:1 1 35%; min-width:320px; display:flex; flex-direction:column; border:1px solid #e6e6e6; background:#fff; }
+    #previewHeader { padding:10px; border-bottom:1px solid #eee; display:flex; gap:8px; align-items:center; }
+    #previewTitle { font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    #previewBody { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; background:#fafafa; }
+    #previewBody canvas, #previewBody iframe, #previewBody img, #previewBody object { width:100%; height:100%; border:0; }
+    .placeholder { color:var(--muted); padding:20px; text-align:center; }
+    /* ドラッグオーバー */
+    .dragover { outline:3px dashed rgba(10,132,255,0.25); }
+    /* モーダル（フルスクリーンプレビュー） */
+    .modal { position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:9999; }
+    .modalContent { width:90%; height:90%; background:#fff; border-radius:8px; overflow:hidden; display:flex; flex-direction:column; }
+    .modalHeader { padding:8px; display:flex; justify-content:flex-end; gap:8px; border-bottom:1px solid #eee; }
+    .closeBtn { background:#333; color:#fff; padding:6px 10px; border-radius:6px; cursor:pointer; }
+    /* レスポンシブ */
+    @media (max-width:900px) {
+      main { flex-direction:column; }
+      #gridWrap { order:1; }
+      #preview { order:2; min-height:320px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div id="controls">
+      <label class="btn" id="chooseFolderBtn">フォルダを選択</label>
+      <label class="btn secondary" id="chooseFilesBtn">ファイルを選択</label>
+      <input id="folderInput" type="file" webkitdirectory directory multiple style="display:none" />
+      <input id="fileInput" type="file" accept="image/*,application/pdf" multiple style="display:none" />
+      <button class="btn" id="clearBtn" style="background:#ff6b6b">クリア</button>
+      <button class="btn secondary" id="openAllBtn" style="background:#0a84ff">すべてプレビュー</button>
+    </div>
+    <input id="search" placeholder="ファイル名で検索" />
+  </header>
+
+  <main>
+    <div id="gridWrap">
+      <div id="grid" aria-label="ファイルグリッド">
+        <div class="placeholder" style="padding:20px">ここにフォルダをドラッグ＆ドロップするか、フォルダを選択してください</div>
+      </div>
+    </div>
+
+    <div id="preview">
+      <div id="previewHeader">
+        <div id="previewTitle">プレビュー</div>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+          <a id="openNewTab" class="btn secondary" target="_blank" rel="noopener" style="text-decoration:none;color:#fff">新しいタブで開く</a>
+          <a id="downloadBtn" class="btn" style="text-decoration:none;color:#fff">ダウンロード</a>
+        </div>
+      </div>
+      <div id="previewBody">
+        <div class="placeholder">サムネイルをクリックするとここに拡大プレビューが表示されます</div>
+      </div>
+    </div>
+  </main>
+
+  <!-- モーダル領域（動的に追加） -->
+  <script>
+    // PDF.js 初期設定
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    const folderInput = document.getElementById('folderInput');
+    const fileInput = document.getElementById('fileInput');
+    const chooseFolderBtn = document.getElementById('chooseFolderBtn');
+    const chooseFilesBtn = document.getElementById('chooseFilesBtn');
+    const grid = document.getElementById('grid');
+    const search = document.getElementById('search');
+    const clearBtn = document.getElementById('clearBtn');
+    const openAllBtn = document.getElementById('openAllBtn');
+    const previewBody = document.getElementById('previewBody');
+    const previewTitle = document.getElementById('previewTitle');
+    const openNewTab = document.getElementById('openNewTab');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    const IMAGE_EXT = ['.png','.jpg','.jpeg','.gif','.webp','.svg'];
+    const PDF_EXT = ['.pdf'];
+
+    let allItems = []; // {file, path, isPdf, isImage, thumbUrl, renderedThumbBlob}
+    let currentObjectUrl = null;
+
+    chooseFolderBtn.addEventListener('click', () => folderInput.click());
+    chooseFilesBtn.addEventListener('click', () => fileInput.click());
+    folderInput.addEventListener('change', e => handleIncomingFiles(Array.from(e.target.files)));
+    fileInput.addEventListener('change', e => handleIncomingFiles(Array.from(e.target.files)));
+    clearBtn.addEventListener('click', clearAll);
+    openAllBtn.addEventListener('click', openAllInModal);
+
+    // Drag & drop
+    grid.addEventListener('dragover', e => { e.preventDefault(); grid.classList.add('dragover'); });
+    grid.addEventListener('dragleave', e => { e.preventDefault(); grid.classList.remove('dragover'); });
+    grid.addEventListener('drop', e => {
+      e.preventDefault();
+      grid.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer.files || []);
+      handleIncomingFiles(files);
+    });
+
+    search.addEventListener('input', () => renderGrid());
+
+    function handleIncomingFiles(files) {
+      // Normalize and filter
+      const accepted = files.map(f => {
+        const path = f.webkitRelativePath || f.name;
+        const lower = f.name.toLowerCase();
+        const isImage = IMAGE_EXT.some(ext => lower.endsWith(ext));
+        const isPdf = lower.endsWith('.pdf') || f.type === 'application/pdf';
+        return (isImage || isPdf) ? { file: f, path, isImage, isPdf } : null;
+      }).filter(Boolean);
+
+      if (accepted.length === 0) {
+        if (allItems.length === 0) {
+          grid.innerHTML = '<div class="placeholder" style="padding:20px">PDF または画像ファイルが見つかりません。</div>';
+        }
+        return;
+      }
+
+      // Merge avoiding duplicates by path+size
+      const map = new Map(allItems.map(it => [it.path + '::' + it.file.size, it]));
+      accepted.forEach(it => {
+        const key = it.path + '::' + it.file.size;
+        if (!map.has(key)) map.set(key, it);
+      });
+      allItems = Array.from(map.values());
+
+      // Sort by path
+      allItems.sort((a,b) => a.path.localeCompare(b.path, undefined, {sensitivity:'base'}));
+
+      // Render grid (thumbnails generated lazily)
+      renderGrid();
+
+      // Auto-select first
+      const firstTile = grid.querySelector('.tile');
+      if (firstTile) firstTile.click();
+    }
+
+    function renderGrid() {
+      const q = (search.value || '').trim().toLowerCase();
+      grid.innerHTML = '';
+      const visible = allItems.filter(it => it.path.toLowerCase().includes(q));
+      if (visible.length === 0) {
+        grid.innerHTML = '<div class="placeholder" style="padding:20px">一致するファイルがありません。</div>';
+        return;
+      }
+
+      visible.forEach((it, idx) => {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.index = idx;
+
+        const thumbWrap = document.createElement('div');
+        thumbWrap.className = 'thumbWrap';
+
+        const thumb = document.createElement('img');
+        thumb.className = 'thumb';
+        thumb.alt = it.path;
+
+        // Show temporary placeholder while thumbnail is generated
+        thumb.src = '';
+        thumbWrap.appendChild(thumb);
+
+        const overlay = document.createElement('div');
+        overlay.className = 'overlayName';
+        overlay.textContent = it.path.split('/').pop();
+
+        if (it.isPdf) {
+          const badge = document.createElement('div');
+          badge.className = 'pdfBadge';
+          badge.textContent = 'PDF';
+          tile.appendChild(badge);
+        }
+
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = it.path.split('/').pop();
+
+        tile.appendChild(thumbWrap);
+        tile.appendChild(overlay);
+        tile.appendChild(label);
+
+        tile.addEventListener('click', () => {
+          // highlight
+          Array.from(grid.querySelectorAll('.tile')).forEach(t => t.style.boxShadow = '0 1px 2px rgba(0,0,0,0.04)');
+          tile.style.boxShadow = '0 4px 12px rgba(10,132,255,0.12)';
+          showPreview(it);
+        });
+
+        grid.appendChild(tile);
+
+        // Generate thumbnail asynchronously
+        generateThumbnail(it).then(url => {
+          if (thumb) thumb.src = url;
+        }).catch(() => {
+          // fallback icon
+          thumb.src = createPdfIconDataUrl();
+        });
+      });
+    }
+
+    async function generateThumbnail(item) {
+      // If already generated, return cached URL
+      if (item.thumbUrl) return item.thumbUrl;
+
+      if (item.isImage) {
+        // Create scaled thumbnail via canvas to keep consistent size
+        const url = URL.createObjectURL(item.file);
+        const img = await loadImage(url);
+        const canvas = document.createElement('canvas');
+        const maxW = 320, maxH = 200;
+        const ratio = Math.min(maxW / img.width, maxH / img.height, 1);
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        URL.revokeObjectURL(url);
+        item.thumbUrl = dataUrl;
+        return dataUrl;
+      } else if (item.isPdf) {
+        // Use PDF.js to render first page to canvas
+        const arrayBuffer = await item.file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 1.0 });
+        // scale to fit
+        const maxW = 320, maxH = 200;
+        const scale = Math.min(maxW / viewport.width, maxH / viewport.height, 1);
+        const scaledViewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(scaledViewport.width);
+        canvas.height = Math.round(scaledViewport.height);
+        const ctx = canvas.getContext('2d');
+        const renderContext = { canvasContext: ctx, viewport: scaledViewport };
+        await page.render(renderContext).promise;
+        const dataUrl = canvas.toDataURL('image/png');
+        item.thumbUrl = dataUrl;
+        // cleanup
+        try { pdf.destroy(); } catch(e){}
+        return dataUrl;
+      } else {
+        throw new Error('unsupported');
+      }
+    }
+
+    function loadImage(url) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+
+    function createPdfIconDataUrl() {
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="320" height="200"><rect width="100%" height="100%" fill="#f6f6f6"/><text x="50%" y="55%" font-size="28" text-anchor="middle" fill="#666" font-family="Arial">PDF</text></svg>';
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    async function showPreview(item) {
+      // revoke previous
+      if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+      previewBody.innerHTML = '';
+      previewTitle.textContent = item.path.split('/').pop();
+
+      if (item.isImage) {
+        const url = URL.createObjectURL(item.file);
+        currentObjectUrl = url;
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = item.path;
+        img.style.objectFit = 'contain';
+        previewBody.appendChild(img);
+        openNewTab.href = url;
+        downloadBtn.href = url;
+        downloadBtn.download = item.file.name;
+      } else if (item.isPdf) {
+        // Render PDF into preview using PDF.js (full height)
+        const arrayBuffer = await item.file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        // Create a container canvas and render first page scaled to container
+        previewBody.innerHTML = '';
+        const canvas = document.createElement('canvas');
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        previewBody.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+
+        const page = await pdf.getPage(1);
+        // compute scale to fit previewBody size
+        const containerRect = previewBody.getBoundingClientRect();
+        const viewport = page.getViewport({ scale: 1.0 });
+        const scale = Math.min((containerRect.width - 20) / viewport.width, (containerRect.height - 20) / viewport.height, 2);
+        const scaledViewport = page.getViewport({ scale });
+        canvas.width = Math.round(scaledViewport.width);
+        canvas.height = Math.round(scaledViewport.height);
+        await page.render({ canvasContext: ctx, viewport: scaledViewport }).promise;
+
+        // Provide open/download via object URL
+        const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        currentObjectUrl = url;
+        openNewTab.href = url;
+        downloadBtn.href = url;
+        downloadBtn.download = item.file.name;
+
+        try { pdf.destroy(); } catch(e){}
+      }
+    }
+
+    function clearAll() {
+      // revoke any object URLs
+      if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+      allItems = [];
+      grid.innerHTML = '<div class="placeholder" style="padding:20px">ここにフォルダをドラッグ＆ドロップするか、フォルダを選択してください</div>';
+      previewBody.innerHTML = '<div class="placeholder">サムネイルをクリックするとここに拡大プレビューが表示されます</div>';
+      previewTitle.textContent = 'プレビュー';
+      search.value = '';
+    }
+
+    // Open all items in a modal gallery (simple sequential viewer)
+    function openAllInModal() {
+      if (allItems.length === 0) return;
+      let index = 0;
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      const content = document.createElement('div');
+      content.className = 'modalContent';
+      const header = document.createElement('div');
+      header.className = 'modalHeader';
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'closeBtn';
+      closeBtn.textContent = '閉じる';
+      header.appendChild(closeBtn);
+      const body = document.createElement('div');
+      body.style.flex = '1';
+      body.style.minHeight = '0';
+      body.style.display = 'flex';
+      body.style.alignItems = 'center';
+      body.style.justifyContent = 'center';
+      body.style.background = '#111';
+      content.appendChild(header);
+      content.appendChild(body);
+      modal.appendChild(content);
+      document.body.appendChild(modal);
+
+      function renderIndex(i) {
+        body.innerHTML = '';
+        const it = allItems[i];
+        if (!it) return;
+        if (it.isImage) {
+          const url = URL.createObjectURL(it.file);
+          const img = document.createElement('img');
+          img.src = url;
+          img.style.maxWidth = '100%';
+          img.style.maxHeight = '100%';
+          body.appendChild(img);
+        } else {
+          // PDF: render first page to canvas
+          it.file.arrayBuffer().then(buf => pdfjsLib.getDocument({ data: buf }).promise).then(pdf => pdf.getPage(1)).then(page => {
+            const viewport = page.getViewport({ scale: 1.0 });
+            const scale = Math.min((window.innerWidth*0.8) / viewport.width, (window.innerHeight*0.8) / viewport.height, 2);
+            const scaled = page.getViewport({ scale });
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(scaled.width);
+            canvas.height = Math.round(scaled.height);
+            const ctx = canvas.getContext('2d');
+            page.render({ canvasContext: ctx, viewport: scaled }).promise.then(() => body.appendChild(canvas));
+          }).catch(() => {
+            const p = document.createElement('div');
+            p.style.color = '#fff';
+            p.textContent = 'PDFを表示できません';
+            body.appendChild(p);
+          });
+        }
+      }
+
+      // navigation
+      const prevBtn = document.createElement('button');
+      prevBtn.className = 'closeBtn';
+      prevBtn.textContent = '前へ';
+      const nextBtn = document.createElement('button');
+      nextBtn.className = 'closeBtn';
+      nextBtn.textContent = '次へ';
+      header.appendChild(prevBtn);
+      header.appendChild(nextBtn);
+
+      prevBtn.addEventListener('click', () => { index = (index - 1 + allItems.length) % allItems.length; renderIndex(index); });
+      nextBtn.addEventListener('click', () => { index = (index + 1) % allItems.length; renderIndex(index); });
+
+      closeBtn.addEventListener('click', () => { document.body.removeChild(modal); });
+
+      renderIndex(index);
+    }
+
+    // initial placeholder
+    grid.innerHTML = '<div class="placeholder" style="padding:20px">ここにフォルダをドラッグ＆ドロップするか、フォルダを選択してください</div>';
+  </script>
+</body>
+</html>
