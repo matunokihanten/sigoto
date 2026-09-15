@@ -1,546 +1,1192 @@
 <!doctype html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Smart Document Viewer</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>SmartDoc Viewer PRO</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.8.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.2.2/dist/mobilenet.min.js"></script>
+<style>
+:root{
+  --gap:14px; --accent:#007aff; --accent-hover:#0056b3; --danger:#ff3b30; --danger-hover:#d70015;
+  --muted:#8e8e93; --bg:#f5f5f7; --surface:#ffffff; --surface2:#fafafc; --border:#e5e5ea; --text:#1c1c1e;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06); --shadow-md:0 6px 16px rgba(0,0,0,.10);
+}
+[data-theme="dark"]{
+  --bg:#1c1c1e; --surface:#2c2c2e; --surface2:#3a3a3c; --border:#48484a; --text:#f2f2f7;
+  --muted:#98989d; --shadow-sm:0 1px 3px rgba(0,0,0,.4); --shadow-md:0 6px 16px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;background:var(--bg);color:var(--text);transition:background .25s,color .25s}
+.hidden{display:none!important}
+button{font-family:inherit}
+.spacer{flex:1}
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.8.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.2.2/dist/mobilenet.min.js"></script>
+/* ===== Header ===== */
+header{position:relative;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);box-shadow:var(--shadow-sm);z-index:50}
+.brand{font-weight:800;font-size:15px;letter-spacing:.3px;margin-right:6px;white-space:nowrap}
+.brand .ver{font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;vertical-align:middle;margin-left:4px}
+.header-left,.header-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.header-right{margin-left:auto}
+#progressWrap{position:absolute;left:0;right:0;bottom:-1px;height:3px;background:transparent;overflow:hidden;opacity:0;transition:opacity .3s}
+#progressWrap.on{opacity:1}
+#progressBar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#5ac8fa);transition:width .3s}
 
-  <style>
-    :root { --gap: 16px; --accent: #007aff; --accent-hover: #0056b3; --muted: #8e8e93; --bg: #f5f5f7; --surface: #ffffff; --border: #e5e5ea; --text: #1c1c1e; }
-    * { box-sizing: border-box; }
-    html, body { height: 100%; margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); }
-    
-    header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 16px 20px; background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-    .header-left, .header-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    
-    .btn { background: var(--accent); color: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; border: none; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-    .btn:hover { background: var(--accent-hover); transform: translateY(-1px); }
-    .btn.secondary { background: var(--muted); }
-    .btn.secondary:hover { background: #636366; }
-    .btn.danger { background: #ff3b30; }
-    .btn.danger:hover { background: #d70015; }
-    
-    input[type="file"] { display: none; }
-    #search { padding: 10px 16px; border-radius: 20px; border: 1px solid var(--border); min-width: 280px; font-size: 14px; background: var(--bg); transition: 0.3s; }
-    #search:focus { outline: none; border-color: var(--accent); background: var(--surface); box-shadow: 0 0 0 3px rgba(0,122,255,0.1); }
-    .status-badge { font-size: 12px; padding: 4px 10px; border-radius: 12px; background: #e5f0ff; color: var(--accent); font-weight: bold; }
+.btn{background:var(--accent);color:#fff;padding:7px 14px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;border:none;transition:.18s;display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap}
+.btn:hover{background:var(--accent-hover);transform:translateY(-1px)}
+.btn.secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn.secondary:hover{background:var(--border)}
+.btn.danger{background:var(--danger)}
+.btn.danger:hover{background:var(--danger-hover)}
+.btn.small{padding:5px 10px;font-size:12px}
+.iconBtn{background:transparent;border:1px solid var(--border);border-radius:8px;width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;color:var(--text);transition:.18s;text-decoration:none}
+.iconBtn:hover{background:var(--surface2)}
+#search{padding:8px 14px;border-radius:18px;border:1px solid var(--border);min-width:240px;font-size:13px;background:var(--bg);color:var(--text);transition:.25s}
+#search:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(0,122,255,.15)}
+#sortSelect{padding:7px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:12px;cursor:pointer}
+.statusBadge{font-size:11px;padding:4px 10px;border-radius:12px;background:rgba(0,122,255,.12);color:var(--accent);font-weight:700;white-space:nowrap}
+.iconWrap{position:relative;display:flex;gap:6px}
+.settingsPanel{position:absolute;top:40px;right:0;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-md);padding:14px 16px;min-width:250px;z-index:200;display:flex;flex-direction:column;gap:10px;font-size:13px}
+.settingsPanel label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.settingsPanel .hint{font-size:11px;color:var(--muted)}
 
-    main { display: flex; gap: var(--gap); padding: var(--gap); height: calc(100% - 73px); min-height: 0; }
-    
-    #gridWrap { flex: 1 1 65%; display: flex; flex-direction: column; min-width: 0; background: var(--surface); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
-    
-    .filters { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; background: #fafafc; }
-    .filterGroup { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .filter-label { font-size: 12px; color: var(--muted); font-weight: 600; width: 44px; }
-    .chip { padding: 4px 12px; border-radius: 16px; background: var(--border); cursor: pointer; font-size: 12px; font-weight: 500; transition: 0.2s; color: var(--text); border: 1px solid transparent; }
-    .chip:hover { background: #d1d1d6; }
-    .chip.active { background: var(--accent); color: #fff; box-shadow: 0 2px 4px rgba(0,122,255,0.3); }
+/* ===== Layout ===== */
+main{display:grid;grid-template-columns:230px 1fr 380px;gap:var(--gap);padding:var(--gap);height:calc(100% - 56px);min-height:0}
 
-    #grid { flex: 1; padding: 16px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; align-content: start; }
-    
-    .tile { position: relative; background: var(--surface); border-radius: 10px; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; height: 200px; border: 1px solid var(--border); transition: all 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
-    .tile:hover { transform: translateY(-3px); box-shadow: 0 6px 12px rgba(0,0,0,0.08); }
-    .tile.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-    .tile.analyzing::after { content: ''; position: absolute; top:0; left:0; right:0; height: 3px; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: loading 1.5s infinite; }
-    
-    @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+/* ===== Sidebar ===== */
+#sidebar{background:var(--surface);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden}
+.sideSection{padding:12px 14px;border-bottom:1px solid var(--border)}
+.sideSection.grow{flex:1;overflow-y:auto;border-bottom:none}
+.sideTitle{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.stats{font-size:12px;line-height:1.8;color:var(--text)}
+.stats b{color:var(--accent)}
+.filterGroup{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:4px 11px;border-radius:14px;background:var(--surface2);border:1px solid var(--border);cursor:pointer;font-size:12px;font-weight:500;transition:.18s;color:var(--text);user-select:none}
+.chip:hover{background:var(--border)}
+.chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tagContainer{display:flex;gap:6px;flex-wrap:wrap}
+.tagContainer .empty{font-size:12px;color:var(--muted)}
+.rowBtns{display:flex;gap:8px;align-items:center}
 
-    .thumbWrap { flex: 1; display: flex; align-items: center; justify-content: center; background: #f9f9fb; overflow: hidden; position: relative; }
-    .thumb { max-width: 100%; max-height: 100%; object-fit: contain; opacity: 0; transition: opacity 0.3s ease; }
-    .thumb.loaded { opacity: 1; }
-    
-    .badge { position: absolute; top: 8px; left: 8px; padding: 4px 8px; font-size: 10px; border-radius: 6px; font-weight: bold; color: #fff; z-index: 10; }
-    .badge.pdf { background: #ff3b30; }
-    .badge.img { background: #34c759; }
+/* ===== Grid ===== */
+#gridWrap{display:flex;flex-direction:column;min-width:0;background:var(--surface);border-radius:12px;border:1px solid var(--border);overflow:hidden}
+#selectionBar{display:flex;gap:8px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);background:rgba(0,122,255,.08);font-size:12px;flex-wrap:wrap}
+#selCount{font-weight:700;color:var(--accent)}
+#bulkTagInput{padding:5px 10px;border-radius:6px;border:1px solid var(--accent);font-size:12px;background:var(--surface);color:var(--text)}
+#grid{flex:1;padding:14px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;align-content:start}
+.tile{position:relative;background:var(--surface);border-radius:10px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;height:200px;border:1px solid var(--border);transition:.2s;box-shadow:var(--shadow-sm)}
+.tile:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.tile.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.tile.focused{outline:2px dashed var(--accent);outline-offset:2px}
+.tile.analyzing::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 1.4s infinite;z-index:20}
+@keyframes scan{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.selBox{position:absolute;top:8px;right:8px;width:20px;height:20px;accent-color:var(--accent);z-index:15;opacity:0;transition:.15s;cursor:pointer}
+.tile:hover .selBox,.selBox:checked,.tile.selected .selBox{opacity:1}
+.badge{position:absolute;top:8px;left:8px;padding:3px 8px;font-size:10px;border-radius:6px;font-weight:800;color:#fff;z-index:10}
+.badge.pdf{background:var(--danger)} .badge.img{background:#34c759}
+.thumbWrap{flex:1;display:flex;align-items:center;justify-content:center;background:var(--surface2);overflow:hidden;position:relative}
+.thumbWrap .skeleton{position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(150,150,150,.15) 50%,transparent 70%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.thumb{max-width:100%;max-height:100%;object-fit:contain;opacity:0;transition:opacity .3s}
+.thumb.loaded{opacity:1}
+.tagList{position:absolute;left:0;right:0;bottom:0;display:flex;gap:4px;flex-wrap:wrap;padding:14px 6px 5px;background:linear-gradient(transparent,rgba(0,0,0,.55));z-index:5;pointer-events:none}
+.tag{background:rgba(0,0,0,.6);color:#fff;padding:1px 6px;font-size:10px;border-radius:4px}
+.label{padding:9px 8px;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-top:1px solid var(--border);background:var(--surface);text-align:center}
+.placeholder{color:var(--muted);padding:40px;text-align:center;font-size:13px;line-height:1.8;grid-column:1/-1}
 
-    .tagList { position: absolute; top: 8px; right: 8px; display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; max-width: 60%; z-index: 10; pointer-events: none; }
-    .tag { background: rgba(0,0,0,0.65); color: #fff; padding: 2px 6px; font-size: 10px; border-radius: 4px; backdrop-filter: blur(4px); }
+/* ===== Preview ===== */
+#preview{display:flex;flex-direction:column;min-width:0;border-radius:12px;border:1px solid var(--border);background:var(--surface);overflow:hidden}
+#previewHeader{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center;justify-content:space-between;background:var(--surface2)}
+#previewTitle{font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+#previewTitle .renameInput{width:100%;font-size:13px;padding:4px 8px;border:1px solid var(--accent);border-radius:6px;background:var(--surface);color:var(--text)}
+#previewToolbar{display:flex;gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--border);font-size:12px;background:var(--surface2)}
+#pageInfo,#zoomLabel{font-size:12px;font-weight:600;min-width:44px;text-align:center}
+#previewBody{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:var(--bg);position:relative;overflow:auto;padding:12px}
+#previewBody canvas,#previewBody img{max-width:100%;max-height:100%;object-fit:contain;box-shadow:var(--shadow-md);background:#fff}
+#previewMeta{border-top:1px solid var(--border);max-height:46%;overflow-y:auto;padding:12px 14px;font-size:12px;display:flex;flex-direction:column;gap:10px}
+#metaList{display:grid;grid-template-columns:auto 1fr;gap:4px 12px}
+#metaList dt{color:var(--muted);font-weight:600;white-space:nowrap}
+#metaList dd{margin:0;word-break:break-all}
+.metaSubTitle{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+#metaTags{display:flex;gap:6px;flex-wrap:wrap}
+#metaTags .tagEdit{background:rgba(0,122,255,.12);color:var(--accent);padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600;display:inline-flex;gap:5px;align-items:center}
+#metaTags .tagEdit button{background:none;border:none;color:inherit;cursor:pointer;font-size:12px;padding:0;line-height:1}
+#metaTagInput{padding:6px 10px;border-radius:8px;border:1px dashed var(--border);font-size:12px;background:transparent;color:var(--text)}
+#metaTagInput:focus{outline:none;border-color:var(--accent)}
+#metaTextWrap summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--accent)}
+#metaText{margin-top:8px;padding:10px;background:var(--surface2);border-radius:8px;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-all;max-height:180px;overflow-y:auto}
+#metaText mark{background:#ffd60a;color:#000;border-radius:2px;padding:0 1px}
+.metaActions{flex-wrap:wrap}
 
-    .label { padding: 10px; font-size: 12px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-top: 1px solid var(--border); background: var(--surface); text-align: center; }
+/* ===== Toast & Overlay ===== */
+#toastWrap{position:fixed;top:70px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:999}
+.toast{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:10px;box-shadow:var(--shadow-md);padding:10px 16px;font-size:13px;max-width:320px;animation:slideIn .25s;transition:opacity .4s}
+.toast.warn{border-left-color:#ff9500}.toast.error{border-left-color:var(--danger)}.toast.ok{border-left-color:#34c759}
+.toast.fade{opacity:0}
+@keyframes slideIn{from{transform:translateX(30px);opacity:0}to{transform:none;opacity:1}}
+#dropOverlay{position:fixed;inset:0;background:rgba(0,122,255,.18);backdrop-filter:blur(2px);z-index:500;display:flex;align-items:center;justify-content:center;pointer-events:none}
+#dropOverlay div{background:var(--surface);border:2px dashed var(--accent);border-radius:16px;padding:36px 60px;font-size:18px;font-weight:800;color:var(--accent)}
 
-    #preview { flex: 1 1 35%; min-width: 320px; display: flex; flex-direction: column; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); overflow: hidden; }
-    #previewHeader { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; justify-content: space-between; background: #fafafc; }
-    #previewTitle { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-    #previewBody { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #e5e5ea; position: relative; }
-    #previewBody canvas, #previewBody img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-    
-    .placeholder { color: var(--muted); padding: 40px; text-align: center; font-size: 14px; line-height: 1.6; }
-    
-    @media (max-width: 900px) {
-      main { flex-direction: column; }
-      #gridWrap { order: 1; flex: none; height: 50vh; }
-      #preview { order: 2; flex: none; height: 40vh; }
-    }
-  </style>
+/* ===== Responsive ===== */
+@media (max-width:1200px){main{grid-template-columns:200px 1fr 320px}}
+@media (max-width:900px){
+  main{display:flex;flex-direction:column;height:auto;min-height:calc(100% - 56px)}
+  #sidebar{order:1;flex-direction:row;overflow-x:auto}
+  .sideSection{border-bottom:none;border-right:1px solid var(--border);min-width:150px}
+  .sideSection.grow{overflow:visible}
+  #gridWrap{order:2;height:46vh;flex:none}
+  #preview{order:3;height:60vh;flex:none}
+  #previewMeta{max-height:none}
+  #search{min-width:140px}
+}
+</style>
 </head>
 <body>
-  <header>
-    <div class="header-left">
-      <label class="btn" id="chooseFolderBtn">📁 フォルダ読込</label>
-      <label class="btn secondary" id="chooseFilesBtn">📄 ファイル読込</label>
-      <input id="folderInput" type="file" webkitdirectory directory multiple />
-      <input id="fileInput" type="file" accept="image/*,application/pdf" multiple />
-      <button class="btn danger" id="clearBtn">🗑 クリア</button>
-    </div>
-    <div class="header-right">
-      <input id="search" placeholder="🔍 全文検索（ファイル名・本文・OCR・タグ）" />
-      <div class="status-badge" id="status">準備完了</div>
-    </div>
-  </header>
-
-  <main>
-    <div id="gridWrap">
-      <div class="filters">
-        <div class="filterGroup" id="typeFilters">
-          <div class="filter-label">種類</div>
-          <div class="chip active" data-type="all">すべて</div>
-          <div class="chip" data-type="pdf">PDF</div>
-          <div class="chip" data-type="image">画像</div>
-        </div>
-        <div class="filterGroup" id="tagFilters">
-          <div class="filter-label">タグ</div>
-          <div id="tagContainer" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
-        </div>
-      </div>
-      <div id="grid" aria-label="ファイルグリッド">
-        <div class="placeholder">ここにフォルダをドラッグ＆ドロップするか、<br>上部のボタンからファイルを選択してください。</div>
+<header>
+  <div class="brand">📚 SmartDoc Viewer<span class="ver">PRO</span></div>
+  <div class="header-left">
+    <label class="btn" id="chooseFolderBtn">📁 フォルダ</label>
+    <label class="btn secondary" id="chooseFilesBtn">📄 ファイル</label>
+    <input id="folderInput" type="file" webkitdirectory directory multiple hidden/>
+    <input id="fileInput" type="file" accept="image/*,application/pdf" multiple hidden/>
+    <button class="btn danger" id="clearBtn">🗑 クリア</button>
+  </div>
+  <div class="header-right">
+    <input id="search" type="search" placeholder="🔍 全文検索（名前・本文・OCR・タグ）"/>
+    <select id="sortSelect" title="並び替え">
+      <option value="name-asc">名前 ↑</option>
+      <option value="name-desc">名前 ↓</option>
+      <option value="date-desc">新しい順</option>
+      <option value="date-asc">古い順</option>
+      <option value="size-desc">サイズ大</option>
+      <option value="size-asc">サイズ小</option>
+      <option value="type">種類別</option>
+    </select>
+    <div class="iconWrap">
+      <button class="iconBtn" id="themeToggle" title="テーマ切替">🌙</button>
+      <button class="iconBtn" id="settingsBtn" title="設定">⚙️</button>
+      <div id="settingsPanel" class="settingsPanel hidden">
+        <label><input type="checkbox" id="setOcr"/> OCR（文字認識）を有効化</label>
+        <label><input type="checkbox" id="setAiTags"/> 画像AIタグ付けを有効化</label>
+        <div class="hint">※変更は次回の解析から適用されます。<br/>「再解析」で既存ファイルに反映できます。</div>
       </div>
     </div>
+    <div class="statusBadge" id="statusBadge">準備完了</div>
+  </div>
+  <div id="progressWrap"><div id="progressBar"></div></div>
+</header>
 
-    <div id="preview">
-      <div id="previewHeader">
-        <div id="previewTitle">プレビュー</div>
-        <div style="display:flex; gap:8px;">
-          <a id="openNewTab" class="btn secondary" target="_blank" style="text-decoration:none; padding:6px 10px; font-size:12px;">別窓</a>
-          <a id="downloadBtn" class="btn" style="text-decoration:none; padding:6px 10px; font-size:12px;">DL</a>
-        </div>
-      </div>
-      <div id="previewBody">
-        <div class="placeholder">ファイルを選択すると<br>ここにプレビューが表示されます</div>
+<main>
+  <aside id="sidebar">
+    <div class="sideSection">
+      <div class="sideTitle">統計</div>
+      <div id="statsLine" class="stats">ファイルなし</div>
+    </div>
+    <div class="sideSection">
+      <div class="sideTitle">種類</div>
+      <div class="filterGroup" id="typeFilters">
+        <div class="chip active" data-type="all">すべて</div>
+        <div class="chip" data-type="pdf">PDF</div>
+        <div class="chip" data-type="image">画像</div>
       </div>
     </div>
-  </main>
+    <div class="sideSection grow">
+      <div class="sideTitle">タグ</div>
+      <div id="tagContainer" class="tagContainer"><div class="empty">タグはまだありません</div></div>
+    </div>
+    <div class="sideSection">
+      <div class="sideTitle">インデックス出力</div>
+      <div class="rowBtns">
+        <button class="btn secondary small" id="exportJsonBtn">JSON</button>
+        <button class="btn secondary small" id="exportCsvBtn">CSV</button>
+      </div>
+    </div>
+  </aside>
 
-  <script>
-    // PDF.js worker setup
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+  <section id="gridWrap">
+    <div id="selectionBar" class="hidden">
+      <span id="selCount">0件選択</span>
+      <button class="btn small" id="bulkTagBtn">＋ タグ</button>
+      <input id="bulkTagInput" class="hidden" placeholder="タグ名を入力して Enter"/>
+      <button class="btn danger small" id="bulkDeleteBtn">削除</button>
+      <span class="spacer"></span>
+      <button class="btn secondary small" id="selAllBtn">全選択</button>
+      <button class="btn secondary small" id="selClearBtn">解除</button>
+    </div>
+    <div id="grid" aria-label="ファイルグリッド"></div>
+  </section>
 
-    // DOM Elements
-    const els = {
-      folderInput: document.getElementById('folderInput'),
-      fileInput: document.getElementById('fileInput'),
-      grid: document.getElementById('grid'),
-      search: document.getElementById('search'),
-      status: document.getElementById('status'),
-      typeFilters: document.getElementById('typeFilters'),
-      tagContainer: document.getElementById('tagContainer'),
-      previewBody: document.getElementById('previewBody'),
-      previewTitle: document.getElementById('previewTitle'),
-      openNewTab: document.getElementById('openNewTab'),
-      downloadBtn: document.getElementById('downloadBtn')
+  <aside id="preview">
+    <div id="previewHeader">
+      <div id="previewTitle">プレビュー</div>
+      <div class="rowBtns">
+        <a id="openNewTab" class="iconBtn" target="_blank" title="別タブで開く">↗</a>
+        <a id="downloadBtn" class="iconBtn" title="ダウンロード">⬇</a>
+      </div>
+    </div>
+    <div id="previewToolbar" class="hidden">
+      <button class="iconBtn" id="prevPage" title="前のページ">◀</button>
+      <span id="pageInfo">1 / 1</span>
+      <button class="iconBtn" id="nextPage" title="次のページ">▶</button>
+      <span class="spacer"></span>
+      <button class="iconBtn" id="zoomOut" title="縮小">−</button>
+      <span id="zoomLabel">100%</span>
+      <button class="iconBtn" id="zoomIn" title="拡大">＋</button>
+    </div>
+    <div id="previewBody"><div class="placeholder">ファイルを選択すると<br/>ここにプレビューが表示されます</div></div>
+    <div id="previewMeta" class="hidden">
+      <dl id="metaList"></dl>
+      <div class="metaSubTitle">タグ</div>
+      <div id="metaTags"></div>
+      <input id="metaTagInput" placeholder="＋ タグを入力して Enter で追加"/>
+      <details id="metaTextWrap"><summary>📄 抽出テキスト</summary><div id="metaText"></div></details>
+      <div class="rowBtns metaActions">
+        <button class="btn secondary small" id="renameBtn">✏️ 名前変更</button>
+        <button class="btn secondary small" id="reanalyzeBtn">🔄 再解析</button>
+        <button class="btn danger small" id="deleteItemBtn">🗑 削除</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<div id="toastWrap"></div>
+<div id="dropOverlay" class="hidden"><div>📥 ドロップしてファイルを追加</div></div>
+
+<script>
+'use strict';
+/* ============ SmartDoc Viewer PRO ============ */
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ---------- Helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const fmtBytes = n => n == null ? '-' : n < 1024 ? n + ' B' : n < 1048576 ? (n/1024).toFixed(1)+' KB' : n < 1073741824 ? (n/1048576).toFixed(1)+' MB' : (n/1073741824).toFixed(2)+' GB';
+const fmtDate = t => t ? new Date(t).toLocaleString('ja-JP') : '-';
+const uid = () => Math.random().toString(36).slice(2, 11);
+
+// ★ 修正箇所: clearBtn: $('clearBtn') を追加しました
+const els = {
+  clearBtn: $('clearBtn'),
+  folderInput: $('folderInput'), fileInput: $('fileInput'), grid: $('grid'), search: $('search'),
+  sortSelect: $('sortSelect'), statusBadge: $('statusBadge'), progressWrap: $('progressWrap'), progressBar: $('progressBar'),
+  typeFilters: $('typeFilters'), tagContainer: $('tagContainer'), statsLine: $('statsLine'),
+  selectionBar: $('selectionBar'), selCount: $('selCount'), bulkTagBtn: $('bulkTagBtn'), bulkTagInput: $('bulkTagInput'),
+  bulkDeleteBtn: $('bulkDeleteBtn'), selAllBtn: $('selAllBtn'), selClearBtn: $('selClearBtn'),
+  previewToolbar: $('previewToolbar'), prevPage: $('prevPage'), nextPage: $('nextPage'), pageInfo: $('pageInfo'),
+  zoomIn: $('zoomIn'), zoomOut: $('zoomOut'), zoomLabel: $('zoomLabel'),
+  previewBody: $('previewBody'), previewTitle: $('previewTitle'), openNewTab: $('openNewTab'), downloadBtn: $('downloadBtn'),
+  previewMeta: $('previewMeta'), metaList: $('metaList'), metaTags: $('metaTags'), metaTagInput: $('metaTagInput'),
+  metaTextWrap: $('metaTextWrap'), metaText: $('metaText'),
+  renameBtn: $('renameBtn'), reanalyzeBtn: $('reanalyzeBtn'), deleteItemBtn: $('deleteItemBtn'),
+  exportJsonBtn: $('exportJsonBtn'), exportCsvBtn: $('exportCsvBtn'),
+  themeToggle: $('themeToggle'), settingsBtn: $('settingsBtn'), settingsPanel: $('settingsPanel'),
+  setOcr: $('setOcr'), setAiTags: $('setAiTags'),
+  toastWrap: $('toastWrap'), dropOverlay: $('dropOverlay')
+};
+
+/* ---------- Settings (localStorage) ---------- */
+const settings = Object.assign({ ocr: true, aiTags: true, theme: 'light' },
+  JSON.parse(localStorage.getItem('sdv_settings') || '{}'));
+function saveSettings() { localStorage.setItem('sdv_settings', JSON.stringify(settings)); }
+els.setOcr.checked = settings.ocr;
+els.setAiTags.checked = settings.aiTags;
+document.documentElement.dataset.theme = settings.theme;
+els.themeToggle.textContent = settings.theme === 'dark' ? '☀️' : '🌙';
+els.themeToggle.onclick = () => {
+  settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = settings.theme;
+  els.themeToggle.textContent = settings.theme === 'dark' ? '☀️' : '🌙';
+  saveSettings();
+};
+els.settingsBtn.onclick = e => { e.stopPropagation(); els.settingsPanel.classList.toggle('hidden'); };
+document.addEventListener('click', e => { if (!e.target.closest('.iconWrap')) els.settingsPanel.classList.add('hidden'); });
+els.setOcr.onchange = () => { settings.ocr = els.setOcr.checked; saveSettings(); };
+els.setAiTags.onchange = () => { settings.aiTags = els.setAiTags.checked; saveSettings(); };
+
+/* ---------- IndexedDB ---------- */
+const DB_NAME = 'smartdoc_v1', DB_VER = 1;
+function idbOpen() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB_NAME, DB_VER);
+    r.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('files')) db.createObjectStore('files', { keyPath: 'id' });
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
     };
-
-    const IMAGE_EXT = ['.png','.jpg','.jpeg','.gif','.webp','.svg'];
-    let allItems = []; // メインデータ配列
-    let tagSet = new Set();
-    let currentObjectUrl = null;
-    let mobilenetModel = null;
-    
-    // バックグラウンド処理用キュー
-    let analysisQueue = [];
-    let isAnalyzing = false;
-
-    // IntersectionObserver (サムネイルの遅延読み込み用)
-    const thumbObserver = new IntersectionObserver((entries, observer) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const tile = entry.target;
-          const idx = tile.dataset.index;
-          const item = allItems[idx];
-          if (item && !item.thumbGenerated) {
-            generateThumbnail(item, tile);
-          }
-          observer.unobserve(tile);
-        }
-      });
-    }, { root: els.grid, rootMargin: '100px' });
-
-    // Event Listeners
-    document.getElementById('chooseFolderBtn').onclick = () => els.folderInput.click();
-    document.getElementById('chooseFilesBtn').onclick = () => els.fileInput.click();
-    document.getElementById('clearBtn').onclick = clearAll;
-    els.folderInput.onchange = e => handleIncomingFiles(Array.from(e.target.files));
-    els.fileInput.onchange = e => handleIncomingFiles(Array.from(e.target.files));
-    els.search.oninput = () => renderGrid();
-
-    // Drag & Drop
-    els.grid.ondragover = e => { e.preventDefault(); els.grid.style.background = '#e5f0ff'; };
-    els.grid.ondragleave = e => { e.preventDefault(); els.grid.style.background = ''; };
-    els.grid.ondrop = e => {
-      e.preventDefault();
-      els.grid.style.background = '';
-      handleIncomingFiles(Array.from(e.dataTransfer.files || []));
-    };
-
-    // Filter Chips Event Delegation
-    document.addEventListener('click', e => {
-      const chip = e.target.closest('.chip');
-      if (!chip) return;
-      const group = chip.closest('.filterGroup');
-      
-      if (group === els.typeFilters) {
-        group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        renderGrid();
-      } else if (group.id === 'tagFilters') {
-        chip.classList.toggle('active');
-        renderGrid();
-      }
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+let DB = null;
+async function idbPut(item) {
+  if (!DB) return;
+  return new Promise((res, rej) => {
+    const tx = DB.transaction('files', 'readwrite');
+    tx.objectStore('files').put({
+      id: item.id, name: item.name, path: item.path, size: item.size, lastModified: item.lastModified,
+      type: item.isPdf ? 'pdf' : 'image', tags: item.tags, text: item.text, ocrText: item.ocrText,
+      ocrConfidence: item.ocrConfidence, aiTags: item.aiTags, pageCount: item.pageCount,
+      thumbUrl: item.thumbUrl || null, analyzed: item.analyzed, addedAt: item.addedAt,
+      note: item.note || '', blob: item.file
     });
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function idbDelete(id) {
+  if (!DB) return;
+  return new Promise(res => {
+    const tx = DB.transaction('files', 'readwrite');
+    tx.objectStore('files').delete(id);
+    tx.oncomplete = res; tx.onerror = res;
+  });
+}
+async function idbClear() {
+  if (!DB) return;
+  return new Promise(res => {
+    const tx = DB.transaction('files', 'readwrite');
+    tx.objectStore('files').clear();
+    tx.oncomplete = res; tx.onerror = res;
+  });
+}
+async function idbGetAll() {
+  if (!DB) return [];
+  return new Promise(res => {
+    const tx = DB.transaction('files', 'readonly');
+    const r = tx.objectStore('files').getAll();
+    r.onsuccess = () => res(r.result || []); r.onerror = () => res([]);
+  });
+}
 
-    // MobileNet ロード (非同期)
-    (async () => {
-      try {
-        setStatus('AIモデル読込中...');
-        mobilenetModel = await mobilenet.load();
-        setStatus('準備完了');
-      } catch (e) {
-        console.warn('MobileNet Error', e);
-        setStatus('一部AI機能オフライン');
-      }
-    })();
+/* ---------- State ---------- */
+const IMAGE_EXT = ['.png','.jpg','.jpeg','.gif','.webp','.svg','.bmp','.tif','.tiff'];
+let allItems = [];
+let itemById = new Map();
+let selection = new Set();
+let lastSelectedId = null;
+let focusedId = null;
+let activeItem = null;      // プレビュー中アイテム
+let activeObjectUrl = null; // プレビュー用 ObjectURL
+let pdfState = { doc: null, page: 1, pages: 1, zoom: 1, renderToken: 0 };
+let analysisQueue = [], isAnalyzing = false, totalQueued = 0;
+let mobilenetModel = null, mobilenetLoading = null;
+let ocrWorker = null, ocrLoading = null, ocrLangs = 'jpn+eng';
+let suppressStore = false; // 全クリア時に個別deleteをスキップ
 
-    function setStatus(text) {
-      els.status.textContent = text;
+/* ---------- UI helpers ---------- */
+function setStatus(t) { els.statusBadge.textContent = t; }
+function setProgress(done, total) {
+  if (!total) { els.progressWrap.classList.remove('on'); els.progressBar.style.width = '0%'; return; }
+  els.progressWrap.classList.add('on');
+  els.progressBar.style.width = Math.round(done / total * 100) + '%';
+  if (done >= total) setTimeout(() => els.progressWrap.classList.remove('on'), 600);
+}
+function toast(msg, type = 'info') {
+  const d = document.createElement('div');
+  d.className = `toast ${type}`;
+  d.textContent = msg;
+  els.toastWrap.appendChild(d);
+  setTimeout(() => { d.classList.add('fade'); setTimeout(() => d.remove(), 450); }, 3200);
+}
+
+/* ---------- Model loaders (lazy) ---------- */
+async function ensureMobilenet() {
+  if (mobilenetModel) return mobilenetModel;
+  if (mobilenetLoading) return mobilenetLoading;
+  mobilenetLoading = (async () => {
+    try { mobilenetModel = await mobilenet.load(); return mobilenetModel; }
+    catch (e) { console.warn('MobileNet load failed', e); return null; }
+  })();
+  return mobilenetLoading;
+}
+async function ensureOcrWorker() {
+  if (ocrWorker) return ocrWorker;
+  if (ocrLoading) return ocrLoading;
+  ocrLoading = (async () => {
+    try {
+      const w = await Tesseract.createWorker();
+      await w.loadLanguage(ocrLangs);
+      await w.initialize(ocrLangs);
+      ocrWorker = w;
+      return w;
+    } catch (e) { console.warn('OCR worker failed', e); return null; }
+  })();
+  return ocrLoading;
+}
+
+/* ---------- Tag inference ---------- */
+const NAME_RULES = {
+  '請求書': ['invoice', '請求'], '見積書': ['estimate', '見積'], '仕様書': ['spec', '仕様'],
+  '図面': ['drawing', '図面', 'dwg'], 'マニュアル': ['manual', 'マニュアル', '取説'],
+  '議事録': ['mtg', 'meeting', '議事録', '会議'], '報告書': ['report', '報告'],
+  '領収書': ['receipt', '領収'], '契約書': ['contract', '契約']
+};
+function extractFastTags(item) {
+  const name = item.name.toLowerCase();
+  const base = item.isPdf ? 'PDF' : '画像';
+  if (!item.tags.includes(base)) item.tags.unshift(base);
+  for (const [tag, kws] of Object.entries(NAME_RULES))
+    if (kws.some(k => name.includes(k)) && !item.tags.includes(tag)) item.tags.push(tag);
+}
+function inferTextTags(item) {
+  const t = (item.text + ' ' + item.ocrText).toLowerCase();
+  const rules = {
+    '領収書': ['領収', 'receipt'], '請求書': ['請求', 'invoice'], '契約書': ['契約', 'contract'],
+    '見積書': ['御見積', '見積', 'estimate'], '押印/署名あり': ['押印', '署名', '印鑑', 'signature'],
+    '機密': ['confidential', '機密', '社外秘']
+  };
+  for (const [tag, kws] of Object.entries(rules))
+    if (kws.some(k => t.includes(k)) && !item.tags.includes(tag)) item.tags.push(tag);
+}
+
+/* ---------- File intake ---------- */
+function acceptFile(f) {
+  const lower = f.name.toLowerCase();
+  const isImage = IMAGE_EXT.some(ext => lower.endsWith(ext)) || (f.type || '').startsWith('image/');
+  const isPdf = lower.endsWith('.pdf') || f.type === 'application/pdf';
+  if (!isImage && !isPdf) return null;
+  return {
+    id: uid(), file: f, path: f.webkitRelativePath || f.name, name: f.name,
+    isImage, isPdf, size: f.size, lastModified: f.lastModified || Date.now(),
+    text: '', ocrText: '', ocrConfidence: null, tags: [], aiTags: [],
+    pageCount: null, thumbUrl: null, thumbGenerated: false, analyzed: false, addedAt: Date.now(), note: ''
+  };
+}
+function handleIncomingFiles(files, dirs) {
+  const newItems = [];
+  (files || []).forEach(f => { const it = acceptFile(f); if (it) newItems.push(it); });
+  (dirs || []).forEach(d => newItems.push(...d.items));
+
+  const keys = new Set(allItems.map(i => i.path + '::' + i.size));
+  let added = 0;
+  newItems.forEach(it => {
+    const k = it.path + '::' + it.size;
+    if (keys.has(k)) return;
+    keys.add(k);
+    extractFastTags(it);
+    allItems.push(it); itemById.set(it.id, it);
+    analysisQueue.push(it); totalQueued++;
+    added++;
+  });
+
+  if (added) {
+    toast(`${added}件のファイルを追加しました`, 'ok');
+    renderTagFilters(); renderGrid(); updateStats();
+    if (!isAnalyzing) processAnalysisQueue();
+  } else if (newItems.length) {
+    toast('新規追加なし（すべて重複）', 'warn');
+  } else {
+    toast('対応形式のファイルが見つかりませんでした（PDF / 画像のみ）', 'warn');
+  }
+}
+els.folderInput.onchange = e => { handleIncomingFiles(Array.from(e.target.files)); e.target.value = ''; };
+els.fileInput.onchange = e => { handleIncomingFiles(Array.from(e.target.files)); e.target.value = ''; };
+$('chooseFolderBtn').onclick = () => els.folderInput.click();
+$('chooseFilesBtn').onclick = () => els.fileInput.click();
+els.clearBtn.onclick = clearAll;
+
+/* ---------- Drag & Drop（フォルダ再帰対応） ---------- */
+let dragDepth = 0;
+window.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; els.dropOverlay.classList.remove('hidden'); });
+window.addEventListener('dragleave', e => { e.preventDefault(); if (--dragDepth <= 0) { dragDepth = 0; els.dropOverlay.classList.add('hidden'); } });
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', async e => {
+  e.preventDefault(); dragDepth = 0; els.dropOverlay.classList.add('hidden');
+  const dt = e.dataTransfer;
+  if (dt.items && dt.items.length) {
+    const dirs = await scanDataTransferItems(dt.items);
+    const loose = Array.from(dt.files).filter(f => !f.webkitRelativePath);
+    handleIncomingFiles(dirs ? dirs.flatFiles : loose, dirs ? dirs.treeItems : []);
+  } else {
+    handleIncomingFiles(Array.from(dt.files || []));
+  }
+});
+async function scanDataTransferItems(items) {
+  const entries = [];
+  for (const it of items) {
+    const en = it.webkitGetAsEntry && it.webkitGetAsEntry();
+    if (en) entries.push(en);
+  }
+  if (!entries.length) return null;
+  const treeItems = [], flatFiles = [];
+  async function walk(entry, prefix) {
+    if (entry.isFile) {
+      await new Promise(res => entry.file(f => {
+        const it = acceptFile(f);
+        if (it) { it.path = prefix + f.name; treeItems.push(it); }
+        res();
+      }, res));
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      let batch;
+      do {
+        batch = await new Promise(res => reader.readEntries(res, () => res([])));
+        for (const en of batch) await walk(en, prefix + entry.name + '/');
+      } while (batch.length > 0);
     }
+  }
+  for (const en of entries) await walk(en, '');
+  return { treeItems, flatFiles };
+}
 
-    // 1. 高速ファイル受け入れ処理
-    function handleIncomingFiles(files) {
-      if (!files.length) return;
-      setStatus('ファイル読込中...');
-      
-      const newItems = [];
-      files.forEach(f => {
-        const path = f.webkitRelativePath || f.name;
-        const lower = f.name.toLowerCase();
-        const isImage = IMAGE_EXT.some(ext => lower.endsWith(ext));
-        const isPdf = lower.endsWith('.pdf') || f.type === 'application/pdf';
-        
-        if (isImage || isPdf) {
-          const item = {
-            id: Math.random().toString(36).substr(2, 9),
-            file: f,
-            path: path,
-            name: f.name,
-            isImage, isPdf,
-            text: '', ocrText: '',
-            tags: [],
-            thumbGenerated: false,
-            analyzed: false
-          };
-          // 瞬時にファイル名からタグを推測
-          extractFastTags(item);
-          newItems.push(item);
-        }
-      });
-
-      // 重複排除して追加
-      const currentKeys = new Set(allItems.map(i => i.path + i.file.size));
-      newItems.forEach(item => {
-        if (!currentKeys.has(item.path + item.file.size)) {
-          allItems.push(item);
-          analysisQueue.push(item); // 深い解析キューに追加
-        }
-      });
-
-      renderTagFilters();
-      renderGrid();
-      
-      // バックグラウンド解析トリガー
-      if (!isAnalyzing) processAnalysisQueue();
+/* ---------- Filtering / Sorting / Rendering ---------- */
+function currentFilter() {
+  return {
+    q: els.search.value.trim().toLowerCase(),
+    type: els.typeFilters.querySelector('.active')?.dataset.type || 'all',
+    tags: Array.from(els.tagContainer.querySelectorAll('.active')).map(c => c.dataset.tag)
+  };
+}
+function filteredItems() {
+  const { q, type, tags } = currentFilter();
+  let list = allItems.filter(it => {
+    if (type === 'pdf' && !it.isPdf) return false;
+    if (type === 'image' && !it.isImage) return false;
+    if (tags.length && !tags.every(t => it.tags.includes(t))) return false;
+    if (q) {
+      const hay = `${it.name} ${it.path} ${it.text} ${it.ocrText} ${it.tags.join(' ')} ${it.note}`.toLowerCase();
+      if (!hay.includes(q)) return false;
     }
-
-    // 2. 超高速なファイル名ベースのプレタグ付け
-    function extractFastTags(item) {
-      const name = item.name.toLowerCase();
-      const rules = { '請求書': ['invoice','請求'], '見積書': ['estimate','見積'], '仕様書': ['spec','仕様'], '図面': ['drawing','図面'], 'マニュアル': ['manual','マニュアル'], '会議': ['mtg','meeting','議事録'] };
-      
-      item.tags.push(item.isPdf ? 'PDF' : '画像');
-      
-      for (const [tag, keywords] of Object.entries(rules)) {
-        if (keywords.some(k => name.includes(k))) {
-          item.tags.push(tag);
-          tagSet.add(tag);
-        }
-      }
+    return true;
+  });
+  const s = els.sortSelect.value;
+  list.sort((a, b) => {
+    switch (s) {
+      case 'name-desc': return b.name.localeCompare(a.name, 'ja');
+      case 'date-desc': return b.lastModified - a.lastModified;
+      case 'date-asc': return a.lastModified - b.lastModified;
+      case 'size-desc': return b.size - a.size;
+      case 'size-asc': return a.size - b.size;
+      case 'type': return (a.isPdf === b.isPdf) ? a.name.localeCompare(b.name, 'ja') : (a.isPdf ? -1 : 1);
+      default: return a.name.localeCompare(b.name, 'ja');
     }
+  });
+  return list;
+}
 
-    // 3. グリッド描画 (DOM作成を最小限に)
-    function renderGrid() {
-      const q = els.search.value.trim().toLowerCase();
-      const type = els.typeFilters.querySelector('.active').dataset.type;
-      const activeTags = Array.from(els.tagContainer.querySelectorAll('.active')).map(c => c.dataset.tag);
+const thumbObserver = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if (!en.isIntersecting) return;
+    const it = itemById.get(en.target.dataset.id);
+    thumbObserver.unobserve(en.target);
+    if (it && !it.thumbGenerated) generateThumbnail(it, en.target);
+  });
+}, { root: els.grid, rootMargin: '200px' });
 
-      els.grid.innerHTML = '';
-      let visibleCount = 0;
+function buildTagSpans(container, item) {
+  container.innerHTML = '';
+  item.tags.filter(t => t !== 'PDF' && t !== '画像').slice(0, 4).forEach(t => {
+    const s = document.createElement('span');
+    s.className = 'tag'; s.textContent = t;
+    container.appendChild(s);
+  });
+}
 
-      allItems.forEach((it, idx) => {
-        // フィルタリング
-        if (type === 'pdf' && !it.isPdf) return;
-        if (type === 'image' && !it.isImage) return;
-        if (activeTags.length > 0 && !activeTags.every(t => it.tags.includes(t))) return;
-        if (q) {
-          const hay = `${it.name} ${it.text} ${it.ocrText} ${it.tags.join(' ')}`.toLowerCase();
-          if (!hay.includes(q)) return;
-        }
+function renderGrid() {
+  const list = filteredItems();
+  els.grid.innerHTML = '';
+  if (!list.length) {
+    els.grid.innerHTML = allItems.length
+      ? '<div class="placeholder">条件に一致するファイルがありません。<br/>検索・フィルタを変更してください。</div>'
+      : '<div class="placeholder">📂 ファイルやフォルダをドラッグ＆ドロップ、<br/>または上部のボタンから読み込んでください。<br/><br/>PDF / PNG / JPG / GIF / WEBP / SVG に対応<br/>OCR・AIタグ付けはバックグラウンドで自動実行されます</div>';
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (const it of list) {
+    const tile = document.createElement('div');
+    tile.className = 'tile' + (it.analyzed ? '' : ' analyzing') + (selection.has(it.id) ? ' selected' : '') + (focusedId === it.id ? ' focused' : '');
+    tile.dataset.id = it.id;
 
-        visibleCount++;
+    const badge = document.createElement('div');
+    badge.className = `badge ${it.isPdf ? 'pdf' : 'img'}`;
+    badge.textContent = it.isPdf ? 'PDF' : 'IMG';
 
-        // DOM構築
-        const tile = document.createElement('div');
-        tile.className = `tile ${!it.analyzed ? 'analyzing' : ''}`;
-        tile.dataset.index = idx;
-        tile.dataset.id = it.id;
+    const sel = document.createElement('input');
+    sel.type = 'checkbox'; sel.className = 'selBox'; sel.checked = selection.has(it.id);
+    sel.onclick = e => { e.stopPropagation(); toggleSelect(it.id, sel.checked); };
 
-        const badge = document.createElement('div');
-        badge.className = `badge ${it.isPdf ? 'pdf' : 'img'}`;
-        badge.textContent = it.isPdf ? 'PDF' : 'IMG';
+    const wrap = document.createElement('div');
+    wrap.className = 'thumbWrap';
+    const skel = document.createElement('div'); skel.className = 'skeleton';
+    const img = document.createElement('img'); img.className = 'thumb'; img.alt = it.name; img.draggable = false;
+    if (it.thumbUrl) { img.src = it.thumbUrl; img.classList.add('loaded'); skel.remove(); }
+    wrap.append(skel, img);
 
-        const tagList = document.createElement('div');
-        tagList.className = 'tagList';
-        it.tags.slice(0, 3).forEach(t => {
-          const span = document.createElement('span');
-          span.className = 'tag'; span.textContent = t;
-          tagList.appendChild(span);
-        });
+    const tagList = document.createElement('div'); tagList.className = 'tagList';
+    buildTagSpans(tagList, it);
 
-        const thumbWrap = document.createElement('div');
-        thumbWrap.className = 'thumbWrap';
-        const img = document.createElement('img');
-        img.className = 'thumb';
-        img.dataset.src = it.thumbUrl || ''; // Lazy load用
-        thumbWrap.appendChild(img);
+    const label = document.createElement('div');
+    label.className = 'label'; label.title = it.path; label.textContent = it.name;
 
-        const label = document.createElement('div');
-        label.className = 'label';
-        label.title = it.name;
-        label.textContent = it.name;
+    tile.append(sel, badge, wrap, tagList, label);
+    tile.onclick = e => {
+      if (e.target === sel) return;
+      handleTileClick(it.id, e);
+    };
+    frag.appendChild(tile);
+    if (!it.thumbGenerated) thumbObserver.observe(tile);
+  }
+  els.grid.appendChild(frag);
+}
 
-        tile.append(badge, tagList, thumbWrap, label);
-        tile.onclick = () => {
-          document.querySelectorAll('.tile').forEach(t => t.classList.remove('selected'));
-          tile.classList.add('selected');
-          showPreview(it);
-        };
-
-        els.grid.appendChild(tile);
-        
-        // サムネイル遅延読み込みの監視対象に追加
-        thumbObserver.observe(tile);
-      });
-
-      if (visibleCount === 0) {
-        els.grid.innerHTML = '<div class="placeholder">一致するファイルがありません。</div>';
-      }
+function handleTileClick(id, e) {
+  const it = itemById.get(id);
+  if (!it) return;
+  if (e.shiftKey && lastSelectedId) {
+    const list = filteredItems().map(x => x.id);
+    const a = list.indexOf(lastSelectedId), b = list.indexOf(id);
+    if (a >= 0 && b >= 0) {
+      const [s, t2] = a < b ? [a, b] : [b, a];
+      for (let i = s; i <= t2; i++) selection.add(list[i]);
+      renderGrid(); updateSelectionBar();
+      showPreview(it);
+      focusedId = id;
+      return;
     }
+  }
+  if (e.ctrlKey || e.metaKey) {
+    toggleSelect(id, !selection.has(id));
+  } else {
+    selection.clear(); selection.add(id);
+    renderGrid(); updateSelectionBar();
+  }
+  lastSelectedId = id; focusedId = id;
+  showPreview(it);
+}
+function toggleSelect(id, on) {
+  if (on) selection.add(id); else selection.delete(id);
+  const tile = els.grid.querySelector(`.tile[data-id="${id}"]`);
+  if (tile) { tile.classList.toggle('selected', on); const cb = tile.querySelector('.selBox'); if (cb) cb.checked = on; }
+  updateSelectionBar();
+}
+function updateSelectionBar() {
+  const n = selection.size;
+  els.selectionBar.classList.toggle('hidden', n === 0);
+  els.selCount.textContent = `${n}件選択`;
+}
+els.selAllBtn.onclick = () => { filteredItems().forEach(i => selection.add(i.id)); renderGrid(); updateSelectionBar(); };
+els.selClearBtn.onclick = () => { selection.clear(); renderGrid(); updateSelectionBar(); };
+els.bulkDeleteBtn.onclick = async () => {
+  if (!selection.size) return;
+  if (!confirm(`選択中の ${selection.size} 件を削除しますか？`)) return;
+  for (const id of Array.from(selection)) {
+    const it = itemById.get(id);
+    if (it) { allItems = allItems.filter(x => x.id !== id); itemById.delete(id); await idbDelete(id); }
+  }
+  if (activeItem && !itemById.has(activeItem.id)) resetPreview();
+  selection.clear();
+  renderTagFilters(); renderGrid(); updateStats(); updateSelectionBar();
+  toast('削除しました', 'ok');
+};
+els.bulkTagBtn.onclick = () => { els.bulkTagInput.classList.toggle('hidden'); els.bulkTagInput.focus(); };
+els.bulkTagInput.onkeydown = async e => {
+  if (e.key !== 'Enter') return;
+  const tag = els.bulkTagInput.value.trim();
+  if (!tag) return;
+  for (const id of selection) {
+    const it = itemById.get(id);
+    if (it && !it.tags.includes(tag)) { it.tags.push(tag); await idbPut(it); }
+  }
+  els.bulkTagInput.value = ''; els.bulkTagInput.classList.add('hidden');
+  renderTagFilters(); renderGrid();
+  toast(`「${tag}」を ${selection.size} 件に付与しました`, 'ok');
+};
 
-    // 4. サムネイル生成 (表示された時だけ発火)
-    async function generateThumbnail(item, tileElement) {
-      const imgEl = tileElement.querySelector('.thumb');
-      if (item.thumbUrl) {
-        imgEl.src = item.thumbUrl;
-        imgEl.classList.add('loaded');
-        item.thumbGenerated = true;
-        return;
-      }
-
-      try {
-        if (item.isImage) {
-          const url = URL.createObjectURL(item.file);
-          imgEl.src = url;
-          imgEl.classList.add('loaded');
-          item.thumbUrl = url; // 生画像をそのままサムネに（ブラウザの縮小に任せるのが一番高速）
-        } else if (item.isPdf) {
-          const arrayBuffer = await item.file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          const page = await pdf.getPage(1);
-          const viewport = page.getViewport({ scale: 0.5 }); // サムネは低解像度でOK
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width; canvas.height = viewport.height;
-          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-          imgEl.src = dataUrl;
-          imgEl.classList.add('loaded');
-          item.thumbUrl = dataUrl;
-          try { pdf.destroy(); } catch(e){}
-        }
-        item.thumbGenerated = true;
-      } catch (e) {
-        console.warn('Thumb error', e);
-      }
-    }
-
-    // 5. バックグラウンド解析キュー (UIを止めない非同期ループ)
-    async function processAnalysisQueue() {
-      if (analysisQueue.length === 0) {
-        isAnalyzing = false;
-        setStatus(`解析完了 (${allItems.length}件)`);
-        renderTagFilters(); // 最終的なタグを反映
-        return;
-      }
-      
-      isAnalyzing = true;
-      const item = analysisQueue.shift();
-      setStatus(`AI解析中... 残り${analysisQueue.length}件`);
-
-      try {
-        // PDFのテキスト抽出
-        if (item.isPdf) {
-          const arrayBuffer = await item.file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          let text = '';
-          const maxPages = Math.min(pdf.numPages, 5); // 負荷軽減のため最初の5ページに制限
-          for (let p = 1; p <= maxPages; p++) {
-            const page = await pdf.getPage(p);
-            const content = await page.getTextContent();
-            text += content.items.map(i => i.str).join(' ') + ' ';
-          }
-          item.text = text;
-          try { pdf.destroy(); } catch(e){}
-        }
-
-        // Tesseract OCR (テキストがないPDF または 画像)
-        // ※重いので、長文テキストが既に抽出できているPDFはスキップ
-        if (item.isImage || (item.isPdf && item.text.trim().length < 20)) {
-          const targetUrl = item.isImage ? URL.createObjectURL(item.file) : item.thumbUrl;
-          if (targetUrl) {
-            const ocrRes = await Tesseract.recognize(targetUrl, 'jpn+eng');
-            item.ocrText = ocrRes?.data?.text || '';
-            if (item.isImage) URL.revokeObjectURL(targetUrl);
-          }
-        }
-
-        // MobileNet 画像分類
-        if (item.isImage && mobilenetModel) {
-          const img = new Image();
-          img.src = URL.createObjectURL(item.file);
-          await new Promise(resolve => img.onload = resolve);
-          const predictions = await mobilenetModel.classify(img);
-          predictions.slice(0, 2).forEach(p => {
-            const label = p.className.split(',')[0].trim().toLowerCase();
-            if (!item.tags.includes(label)) {
-              item.tags.push(label);
-              tagSet.add(label);
-            }
-          });
-        }
-        
-        // 本文からのタグ追加
-        const fullText = (item.text + ' ' + item.ocrText).toLowerCase();
-        if (fullText.includes('領収')) { item.tags.push('領収書'); tagSet.add('領収書'); }
-        if (fullText.includes('契約')) { item.tags.push('契約書'); tagSet.add('契約書'); }
-        if (fullText.includes('印') || fullText.includes('署名')) { item.tags.push('押印/署名あり'); tagSet.add('押印/署名あり'); }
-
-        item.analyzed = true;
-
-        // UIのローディングアニメーションを消し、タグを更新
-        const tileEl = document.querySelector(`.tile[data-id="${item.id}"]`);
-        if (tileEl) {
-          tileEl.classList.remove('analyzing');
-          const tagWrap = tileEl.querySelector('.tagList');
-          tagWrap.innerHTML = '';
-          item.tags.slice(0, 3).forEach(t => {
-            const s = document.createElement('span');
-            s.className = 'tag'; s.textContent = t;
-            tagWrap.appendChild(s);
-          });
-        }
-
-      } catch (e) {
-        console.warn('Analyze failed for', item.name, e);
-        item.analyzed = true;
-      }
-
-      // 次のキューへ (UIをブロックしないように少し待つ)
-      setTimeout(processAnalysisQueue, 100);
-    }
-
-    // 6. タグフィルタの描画
-    function renderTagFilters() {
-      const activeTags = new Set(Array.from(els.tagContainer.querySelectorAll('.active')).map(c => c.dataset.tag));
-      els.tagContainer.innerHTML = '';
-      
-      Array.from(tagSet).sort().forEach(t => {
-        const chip = document.createElement('div');
-        chip.className = `chip ${activeTags.has(t) ? 'active' : ''}`;
-        chip.dataset.tag = t;
-        chip.textContent = t;
-        els.tagContainer.appendChild(chip);
-      });
-    }
-
-    // 7. 高品質プレビューの表示
-    async function showPreview(item) {
-      if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
-      els.previewBody.innerHTML = '<div class="placeholder">読込中...</div>';
-      els.previewTitle.textContent = item.name;
-
-      const objUrl = URL.createObjectURL(item.file);
-      currentObjectUrl = objUrl;
-      els.openNewTab.href = objUrl;
-      els.downloadBtn.href = objUrl;
-      els.downloadBtn.download = item.name;
-
+/* ---------- Thumbnails ---------- */
+async function generateThumbnail(item, tile) {
+  if (!itemById.has(item.id)) return;
+  const imgEl = tile && tile.querySelector('.thumb');
+  const skel = tile && tile.querySelector('.skeleton');
+  try {
+    if (!item.thumbUrl) {
       if (item.isImage) {
-        els.previewBody.innerHTML = '';
-        const img = document.createElement('img');
-        img.src = objUrl;
-        els.previewBody.appendChild(img);
-      } else if (item.isPdf) {
-        try {
-          const arrayBuffer = await item.file.arrayBuffer();
-          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-          const page = await pdf.getPage(1);
-          
-          els.previewBody.innerHTML = '';
-          const canvas = document.createElement('canvas');
-          els.previewBody.appendChild(canvas);
-          
-          const rect = els.previewBody.getBoundingClientRect();
-          const viewport = page.getViewport({ scale: 1.0 });
-          // コンテナに収まるようにスケール計算
-          const scale = Math.min((rect.width - 32) / viewport.width, (rect.height - 32) / viewport.height, 2);
-          const scaledViewport = page.getViewport({ scale });
-          
-          canvas.width = scaledViewport.width;
-          canvas.height = scaledViewport.height;
-          await page.render({ canvasContext: canvas.getContext('2d'), viewport: scaledViewport }).promise;
-          try { pdf.destroy(); } catch(e){}
-        } catch (e) {
-          els.previewBody.innerHTML = '<div class="placeholder">PDFプレビューの生成に失敗しました</div>';
+        item.thumbUrl = await makeImageThumb(item.file);
+      } else {
+        item.thumbUrl = await renderPdfThumb(item.file);
+      }
+      item.thumbGenerated = true;
+      idbPut(item).catch(() => {});
+    }
+    if (imgEl) { imgEl.src = item.thumbUrl; imgEl.classList.add('loaded'); }
+  } catch (e) { console.warn('thumb fail', item.name, e); }
+  if (skel) skel.remove();
+}
+function makeImageThumb(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const MAX = 400;
+        const sc = Math.min(1, MAX / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.max(1, Math.round(img.width * sc));
+        c.height = Math.max(1, Math.round(img.height * sc));
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        URL.revokeObjectURL(url);
+        res(c.toDataURL('image/jpeg', 0.75));
+      } catch (e) { URL.revokeObjectURL(url); rej(e); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('img load')); };
+    img.src = url;
+  });
+}
+async function renderPdfThumb(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  try {
+    const page = await pdf.getPage(1);
+    const v0 = page.getViewport({ scale: 1 });
+    const scale = Math.min(360 / v0.width, 360 / v0.height, 1.5);
+    const vp = page.getViewport({ scale });
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+    return c.toDataURL('image/jpeg', 0.75);
+  } finally { try { pdf.destroy(); } catch (e) {} }
+}
+
+/* ---------- Analysis queue ---------- */
+async function processAnalysisQueue() {
+  isAnalyzing = true;
+  while (analysisQueue.length) {
+    const item = analysisQueue.shift();
+    if (!itemById.has(item.id)) { continue; }
+    const done = totalQueued - analysisQueue.length;
+    setStatus(`解析中… ${done}/${totalQueued}`);
+    setProgress(done, totalQueued);
+    try { await analyzeItem(item); } catch (e) { console.warn('analyze fail', item.name, e); }
+    item.analyzed = true;
+    updateTileAfterAnalysis(item);
+    idbPut(item).catch(() => {});
+    await new Promise(r => setTimeout(r, 60)); // UI に呼吸させる
+  }
+  isAnalyzing = false; totalQueued = 0;
+  setProgress(0, 0);
+  setStatus(`解析完了（${allItems.length}件）`);
+  renderTagFilters(); updateStats();
+}
+
+async function analyzeItem(item) {
+  if (item.isPdf) {
+    try {
+      const buf = await item.file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      item.pageCount = pdf.numPages;
+      let text = '';
+      const maxP = Math.min(pdf.numPages, 10);
+      let firstPageCanvas = null;
+      for (let p = 1; p <= maxP; p++) {
+        const page = await pdf.getPage(p);
+        const tc = await page.getTextContent();
+        text += tc.items.map(i => i.str).join(' ') + '\n';
+        if (p === 1) {
+          const v0 = page.getViewport({ scale: 1 });
+          const scale = Math.min(1500 / Math.max(v0.width, v0.height), 2);
+          const vp = page.getViewport({ scale });
+          firstPageCanvas = document.createElement('canvas');
+          firstPageCanvas.width = vp.width; firstPageCanvas.height = vp.height;
+          const ctx = firstPageCanvas.getContext('2d');
+          ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, vp.width, vp.height);
+          await page.render({ canvasContext: ctx, viewport: vp }).promise;
         }
       }
+      item.text = text.trim();
+      // スキャンPDF（テキストほぼ無し）は OCR
+      if (settings.ocr && item.text.replace(/\s/g, '').length < 20 && firstPageCanvas) {
+        const w = await ensureOcrWorker();
+        if (w) {
+          const r = await w.recognize(firstPageCanvas.toDataURL('image/png'));
+          item.ocrText = (r && r.data && r.data.text || '').trim();
+          item.ocrConfidence = r && r.data ? Math.round(r.data.confidence) : null;
+        }
+      }
+      try { pdf.destroy(); } catch (e) {}
+    } catch (e) { console.warn('pdf parse fail', e); }
+  } else {
+    // 画像: OCR + MobileNet
+    const url = URL.createObjectURL(item.file);
+    const img = new Image();
+    await new Promise(r => { img.onload = r; img.onerror = r; img.src = url; });
+    if (settings.ocr) {
+      const w = await ensureOcrWorker();
+      if (w && img.width) {
+        try {
+          const r = await w.recognize(img);
+          item.ocrText = (r && r.data && r.data.text || '').trim();
+          item.ocrConfidence = r && r.data ? Math.round(r.data.confidence) : null;
+        } catch (e) {}
+      }
     }
+    if (settings.aiTags && img.width) {
+      const m = await ensureMobilenet();
+      if (m) {
+        try {
+          const preds = await m.classify(img);
+          preds.filter(p => p.probability > 0.3).slice(0, 3).forEach(p => {
+            const label = p.className.split(',')[0].trim().toLowerCase();
+            item.aiTags.push(label);
+            if (!item.tags.includes(label)) item.tags.push(label);
+          });
+        } catch (e) {}
+      }
+    }
+    URL.revokeObjectURL(url);
+  }
+  inferTextTags(item);
+  // プレビュー中ならメタ更新
+  if (activeItem && activeItem.id === item.id) renderMeta(item);
+}
 
-    // クリア処理
-    function clearAll() {
-      if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
-      allItems = [];
-      analysisQueue = [];
-      isAnalyzing = false;
-      tagSet.clear();
-      els.grid.innerHTML = '<div class="placeholder">ここにフォルダをドラッグ＆ドロップするか、<br>上部のボタンからファイルを選択してください。</div>';
-      els.previewBody.innerHTML = '<div class="placeholder">ファイルを選択すると<br>ここにプレビューが表示されます</div>';
-      els.previewTitle.textContent = 'プレビュー';
-      els.search.value = '';
-      els.tagContainer.innerHTML = '';
-      setStatus('準備完了');
+function updateTileAfterAnalysis(item) {
+  const tile = els.grid.querySelector(`.tile[data-id="${item.id}"]`);
+  if (!tile) return;
+  tile.classList.remove('analyzing');
+  buildTagSpans(tile.querySelector('.tagList'), item);
+}
+
+/* ---------- Tag filter sidebar ---------- */
+function renderTagFilters() {
+  const counts = new Map();
+  allItems.forEach(it => it.tags.forEach(t => counts.set(t, (counts.get(t) || 0) + 1)));
+  const keep = new Set(Array.from(els.tagContainer.querySelectorAll('.active')).map(c => c.dataset.tag));
+  els.tagContainer.innerHTML = '';
+  const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+  if (!sorted.length) { els.tagContainer.innerHTML = '<div class="empty">タグはまだありません</div>'; return; }
+  for (const [t, n] of sorted) {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (keep.has(t) ? ' active' : '');
+    chip.dataset.tag = t;
+    chip.textContent = `${t} (${n})`;
+    chip.onclick = () => { chip.classList.toggle('active'); renderGrid(); };
+    els.tagContainer.appendChild(chip);
+  }
+}
+els.typeFilters.addEventListener('click', e => {
+  const chip = e.target.closest('.chip'); if (!chip) return;
+  els.typeFilters.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active'); renderGrid();
+});
+
+/* ---------- Stats ---------- */
+function updateStats() {
+  const n = allItems.length;
+  const pdfs = allItems.filter(i => i.isPdf).length;
+  const bytes = allItems.reduce((s, i) => s + (i.size || 0), 0);
+  els.statsLine.innerHTML = n
+    ? `合計 <b>${n}</b> 件（PDF <b>${pdfs}</b> / 画像 <b>${n - pdfs}</b>）<br/>合計サイズ <b>${fmtBytes(bytes)}</b>`
+    : 'ファイルなし';
+}
+
+/* ---------- Preview ---------- */
+function resetPreview() {
+  activeItem = null;
+  if (activeObjectUrl) { URL.revokeObjectURL(activeObjectUrl); activeObjectUrl = null; }
+  if (pdfState.doc) { try { pdfState.doc.destroy(); } catch (e) {} }
+  pdfState = { doc: null, page: 1, pages: 1, zoom: 1, renderToken: 0 };
+  els.previewBody.innerHTML = '<div class="placeholder">ファイルを選択すると<br/>ここにプレビューが表示されます</div>';
+  els.previewTitle.textContent = 'プレビュー';
+  els.previewToolbar.classList.add('hidden');
+  els.previewMeta.classList.add('hidden');
+  els.openNewTab.removeAttribute('href');
+  els.downloadBtn.removeAttribute('href');
+}
+
+async function showPreview(item) {
+  if (!item) return resetPreview();
+  activeItem = item;
+  if (activeObjectUrl) { URL.revokeObjectURL(activeObjectUrl); }
+  if (pdfState.doc) { try { pdfState.doc.destroy(); } catch (e) {} pdfState.doc = null; }
+  activeObjectUrl = URL.createObjectURL(item.file);
+  els.openNewTab.href = activeObjectUrl;
+  els.downloadBtn.href = activeObjectUrl;
+  els.downloadBtn.download = item.name;
+  els.previewTitle.textContent = item.name;
+  els.previewBody.innerHTML = '<div class="placeholder">読込中…</div>';
+  els.previewMeta.classList.remove('hidden');
+  renderMeta(item);
+
+  if (item.isImage) {
+    els.previewToolbar.classList.remove('hidden');
+    pdfState = { doc: null, page: 1, pages: 1, zoom: 1, renderToken: pdfState.renderToken + 1 };
+    els.pageInfo.textContent = '1 / 1';
+    const img = document.createElement('img');
+    img.src = activeObjectUrl;
+    els.previewBody.innerHTML = '';
+    els.previewBody.appendChild(img);
+    updateZoomLabel();
+  } else {
+    els.previewToolbar.classList.remove('hidden');
+    try {
+      const buf = await item.file.arrayBuffer();
+      if (activeItem !== item) return;
+      const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+      pdfState = { doc, page: 1, pages: doc.numPages, zoom: 0, renderToken: pdfState.renderToken + 1 }; // zoom=0 → 自動フィット
+      await renderPdfPage();
+    } catch (e) {
+      els.previewBody.innerHTML = '<div class="placeholder">⚠️ PDF を開けませんでした（破損またはパスワード保護の可能性）</div>';
     }
-  </script>
+  }
+}
+
+async function renderPdfPage() {
+  const { doc, page } = pdfState;
+  if (!doc) return;
+  const token = ++pdfState.renderToken;
+  try {
+    const pg = await doc.getPage(page);
+    const rect = els.previewBody.getBoundingClientRect();
+    const v0 = pg.getViewport({ scale: 1 });
+    let scale;
+    if (pdfState.zoom === 0) {
+      scale = Math.min((rect.width - 40) / v0.width, (rect.height - 40) / v0.height, 3);
+    } else {
+      scale = Math.min((rect.width - 40) / v0.width, (rect.height - 40) / v0.height, 3) * pdfState.zoom;
+    }
+    const dpr = window.devicePixelRatio || 1;
+    const vp = pg.getViewport({ scale: scale * dpr });
+    els.previewBody.innerHTML = '';
+    const c = document.createElement('canvas');
+    c.width = vp.width; c.height = vp.height;
+    c.style.width = (vp.width / dpr) + 'px';
+    c.style.height = (vp.height / dpr) + 'px';
+    els.previewBody.appendChild(c);
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+    await pg.render({ canvasContext: ctx, viewport: vp }).promise;
+    if (token !== pdfState.renderToken) return; // 古いレンダー破棄
+    els.pageInfo.textContent = `${pdfState.page} / ${pdfState.pages}`;
+    updateZoomLabel();
+  } catch (e) { console.warn('render page fail', e); }
+}
+function updateZoomLabel() {
+  els.zoomLabel.textContent = pdfState.zoom === 0 ? '自動' : Math.round(pdfState.zoom * 100) + '%';
+}
+els.prevPage.onclick = () => { if (pdfState.doc && pdfState.page > 1) { pdfState.page--; renderPdfPage(); } };
+els.nextPage.onclick = () => { if (pdfState.doc && pdfState.page < pdfState.pages) { pdfState.page++; renderPdfPage(); } };
+els.zoomIn.onclick = () => {
+  if (pdfState.doc) { pdfState.zoom = pdfState.zoom === 0 ? 1.25 : Math.min(pdfState.zoom * 1.25, 5); renderPdfPage(); }
+  else zoomImage(1.25);
+};
+els.zoomOut.onclick = () => {
+  if (pdfState.doc) { pdfState.zoom = pdfState.zoom === 0 ? 0.8 : Math.max(pdfState.zoom / 1.25, 0.2); renderPdfPage(); }
+  else zoomImage(0.8);
+};
+function zoomImage(f) {
+  const img = els.previewBody.querySelector('img');
+  if (!img) return;
+  pdfState.zoom = Math.min(Math.max((pdfState.zoom || 1) * f, 0.2), 5);
+  img.style.maxWidth = 'none'; img.style.maxHeight = 'none';
+  img.style.width = (img.naturalWidth * pdfState.zoom) + 'px';
+  updateZoomLabel();
+}
+window.addEventListener('resize', debounce(() => { if (pdfState.doc && pdfState.zoom === 0) renderPdfPage(); }, 250));
+
+/* ---------- Meta panel ---------- */
+function renderMeta(item) {
+  const rows = [
+    ['種類', item.isPdf ? `PDF${item.pageCount ? '（' + item.pageCount + 'ページ）' : ''}` : '画像'],
+    ['サイズ', fmtBytes(item.size)],
+    ['更新日時', fmtDate(item.lastModified)],
+    ['パス', item.path],
+    ['OCR信頼度', item.ocrConfidence != null ? item.ocrConfidence + '%' : '—'],
+    ['解析状態', item.analyzed ? '完了' : '解析中…']
+  ];
+  els.metaList.innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('');
+
+  els.metaTags.innerHTML = '';
+  item.tags.forEach(t => {
+    const s = document.createElement('span');
+    s.className = 'tagEdit';
+    s.innerHTML = `${esc(t)} <button title="削除">×</button>`;
+    s.querySelector('button').onclick = async () => {
+      item.tags = item.tags.filter(x => x !== t);
+      await idbPut(item); renderMeta(item); renderTagFilters();
+      const tile = els.grid.querySelector(`.tile[data-id="${item.id}"]`);
+      if (tile) buildTagSpans(tile.querySelector('.tagList'), item);
+    };
+    els.metaTags.appendChild(s);
+  });
+
+  const full = (item.text + '\n' + item.ocrText).trim();
+  els.metaTextWrap.style.display = full ? '' : 'none';
+  if (full) {
+    const q = els.search.value.trim();
+    let html = esc(full.slice(0, 4000));
+    if (q) {
+      const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+      html = html.replace(re, m => `<mark>${m}</mark>`);
+    }
+    els.metaText.innerHTML = html || '（テキストなし）';
+  }
+}
+els.metaTagInput.onkeydown = async e => {
+  if (e.key !== 'Enter') return;
+  const t = els.metaTagInput.value.trim();
+  if (!t || !activeItem) return;
+  if (!activeItem.tags.includes(t)) activeItem.tags.push(t);
+  els.metaTagInput.value = '';
+  await idbPut(activeItem);
+  renderMeta(activeItem); renderTagFilters();
+  const tile = els.grid.querySelector(`.tile[data-id="${activeItem.id}"]`);
+  if (tile) buildTagSpans(tile.querySelector('.tagList'), activeItem);
+};
+els.renameBtn.onclick = () => {
+  if (!activeItem) return;
+  const t = els.previewTitle;
+  const old = activeItem.name;
+  t.innerHTML = '';
+  const inp = document.createElement('input');
+  inp.className = 'renameInput'; inp.value = old;
+  t.appendChild(inp); inp.focus(); inp.select();
+  const commit = async save => {
+    if (save) {
+      const v = inp.value.trim();
+      if (v && v !== old) {
+        activeItem.name = v;
+        activeItem.path = activeItem.path.replace(/[^/]*$/, v);
+        await idbPut(activeItem);
+        renderGrid(); toast('名前を変更しました', 'ok');
+      }
+    }
+    t.textContent = activeItem.name;
+  };
+  inp.onkeydown = e => { if (e.key === 'Enter') commit(true); if (e.key === 'Escape') commit(false); };
+  inp.onblur = () => commit(true);
+};
+els.reanalyzeBtn.onclick = () => {
+  if (!activeItem) return;
+  activeItem.analyzed = false;
+  activeItem.ocrText = ''; activeItem.ocrConfidence = null;
+  analysisQueue.unshift(activeItem); totalQueued++;
+  if (!isAnalyzing) processAnalysisQueue();
+  toast('再解析をキューに追加しました', 'ok');
+};
+els.deleteItemBtn.onclick = async () => {
+  if (!activeItem) return;
+  if (!confirm(`「${activeItem.name}」を削除しますか？`)) return;
+  const id = activeItem.id;
+  allItems = allItems.filter(x => x.id !== id);
+  itemById.delete(id); selection.delete(id);
+  await idbDelete(id);
+  resetPreview();
+  renderTagFilters(); renderGrid(); updateStats(); updateSelectionBar();
+  toast('削除しました', 'ok');
+};
+
+/* ---------- Search & sort ---------- */
+els.search.oninput = debounce(() => { renderGrid(); if (activeItem) renderMeta(activeItem); }, 200);
+els.sortSelect.onchange = renderGrid;
+
+/* ---------- Keyboard ---------- */
+document.addEventListener('keydown', e => {
+  const tag = (e.target.tagName || '').toLowerCase();
+  if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+  if (e.key === '/' ) { e.preventDefault(); els.search.focus(); return; }
+  if (e.key === 'Escape') { selection.clear(); renderGrid(); updateSelectionBar(); return; }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selection.size) { e.preventDefault(); els.bulkDeleteBtn.click(); }
+    return;
+  }
+  if (e.key === 'ArrowLeft' && pdfState.doc && pdfState.page > 1) { pdfState.page--; renderPdfPage(); }
+  if (e.key === 'ArrowRight' && pdfState.doc && pdfState.page < pdfState.pages) { pdfState.page++; renderPdfPage(); }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    const list = filteredItems();
+    if (!list.length) return;
+    let idx = list.findIndex(i => i.id === (focusedId || (activeItem && activeItem.id)));
+    idx = idx < 0 ? 0 : Math.min(Math.max(idx + (e.key === 'ArrowDown' ? 1 : -1), 0), list.length - 1);
+    const it = list[idx];
+    focusedId = it.id; lastSelectedId = it.id;
+    selection.clear(); selection.add(it.id);
+    renderGrid(); updateSelectionBar();
+    showPreview(it);
+    const tile = els.grid.querySelector(`.tile[data-id="${it.id}"]`);
+    if (tile) tile.scrollIntoView({ block: 'nearest' });
+  }
+});
+
+/* ---------- Export ---------- */
+function downloadBlob(content, name, mime) {
+  const b = new Blob([content], { type: mime });
+  const u = URL.createObjectURL(b);
+  const a = document.createElement('a');
+  a.href = u; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(u), 4000);
+}
+els.exportJsonBtn.onclick = () => {
+  const data = allItems.map(i => ({
+    name: i.name, path: i.path, type: i.isPdf ? 'pdf' : 'image', size: i.size,
+    lastModified: i.lastModified, pageCount: i.pageCount, tags: i.tags,
+    ocrConfidence: i.ocrConfidence, text: i.text, ocrText: i.ocrText, addedAt: i.addedAt
+  }));
+  downloadBlob(JSON.stringify(data, null, 2), 'smartdoc_index.json', 'application/json');
+  toast('JSON をエクスポートしました', 'ok');
+};
+els.exportCsvBtn.onclick = () => {
+  const csvEsc = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const head = ['name', 'path', 'type', 'size', 'lastModified', 'pages', 'tags', 'ocrConfidence'];
+  const lines = [head.join(',')].concat(allItems.map(i => [
+    csvEsc(i.name), csvEsc(i.path), i.isPdf ? 'pdf' : 'image', i.size,
+    csvEsc(fmtDate(i.lastModified)), i.pageCount ?? '', csvEsc(i.tags.join(';')), i.ocrConfidence ?? ''
+  ].join(',')));
+  downloadBlob('﻿' + lines.join('\r\n'), 'smartdoc_index.csv', 'text/csv;charset=utf-8');
+  toast('CSV をエクスポートしました', 'ok');
+};
+
+/* ---------- Clear all ---------- */
+async function clearAll() {
+  if (!allItems.length) { toast('クリアするファイルがありません'); return; }
+  if (!confirm(`すべてのファイル（${allItems.length}件）とインデックスを削除しますか？`)) return;
+  suppressStore = true;
+  allItems = []; itemById.clear(); selection.clear();
+  analysisQueue = []; isAnalyzing = false; totalQueued = 0;
+  resetPreview();
+  await idbClear();
+  suppressStore = false;
+  setProgress(0, 0); setStatus('準備完了');
+  els.search.value = '';
+  renderTagFilters(); renderGrid(); updateStats(); updateSelectionBar();
+  toast('すべてクリアしました', 'ok');
+}
+
+/* ---------- Init: restore library ---------- */
+(async function init() {
+  try {
+    DB = await idbOpen();
+    const rows = await idbGetAll();
+    if (rows.length) {
+      setStatus('ライブラリ復元中…');
+      rows.sort((a, b) => a.addedAt - b.addedAt);
+      for (const r of rows) {
+        const f = r.blob instanceof File ? r.blob : new File([r.blob], r.name, { type: r.type === 'pdf' ? 'application/pdf' : '', lastModified: r.lastModified });
+        const it = {
+          id: r.id, file: f, path: r.path, name: r.name,
+          isImage: r.type === 'image', isPdf: r.type === 'pdf',
+          size: r.size, lastModified: r.lastModified,
+          text: r.text || '', ocrText: r.ocrText || '', ocrConfidence: r.ocrConfidence ?? null,
+          tags: r.tags || [], aiTags: r.aiTags || [], pageCount: r.pageCount ?? null,
+          thumbUrl: r.thumbUrl || null, thumbGenerated: !!r.thumbUrl,
+          analyzed: !!r.analyzed, addedAt: r.addedAt || Date.now(), note: r.note || ''
+        };
+        allItems.push(it); itemById.set(it.id, it);
+      }
+      setStatus(`準備完了（${allItems.length}件を復元）`);
+    }
+  } catch (e) {
+    console.warn('IDB init failed', e);
+    toast('保存機能（IndexedDB）が無効です。このセッション中のみ利用できます', 'warn');
+  }
+  renderTagFilters(); renderGrid(); updateStats();
+
+  // AIモデルはバックグラウンドで先読み
+  if (settings.aiTags) ensureMobilenet();
+})();
+</script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"4edd5f8ec12a48cfa682ab8261b80a79","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
