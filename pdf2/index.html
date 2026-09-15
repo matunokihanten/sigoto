@@ -4,7 +4,8 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>SmartDoc Viewer PRO</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- ★ 修正: CDNを pdfjs-dist (jsdelivr) に変更 -->
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.8.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.2.2/dist/mobilenet.min.js"></script>
@@ -257,7 +258,12 @@ main{display:grid;grid-template-columns:230px 1fr 380px;gap:var(--gap);padding:v
 <script>
 'use strict';
 /* ============ SmartDoc Viewer PRO ============ */
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ★ 修正: jsdelivrのパスへ変更
+const PDFJS_CMAP_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/';
+const PDFJS_FONT_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/standard_fonts/';
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
 /* ---------- Helpers ---------- */
 const $ = id => document.getElementById(id);
@@ -267,9 +273,8 @@ const fmtBytes = n => n == null ? '-' : n < 1024 ? n + ' B' : n < 1048576 ? (n/1
 const fmtDate = t => t ? new Date(t).toLocaleString('ja-JP') : '-';
 const uid = () => Math.random().toString(36).slice(2, 11);
 
-// ★ 修正箇所: clearBtn: $('clearBtn') を追加しました
 const els = {
-  clearBtn: $('clearBtn'),
+  clearBtn: $('clearBtn'), // 必須: 起動エラーの回避
   folderInput: $('folderInput'), fileInput: $('fileInput'), grid: $('grid'), search: $('search'),
   sortSelect: $('sortSelect'), statusBadge: $('statusBadge'), progressWrap: $('progressWrap'), progressBar: $('progressBar'),
   typeFilters: $('typeFilters'), tagContainer: $('tagContainer'), statsLine: $('statsLine'),
@@ -735,7 +740,13 @@ function makeImageThumb(file) {
 }
 async function renderPdfThumb(file) {
   const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  // ★ 修正: CMapとStandard Fontのオプションを追加
+  const pdf = await pdfjsLib.getDocument({
+    data: buf,
+    cMapUrl: PDFJS_CMAP_URL,
+    cMapPacked: true,
+    standardFontDataUrl: PDFJS_FONT_URL
+  }).promise;
   try {
     const page = await pdf.getPage(1);
     const v0 = page.getViewport({ scale: 1 });
@@ -775,7 +786,13 @@ async function analyzeItem(item) {
   if (item.isPdf) {
     try {
       const buf = await item.file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      // ★ 修正: CMapとStandard Fontのオプションを追加
+      const pdf = await pdfjsLib.getDocument({
+        data: buf,
+        cMapUrl: PDFJS_CMAP_URL,
+        cMapPacked: true,
+        standardFontDataUrl: PDFJS_FONT_URL
+      }).promise;
       item.pageCount = pdf.numPages;
       let text = '';
       const maxP = Math.min(pdf.numPages, 10);
@@ -924,7 +941,13 @@ async function showPreview(item) {
     try {
       const buf = await item.file.arrayBuffer();
       if (activeItem !== item) return;
-      const doc = await pdfjsLib.getDocument({ data: buf }).promise;
+      // ★ 修正: CMapとStandard Fontのオプションを追加
+      const doc = await pdfjsLib.getDocument({
+        data: buf,
+        cMapUrl: PDFJS_CMAP_URL,
+        cMapPacked: true,
+        standardFontDataUrl: PDFJS_FONT_URL
+      }).promise;
       pdfState = { doc, page: 1, pages: doc.numPages, zoom: 0, renderToken: pdfState.renderToken + 1 }; // zoom=0 → 自動フィット
       await renderPdfPage();
     } catch (e) {
