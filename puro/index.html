@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>睡眠導入シミュレーター</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body {
+      background-color: #070a12;
+      color: #6a7a8c;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100vw;
+    }
+    /* 操作バー：目立たないダークトーン */
+    #nav {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 12px 10px;
+      z-index: 10;
+      background: linear-gradient(to bottom, rgba(7,10,18,0.8), transparent);
+      opacity: 0.35;
+      transition: opacity 0.5s;
+    }
+    #nav:hover {
+      opacity: 0.9;
+    }
+    button {
+      background: #131b26;
+      color: #8c9fb3;
+      border: 1px solid #233142;
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      outline: none;
+      transition: background 0.2s, color 0.2s;
+    }
+    button.active {
+      background: #23354d;
+      color: #cbd7e6;
+      border-color: #3b5373;
+    }
+    canvas {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    #hint {
+      position: absolute;
+      bottom: 12px;
+      width: 100%;
+      text-align: center;
+      font-size: 0.75rem;
+      color: #313f52;
+      pointer-events: none;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="nav">
+    <button id="btn-sheep" class="active" onclick="switchMode('sheep')">1. 羊追尾</button>
+    <button id="btn-cradle" onclick="switchMode('cradle')">2. ニュートンのゆりかご</button>
+    <button id="btn-rain" onclick="switchMode('rain')">3. 雨粒レース</button>
+    <button id="btn-metronome" onclick="switchMode('metronome')">4. メトロノーム</button>
+    <button id="btn-sand" onclick="switchMode('sand')">5. 砂落とし</button>
+  </div>
+
+  <canvas id="canvas"></canvas>
+  <div id="hint">画面をタップすると微弱な音が有効になります</div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let width = 0;
+    let height = 0;
+    let currentMode = 'sheep';
+
+    function resize() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      if (currentMode === 'sand') {
+        initSandGrid();
+      }
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // ==========================================
+    // Web Audio API（低刺激な音の自動生成）
+    // ==========================================
+    let audioCtx = null;
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        document.getElementById('hint').style.display = 'none';
+      }
+    }
+    window.addEventListener('pointerdown', initAudio, { once: true });
+
+    // 羊の足音（低い「トフッ」というこもった音）
+    function playStepSound() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(90, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.08);
+
+      gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.08);
+    }
+
+    // 球の衝突音（低めの「コツン」）
+    function playClickSound() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.04);
+
+      gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.04);
+    }
+
+    // メトロノーム音（柔らかい「カチッ」）
+    function playMetroSound() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.03);
+
+      gain.gain.setValueAtTime(0.025, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.03);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.03);
+    }
+
+    // ==========================================
+    // 1. エンドレス羊追尾シミュレーター
+    // ==========================================
+    const SHEEP_GAP = 280;
+    let sheepOffset = 0;
+    let lastStepIndex = -1;
+
+    function drawFence(x, groundY) {
+      ctx.strokeStyle = '#2d3b4e';
+      ctx.fillStyle = '#2d3b4e';
+      ctx.lineWidth = 3;
+      // 柵の縦棒
+      ctx.fillRect(x - 20, groundY - 45, 6, 45);
+      ctx.fillRect(x + 14, groundY - 45, 6, 45);
+      // 柵の横棒
+      ctx.beginPath();
+      ctx.moveTo(x - 30, groundY - 35);
+      ctx.lineTo(x + 30, groundY - 35);
+      ctx.moveTo(x - 30, groundY - 15);
+      ctx.lineTo(x + 30, groundY - 15);
+      ctx.stroke();
+    }
+
+    function drawSheep(x, y, jumpY) {
+      const sy = y - jumpY;
+      ctx.save();
+      ctx.translate(x, sy);
+
+      // 脚（無表情な棒）
+      ctx.strokeStyle = '#68778a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-16, 12); ctx.lineTo(-16, 26);
+      ctx.moveTo(-6, 12);  ctx.lineTo(-6, 26);
+      ctx.moveTo(8, 12);   ctx.lineTo(8, 26);
+      ctx.moveTo(18, 12);  ctx.lineTo(18, 26);
+      ctx.stroke();
+
+      // 胴体（もこもこ楕円）
+      ctx.fillStyle = '#a6b8cc';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 30, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 頭（左向き）
+      ctx.beginPath();
+      ctx.ellipse(-26, -4, 12, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 目（無表情な点）
+      ctx.fillStyle = '#0f1722';
+      ctx.beginPath();
+      ctx.arc(-30, -5, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function renderSheep() {
+      ctx.fillStyle = '#0a0f18';
+      ctx.fillRect(0, 0, width, height);
+
+      const groundY = height * 0.65;
+      const fenceX = width * 0.45;
+
+      // 地平線
+      ctx.strokeStyle = '#1b2533';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, groundY + 26);
+      ctx.lineTo(width, groundY + 26);
+      ctx.stroke();
+
+      // 柵を描画
+      drawFence(fenceX, groundY + 26);
+
+      // 羊の移動速度（右から左へ等速）
+      sheepOffset += 1.1;
+
+      const totalSheeps = Math.ceil(width / SHEEP_GAP) + 2;
+      for (let i = -1; i < totalSheeps; i++) {
+        let x = (width + 100) - ((sheepOffset + i * SHEEP_GAP) % (width + SHEEP_GAP * 2));
+        let jumpY = 0;
+
+        // 柵の周辺でのジャンプ挙動（放物線）
+        const distFromFence = x - fenceX;
+        if (Math.abs(distFromFence) < 65) {
+          const t = (distFromFence + 65) / 130; // 0〜1
+          jumpY = Math.sin(t * Math.PI) * 45;
+        }
+
+        drawSheep(x, groundY, jumpY);
+      }
+
+      // 等間隔での足音判定
+      const stepInterval = 32;
+      const currentIndex = Math.floor(sheepOffset / stepInterval);
+      if (currentIndex !== lastStepIndex) {
+        playStepSound();
+        lastStepIndex = currentIndex;
+      }
+    }
+
+    // ==========================================
+    // 2. ニュートンのゆりかご
+    // ==========================================
+    const NUM_BALLS = 5;
+    const BALL_RADIUS = 24;
+    const ROPE_LEN = 260;
+    let cradleTime = 0;
+    let lastPhaseSide = 0;
+
+    function renderCradle() {
+      ctx.fillStyle = '#080c14';
+      ctx.fillRect(0, 0, width, height);
+
+      const centerX = width / 2;
+      const originY = height * 0.22;
+      const maxAngle = 0.55; // 揺れ幅（ラジアン）
+      const speed = 1.45;    // ゆったりした周期
+
+      cradleTime += 0.016 * speed;
+      const theta = Math.sin(cradleTime);
+
+      // 左と右が交互に動く挙動
+      let angles = [0, 0, 0, 0, 0];
+      if (theta > 0) {
+        angles[0] = -theta * maxAngle; // 左端が跳ねる
+        if (lastPhaseSide !== 1 && theta > 0.05) {
+          playClickSound();
+          lastPhaseSide = 1;
+        }
+      } else {
+        angles[4] = -theta * maxAngle; // 右端が跳ねる
+        if (lastPhaseSide !== -1 && theta < -0.05) {
+          playClickSound();
+          lastPhaseSide = -1;
+        }
+      }
+
+      // 上部レール
+      ctx.strokeStyle = '#27364a';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(centerX - 120, originY);
+      ctx.lineTo(centerX + 120, originY);
+      ctx.stroke();
+
+      for (let i = 0; i < NUM_BALLS; i++) {
+        const attachX = centerX + (i - (NUM_BALLS - 1) / 2) * (BALL_RADIUS * 2);
+        const ang = angles[i];
+        const ballX = attachX + Math.sin(ang) * ROPE_LEN;
+        const ballY = originY + Math.cos(ang) * ROPE_LEN;
+
+        // 吊り糸
+        ctx.strokeStyle = 'rgba(100, 130, 160, 0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(attachX, originY);
+        ctx.lineTo(ballX, ballY);
+        ctx.stroke();
+
+        // 球体（深いメタリック質感）
+        const grad = ctx.createRadialGradient(
+          ballX - BALL_RADIUS * 0.35,
+          ballY - BALL_RADIUS * 0.35,
+          BALL_RADIUS * 0.1,
+          ballX,
+          ballY,
+          BALL_RADIUS
+        );
+        grad.addColorStop(0, '#8eaec9');
+        grad.addColorStop(0.4, '#39516a');
+        grad.addColorStop(1, '#0e1724');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, BALL_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    // ==========================================
+    // 3. 雨粒の水滴レース
+    // ==========================================
+    let drops = [];
+    function initRain() {
+      drops = [];
+      const count = Math.floor(width / 35);
+      for (let i = 0; i < count; i++) {
+        drops.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          r: Math.random() * 4 + 2.5,
+          speed: Math.random() * 0.3 + 0.08,
+          trail: []
+        });
+      }
+    }
+    initRain();
+
+    function renderRain() {
+      // 窓越しの深い夜（わずかな残像）
+      ctx.fillStyle = 'rgba(6, 10, 18, 0.25)';
+      ctx.fillRect(0, 0, width, height);
+
+      // 背景のぼやけた夜景の街灯（アクセント）
+      const blurLight = (lx, ly, lr, color) => {
+        const g = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
+        g.addColorStop(0, color);
+        g.addColorStop(1, 'transparent');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(lx, ly, lr, 0, Math.PI * 2);
+        ctx.fill();
+      };
+      blurLight(width * 0.2, height * 0.7, 90, 'rgba(40, 70, 110, 0.04)');
+      blurLight(width * 0.8, height * 0.4, 120, 'rgba(30, 50, 80, 0.03)');
+
+      for (let i = drops.length - 1; i >= 0; i--) {
+        const d = drops[i];
+
+        // 溜まると一気に滑り落ちる雨粒の挙動
+        d.y += d.speed;
+        if (Math.random() < 0.015) {
+          d.speed += 0.2; // ふとした拍子に加速
+        } else {
+          d.speed = Math.max(0.08, d.speed * 0.985); // 粘性で減速
+        }
+
+        // 軌跡の追加
+        if (Math.random() < 0.3) {
+          d.trail.push({ x: d.x, y: d.y, r: d.r * 0.35, alpha: 0.3 });
+          if (d.trail.length > 20) d.trail.shift();
+        }
+
+        // 軌跡の描画
+        for (const tr of d.trail) {
+          ctx.fillStyle = `rgba(160, 195, 230, ${tr.alpha})`;
+          ctx.beginPath();
+          ctx.arc(tr.x, tr.y, tr.r, 0, Math.PI * 2);
+          ctx.fill();
+          tr.alpha *= 0.992;
+        }
+
+        // 水滴本体の描画
+        const grad = ctx.createRadialGradient(
+          d.x - d.r * 0.3,
+          d.y - d.r * 0.3,
+          d.r * 0.1,
+          d.x,
+          d.y,
+          d.r
+        );
+        grad.addColorStop(0, 'rgba(210, 235, 255, 0.75)');
+        grad.addColorStop(0.7, 'rgba(100, 140, 180, 0.35)');
+        grad.addColorStop(1, 'rgba(20, 35, 55, 0.1)');
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 雨粒同士の合体判定
+        for (let j = i - 1; j >= 0; j--) {
+          const d2 = drops[j];
+          const dist = Math.hypot(d.x - d2.x, d.y - d2.y);
+          if (dist < d.r + d2.r) {
+            d.r = Math.min(12, Math.sqrt(d.r * d.r + d2.r * d2.r));
+            d.speed += 0.8; // 合体すると重くなって滑り落ちる
+            drops.splice(j, 1);
+            i--;
+            break;
+          }
+        }
+
+        // 画面外に落ちたらリスポーン
+        if (d.y > height + 20) {
+          d.y = -10;
+          d.x = Math.random() * width;
+          d.r = Math.random() * 4 + 2.5;
+          d.speed = Math.random() * 0.3 + 0.08;
+          d.trail = [];
+        }
+      }
+
+      // 画面内の水滴数が減ったら補充
+      if (drops.length < Math.floor(width / 40)) {
+        drops.push({
+          x: Math.random() * width,
+          y: -10,
+          r: Math.random() * 3.5 + 2,
+          speed: 0.1,
+          trail: []
+        });
+      }
+    }
+
+    // ==========================================
+    // 4. メトロノームの針と点滅 (BPM 42)
+    // ==========================================
+    let metroTime = 0;
+    const BPM = 42; // 深いリラックスを促すスローテンポ
+    const CYCLE_SEC = 60 / BPM; // 1拍の秒数
+    let prevTick = -1;
+
+    function renderMetronome() {
+      ctx.fillStyle = '#06090f';
+      ctx.fillRect(0, 0, width, height);
+
+      metroTime += 0.016;
+      // 振り子の角度（正弦波）
+      const phase = (metroTime / CYCLE_SEC) * Math.PI;
+      const angle = Math.sin(phase) * 0.42;
+
+      // ビートの瞬間（端に達したタイミング）
+      const currentTick = Math.floor(metroTime / CYCLE_SEC);
+      if (currentTick !== prevTick) {
+        playMetroSound();
+        prevTick = currentTick;
+      }
+
+      // 明滅（中央の薄明かり）：呼吸のようにゆるやかに脈動
+      const pulse = (Math.cos(phase) + 1) / 2; // 0〜1
+      const lightRadius = 140 + pulse * 60;
+      const lightGrad = ctx.createRadialGradient(
+        width / 2,
+        height * 0.52,
+        0,
+        width / 2,
+        height * 0.52,
+        lightRadius
+      );
+      lightGrad.addColorStop(0, `rgba(74, 110, 160, ${0.12 + pulse * 0.22})`);
+      lightGrad.addColorStop(1, 'transparent');
+
+      ctx.fillStyle = lightGrad;
+      ctx.beginPath();
+      ctx.arc(width / 2, height * 0.52, lightRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // メトロノーム本体の台形フレーム（暗いシルエット）
+      const baseX = width / 2;
+      const baseY = height * 0.72;
+      const topY = height * 0.26;
+
+      ctx.strokeStyle = '#182433';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(baseX - 80, baseY);
+      ctx.lineTo(baseX + 80, baseY);
+      ctx.lineTo(baseX + 30, topY);
+      ctx.lineTo(baseX - 30, topY);
+      ctx.closePath();
+      ctx.stroke();
+
+      // 振り子の軸
+      const pivotY = baseY - 20;
+
+      ctx.save();
+      ctx.translate(baseX, pivotY);
+      ctx.rotate(angle);
+
+      // 振り子の棒
+      const armLength = (baseY - topY) + 30;
+      ctx.strokeStyle = '#5b7596';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, 15);
+      ctx.lineTo(0, -armLength);
+      ctx.stroke();
+
+      // おもり（ウェイト）
+      const weightY = -armLength * 0.72;
+      ctx.fillStyle = '#8ea8c7';
+      ctx.beginPath();
+      ctx.rect(-10, weightY - 14, 20, 24);
+      ctx.fill();
+
+      ctx.restore();
+
+      // ピボットの金具
+      ctx.fillStyle = '#2f435c';
+      ctx.beginPath();
+      ctx.arc(baseX, pivotY, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ==========================================
+    // 5. 砂落としシミュレーター（砂時計）
+    // ==========================================
+    const CELL_SIZE = 4;
+    let sandCols = 0;
+    let sandRows = 0;
+    let sandGrid = null;
+    let sandTilt = 0; // -1(左) 〜 1(右)
+    const sandColors = [
+      '#9e8a68',
+      '#b39d77',
+      '#8c7959',
+      '#c4ad87',
+      '#756346'
+    ];
+
+    function initSandGrid() {
+      sandCols = Math.floor(width / CELL_SIZE);
+      sandRows = Math.floor(height / CELL_SIZE);
+      sandGrid = new Uint8Array(sandCols * sandRows);
+    }
+    initSandGrid();
+
+    // 端末の傾きセンサー（ジャイロ）対応
+    window.addEventListener('deviceorientation', (e) => {
+      if (e.gamma !== null) {
+        // gamma: 左右の傾き (-90 〜 90)
+        sandTilt = Math.max(-1, Math.min(1, e.gamma / 30));
+      }
+    });
+
+    // PC用：マウスカーソルの位置で左右の傾きを操作可能
+    window.addEventListener('pointermove', (e) => {
+      if (window.DeviceOrientationEvent && ('ontouchstart' in window)) return;
+      const norm = (e.clientX / width) * 2 - 1; // -1 〜 1
+      sandTilt = Math.max(-1, Math.min(1, norm * 0.8));
+    });
+
+    function renderSand() {
+      ctx.fillStyle = '#060a12';
+      ctx.fillRect(0, 0, width, height);
+
+      if (!sandGrid || sandCols === 0) return;
+
+      // 上部中央の砂時計ノズルからさらさらと砂粒を落とす
+      const centerCol = Math.floor(sandCols / 2);
+      for (let k = 0; k < 2; k++) {
+        const offset = Math.floor((Math.random() - 0.5) * 4);
+        const spawnX = centerCol + offset;
+        if (spawnX >= 0 && spawnX < sandCols) {
+          if (sandGrid[spawnX] === 0) {
+            // ランダムな色インデックス (1〜5)
+            sandGrid[spawnX] = Math.floor(Math.random() * 5) + 1;
+          }
+        }
+      }
+
+      // 砂時計の中央ノズルとガイド枠を描画（静かな夜のフレーム）
+      ctx.strokeStyle = '#182435';
+      ctx.lineWidth = 2;
+      const nozzleX = width / 2;
+      ctx.beginPath();
+      ctx.moveTo(nozzleX - 45, 0);
+      ctx.lineTo(nozzleX - 10, 35);
+      ctx.lineTo(nozzleX - 10, 50);
+      ctx.moveTo(nozzleX + 45, 0);
+      ctx.lineTo(nozzleX + 10, 35);
+      ctx.lineTo(nozzleX + 10, 50);
+      ctx.stroke();
+
+      // セルオートマトンによる砂粒の物理挙動更新
+      // 傾きに応じた方向のバイアス
+      const prefDir = sandTilt > 0.15 ? 1 : (sandTilt < -0.15 ? -1 : 0);
+
+      for (let y = sandRows - 2; y >= 0; y--) {
+        // 走査順序をランダムにして自然な山崩れを演出
+        const xIndices = [];
+        for (let x = 0; x < sandCols; x++) xIndices.push(x);
+        for (let i = xIndices.length - 1; i > 0; i--) {
+          const r = Math.floor(Math.random() * (i + 1));
+          const tmp = xIndices[i];
+          xIndices[i] = xIndices[r];
+          xIndices[r] = tmp;
+        }
+
+        for (let i = 0; i < sandCols; i++) {
+          const x = xIndices[i];
+          const idx = y * sandCols + x;
+          const val = sandGrid[idx];
+
+          if (val > 0) {
+            const downIdx = (y + 1) * sandCols + x;
+
+            // 直下が空いていれば真下に落下
+            if (sandGrid[downIdx] === 0) {
+              sandGrid[downIdx] = val;
+              sandGrid[idx] = 0;
+            } else {
+              // 左右の崩れ判定
+              let dir1, dir2;
+              if (prefDir !== 0) {
+                dir1 = prefDir;
+                dir2 = -prefDir;
+              } else {
+                dir1 = Math.random() < 0.5 ? 1 : -1;
+                dir2 = -dir1;
+              }
+
+              const nextX1 = x + dir1;
+              const nextX2 = x + dir2;
+              const downIdx1 = (y + 1) * sandCols + nextX1;
+              const downIdx2 = (y + 1) * sandCols + nextX2;
+
+              if (nextX1 >= 0 && nextX1 < sandCols && sandGrid[downIdx1] === 0) {
+                sandGrid[downIdx1] = val;
+                sandGrid[idx] = 0;
+              } else if (nextX2 >= 0 && nextX2 < sandCols && sandGrid[downIdx2] === 0) {
+                sandGrid[downIdx2] = val;
+                sandGrid[idx] = 0;
+              } else if (prefDir !== 0 && Math.abs(sandTilt) > 0.4) {
+                // 傾きが大きいときは横滑りしてゆっくり崩れる
+                const sideIdx = y * sandCols + (x + prefDir);
+                if (x + prefDir >= 0 && x + prefDir < sandCols && sandGrid[sideIdx] === 0) {
+                  if (Math.random() < 0.25) {
+                    sandGrid[sideIdx] = val;
+                    sandGrid[idx] = 0;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 砂粒の描画
+      for (let y = 0; y < sandRows; y++) {
+        for (let x = 0; x < sandCols; x++) {
+          const val = sandGrid[y * sandCols + x];
+          if (val > 0) {
+            ctx.fillStyle = sandColors[val - 1];
+            ctx.fillRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+          }
+        }
+      }
+    }
+
+    // ==========================================
+    // メインループ & モード切替
+    // ==========================================
+    function loop() {
+      switch (currentMode) {
+        case 'sheep':
+          renderSheep();
+          break;
+        case 'cradle':
+          renderCradle();
+          break;
+        case 'rain':
+          renderRain();
+          break;
+        case 'metronome':
+          renderMetronome();
+          break;
+        case 'sand':
+          renderSand();
+          break;
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+
+    function switchMode(mode) {
+      currentMode = mode;
+      document.querySelectorAll('#nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(`btn-${mode}`).classList.add('active');
+
+      if (mode === 'rain') {
+        initRain();
+      } else if (mode === 'sand') {
+        initSandGrid();
+      }
+    }
+  </script>
+</body>
+</html>
