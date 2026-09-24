@@ -1,3 +1,4 @@
+```html
 <!doctype html>
 <html lang="ja">
 <head>
@@ -53,6 +54,8 @@
     button:hover { background: var(--border); }
     .btn-primary { background: var(--primary); color: #fff; border: none; }
     .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: #28a745; color: #fff; border: none; }
+    .btn-success:hover { background: #218838; }
 
     /* メインレイアウト */
     .workspace { display: flex; flex: 1; overflow: hidden; }
@@ -123,6 +126,14 @@
     #viewer img { max-width: 100%; height: auto; border-radius: 4px; }
     #viewer blockquote { border-left: 4px solid var(--primary); padding-left: 14px; margin-left: 0; color: var(--text-muted); background: var(--bg-toolbar); padding: 8px; border-radius: 4px; }
     .empty-state { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); text-align: center; }
+
+    /* メッセージダイアログ */
+    .custom-alert {
+      display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border);
+      padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000; font-size: 14px;
+    }
   </style>
 </head>
 <body>
@@ -138,9 +149,11 @@
       </select>
     </div>
     <div class="header-right">
-      <button id="btn-download-pdf" class="btn-primary">🗺️ 構成図PDF生成</button>
-      <button id="btn-download-zip" class="btn-primary">📦 ZIP保存(全ファイル)</button>
-      <button id="btn-export-html">🌐 現在のタブをHTML保存</button>
+      <button id="btn-run-file" class="btn-success" title="HTMLファイルなどを別タブで実行">▶️ 起動</button>
+      <button id="btn-save-md" class="btn-primary" title="現在開いているファイルを保存">💾 変更を保存(MD/Txt)</button>
+      <button id="btn-download-pdf">🗺️ 構成図PDF生成</button>
+      <button id="btn-download-zip">📦 ZIP保存(全ファイル)</button>
+      <button id="btn-export-html">🌐 MDをHTML化して保存</button>
     </div>
   </header>
 
@@ -150,6 +163,7 @@
       <div class="tree-controls">
         <button id="btn-add-folder" title="ルートにフォルダ追加">＋📁</button>
         <button id="btn-add-file" title="ルートにMDファイル追加">＋📄MD</button>
+        <button id="btn-add-html" title="ルートにHTMLファイル追加">＋📄HTML</button>
         <button id="btn-add-txt" title="ルートにTXTファイル追加">＋📄TXT</button>
         <div style="width:100%; height:4px;"></div>
         <button id="btn-undo" disabled>↩️ Undo</button>
@@ -172,7 +186,7 @@
           左のツリーからファイルを選択するか、<br>新しいファイルを作成して編集を開始してください。
         </div>
         <div class="pane editor-pane" id="editor-container" style="display:none;">
-          <textarea id="editor" placeholder="ここにMarkdownやコードを入力..."></textarea>
+          <textarea id="editor" placeholder="ここにコードやテキストを入力..."></textarea>
         </div>
         <div class="pane" id="viewer-container" style="display:none;">
           <div id="viewer"></div>
@@ -181,7 +195,19 @@
     </main>
   </div>
 
+  <div id="custom-alert" class="custom-alert"></div>
+
   <script>
+    /* =========================================
+       0. ユーティリティ
+       ========================================= */
+    function showAlert(message, duration = 3000) {
+      const alertBox = document.getElementById('custom-alert');
+      alertBox.textContent = message;
+      alertBox.style.display = 'block';
+      setTimeout(() => { alertBox.style.display = 'none'; }, duration);
+    }
+
     /* =========================================
        1. ライブラリ初期設定
        ========================================= */
@@ -203,10 +229,11 @@
     let idCounter = 1;
     function genId() { return 'n' + (idCounter++); }
     function createNode(name, type) { 
-      // ファイルの初期テンプレート
       let content = '';
       if(type === 'file' && name.endsWith('.html')){
-        content = `<!DOCTYPE html>\n<html lang="ja">\n<head><meta charset="UTF-8"><title>${name}</title></head>\n<body>\n\n</body>\n</html>`;
+        content = `<!DOCTYPE html>\n<html lang="ja">\n<head>\n  <meta charset="UTF-8">\n  <title>${name}</title>\n</head>\n<body>\n  <h1>Hello, HTML!</h1>\n</body>\n</html>`;
+      } else if (type === 'file' && name.endsWith('.php')) {
+        content = `<?php\n// PHPコード\necho "Hello, PHP!";\n?>`;
       } else if (type === 'file' && (name.endsWith('.md') || !name.includes('.'))) {
         content = `# ${name}\nここに内容を記述します。`;
       }
@@ -309,10 +336,7 @@
             sp.className = `node ${ch.type}`;
             sp.textContent = (ch.type === 'folder' ? '📁 ' : '📄 ') + ch.name;
             
-            // 編集モードへの移行 (ダブルクリック)
             sp.ondblclick = (e) => { e.stopPropagation(); editingId = ch.id; renderTree(); };
-            
-            // ファイルを開く (シングルクリック)
             if (ch.type === 'file') {
               sp.onclick = (e) => { e.stopPropagation(); openTab(ch.id); };
             }
@@ -337,7 +361,6 @@
           wrap.appendChild(act);
           li.appendChild(wrap);
 
-          // ドラッグ＆ドロップイベント
           li.addEventListener('dragstart', onDragStart);
           li.addEventListener('dragover', onDragOver);
           li.addEventListener('dragleave', onDragLeave);
@@ -353,7 +376,7 @@
         });
       }
       build(root, ul);
-      saveToLocalStorage(); // ツリー更新時に保存
+      saveToLocalStorage();
     }
 
     function commitEdit(val) {
@@ -363,10 +386,9 @@
       }
       editingId = null;
       renderTree();
-      renderTabs(); // タブ名も同期
+      renderTabs();
     }
 
-    /* --- ドラッグ＆ドロップ処理 --- */
     let draggedId = null;
     function onDragStart(e) { draggedId = e.currentTarget.dataset.id; e.stopPropagation(); }
     function onDragOver(e) {
@@ -401,9 +423,9 @@
        ========================================= */
     const editorEl = document.getElementById('editor');
     const viewerEl = document.getElementById('viewer');
+    const viCont = document.getElementById('viewer-container');
 
     function syncTabsWithTree() {
-      // 削除されたノードがタブに残らないようにする
       openTabs = openTabs.filter(tab => findNode(root, tab.id));
       if (!findNode(root, activeTabId)) {
         activeTabId = openTabs.length > 0 ? openTabs[0].id : null;
@@ -449,7 +471,6 @@
     function updateEditorView() {
       const emptyState = document.getElementById('empty-state');
       const edCont = document.getElementById('editor-container');
-      const viCont = document.getElementById('viewer-container');
 
       if (!activeTabId) {
         emptyState.style.display = 'flex';
@@ -462,29 +483,35 @@
 
       emptyState.style.display = 'none';
       edCont.style.display = 'flex';
-      viCont.style.display = 'block';
-
+      
       const node = findNode(root, activeTabId);
       editorEl.value = node.content || '';
-      compilePreview(node.content);
+
+      // Markdownの場合はプレビューを表示、それ以外(HTML, PHP等)はプレビューペインを隠す
+      if(node.name.toLowerCase().endsWith('.md') || !node.name.includes('.')) {
+        viCont.style.display = 'block';
+        compilePreview(node.content);
+      } else {
+        viCont.style.display = 'none';
+      }
     }
 
-    // エディタ入力時
     editorEl.addEventListener('input', () => {
       if (activeTabId) {
         const node = findNode(root, activeTabId);
         if (node) {
           node.content = editorEl.value;
-          compilePreview(editorEl.value);
-          saveToLocalStorage(); // テキスト入力時は即時ローカル保存（履歴には積まない）
+          if(node.name.toLowerCase().endsWith('.md') || !node.name.includes('.')) {
+            compilePreview(editorEl.value);
+          }
+          saveToLocalStorage();
         }
       }
     });
 
-    // スクロール同期
     let isSyncingLeft = false, isSyncingRight = false;
-    const viCont = document.getElementById('viewer-container');
     editorEl.addEventListener('scroll', () => {
+      if(viCont.style.display === 'none') return;
       if (!isSyncingLeft) {
         isSyncingRight = true;
         const percentage = editorEl.scrollTop / (editorEl.scrollHeight - editorEl.clientHeight);
@@ -501,53 +528,61 @@
       isSyncingRight = false;
     });
 
-    // プレビュー コンパイル
     function compilePreview(text) {
       let html = marked.parse(text || '');
       viewerEl.innerHTML = html;
-      
-      // KaTeX
       renderMathInElement(viewerEl, {
         delimiters: [
           {left: '$$', right: '$$', display: true},
           {left: '$', right: '$', display: false}
         ]
       });
-
-      // Mermaid
       mermaid.run({ nodes: document.querySelectorAll('.mermaid') }).catch(e=>console.log(e));
     }
 
-    // 画像ペースト (Base64)
-    editorEl.addEventListener('paste', e => {
-      const items = (e.clipboardData || window.clipboardData).items;
-      for (let item of items) {
-        if (item.type.indexOf('image') === 0) {
-          e.preventDefault();
-          const file = item.getAsFile();
-          const reader = new FileReader();
-          reader.onload = event => {
-            const base64 = event.target.result;
-            const cursorStart = editorEl.selectionStart;
-            const text = editorEl.value;
-            const imgTag = `\n![Pasted Image](${base64})\n`;
-            editorEl.value = text.substring(0, cursorStart) + imgTag + text.substring(editorEl.selectionEnd);
-            editorEl.selectionStart = editorEl.selectionEnd = cursorStart + imgTag.length;
-            
-            const node = findNode(root, activeTabId);
-            if(node) node.content = editorEl.value;
-            compilePreview(editorEl.value);
-            saveToLocalStorage();
-          };
-          reader.readAsDataURL(file);
-        }
-      }
-    });
-
     /* =========================================
-       5. ツールバーアクション・エクスポート
+       5. ツールバーアクション・新機能
        ========================================= */
-    // ダークモード
+
+    // [新機能] 起動ボタン (HTMLプレビュー / サーバーサイド言語の警告)
+    document.getElementById('btn-run-file').onclick = () => {
+      if (!activeTabId) {
+        showAlert('ファイルが開かれていません。');
+        return;
+      }
+      const node = findNode(root, activeTabId);
+      const fileName = node.name.toLowerCase();
+
+      if (fileName.endsWith('.html') || fileName.endsWith('.htm')) {
+        // HTMLファイルのプレビュー起動
+        const blob = new Blob([node.content], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const win = window.open(url, '_blank');
+        if(!win) showAlert('ポップアップがブロックされました。許可してください。');
+      } else if (fileName.endsWith('.php') || fileName.endsWith('.rb') || fileName.endsWith('.py')) {
+        // PHP等のサーバーサイド言語に対する論理的処置
+        showAlert(`${fileName} のようなサーバーサイドスクリプトは、ブラウザ単体では実行できません。テキストとして保存してください。`, 5000);
+      } else {
+        showAlert(`この拡張子（${fileName}）は実行プレビューに対応していません。`);
+      }
+    };
+
+    // [新機能] MDファイル等、現在のタブのファイルを保存
+    document.getElementById('btn-save-md').onclick = () => {
+      if (!activeTabId) {
+        showAlert('ファイルが開かれていません。');
+        return;
+      }
+      const node = findNode(root, activeTabId);
+      const blob = new Blob([node.content], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = node.name;
+      a.click();
+      showAlert(`${node.name} を保存しました。`);
+    };
+
+    // テーマ変更
     document.getElementById('btn-theme').onclick = () => {
       document.body.classList.toggle('dark-mode');
       const isDark = document.body.classList.contains('dark-mode');
@@ -555,106 +590,32 @@
       document.getElementById('hljs-theme-light').disabled = isDark;
       document.getElementById('hljs-theme-dark').disabled = !isDark;
       mermaid.initialize({ theme: isDark ? 'dark' : 'default' });
-      if(activeTabId) compilePreview(editorEl.value);
+      if(activeTabId) {
+         const node = findNode(root, activeTabId);
+         if(node.name.toLowerCase().endsWith('.md')) compilePreview(editorEl.value);
+      }
     };
 
-    // フォントサイズ
     document.getElementById('sel-font-size').onchange = e => {
       editorEl.style.fontSize = e.target.value;
       viewerEl.style.fontSize = (parseInt(e.target.value) + 1) + 'px';
     };
 
-    // ツリーコントロールボタン
+    // ツリー追加系
     document.getElementById('btn-add-folder').onclick = () => { saveHistory(); root.children.push(createNode('new-folder', 'folder')); renderTree(); };
     document.getElementById('btn-add-file').onclick = () => { saveHistory(); root.children.push(createNode('new-file.md', 'file')); renderTree(); };
-    document.getElementById('btn-add-txt').onclick = () => { saveHistory(); root.children.push(createNode('new-file.txt', 'file')); renderTree(); };
+    document.getElementById('btn-add-html').onclick = () => { saveHistory(); root.children.push(createNode('index.html', 'file')); renderTree(); };
+    document.getElementById('btn-add-txt').onclick = () => { saveHistory(); root.children.push(createNode('note.txt', 'file')); renderTree(); };
     document.getElementById('btn-undo').onclick = undo;
     document.getElementById('btn-redo').onclick = redo;
 
-    // CSV保存
-    document.getElementById('btn-save-csv').onclick = () => {
-      const rows=[['path','type']];
-      (function w(n,p){
-        n.children.forEach(c=>{
-          const path = p + '/' + c.name;
-          rows.push([path, c.type]);
-          if(c.type==='folder') w(c, path);
-        });
-      })(root, '');
-      const csv = rows.map(r=>r.join(',')).join('\n');
-      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
-      const blob = new Blob([bom, csv], {type:'text/csv'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = 'structure.csv'; a.click();
-    };
-
-    // CSV読込
-    document.getElementById('btn-load-csv').onclick = async () => {
-      try {
-        const [f] = await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
-        const txt = await (await f.getFile()).text();
-        const lines = txt.split('\n').slice(1).filter(l=>l.trim());
-        saveHistory();
-        root = createNode('/', 'folder');
-        lines.forEach(l => {
-          const idx = l.lastIndexOf(',');
-          const path = l.slice(0, idx);
-          const type = l.slice(idx+1).trim();
-          const seg = path.split('/').filter(Boolean);
-          let p = root;
-          seg.forEach((n, i) => {
-            const last = i === seg.length-1;
-            if(last && type==='file') p.children.push(createNode(n, 'file'));
-            else {
-              let d = p.children.find(c => c.name===n && c.type==='folder');
-              if(!d){ d = createNode(n, 'folder'); p.children.push(d); }
-              p = d;
-            }
-          });
-        });
-        updateMaxId(); syncTabsWithTree(); renderTree();
-      } catch(e) { console.error(e); }
-    };
-
-    // フォルダ(FS)読込
-    document.getElementById('btn-import-fs').onclick = async () => {
-      try {
-        const dh = await window.showDirectoryPicker();
-        saveHistory();
-        idCounter = 1;
-        async function readFs(dh) {
-          const node = createNode(dh.name, 'folder');
-          for await(const [name, ent] of dh.entries()) {
-            if(ent.kind === 'directory') node.children.push(await readFs(ent));
-            else node.children.push(createNode(name, 'file'));
-          }
-          return node;
-        }
-        root = await readFs(dh);
-        syncTabsWithTree(); renderTree();
-      } catch(e) { console.error(e); }
-    };
-
-    // ZIPダウンロード (JSZip)
-    document.getElementById('btn-download-zip').onclick = () => {
-      const zip = new JSZip();
-      (async function add(n, f) {
-        for(const c of n.children) {
-          if(c.type === 'folder') await add(c, f.folder(c.name));
-          else f.file(c.name, c.content || '');
-        }
-      })(root, zip).then(() => {
-        zip.generateAsync({type:'blob'}).then(b => {
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(b); a.download = 'project_files.zip'; a.click();
-        });
-      });
-    };
-
-    // 現在のタブをHTML保存
+    // 現在のタブをHTML保存（レンダリング結果）
     document.getElementById('btn-export-html').onclick = () => {
-      if(!activeTabId) return alert('開いているファイルがありません。');
+      if(!activeTabId) return showAlert('開いているファイルがありません。');
       const node = findNode(root, activeTabId);
+      if(!node.name.toLowerCase().endsWith('.md') && node.name.includes('.')){
+        return showAlert('MDファイルを選択した状態で実行してください。');
+      }
       const htmlContent = `
         <!DOCTYPE html>
         <html><head><meta charset="utf-8"><title>${node.name}</title>
@@ -662,10 +623,10 @@
         </head><body>${viewerEl.innerHTML}</body></html>`;
       const blob = new Blob([htmlContent], { type: 'text/html' });
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob); a.download = `${node.name}.html`; a.click();
+      a.href = URL.createObjectURL(blob); a.download = `${node.name.split('.')[0]}_export.html`; a.click();
     };
 
-    // 豪華構成図PDF (Canvas描画 → jsPDF)
+    // 豪華構成図PDF
     document.getElementById('btn-download-pdf').onclick = () => {
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({unit:'pt', format:'a4'});
@@ -686,18 +647,15 @@
       layout(root);
 
       const cv = document.createElement('canvas');
-      // 高さ自動拡張
       const maxH = Math.max(h, (Math.max(...Object.values(counts)) * (nodeH + spaceY)) + 150);
       cv.width = w; cv.height = maxH;
       const ctx = cv.getContext('2d');
       ctx.textBaseline = 'middle';
 
-      // 背景
       const grad = ctx.createLinearGradient(0,0,0,maxH);
       grad.addColorStop(0,'#f0f4f8'); grad.addColorStop(1,'#e0e7ef');
       ctx.fillStyle = grad; ctx.fillRect(0,0,w,maxH);
 
-      // 線
       ctx.save();
       ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
       all.forEach(n => {
@@ -711,7 +669,6 @@
       });
       ctx.restore();
 
-      // ノード描画ヘルパー
       function roundRect(ctx, x, y, w, h, r) {
         ctx.beginPath(); ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y);
         ctx.quadraticCurveTo(x+w, y, x+w, y+r); ctx.lineTo(x+w, y+h-r);
@@ -738,7 +695,6 @@
         ctx.textAlign = 'left';
         ctx.fillText(txt, n.x + 35, n.y + nodeH/2);
 
-        // シンプルなアイコン描画
         ctx.fillStyle = 'rgba(255,255,255,0.9)';
         if(n.type === 'folder') {
           ctx.fillRect(n.x + 10, n.y + 12, 16, 12);
@@ -748,12 +704,83 @@
       });
 
       const img = cv.toDataURL('image/png');
-      
-      // PDFが高さを超える場合はページを分割せずにA4比率で圧縮か、長いPDFにする
-      // ここでは簡易的に1ページに圧縮して収める
       const pdfPdf = new jsPDF({unit:'pt', format:[w, maxH]});
       pdfPdf.addImage(img, 'PNG', 0, 0, w, maxH);
       pdfPdf.save('structure_map.pdf');
+    };
+
+    // その他機能（Zip, CSV等）は既存のまま
+    document.getElementById('btn-download-zip').onclick = () => {
+      const zip = new JSZip();
+      (async function add(n, f) {
+        for(const c of n.children) {
+          if(c.type === 'folder') await add(c, f.folder(c.name));
+          else f.file(c.name, c.content || '');
+        }
+      })(root, zip).then(() => {
+        zip.generateAsync({type:'blob'}).then(b => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(b); a.download = 'project_files.zip'; a.click();
+        });
+      });
+    };
+    document.getElementById('btn-save-csv').onclick = () => { /* 省略せず実装維持 */
+      const rows=[['path','type']];
+      (function w(n,p){
+        n.children.forEach(c=>{
+          const path = p + '/' + c.name;
+          rows.push([path, c.type]);
+          if(c.type==='folder') w(c, path);
+        });
+      })(root, '');
+      const csv = rows.map(r=>r.join(',')).join('\n');
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+      const blob = new Blob([bom, csv], {type:'text/csv'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = 'structure.csv'; a.click();
+    };
+    document.getElementById('btn-load-csv').onclick = async () => { /* 実装維持 */
+      try {
+        const [f] = await window.showOpenFilePicker({types:[{accept:{'text/csv':['.csv']}}]});
+        const txt = await (await f.getFile()).text();
+        const lines = txt.split('\n').slice(1).filter(l=>l.trim());
+        saveHistory();
+        root = createNode('/', 'folder');
+        lines.forEach(l => {
+          const idx = l.lastIndexOf(',');
+          const path = l.slice(0, idx);
+          const type = l.slice(idx+1).trim();
+          const seg = path.split('/').filter(Boolean);
+          let p = root;
+          seg.forEach((n, i) => {
+            const last = i === seg.length-1;
+            if(last && type==='file') p.children.push(createNode(n, 'file'));
+            else {
+              let d = p.children.find(c => c.name===n && c.type==='folder');
+              if(!d){ d = createNode(n, 'folder'); p.children.push(d); }
+              p = d;
+            }
+          });
+        });
+        updateMaxId(); syncTabsWithTree(); renderTree();
+      } catch(e) { console.error(e); }
+    };
+    document.getElementById('btn-import-fs').onclick = async () => { /* 実装維持 */
+      try {
+        const dh = await window.showDirectoryPicker();
+        saveHistory();
+        idCounter = 1;
+        async function readFs(dh) {
+          const node = createNode(dh.name, 'folder');
+          for await(const [name, ent] of dh.entries()) {
+            if(ent.kind === 'directory') node.children.push(await readFs(ent));
+            else node.children.push(createNode(name, 'file'));
+          }
+          return node;
+        }
+        root = await readFs(dh);
+        syncTabsWithTree(); renderTree();
+      } catch(e) { console.error(e); }
     };
 
     /* =========================================
@@ -781,7 +808,6 @@
         const savedActive = localStorage.getItem('ide_active_tab');
         activeTabId = findNode(root, savedActive) ? savedActive : (openTabs.length ? openTabs[0].id : null);
       } else {
-        // 初期サンプルデータ
         root = createNode('/', 'folder');
         const src = createNode('src', 'folder');
         const readme = createNode('README.md', 'file');
@@ -794,9 +820,9 @@
       updateEditorView();
     }
 
-    // アプリ起動
     loadFromLocalStorage();
 
   </script>
 </body>
 </html>
+```
