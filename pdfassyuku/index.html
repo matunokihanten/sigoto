@@ -1,74 +1,3 @@
-
-
-<!DOCTYPE html> <html lang="ja"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>統合型PDF・画像処理ツール（完全オフライン対応）</title> <!-- PDF.js & jsPDF --> <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js">
-
-pasted
-
-多数の不具合があります、あなたの頭脳で修正して下さい。
-このアプリの完成度は３０％です、プロの目線で機能を追加したりや操作性を改善したりし１００％の完成度に仕上げて下さい。
-
-2個のコマンドを実行しました, メモリを読み取りました、他2個のツール
-統合型PDF・画像処理ツール — PDF/画像の結合・回転・並び替え・削除・圧縮・タイムスタンプ印字を行う単一HTMLアプリ
-検証が終わったので、完成版ファイルをお渡しします。
-
-Presented file
-Presented file
-pdf-image-tool.html として全面改修版を作りました。JS の構文チェックと、HTML 側の ID と JS 側の参照が一致することは確認済みです。ただしブラウザで実際に PDF を読み込んで動かすテストはできていないので、お手元で一度試してください。
-
-元コードの主な不具合
-「完全オフライン」は嘘でした。 Blob URL の Service Worker は登録できず、CDN 依存のままでした。
-今回は CDN に繋がらなければ ./lib/ のローカルファイルへ自動で切り替えます。
-lib フォルダに pdf.min.js と pdf.worker.min.js（v3.11.174）を置けば完全オフラインで動きます。
-jsPDF は廃止し、PDF 書き出しと ZIP 作成は自前実装にしたので、外部依存は PDF の読み込み用 PDF.js だけです。
-サムネイルの比率が崩れていました。 回転時の縦横が考慮されていませんでした。
-メモリを使い切る作りでした。 全ページを 2 倍解像度の canvas で保持していました。今は必要な時だけ描画し、サムネイルは表示範囲に入ったものだけ生成します。
-圧縮が 3 回の固定試行で、目標に届かなくても通知がありませんでした。
-二分探索で画質を決め、足りなければ解像度も下げます。
-目標に届かない場合は警告を出します。
-個別出力で複数ファイルを同時ダウンロードしており、ブラウザにブロックされました。 複数ファイルのときは ZIP にまとめます。
-その他の穴も塞ぎました。 同じファイルの再追加、パスワード付き PDF、画像の EXIF 回転、未対応形式、読み込みの重複実行、iOS の canvas 上限です。
-追加した機能
-ページ編集
-ドラッグで並び替え（◀▶ ボタンでも移動可）
-Shift で範囲選択、奇数・偶数ページの選択
-回転、削除と復元、複製、白紙挿入、逆順、名前順
-元に戻す／やり直し（Ctrl+Z / Y）
-ダブルクリックで拡大プレビュー。補正や印字を反映した出力結果と同じ見た目で表示します。
-出力モード
-1 つに結合
-元ファイルごとに個別 PDF
-1 ページずつ分割
-JPEG / PNG 画像として書き出し
-サイズと圧縮
-目標サイズの自動調整
-固定品質の指定
-解像度（72〜300dpi）
-用紙サイズへの合わせ込み（A4 / A3 / B5 / Letter、向き・余白指定）
-画像補正: 白黒、明るさ、コントラスト
-印字: 日時スタンプ（書式・位置・色・サイズを指定可）、ページ番号、斜め透かし
-使い勝手
-画面のどこにドロップしても追加できます。
-進捗バー、キャンセル、結果一覧（容量・解像度・目標達成の可否）を表示します。
-設定は自動保存されます。
-ダークモードに対応します。
-補足
-文字が選択できる元の PDF も、出力は画像化した PDF になります。圧縮の仕組み上そうなるため、元の PDF と同じ文字データは残りません。
-印字済みのページ番号などは画像に焼き込まれます。
-次に手を入れるなら、OCR で検索可能な PDF にする機能、PDF 内の文字を残したままの圧縮、ページ範囲指定での抽出あたりが候補です。
-
-
-Pdf image tool
-コード·HTML 
-
-
-次回はCoworkでお試しください
-複雑なタスクをClaudeに任せて、独立して処理させることができます。完了した結果を後で確認できます。
-
-
-Claude は AI であり、間違えることがあります。 回答は必ずご確認ください。
-
-
-Pdf image tool · HTML
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -155,7 +84,7 @@ progress{width:100%;height:8px;margin-top:8px}
   <span class="chip" id="libChip">PDF.js: 読込中…</span>
   <span class="chip">すべてブラウザ内で処理（ファイルは外部送信されません）</span>
 </header>
- 
+
 <div class="layout">
 <aside class="panel">
 <div class="panel-body">
@@ -164,7 +93,7 @@ progress{width:100%;height:8px;margin-top:8px}
     <small>PDF・JPEG・PNG・WebP など／複数可／画面のどこにドロップしても追加できます</small>
     <input type="file" id="fileInput" multiple accept="application/pdf,image/*,.pdf" hidden>
   </label>
- 
+
   <details open><summary>① 出力方法</summary><div class="in">
     <div class="row"><label for="mode">処理モード</label>
       <select id="mode" data-p>
@@ -178,7 +107,7 @@ progress{width:100%;height:8px;margin-top:8px}
     <div class="row" id="rowImgFmt"><label for="imgFmt">画像形式</label>
       <select id="imgFmt" data-p><option value="jpeg">JPEG</option><option value="png">PNG（高画質・大容量）</option></select></div>
   </div></details>
- 
+
   <details open><summary>② サイズ・圧縮</summary><div class="in">
     <div class="row"><label class="inline"><input type="checkbox" id="autoTarget" checked data-p>目標サイズに自動調整（ファイルごと）</label></div>
     <div class="row" id="rowTarget"><label for="targetMB">目標最大サイズ (MB)</label><input type="number" id="targetMB" value="1.0" step="0.1" min="0.05" data-p>
@@ -192,14 +121,14 @@ progress{width:100%;height:8px;margin-top:8px}
     </div>
     <div class="row" id="rowMargin"><label for="margin">余白 (mm)：用紙に合わせる時の内側余白</label><input type="number" id="margin" value="8" min="0" max="50" data-p></div>
   </div></details>
- 
+
   <details><summary>③ 画像補正</summary><div class="in">
     <div class="row"><label class="inline"><input type="checkbox" id="gray" data-p>白黒（グレースケール）</label></div>
     <div class="row"><label for="bright">明るさ：<span data-out="bright"></span></label><input type="range" id="bright" min="-50" max="50" value="0" data-p></div>
     <div class="row"><label for="contrast">コントラスト：<span data-out="contrast"></span></label><input type="range" id="contrast" min="-50" max="100" value="0" data-p>
       <div class="hint">スキャン文書は明るさ+10／コントラスト+30程度で読みやすくなります。</div></div>
   </div></details>
- 
+
   <details><summary>④ 印字（日時・ページ番号・透かし）</summary><div class="in">
     <div class="row"><label class="inline"><input type="checkbox" id="stampOn" data-p>日時などのスタンプを印字</label></div>
     <div id="grpStamp">
@@ -222,7 +151,7 @@ progress{width:100%;height:8px;margin-top:8px}
       <div class="row"><label for="wmAlpha">濃さ：<span data-out="wmAlpha"></span>%</label><input type="range" id="wmAlpha" min="5" max="60" value="18" data-p></div>
     </div>
   </div></details>
- 
+
   <details><summary>オフライン利用について</summary><div class="in"><div class="hint" style="font-size:12px">
     本ツールはPDF読み込みにPDF.js(v3.11.174)を使います。初回はCDNから取得しますが、このHTMLと同じ場所に <b>lib</b> フォルダを作り
     <b>pdf.min.js</b> と <b>pdf.worker.min.js</b> を置けば、CDNに繋がらない環境でも自動でそちらを使います（完全オフライン）。
@@ -236,7 +165,7 @@ progress{width:100%;height:8px;margin-top:8px}
   <div id="results"></div>
 </div>
 </aside>
- 
+
 <main class="main">
   <div class="toolbar">
     <button class="btn" id="undoBtn" title="元に戻す (Ctrl+Z)">↶ 元に戻す</button>
@@ -257,7 +186,7 @@ progress{width:100%;height:8px;margin-top:8px}
   <div class="grid" id="grid"></div>
 </main>
 </div>
- 
+
 <div class="modal" id="modal" hidden>
   <div class="mbar">
     <button class="btn" id="pvPrev">‹ 前</button><b id="pvInfo"></b><button class="btn" id="pvNext">次 ›</button>
@@ -268,7 +197,7 @@ progress{width:100%;height:8px;margin-top:8px}
 </div>
 <div id="dropOverlay">ここにドロップして追加</div>
 <div id="toast"></div>
- 
+
 <script>
 'use strict';
 /* ============ ユーティリティ ============ */
@@ -294,7 +223,7 @@ function toast(msg, type = '') {
 }
 const setStatus = t => { $('status').textContent = t; };
 function setProgress(f) { const p = $('prog'); if (f == null) p.hidden = true; else { p.hidden = false; p.value = Math.max(0, Math.min(1, f)); } }
- 
+
 /* ============ 状態 ============ */
 const S = { pages: [], sel: new Set(), sources: new Map(), undo: [], redo: [], last: null, busy: false, cancel: false };
 let uid = 0; const nid = () => ++uid;
@@ -302,7 +231,7 @@ const MM = 72 / 25.4;
 const MAXPX = 16e6; // iOS Safari のキャンバス上限(約16.7M px)に合わせる
 const SIZES = { A4: [595.28, 841.89], A3: [841.89, 1190.55], B5: [498.9, 708.66], Letter: [612, 792] };
 const FONT = '"Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif';
- 
+
 /* ============ PDF.js 読み込み（CDN → ローカル lib/ の順にフォールバック） ============ */
 function loadScript(src) {
   return new Promise((res, rej) => {
@@ -330,7 +259,7 @@ async function initPdfJs() {
   return true;
 }
 const libReady = initPdfJs();
- 
+
 /* ============ 設定の保存・復元・取得 ============ */
 const STORE = 'pdfImageTool.v2';
 function saveSettings() {
@@ -368,7 +297,7 @@ function getOpts() {
   };
 }
 const THUMB_OPTS = { size: 'original', orient: 'auto', margin: 0 };
- 
+
 /* ============ ファイル読み込み ============ */
 const isPdf = f => f.type === 'application/pdf' || /\.pdf$/i.test(f.name);
 const isImg = f => (f.type || '').startsWith('image/') || /\.(jpe?g|png|webp|gif|bmp|avif)$/i.test(f.name);
@@ -410,7 +339,7 @@ async function loadFiles(files) {
   if (added) { S.undo.push(before); S.redo = []; trimHistory(); }
   setStatus(added ? `${added} ページを追加しました` : ''); updateUI();
 }
- 
+
 /* ============ ページ合成（サムネ・プレビュー・出力で共通） ============ */
 const dims = p => (p.rotate % 180 ? [p.h, p.w] : [p.w, p.h]);
 function layout(p, o) {
@@ -475,7 +404,7 @@ async function compose(p, o, ppp, info = {}) {
   return cv;
 }
 const canvasToBytes = (cv, type, q) => new Promise((res, rej) => cv.toBlob(async b => b ? res(new Uint8Array(await b.arrayBuffer())) : rej(new Error('画像のエンコードに失敗しました（メモリ不足の可能性）')), type, q));
- 
+
 /* ============ PDF / ZIP ライタ（外部ライブラリ不要） ============ */
 function buildPdf(parts, title) {
   const enc = new TextEncoder(), chunks = [], offs = []; let len = 0;
@@ -526,7 +455,7 @@ function download(blob, name) {
   const url = URL.createObjectURL(blob), a = h('a', { href: url, download: name });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
- 
+
 /* ============ 圧縮・出力エンジン ============ */
 const checkCancel = () => { if (S.cancel) throw new Error('cancelled'); };
 async function buildPdfForPages(pages, o, date, label) {
@@ -615,7 +544,7 @@ async function runExport() {
     else { console.error(e); setStatus('エラー: ' + e.message); toast('エラー: ' + e.message, 'err'); }
   } finally { S.busy = false; setProgress(null); updateUI(); }
 }
- 
+
 /* ============ 履歴・編集操作 ============ */
 const snapshot = () => S.pages.map(p => ({ ...p }));
 const trimHistory = () => { while (S.undo.length > 60) S.undo.shift(); };
@@ -658,7 +587,7 @@ function clearAll() {
   S.sources.forEach(s => { try { s.doc.destroy(); } catch (e) {} });
   S.sources.clear(); S.pages = []; S.sel.clear(); S.undo = []; S.redo = []; thumbCache.clear(); render(); setStatus(''); $('results').innerHTML = '';
 }
- 
+
 /* ============ サムネイル描画 ============ */
 const thumbCache = new Map(); let thumbQueue = [], thumbBusy = false, cardEls = new Map();
 function paintThumb(p, cv) {
@@ -680,7 +609,7 @@ const io = new IntersectionObserver(es => es.forEach(en => {
   if (!en.isIntersecting) return; io.unobserve(en.target);
   const card = en.target; thumbQueue.push({ p: card._p, cv: card._cv }); pumpThumbs();
 }), { rootMargin: '500px' });
- 
+
 /* ============ 一覧UI ============ */
 let dragIds = null;
 function buildCard(p, i) {
@@ -740,7 +669,7 @@ function updateUI() {
   $('undoBtn').disabled = !S.undo.length || S.busy; $('redoBtn').disabled = !S.redo.length || S.busy;
   ['rotLBtn', 'rotRBtn', 'delBtn', 'blankBtn', 'revBtn', 'sortBtn', 'purgeBtn', 'clearAllBtn'].forEach(id => { $(id).disabled = !total; });
 }
- 
+
 /* ============ プレビュー（出力結果と同じ処理で表示） ============ */
 const pv = { idx: 0, tok: 0 };
 function openPreview(i) { pv.idx = i; $('modal').hidden = false; renderPreview(); }
@@ -760,7 +689,7 @@ async function renderPreview() {
     t.style.width = L.pw * fit + 'px'; t.style.height = L.ph * fit + 'px'; t.style.opacity = p.deleted ? 0.35 : 1;
   } catch (e) { console.error(e); }
 }
- 
+
 /* ============ イベント登録 ============ */
 loadSettings(); syncUI();
 document.querySelectorAll('[data-p]').forEach(e => e.addEventListener('input', () => {
@@ -808,5 +737,3 @@ render();
 </script>
 </body>
 </html>
- 
-Claudeが応答を完了しました
