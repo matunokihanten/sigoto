@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF・画像結合ツール</title>
+    <title>PDF・画像 結合＆スマート分割ツール</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -23,88 +23,248 @@
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
             padding: 30px;
             width: 100%;
-            max-width: 700px;
+            max-width: 780px;
             text-align: center;
             box-sizing: border-box;
         }
 
         h1 {
             color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 2em;
+            margin-bottom: 20px;
+            font-size: 1.8em;
         }
 
-        #drop-area {
+        /* タブ切り替え */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .tab-button {
+            flex: 1;
+            background-color: #e9ecef;
+            color: #495057;
+            border: none;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 0;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+
+        .tab-button:hover {
+            background-color: #dde2e6;
+        }
+
+        .tab-button.active {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .drop-area {
             border: 3px dashed #a8d0e6;
             border-radius: 10px;
-            padding: 40px 20px;
-            margin-bottom: 30px;
+            padding: 35px 20px;
+            margin-bottom: 25px;
             background-color: #e8f5fd;
             cursor: pointer;
             transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
-        #drop-area.highlight {
+        .drop-area.highlight {
             background-color: #d0efff;
             border-color: #5cb3e6;
         }
 
-        #drop-area p {
+        .drop-area p {
             margin: 0;
-            font-size: 1.1em;
+            font-size: 1.05em;
             color: #555;
         }
 
-        #drop-area label {
+        .drop-area .browse-link {
             color: #007bff;
             text-decoration: underline;
             cursor: pointer;
         }
 
-        #drop-area label:hover {
-            color: #0056b3;
-        }
-
-        #file-list-container {
+        .section-box {
             text-align: left;
-            margin-bottom: 30px;
+            margin-bottom: 25px;
         }
 
-        #file-list-container h2 {
-            font-size: 1.3em;
+        .section-box h2 {
+            font-size: 1.2em;
             color: #2c3e50;
             margin-top: 0;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
-        #file-list {
+        /* 抽出ルール設定パネル */
+        .rule-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .rule-panel label {
+            display: block;
+            font-weight: bold;
+            font-size: 0.92em;
+            margin-bottom: 6px;
+            color: #2c3e50;
+        }
+
+        .rule-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            font-size: 0.95em;
+            box-sizing: border-box;
+        }
+
+        .rule-hint {
+            font-size: 0.82em;
+            color: #6c757d;
+            margin-top: 6px;
+            margin-bottom: 12px;
+        }
+
+        .preset-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .preset-btn {
+            background-color: #ffffff;
+            color: #007bff;
+            border: 1px solid #007bff;
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 0.82em;
+            cursor: pointer;
+            margin-top: 0;
+            transition: all 0.2s ease;
+        }
+
+        .preset-btn:hover {
+            background-color: #007bff;
+            color: #ffffff;
+        }
+
+        .option-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9em;
+            color: #495057;
+            margin-top: 8px;
+        }
+
+        .option-row input[type="checkbox"] {
+            cursor: pointer;
+        }
+
+        .file-list {
             list-style: none;
             padding: 0;
             margin: 0;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
-            max-height: 250px;
+            max-height: 320px;
             overflow-y: auto;
             background-color: #fdfdfd;
         }
 
-        #file-list li {
-            padding: 12px 15px;
+        .file-list li {
+            padding: 10px 14px;
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.95em;
+            gap: 10px;
+            font-size: 0.92em;
             color: #444;
         }
 
-        #file-list li:last-child {
+        .file-list li:last-child {
             border-bottom: none;
         }
 
-        #file-list li.placeholder {
+        .file-list li.placeholder {
             color: #888;
             font-style: italic;
+        }
+
+        .page-badge {
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.82em;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .filename-editor {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .filename-input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 0.92em;
+            min-width: 120px;
+        }
+
+        .filename-input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+        }
+
+        .ext-label {
+            color: #6c757d;
+            font-size: 0.88em;
+        }
+
+        .match-badge {
+            font-size: 0.75em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+
+        .match-badge.hit {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .match-badge.fallback {
+            background-color: #fff3cd;
+            color: #856404;
         }
 
         .remove-file {
@@ -114,11 +274,13 @@
             font-size: 1.2em;
             cursor: pointer;
             padding: 0 5px;
+            margin-top: 0;
             transition: color 0.2s ease;
         }
 
         .remove-file:hover {
             color: #c82333;
+            background: none;
         }
 
         button {
@@ -126,10 +288,10 @@
             color: white;
             border: none;
             border-radius: 8px;
-            padding: 15px 30px;
-            font-size: 1.1em;
+            padding: 14px 28px;
+            font-size: 1.05em;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.1s ease;
+            transition: background-color 0.3s ease;
             margin-top: 10px;
         }
 
@@ -142,93 +304,250 @@
             cursor: not-allowed;
         }
 
-        #clear-files {
+        .secondary-button {
             background-color: #6c757d;
-            margin-top: 15px;
-            padding: 10px 20px;
+            margin-top: 12px;
+            padding: 9px 18px;
             font-size: 0.9em;
             display: block;
             margin-left: auto;
             margin-right: auto;
         }
 
-        #clear-files:hover:not(:disabled) {
+        .secondary-button:hover:not(:disabled) {
             background-color: #5a6268;
         }
 
-        #status-message {
-            margin-top: 25px;
-            font-size: 1.1em;
+        .status-message {
+            margin-top: 20px;
+            font-size: 1em;
             color: #007bff;
-            min-height: 25px; /* Ensure space even if empty */
+            min-height: 24px;
         }
 
-        #status-message.error {
+        .status-message.error {
             color: #dc3545;
         }
 
-        #download-area {
-            margin-top: 30px;
+        .download-area {
+            margin-top: 25px;
             padding-top: 20px;
             border-top: 1px solid #eee;
         }
 
-        #download-area h2 {
-            font-size: 1.3em;
+        .download-area h2 {
+            font-size: 1.2em;
             color: #2c3e50;
-            margin-bottom: 15px;
+            margin-bottom: 12px;
         }
 
-        #download-link {
+        .download-btn {
             display: inline-block;
             background-color: #28a745;
             color: white;
-            padding: 15px 30px;
+            padding: 13px 26px;
             border-radius: 8px;
             text-decoration: none;
-            font-size: 1.1em;
-            transition: background-color 0.3s ease, transform 0.1s ease;
+            font-size: 1em;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-bottom: 15px;
         }
 
-        #download-link:hover {
+        .download-btn:hover {
             background-color: #218838;
+        }
+
+        .page-download-link {
+            background-color: #28a745;
+            color: #fff;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            white-space: nowrap;
+            transition: background-color 0.2s ease;
+        }
+
+        .page-download-link:hover {
+            background-color: #218838;
+        }
+
+        .split-info {
+            font-size: 0.95em;
+            color: #555;
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 14px;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
     </style>
 </head>
 <body>
     <div id="app">
-        <h1>PDF・画像結合ツール</h1>
+        <h1>PDF・画像 結合＆スマート分割ツール</h1>
 
-        <div id="drop-area">
-            <p>PDFファイルや画像ファイル（JPG, PNG）をここにドラッグ＆ドロップするか、<label for="file-input">クリックして選択</label>してください。</p>
-            <input type="file" id="file-input" accept=".pdf, .jpg, .jpeg, .png" multiple style="display: none;">
+        <!-- モード切り替えタブ -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="merge-tab">PDF・画像を結合</button>
+            <button class="tab-button" data-tab="split-tab">PDFをバラバラに分割</button>
         </div>
 
-        <div id="file-list-container">
-            <h2>選択中のファイル</h2>
-            <ul id="file-list">
-                <li class="placeholder">ファイルが選択されていません。</li>
-            </ul>
-            <button id="clear-files" style="display: none;">選択ファイルをクリア</button>
+        <!-- ==================== 結合タブ ==================== -->
+        <div id="merge-tab" class="tab-content active">
+            <div id="drop-area" class="drop-area">
+                <p>PDFファイルや画像ファイル（JPG, PNG）をここにドラッグ＆ドロップするか、<span class="browse-link">クリックして選択</span>してください。</p>
+                <input type="file" id="file-input" accept=".pdf, .jpg, .jpeg, .png" multiple style="display: none;">
+            </div>
+
+            <div class="section-box">
+                <h2>選択中のファイル</h2>
+                <ul id="file-list" class="file-list">
+                    <li class="placeholder">ファイルが選択されていません。</li>
+                </ul>
+                <button id="clear-files" class="secondary-button" style="display: none;">選択ファイルをクリア</button>
+            </div>
+
+            <button id="merge-button" disabled>PDFを結合</button>
+
+            <div id="status-message" class="status-message"></div>
+
+            <div id="download-area" class="download-area" style="display: none;">
+                <h2>結合済みPDF</h2>
+                <a id="download-link" class="download-btn" download="結合済みPDF.pdf">ダウンロード</a>
+            </div>
         </div>
 
-        <button id="merge-button" disabled>PDFを結合</button>
+        <!-- ==================== 分割タブ ==================== -->
+        <div id="split-tab" class="tab-content">
+            <div id="split-drop-area" class="drop-area">
+                <p>分割したいPDFファイルをここにドラッグ＆ドロップするか、<span class="browse-link">クリックして選択</span>してください。</p>
+                <input type="file" id="split-file-input" accept=".pdf" style="display: none;">
+            </div>
 
-        <div id="status-message"></div>
+            <div class="section-box">
+                <h2>選択中のPDF</h2>
+                <div id="split-file-info" class="split-info" style="display: none;">
+                    <span id="split-file-name"></span>
+                    <button id="clear-split-file" class="remove-file" title="選択を解除">×</button>
+                </div>
+                <ul id="split-placeholder" class="file-list">
+                    <li class="placeholder">PDFファイルが選択されていません。</li>
+                </ul>
+            </div>
 
-        <div id="download-area" style="display: none;">
-            <h2>結合済みPDF</h2>
-            <a id="download-link" download="combined.pdf">ダウンロード</a>
+            <!-- ファイル名自動抽出ルール設定 -->
+            <div class="section-box">
+                <h2>ファイル名の自動抽出設定（任意）</h2>
+                <div class="rule-panel">
+                    <label for="extract-keywords">抽出に使う見出し文字（カンマ区切りで複数指定可・左から優先）</label>
+                    <input type="text" id="extract-keywords" class="rule-input" value="氏名, 名前, 宛名, 件名" placeholder="例: 氏名, 社員名, 宛名, 件名">
+                    <div class="rule-hint">
+                        ※ ページ内から指定した見出しを探し、その右側（または直下の行）の文字をファイル名にします。空欄にすると連番で保存されます。
+                    </div>
+
+                    <div class="preset-group">
+                        <button type="button" class="preset-btn" data-preset="氏名, 名前, 社員名, 従業員名">プリセット: 氏名・社員名</button>
+                        <button type="button" class="preset-btn" data-preset="宛名, 御中, 取引先名, 顧客名">プリセット: 請求書・宛名</button>
+                        <button type="button" class="preset-btn" data-preset="件名, タイトル, 書類名">プリセット: 件名・書類名</button>
+                        <button type="button" class="preset-btn" data-preset="">クリア（連番のみ）</button>
+                    </div>
+
+                    <div class="option-row">
+                        <input type="checkbox" id="strip-honorifics" checked>
+                        <label for="strip-honorifics" style="margin:0; font-weight:normal; cursor:pointer;">末尾の敬称（「様」「殿」「御中」「さん」）を自動で取り除く</label>
+                    </div>
+                </div>
+            </div>
+
+            <button id="split-button" disabled>1ページずつ分割して名前を抽出</button>
+
+            <div id="split-status-message" class="status-message"></div>
+
+            <div id="split-download-area" class="download-area" style="display: none;">
+                <h2>分割済みPDF（ファイル名は直接編集できます）</h2>
+                <button type="button" id="zip-download-button" class="download-btn">現在のファイル名でZIP一括ダウンロード</button>
+                <ul id="split-result-list" class="file-list"></ul>
+            </div>
         </div>
     </div>
 
-    <!-- pdf-lib CDNを読み込みます -->
+    <!-- pdf-lib / JSZip / PDF.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
-        // pdf-libライブラリのPDFDocumentオブジェクトをグローバルスコープから取得
         const { PDFDocument } = PDFLib;
 
-        // DOM要素の取得
+        // PDF.js Worker設定
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc =
+                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        // ==========================================
+        // 共通ユーティリティ関数
+        // ==========================================
+
+        /**
+         * ファイル名として安全な文字列にサニタイズする
+         * OS禁止文字、制御文字、パストラバーサル要素を除去し長さを制限する
+         */
+        function sanitizeFileName(rawName, fallbackName) {
+            if (!rawName || typeof rawName !== 'string') return fallbackName;
+
+            let cleaned = rawName
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/[\\/:*?"<>|]/g, '_') // OS禁止文字を置換
+                .replace(/\.{2,}/g, '_')       // 連続ドット(..)を防止
+                .replace(/^\.+|\.+$/g, '')     // 先頭・末尾のドットを除去
+                .trim();
+
+            if (cleaned.length > 80) {
+                cleaned = cleaned.slice(0, 80).trim();
+            }
+
+            return cleaned.length > 0 ? cleaned : fallbackName;
+        }
+
+        /**
+         * 重複しないファイル名（拡張子なし）を生成する
+         */
+        function deduplicateFileName(baseName, usedSet) {
+            let candidate = baseName;
+            let counter = 2;
+            while (usedSet.has(candidate.toLowerCase())) {
+                candidate = `${baseName}_${String(counter).padStart(2, '0')}`;
+                counter++;
+            }
+            usedSet.add(candidate.toLowerCase());
+            return candidate;
+        }
+
+        // ==========================================
+        // タブ切り替え処理
+        // ==========================================
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabContents = document.querySelectorAll('.tab-content');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const targetId = button.getAttribute('data-tab');
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabContents.forEach(content => content.classList.remove('active'));
+                button.classList.add('active');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
+
+        // ==========================================
+        // 1. PDF・画像 結合機能
+        // ==========================================
         const dropArea = document.getElementById('drop-area');
         const fileInput = document.getElementById('file-input');
         const fileListUl = document.getElementById('file-list');
@@ -238,24 +557,25 @@
         const downloadLink = document.getElementById('download-link');
         const clearFilesButton = document.getElementById('clear-files');
 
-        // 選択されたファイル（Fileオブジェクト）を格納する配列
         let selectedFiles = [];
+        let mergedObjectUrl = null;
 
-        // UIを初期状態にリセットする関数
-        function resetUI() {
+        function resetMergeUI() {
             selectedFiles = [];
+            if (mergedObjectUrl) {
+                URL.revokeObjectURL(mergedObjectUrl);
+                mergedObjectUrl = null;
+            }
             updateFileListUI();
             mergeButton.disabled = true;
-            statusMessage.textContent = '';
-            statusMessage.className = ''; // Remove error class if present
+            showStatus('');
             downloadArea.style.display = 'none';
             downloadLink.href = '#';
             clearFilesButton.style.display = 'none';
         }
 
-        // ファイルリストのUIを更新する関数
         function updateFileListUI() {
-            fileListUl.innerHTML = ''; // リストをクリア
+            fileListUl.innerHTML = '';
 
             if (selectedFiles.length === 0) {
                 const li = document.createElement('li');
@@ -267,17 +587,19 @@
             } else {
                 selectedFiles.forEach((file, index) => {
                     const li = document.createElement('li');
-                    li.textContent = file.name;
+                    const nameSpan = document.createElement('span');
+                    nameSpan.textContent = file.name;
 
                     const removeButton = document.createElement('button');
                     removeButton.className = 'remove-file';
                     removeButton.textContent = '×';
                     removeButton.title = `${file.name} を削除`;
                     removeButton.onclick = (e) => {
-                        e.stopPropagation(); // Prevent li click if any
+                        e.stopPropagation();
                         removeFile(index);
                     };
 
+                    li.appendChild(nameSpan);
                     li.appendChild(removeButton);
                     fileListUl.appendChild(li);
                 });
@@ -286,26 +608,23 @@
             }
         }
 
-        // ファイルをリストから削除する関数
         function removeFile(index) {
-            selectedFiles.splice(index, 1); // 指定されたインデックスのファイルを削除
-            updateFileListUI(); // UIを更新
-            showStatus(''); // ステータスをクリア
-            downloadArea.style.display = 'none'; // ダウンロードエリアを非表示
+            selectedFiles.splice(index, 1);
+            updateFileListUI();
+            showStatus('');
+            downloadArea.style.display = 'none';
         }
 
-        // ステータスメッセージを表示する関数
         function showStatus(message, isError = false) {
             statusMessage.textContent = message;
-            statusMessage.className = isError ? 'error' : '';
+            statusMessage.className = isError ? 'status-message error' : 'status-message';
         }
 
-        // ファイルを処理する関数 (ドラッグ＆ドロップまたはファイル選択)
         function handleFiles(files) {
-            showStatus(''); // Clear previous status
-            downloadArea.style.display = 'none'; // Hide download area
+            showStatus('');
+            downloadArea.style.display = 'none';
 
-            const supportedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/gif']; // GIFも受け入れるが、pdf-libで直接埋め込むのはJPG/PNGのみ
+            const supportedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
 
             const newFiles = Array.from(files).filter(file => {
                 if (supportedTypes.includes(file.type)) {
@@ -316,9 +635,8 @@
                 }
             });
 
-            // 既存のファイルと重複しないように追加
             newFiles.forEach(newFile => {
-                const exists = selectedFiles.some(existingFile => 
+                const exists = selectedFiles.some(existingFile =>
                     existingFile.name === newFile.name && existingFile.size === newFile.size
                 );
                 if (!exists) {
@@ -329,111 +647,432 @@
             updateFileListUI();
         }
 
-        // --- イベントリスナーの設定 ---
-
-        // ドラッグオーバー時の処理 (ドロップを許可するために必要)
         dropArea.addEventListener('dragover', (e) => {
-            e.preventDefault(); // デフォルトの動作（ファイルを開く）を抑制
-            dropArea.classList.add('highlight'); // ハイライト表示
+            e.preventDefault();
+            dropArea.classList.add('highlight');
             showStatus('ここにファイルをドロップしてください。');
         });
 
-        // ドラッグエリアから離れた時の処理
         dropArea.addEventListener('dragleave', () => {
-            dropArea.classList.remove('highlight'); // ハイライト解除
-            showStatus(''); // ステータスをクリア
+            dropArea.classList.remove('highlight');
+            showStatus('');
         });
 
-        // ドロップ時の処理
         dropArea.addEventListener('drop', (e) => {
-            e.preventDefault(); // デフォルトの動作を抑制
-            dropArea.classList.remove('highlight'); // ハイライト解除
-
-            const files = e.dataTransfer.files; // ドロップされたファイルを取得
-            handleFiles(files);
+            e.preventDefault();
+            dropArea.classList.remove('highlight');
+            handleFiles(e.dataTransfer.files);
         });
 
-        // ファイル入力が変更された時の処理 (クリックして選択)
         fileInput.addEventListener('change', (e) => {
-            const files = e.target.files; // 選択されたファイルを取得
-            handleFiles(files);
-            fileInput.value = ''; // 同じファイルを再度選択できるようにクリア
+            handleFiles(e.target.files);
+            fileInput.value = '';
         });
 
-        // ドロップエリアクリックでファイル選択ダイアログを開く
         dropArea.addEventListener('click', () => {
             fileInput.click();
         });
 
-        // 選択ファイルをクリアボタン
-        clearFilesButton.addEventListener('click', resetUI);
+        clearFilesButton.addEventListener('click', resetMergeUI);
 
-        // PDF結合ボタンクリック時の処理
         mergeButton.addEventListener('click', async () => {
             if (selectedFiles.length === 0) {
                 showStatus('結合するファイルが選択されていません。', true);
                 return;
             }
 
-            mergeButton.disabled = true; // 結合中はボタンを無効化
+            mergeButton.disabled = true;
             showStatus('PDFを結合しています...しばらくお待ちください。');
-            downloadArea.style.display = 'none'; // ダウンロードエリアを非表示
+            downloadArea.style.display = 'none';
 
             try {
-                const mergedPdf = await PDFDocument.create(); // 新しいPDFドキュメントを作成
+                const mergedPdf = await PDFDocument.create();
 
                 for (const file of selectedFiles) {
-                    const arrayBuffer = await file.arrayBuffer(); // ファイルをArrayBufferとして読み込む
+                    const arrayBuffer = await file.arrayBuffer();
 
                     if (file.type === 'application/pdf') {
-                        const pdfDoc = await PDFDocument.load(arrayBuffer); // 既存のPDFを読み込む
-                        // 既存のPDFの全ページを新しいPDFにコピー
+                        const pdfDoc = await PDFDocument.load(arrayBuffer);
                         const copiedPages = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
-                        copiedPages.forEach((page) => mergedPdf.addPage(page)); // コピーしたページを追加
+                        copiedPages.forEach((page) => mergedPdf.addPage(page));
                     } else if (file.type === 'image/jpeg' || file.type === 'image/png') {
-                        let image;
-                        if (file.type === 'image/jpeg') {
-                            image = await mergedPdf.embedJpg(arrayBuffer);
-                        } else { // image/png
-                            image = await mergedPdf.embedPng(arrayBuffer);
-                        }
+                        const image = file.type === 'image/jpeg'
+                            ? await mergedPdf.embedJpg(arrayBuffer)
+                            : await mergedPdf.embedPng(arrayBuffer);
 
-                        // 画像の元のサイズを取得
-                        const imageDims = image.scale(1); 
-                        // 画像のサイズに合わせた新しいページを追加
-                        const page = mergedPdf.addPage([imageDims.width, imageDims.height]); 
-                        // ページ全体に画像を配置
+                        const imageDims = image.scale(1);
+                        const page = mergedPdf.addPage([imageDims.width, imageDims.height]);
                         page.drawImage(image, {
                             x: 0,
                             y: 0,
                             width: imageDims.width,
                             height: imageDims.height,
                         });
-                    } else {
-                        // ここには到達しないはずだが、念のため
-                        console.warn(`サポートされていないファイル形式が選択されました: ${file.name} (${file.type})`);
-                        showStatus(`"${file.name}" はサポートされていないファイル形式のためスキップされました。`, true);
                     }
                 }
 
-                const mergedPdfBytes = await mergedPdf.save(); // 結合されたPDFをバイトデータとして取得
-                const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' }); // Blobを作成
-                const url = URL.createObjectURL(blob); // オブジェクトURLを生成
+                const mergedPdfBytes = await mergedPdf.save();
+                const blob = new Blob([mergedPdfBytes], { type: 'application/pdf' });
 
-                downloadLink.href = url; // ダウンロードリンクのURLを設定
-                downloadLink.download = '結合済みPDF.pdf'; // ダウンロード時のファイル名を設定
-                downloadArea.style.display = 'block'; // ダウンロードエリアを表示
+                if (mergedObjectUrl) URL.revokeObjectURL(mergedObjectUrl);
+                mergedObjectUrl = URL.createObjectURL(blob);
+
+                downloadLink.href = mergedObjectUrl;
+                downloadLink.download = '結合済みPDF.pdf';
+                downloadArea.style.display = 'block';
 
                 showStatus('PDFの結合が完了しました！');
             } catch (error) {
                 console.error('ファイル結合エラー:', error);
                 showStatus(`ファイルの結合中にエラーが発生しました: ${error.message}`, true);
             } finally {
-                mergeButton.disabled = false; // 処理完了後にボタンを有効化
+                mergeButton.disabled = false;
             }
         });
 
-        // 初期UIの更新
+        // ==========================================
+        // 2. PDF 分割＆テキスト抽出機能
+        // ==========================================
+        const splitDropArea = document.getElementById('split-drop-area');
+        const splitFileInput = document.getElementById('split-file-input');
+        const splitFileInfo = document.getElementById('split-file-info');
+        const splitFileNameSpan = document.getElementById('split-file-name');
+        const clearSplitFileButton = document.getElementById('clear-split-file');
+        const splitPlaceholder = document.getElementById('split-placeholder');
+        const splitButton = document.getElementById('split-button');
+        const splitStatusMessage = document.getElementById('split-status-message');
+        const splitDownloadArea = document.getElementById('split-download-area');
+        const zipDownloadButton = document.getElementById('zip-download-button');
+        const splitResultList = document.getElementById('split-result-list');
+        const extractKeywordsInput = document.getElementById('extract-keywords');
+        const stripHonorificsCheckbox = document.getElementById('strip-honorifics');
+        const presetButtons = document.querySelectorAll('.preset-btn');
+
+        let splitTargetFile = null;
+        // 分割済みページデータを保持 [{ pageIndex, pdfBytes, objectUrl, inputEl, downloadEl, fallbackName }]
+        let splitPagesData = [];
+
+        // プリセットボタンの動作
+        presetButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                extractKeywordsInput.value = btn.getAttribute('data-preset');
+            });
+        });
+
+        function showSplitStatus(message, isError = false) {
+            splitStatusMessage.textContent = message;
+            splitStatusMessage.className = isError ? 'status-message error' : 'status-message';
+        }
+
+        function clearSplitResults() {
+            splitPagesData.forEach(item => {
+                if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);
+            });
+            splitPagesData = [];
+            splitResultList.innerHTML = '';
+            splitDownloadArea.style.display = 'none';
+        }
+
+        function resetSplitUI() {
+            splitTargetFile = null;
+            clearSplitResults();
+            splitFileInfo.style.display = 'none';
+            splitPlaceholder.style.display = 'block';
+            splitButton.disabled = true;
+            showSplitStatus('');
+        }
+
+        /**
+         * PDF.jsで指定ページのテキストを行単位に再構築して返す
+         */
+        async function extractLinesFromPage(pdfJsDoc, pageNumber) {
+            const page = await pdfJsDoc.getPage(pageNumber);
+            const textContent = await page.getTextContent();
+
+            // Y座標の近さで同じ行としてグルーピング（許容誤差: 4pt）
+            const lineTolerance = 4;
+            const rows = [];
+
+            for (const item of textContent.items) {
+                const str = item.str;
+                if (!str || str.trim() === '') continue;
+
+                const x = item.transform[4];
+                const y = item.transform[5];
+
+                let targetRow = rows.find(row => Math.abs(row.y - y) <= lineTolerance);
+                if (!targetRow) {
+                    targetRow = { y, items: [] };
+                    rows.push(targetRow);
+                }
+                targetRow.items.push({ x, str });
+            }
+
+            // 上から下（Y降順）にソートし、各行内は左から右（X昇順）に結合
+            rows.sort((a, b) => b.y - a.y);
+            return rows.map(row => {
+                row.items.sort((a, b) => a.x - b.x);
+                return row.items.map(i => i.str).join(' ').replace(/\s+/g, ' ').trim();
+            });
+        }
+
+        /**
+         * 行配列から指定キーワードに一致する値を抽出する
+         */
+        function extractValueByKeywords(lines, keywords, stripHonorifics) {
+            if (!keywords || keywords.length === 0 || lines.length === 0) return null;
+
+            for (const keyword of keywords) {
+                const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                // キーワードの後に「:」「：」「スペース」等が続くパターン
+                const regex = new RegExp(`${escaped}\\s*[:：\\-]?\\s*(.*)$`);
+
+                for (let i = 0; i < lines.length; i++) {
+                    const match = lines[i].match(regex);
+                    if (match) {
+                        let extracted = match[1] ? match[1].trim() : '';
+
+                        // 同一行の右側が空の場合、直下の行を候補にする
+                        if (!extracted && i + 1 < lines.length) {
+                            extracted = lines[i + 1].trim();
+                        }
+
+                        if (extracted) {
+                            if (stripHonorifics) {
+                                extracted = extracted.replace(/[\s ]*(様|殿|御中|さん)$/u, '').trim();
+                            }
+                            if (extracted.length > 0) {
+                                return extracted;
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        async function handleSplitFile(files) {
+            if (!files || files.length === 0) return;
+
+            const file = files[0];
+            if (file.type !== 'application/pdf') {
+                showSplitStatus(`"${file.name}" はPDFファイルではありません。PDFファイルを選択してください。`, true);
+                return;
+            }
+
+            resetSplitUI();
+            showSplitStatus('PDFを読み込んでいます...');
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await PDFDocument.load(arrayBuffer);
+                const pageCount = pdfDoc.getPageCount();
+
+                splitTargetFile = file;
+                splitFileNameSpan.textContent = `${file.name} （全 ${pageCount} ページ）`;
+                splitFileInfo.style.display = 'flex';
+                splitPlaceholder.style.display = 'none';
+                splitButton.disabled = false;
+                showSplitStatus('');
+            } catch (error) {
+                console.error('PDF読み込みエラー:', error);
+                showSplitStatus(`PDFの読み込みに失敗しました（パスワード保護されている可能性があります）: ${error.message}`, true);
+            }
+        }
+
+        splitDropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            splitDropArea.classList.add('highlight');
+            showSplitStatus('ここにPDFファイルをドロップしてください。');
+        });
+
+        splitDropArea.addEventListener('dragleave', () => {
+            splitDropArea.classList.remove('highlight');
+            showSplitStatus('');
+        });
+
+        splitDropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            splitDropArea.classList.remove('highlight');
+            handleSplitFile(e.dataTransfer.files);
+        });
+
+        splitFileInput.addEventListener('change', (e) => {
+            handleSplitFile(e.target.files);
+            splitFileInput.value = '';
+        });
+
+        splitDropArea.addEventListener('click', () => {
+            splitFileInput.click();
+        });
+
+        clearSplitFileButton.addEventListener('click', resetSplitUI);
+
+        // 分割＆抽出実行
+        splitButton.addEventListener('click', async () => {
+            if (!splitTargetFile) return;
+
+            splitButton.disabled = true;
+            clearSplitResults();
+            showSplitStatus('PDFを分割し、テキストを解析しています...');
+
+            try {
+                const arrayBuffer = await splitTargetFile.arrayBuffer();
+                // PDF.jsとpdf-libで同じArrayBufferを消費しないようコピーを渡す
+                const srcDoc = await PDFDocument.load(arrayBuffer.slice(0));
+                const pdfJsDoc = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
+
+                const totalPages = srcDoc.getPageCount();
+                const baseName = splitTargetFile.name.replace(/\.pdf$/i, '');
+
+                // ユーザーが指定した見出しキーワードを配列化
+                const keywords = extractKeywordsInput.value
+                    .split(/[,、\n]/)
+                    .map(k => k.trim())
+                    .filter(k => k.length > 0);
+                const stripHonorifics = stripHonorificsCheckbox.checked;
+
+                const usedNames = new Set();
+                let hitCount = 0;
+
+                for (let i = 0; i < totalPages; i++) {
+                    // 1. 1ページだけのPDFを生成
+                    const singlePagePdf = await PDFDocument.create();
+                    const [copiedPage] = await singlePagePdf.copyPages(srcDoc, [i]);
+                    singlePagePdf.addPage(copiedPage);
+                    const pdfBytes = await singlePagePdf.save();
+
+                    // 2. テキスト抽出とファイル名候補の決定
+                    const pageNumStr = String(i + 1).padStart(String(totalPages).length, '0');
+                    const fallbackName = `${baseName}_page_${pageNumStr}`;
+
+                    let extractedRaw = null;
+                    if (keywords.length > 0) {
+                        const lines = await extractLinesFromPage(pdfJsDoc, i + 1);
+                        extractedRaw = extractValueByKeywords(lines, keywords, stripHonorifics);
+                    }
+
+                    const isHit = Boolean(extractedRaw);
+                    if (isHit) hitCount++;
+
+                    const sanitized = sanitizeFileName(extractedRaw, fallbackName);
+                    const uniqueBaseName = deduplicateFileName(sanitized, usedNames);
+
+                    // 3. 個別ダウンロード用URL生成
+                    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                    const pageUrl = URL.createObjectURL(blob);
+
+                    // 4. リストUI構築（編集可能な入力欄付き）
+                    const li = document.createElement('li');
+
+                    const pageBadge = document.createElement('span');
+                    pageBadge.className = 'page-badge';
+                    pageBadge.textContent = `P.${i + 1}`;
+
+                    const matchBadge = document.createElement('span');
+                    matchBadge.className = `match-badge ${isHit ? 'hit' : 'fallback'}`;
+                    matchBadge.textContent = isHit ? '自動抽出' : '連番';
+
+                    const editorWrap = document.createElement('div');
+                    editorWrap.className = 'filename-editor';
+
+                    const nameInput = document.createElement('input');
+                    nameInput.type = 'text';
+                    nameInput.className = 'filename-input';
+                    nameInput.value = uniqueBaseName;
+
+                    const extLabel = document.createElement('span');
+                    extLabel.className = 'ext-label';
+                    extLabel.textContent = '.pdf';
+
+                    editorWrap.appendChild(nameInput);
+                    editorWrap.appendChild(extLabel);
+
+                    const dlLink = document.createElement('a');
+                    dlLink.href = pageUrl;
+                    dlLink.download = `${uniqueBaseName}.pdf`;
+                    dlLink.className = 'page-download-link';
+                    dlLink.textContent = '保存';
+
+                    // 入力変更時に個別ダウンロードのファイル名を即時反映
+                    nameInput.addEventListener('input', () => {
+                        const safeName = sanitizeFileName(nameInput.value, fallbackName);
+                        dlLink.download = `${safeName}.pdf`;
+                    });
+
+                    li.appendChild(pageBadge);
+                    li.appendChild(matchBadge);
+                    li.appendChild(editorWrap);
+                    li.appendChild(dlLink);
+                    splitResultList.appendChild(li);
+
+                    splitPagesData.push({
+                        pageIndex: i,
+                        pdfBytes,
+                        objectUrl: pageUrl,
+                        inputEl: nameInput,
+                        downloadEl: dlLink,
+                        fallbackName
+                    });
+                }
+
+                splitDownloadArea.style.display = 'block';
+
+                if (keywords.length === 0) {
+                    showSplitStatus(`全 ${totalPages} ページの分割が完了しました（連番モード）。`);
+                } else {
+                    showSplitStatus(`全 ${totalPages} ページを分割しました（見出し抽出成功: ${hitCount} / ${totalPages} ページ）。`);
+                }
+            } catch (error) {
+                console.error('PDF分割・抽出エラー:', error);
+                showSplitStatus(`処理中にエラーが発生しました: ${error.message}`, true);
+            } finally {
+                splitButton.disabled = false;
+            }
+        });
+
+        // 現在の入力欄のファイル名を使って動的にZIPを生成・ダウンロード
+        zipDownloadButton.addEventListener('click', async () => {
+            if (splitPagesData.length === 0) return;
+
+            zipDownloadButton.disabled = true;
+            showSplitStatus('現在のファイル名でZIPを作成しています...');
+
+            try {
+                const zip = new JSZip();
+                const usedNames = new Set();
+
+                for (const item of splitPagesData) {
+                    const safeName = sanitizeFileName(item.inputEl.value, item.fallbackName);
+                    const uniqueName = deduplicateFileName(safeName, usedNames);
+                    zip.file(`${uniqueName}.pdf`, item.pdfBytes);
+                }
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const zipUrl = URL.createObjectURL(zipBlob);
+                const baseName = splitTargetFile
+                    ? splitTargetFile.name.replace(/\.pdf$/i, '')
+                    : 'split_pdfs';
+
+                const tempLink = document.createElement('a');
+                tempLink.href = zipUrl;
+                tempLink.download = `${baseName}_分割済み.zip`;
+                document.body.appendChild(tempLink);
+                tempLink.click();
+                document.body.removeChild(tempLink);
+
+                // ダウンロード開始後にURLを解放
+                setTimeout(() => URL.revokeObjectURL(zipUrl), 10000);
+                showSplitStatus('ZIPファイルのダウンロードを開始しました。');
+            } catch (error) {
+                console.error('ZIP生成エラー:', error);
+                showSplitStatus(`ZIP生成中にエラーが発生しました: ${error.message}`, true);
+            } finally {
+                zipDownloadButton.disabled = false;
+            }
+        });
+
+        // 初期化
         updateFileListUI();
     </script>
 </body>
