@@ -34,7 +34,6 @@
             font-size: 1.8em;
         }
 
-        /* タブ切り替え */
         .tabs {
             display: flex;
             gap: 10px;
@@ -113,7 +112,6 @@
             margin-bottom: 10px;
         }
 
-        /* 抽出ルール設定パネル */
         .rule-panel {
             background-color: #f8f9fa;
             border: 1px solid #dee2e6;
@@ -392,7 +390,6 @@
     <div id="app">
         <h1>PDF・画像 結合＆スマート分割ツール</h1>
 
-        <!-- モード切り替えタブ -->
         <div class="tabs">
             <button class="tab-button active" data-tab="merge-tab">PDF・画像を結合</button>
             <button class="tab-button" data-tab="split-tab">PDFをバラバラに分割</button>
@@ -441,14 +438,13 @@
                 </ul>
             </div>
 
-            <!-- ファイル名自動抽出ルール設定 -->
             <div class="section-box">
                 <h2>ファイル名の自動抽出設定（任意）</h2>
                 <div class="rule-panel">
                     <label for="extract-keywords">抽出に使う見出し文字（カンマ区切りで複数指定可・左から優先）</label>
                     <input type="text" id="extract-keywords" class="rule-input" value="氏名, 名前, 宛名, 件名" placeholder="例: 氏名, 社員名, 宛名, 件名">
                     <div class="rule-hint">
-                        ※ ページ内から指定した見出しを探し、その右側（または直下の行）の文字をファイル名にします。空欄にすると連番で保存されます。
+                        ※「氏 名」のように文字間にスペースが入っていても自動で認識します。空欄にすると連番になります。
                     </div>
 
                     <div class="preset-group">
@@ -460,7 +456,7 @@
 
                     <div class="option-row">
                         <input type="checkbox" id="strip-honorifics" checked>
-                        <label for="strip-honorifics" style="margin:0; font-weight:normal; cursor:pointer;">末尾の敬称（「様」「殿」「御中」「さん」）を自動で取り除く</label>
+                        <label for="strip-honorifics" style="margin:0; font-weight:normal; cursor:pointer;">敬称（「様」「樣」「殿」「御中」「さん」）とそれ以降の余計な文字を自動でカット</label>
                     </div>
                 </div>
             </div>
@@ -477,35 +473,25 @@
         </div>
     </div>
 
-    <!-- pdf-lib / JSZip / PDF.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib/dist/pdf-lib.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script>
         const { PDFDocument } = PDFLib;
 
-        // PDF.js Worker設定
         if (window.pdfjsLib) {
             pdfjsLib.GlobalWorkerOptions.workerSrc =
                 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
 
-        // ==========================================
-        // 共通ユーティリティ関数
-        // ==========================================
-
-        /**
-         * ファイル名として安全な文字列にサニタイズする
-         * OS禁止文字、制御文字、パストラバーサル要素を除去し長さを制限する
-         */
         function sanitizeFileName(rawName, fallbackName) {
             if (!rawName || typeof rawName !== 'string') return fallbackName;
 
             let cleaned = rawName
                 .replace(/[\r\n\t]+/g, ' ')
-                .replace(/[\\/:*?"<>|]/g, '_') // OS禁止文字を置換
-                .replace(/\.{2,}/g, '_')       // 連続ドット(..)を防止
-                .replace(/^\.+|\.+$/g, '')     // 先頭・末尾のドットを除去
+                .replace(/[\\/:*?"<>|]/g, '_')
+                .replace(/\.{2,}/g, '_')
+                .replace(/^\.+|\.+$/g, '')
                 .trim();
 
             if (cleaned.length > 80) {
@@ -515,9 +501,6 @@
             return cleaned.length > 0 ? cleaned : fallbackName;
         }
 
-        /**
-         * 重複しないファイル名（拡張子なし）を生成する
-         */
         function deduplicateFileName(baseName, usedSet) {
             let candidate = baseName;
             let counter = 2;
@@ -529,9 +512,7 @@
             return candidate;
         }
 
-        // ==========================================
-        // タブ切り替え処理
-        // ==========================================
+        // タブ切り替え
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
 
@@ -731,7 +712,7 @@
         });
 
         // ==========================================
-        // 2. PDF 分割＆テキスト抽出機能
+        // 2. PDF 分割＆テキスト抽出機能（改良版）
         // ==========================================
         const splitDropArea = document.getElementById('split-drop-area');
         const splitFileInput = document.getElementById('split-file-input');
@@ -749,10 +730,8 @@
         const presetButtons = document.querySelectorAll('.preset-btn');
 
         let splitTargetFile = null;
-        // 分割済みページデータを保持 [{ pageIndex, pdfBytes, objectUrl, inputEl, downloadEl, fallbackName }]
         let splitPagesData = [];
 
-        // プリセットボタンの動作
         presetButtons.forEach(btn => {
             btn.addEventListener('click', () => {
                 extractKeywordsInput.value = btn.getAttribute('data-preset');
@@ -789,7 +768,6 @@
             const page = await pdfJsDoc.getPage(pageNumber);
             const textContent = await page.getTextContent();
 
-            // Y座標の近さで同じ行としてグルーピング（許容誤差: 4pt）
             const lineTolerance = 4;
             const rows = [];
 
@@ -808,7 +786,6 @@
                 targetRow.items.push({ x, str });
             }
 
-            // 上から下（Y降順）にソートし、各行内は左から右（X昇順）に結合
             rows.sort((a, b) => b.y - a.y);
             return rows.map(row => {
                 row.items.sort((a, b) => a.x - b.x);
@@ -817,15 +794,18 @@
         }
 
         /**
-         * 行配列から指定キーワードに一致する値を抽出する
+         * 行配列から指定キーワードに一致する値を抽出する（スペース揺れ・途中敬称カット対応）
          */
         function extractValueByKeywords(lines, keywords, stripHonorifics) {
             if (!keywords || keywords.length === 0 || lines.length === 0) return null;
 
             for (const keyword of keywords) {
-                const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                // キーワードの後に「:」「：」「スペース」等が続くパターン
-                const regex = new RegExp(`${escaped}\\s*[:：\\-]?\\s*(.*)$`);
+                // キーワードの文字間に任意の空白が入っていてもマッチさせる（例: 「氏名」→「氏\s*名」）
+                const flexiblePattern = Array.from(keyword)
+                    .map(ch => ch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                    .join('[\\s ]*');
+
+                const regex = new RegExp(`${flexiblePattern}[\\s ]*[:：\\-]?[\\s ]*(.*)$`);
 
                 for (let i = 0; i < lines.length; i++) {
                     const match = lines[i].match(regex);
@@ -839,7 +819,8 @@
 
                         if (extracted) {
                             if (stripHonorifics) {
-                                extracted = extracted.replace(/[\s ]*(様|殿|御中|さん)$/u, '').trim();
+                                // 敬称（様・樣・殿・御中・さん）が途中にある場合、敬称以降をすべてカット
+                                extracted = extracted.replace(/[\s ]*(様|樣|殿|御中|さん).*$/u, '').trim();
                             }
                             if (extracted.length > 0) {
                                 return extracted;
@@ -908,7 +889,6 @@
 
         clearSplitFileButton.addEventListener('click', resetSplitUI);
 
-        // 分割＆抽出実行
         splitButton.addEventListener('click', async () => {
             if (!splitTargetFile) return;
 
@@ -918,14 +898,12 @@
 
             try {
                 const arrayBuffer = await splitTargetFile.arrayBuffer();
-                // PDF.jsとpdf-libで同じArrayBufferを消費しないようコピーを渡す
                 const srcDoc = await PDFDocument.load(arrayBuffer.slice(0));
                 const pdfJsDoc = await pdfjsLib.getDocument({ data: arrayBuffer.slice(0) }).promise;
 
                 const totalPages = srcDoc.getPageCount();
                 const baseName = splitTargetFile.name.replace(/\.pdf$/i, '');
 
-                // ユーザーが指定した見出しキーワードを配列化
                 const keywords = extractKeywordsInput.value
                     .split(/[,、\n]/)
                     .map(k => k.trim())
@@ -934,21 +912,21 @@
 
                 const usedNames = new Set();
                 let hitCount = 0;
+                let totalTextLines = 0;
 
                 for (let i = 0; i < totalPages; i++) {
-                    // 1. 1ページだけのPDFを生成
                     const singlePagePdf = await PDFDocument.create();
                     const [copiedPage] = await singlePagePdf.copyPages(srcDoc, [i]);
                     singlePagePdf.addPage(copiedPage);
                     const pdfBytes = await singlePagePdf.save();
 
-                    // 2. テキスト抽出とファイル名候補の決定
                     const pageNumStr = String(i + 1).padStart(String(totalPages).length, '0');
                     const fallbackName = `${baseName}_page_${pageNumStr}`;
 
                     let extractedRaw = null;
                     if (keywords.length > 0) {
                         const lines = await extractLinesFromPage(pdfJsDoc, i + 1);
+                        totalTextLines += lines.length;
                         extractedRaw = extractValueByKeywords(lines, keywords, stripHonorifics);
                     }
 
@@ -958,11 +936,9 @@
                     const sanitized = sanitizeFileName(extractedRaw, fallbackName);
                     const uniqueBaseName = deduplicateFileName(sanitized, usedNames);
 
-                    // 3. 個別ダウンロード用URL生成
                     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
                     const pageUrl = URL.createObjectURL(blob);
 
-                    // 4. リストUI構築（編集可能な入力欄付き）
                     const li = document.createElement('li');
 
                     const pageBadge = document.createElement('span');
@@ -994,7 +970,6 @@
                     dlLink.className = 'page-download-link';
                     dlLink.textContent = '保存';
 
-                    // 入力変更時に個別ダウンロードのファイル名を即時反映
                     nameInput.addEventListener('input', () => {
                         const safeName = sanitizeFileName(nameInput.value, fallbackName);
                         dlLink.download = `${safeName}.pdf`;
@@ -1020,6 +995,8 @@
 
                 if (keywords.length === 0) {
                     showSplitStatus(`全 ${totalPages} ページの分割が完了しました（連番モード）。`);
+                } else if (totalTextLines === 0) {
+                    showSplitStatus(`全 ${totalPages} ページを分割しましたが、PDF内にテキストデータが見つかりませんでした（スキャン画像PDFの可能性があります）。`, true);
                 } else {
                     showSplitStatus(`全 ${totalPages} ページを分割しました（見出し抽出成功: ${hitCount} / ${totalPages} ページ）。`);
                 }
@@ -1031,7 +1008,6 @@
             }
         });
 
-        // 現在の入力欄のファイル名を使って動的にZIPを生成・ダウンロード
         zipDownloadButton.addEventListener('click', async () => {
             if (splitPagesData.length === 0) return;
 
@@ -1061,7 +1037,6 @@
                 tempLink.click();
                 document.body.removeChild(tempLink);
 
-                // ダウンロード開始後にURLを解放
                 setTimeout(() => URL.revokeObjectURL(zipUrl), 10000);
                 showSplitStatus('ZIPファイルのダウンロードを開始しました。');
             } catch (error) {
@@ -1072,7 +1047,6 @@
             }
         });
 
-        // 初期化
         updateFileListUI();
     </script>
 </body>
